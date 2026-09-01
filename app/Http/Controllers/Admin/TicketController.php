@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\KpiSlaPriority;
 use App\Models\Ticket;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,8 +21,10 @@ class TicketController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
         $priority = strtoupper(trim((string) $request->query('priority', '')));
+        $employeeId = $request->query('employee_id');
 
         $tickets = Ticket::query()
+            ->with('employee')
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('external_ticket_id', 'like', "%{$search}%")
@@ -30,14 +33,18 @@ class TicketController extends Controller
                 });
             })
             ->when($priority !== '', fn ($q) => $q->where('priority', $priority))
+            ->when($employeeId !== null && $employeeId !== '', fn ($q) => $q->where('employee_id', (int) $employeeId))
             ->orderByDesc('created_on')
             ->paginate(25)
             ->withQueryString();
 
         $priorities = KpiSlaPriority::orderBy('sort_order')->pluck('code');
+        $employees = User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email']);
         $totalTickets = Ticket::count();
 
-        return view('admin.tickets.index', compact('tickets', 'search', 'priority', 'priorities', 'totalTickets'));
+        return view('admin.tickets.index', compact(
+            'tickets', 'search', 'priority', 'employeeId', 'priorities', 'employees', 'totalTickets'
+        ));
     }
 
     public function template()
@@ -75,15 +82,21 @@ class TicketController extends Controller
 
     public function import(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
+            'employee_id' => ['required', 'integer', 'exists:users,id'],
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:20480'],
         ]);
+
+        $employee = User::query()->where('id', $data['employee_id'])->where('is_active', true)->first();
+        if (!$employee) {
+            return back()->withErrors(['employee_id' => 'The selected employee is not active.']);
+        }
 
         try {
             $rows = IOFactory::load($request->file('file')->getRealPath())
                 ->getActiveSheet()
                 ->toArray(null, true, true, true);
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             return back()->withErrors('The ticket file could not be read. Please use the Ticket import template.');
         }
 
@@ -126,6 +139,7 @@ class TicketController extends Controller
         $errors = [];
         $prepared = [];
         $seen = [];
+        $duplicateIds = [];
         $sourceFile = $request->file('file')->getClientOriginalName();
 
         foreach (array_slice($rows, 1, null, true) as $rowNumber => $row) {
@@ -134,16 +148,23 @@ class TicketController extends Controller
             $externalId = $value('id');
             $priorityCode = strtoupper($value('priority'));
 
-            // The Excel "Tổng" row is a report-only row and must never be persisted.
+            // The Excel "Tổng" row is report-only and must never be persisted.
             if ($externalId === '' || in_array(mb_strtolower($externalId), ['tong', 'tổng', 'total'], true)) {
                 continue;
             }
 
+            // Reject duplicates inside the same file before touching the database.
             if (isset($seen[$externalId])) {
-                $errors[] = "Row {$rowNumber}: Duplicate Ticket ID '{$externalId}' in the import file.";
+                $duplicateIds[] = $externalId;
                 continue;
             }
             $seen[$externalId] = true;
+
+            // Bitrix Ticket ID is the immutable business identifier. Never create a second record.
+            if (Ticket::where('external_ticket_id', $externalId)->exists()) {
+                $duplicateIds[] = $externalId;
+                continue;
+            }
 
             if (!isset($priorityConfig[$priorityCode])) {
                 $errors[] = "Row {$rowNumber}: Priority '{$priorityCode}' is not configured in KPI Parameters.";
@@ -154,7 +175,7 @@ class TicketController extends Controller
                 $createdOn = $this->parseDate($value('created_on'));
                 $startedOn = $this->parseDate($value('started_on'));
                 $finishedOn = $this->parseDate($value('finished_on'));
-            } catch (\Throwable $e) {
+            } catch (\Throwable) {
                 $errors[] = "Row {$rowNumber}: Invalid date/time. Use YYYY-MM-DD HH:MM or the Excel date format.";
                 continue;
             }
@@ -195,8 +216,9 @@ class TicketController extends Controller
                 $raw[$normalized] = $row[$column] ?? null;
             }
 
-            $data = [
+            $prepared[] = [
                 'external_ticket_id' => $externalId,
+                'employee_id' => $employee->id,
                 'priority' => $priorityCode,
                 'created_on' => $createdOn,
                 'started_on' => $startedOn,
@@ -216,9 +238,6 @@ class TicketController extends Controller
                 'source_file' => Str::limit($sourceFile, 255, ''),
                 'source_payload' => $raw,
             ];
-
-            $existing = Ticket::where('external_ticket_id', $externalId)->first();
-            $prepared[] = [$existing, $data];
         }
 
         if ($errors) {
@@ -227,26 +246,31 @@ class TicketController extends Controller
                 ->with('import_error_count', count($errors));
         }
 
-        if (!$prepared) {
+        if (!$prepared && !$duplicateIds) {
             return back()->withErrors('The import file contains no valid ticket rows. The report Total row is ignored and is not stored.');
         }
 
         $created = 0;
-        $updated = 0;
-
-        DB::transaction(function () use ($prepared, &$created, &$updated) {
-            foreach ($prepared as [$existing, $data]) {
-                if ($existing) {
-                    $existing->update($data);
-                    $updated++;
-                } else {
-                    Ticket::create($data);
-                    $created++;
-                }
+        DB::transaction(function () use ($prepared, &$created) {
+            foreach ($prepared as $ticketData) {
+                // The UNIQUE constraint on external_ticket_id is the final protection against duplicates.
+                Ticket::create($ticketData);
+                $created++;
             }
         });
 
-        return back()->with('success', "Ticket import completed: {$created} new, {$updated} updated. The Excel Total row was not stored.");
+        $duplicateCount = count($duplicateIds);
+        $message = "Ticket import completed for {$employee->name}: {$created} new ticket(s).";
+        if ($duplicateCount > 0) {
+            $shown = implode(', ', array_slice($duplicateIds, 0, 20));
+            $message .= " {$duplicateCount} duplicate Bitrix Ticket ID(s) were skipped: {$shown}";
+            if ($duplicateCount > 20) {
+                $message .= ' ...';
+            }
+        }
+        $message .= ' The Excel Total row was not stored.';
+
+        return back()->with('success', $message);
     }
 
     private function normalizeHeader(mixed $value): string
