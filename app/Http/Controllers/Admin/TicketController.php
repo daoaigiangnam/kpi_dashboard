@@ -48,7 +48,7 @@ class TicketController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Ticket Data');
 
-        // Keep Excel export exactly aligned with the 16 columns shown on screen.
+        // Excel must match the screen: 16 KPI columns, followed by employee information.
         $sheet->fromArray([[
             'ID',
             'Priority (Ưu tiên)',
@@ -66,6 +66,10 @@ class TicketController extends Controller
             'SLA',
             'Process',
             'Started',
+            'Employee ID',
+            'Employee Name',
+            'Employee Email',
+            'Source',
         ]], null, 'A1');
 
         $row = 2;
@@ -87,11 +91,15 @@ class TicketController extends Controller
                 $ticket->sla_status ?: '',
                 $ticket->process_status ?: '',
                 $ticket->started_status ?: '',
+                $ticket->employee_id,
+                $ticket->employee?->name ?: '',
+                $ticket->employee?->email ?: '',
+                $ticket->source ?: '',
             ]], null, 'A' . $row);
             $row++;
         }
 
-        // Match the on-screen Total row position and values exactly.
+        // Match the on-screen Total row. Employee/source columns are intentionally blank in Total.
         $totalRow = max(2, $row);
         $sheet->fromArray([[
             'Tổng',
@@ -110,18 +118,22 @@ class TicketController extends Controller
             $ticketTotals['sla_met'],
             $ticketTotals['process_met'],
             $ticketTotals['started'],
+            '',
+            '',
+            '',
+            '',
         ]], null, 'A' . $totalRow);
 
         $lastRow = max(1, $row - 1);
-        $sheet->getStyle('A1:P1')->getFont()->setBold(true);
-        $sheet->getStyle('A1:P1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFB7DEE8');
-        $sheet->getStyle('A' . $totalRow . ':P' . $totalRow)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $totalRow . ':P' . $totalRow)->getFill()->setFillType('solid')->getStartColor()->setARGB('FFFFF2CC');
+        $sheet->getStyle('A1:T1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:T1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFB7DEE8');
+        $sheet->getStyle('A' . $totalRow . ':T' . $totalRow)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $totalRow . ':T' . $totalRow)->getFill()->setFillType('solid')->getStartColor()->setARGB('FFFFF2CC');
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:P' . $lastRow);
+        $sheet->setAutoFilter('A1:T' . $lastRow);
         $sheet->getStyle('K2:K' . $totalRow)->getNumberFormat()->setFormatCode('0.00');
 
-        foreach (range('A', 'P') as $column) {
+        foreach (range('A', 'T') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
