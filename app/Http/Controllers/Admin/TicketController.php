@@ -51,25 +51,33 @@ class TicketController extends Controller
     {
         $sheet = (new Spreadsheet())->getActiveSheet();
         $sheet->setTitle('Tickets');
+
+        // Import template contains only raw input fields. Calculated KPI fields
+        // are intentionally excluded because the application generates them.
         $sheet->fromArray([
             [
                 'ID', 'Priority (Ưu tiên)', 'Created on', 'Started on', 'Finished on',
                 'Pause(min)', 'Reopen', 'Company/Dept', 'Chi tiết nội dung đã xử lý',
-                'File chụp màn hình kết quả xử lý', 'Workload Point to Priority',
-                'Resolution (min)', 'SLA Target', 'SLA', 'Process', 'Started',
+                'File chụp màn hình kết quả xử lý',
             ],
-            [
-                '1001', 'P1', '2026-09-01 08:00', '2026-09-01 08:05', '2026-09-01 10:00',
-                0, 0, 'HelpDesk', 'Example ticket - replace this row before import.', '', '', '', '', '', '', '',
-            ],
+            ['1001', 'P1', '2025-09-01 08:00', '2025-09-01 08:05', '2025-09-01 10:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1002', 'P2', '2025-09-02 09:00', '2025-09-02 09:30', '2025-09-02 15:00', 60, 1, 'HelpDesk', 'Có', 'Có'],
+            ['1003', 'P3', '2025-09-03 09:00', '2025-09-03 10:40', '2025-09-03 12:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1004', 'P4', '2025-09-04 09:00', '2025-09-05 11:10', '2025-09-05 14:00', 0, 2, 'HelpDesk', 'Có', 'Có'],
+            ['1005', 'P2', '2025-09-05 09:00', '2025-09-05 08:30', '2025-09-05 17:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1006', 'P3', '2025-09-06 09:00', '2025-09-06 10:40', '2025-09-06 13:00', 120, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1007', 'P1', '2025-09-07 09:00', '2025-09-07 08:50', '2025-09-07 20:00', 180, 3, 'HelpDesk', 'Có', 'Có'],
+            ['1008', 'P4', '2025-09-08 09:00', '2025-09-08 09:24', '2025-09-08 15:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1009', 'P3', '2025-09-09 09:00', '2025-09-09 09:20', '2025-09-09 18:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1010', 'P2', '2025-09-10 09:00', '2025-09-10 09:10', '2025-09-10 16:00', 60, 0, 'HelpDesk', 'Có', 'Có'],
         ], null, 'A1');
 
-        $sheet->getStyle('A1:P1')->getFont()->setBold(true);
-        foreach (range('A', 'P') as $column) {
+        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+        foreach (range('A', 'J') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:P2');
+        $sheet->setAutoFilter('A1:J11');
 
         $writer = new Xlsx($sheet->getParent());
 
@@ -148,19 +156,16 @@ class TicketController extends Controller
             $externalId = $value('id');
             $priorityCode = strtoupper($value('priority'));
 
-            // The Excel "Tổng" row is report-only and must never be persisted.
             if ($externalId === '' || in_array(mb_strtolower($externalId), ['tong', 'tổng', 'total'], true)) {
                 continue;
             }
 
-            // Reject duplicates inside the same file before touching the database.
             if (isset($seen[$externalId])) {
                 $duplicateIds[] = $externalId;
                 continue;
             }
             $seen[$externalId] = true;
 
-            // Bitrix Ticket ID is the immutable business identifier. Never create a second record.
             if (Ticket::where('external_ticket_id', $externalId)->exists()) {
                 $duplicateIds[] = $externalId;
                 continue;
@@ -253,7 +258,6 @@ class TicketController extends Controller
         $created = 0;
         DB::transaction(function () use ($prepared, &$created) {
             foreach ($prepared as $ticketData) {
-                // The UNIQUE constraint on external_ticket_id is the final protection against duplicates.
                 Ticket::create($ticketData);
                 $created++;
             }
@@ -316,7 +320,6 @@ class TicketController extends Controller
             try {
                 return Carbon::createFromFormat($format, $value);
             } catch (\Throwable) {
-                // Try the next supported format.
             }
         }
 
