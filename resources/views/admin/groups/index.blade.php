@@ -83,7 +83,7 @@
                                     <a class="btn gray" href="{{ route('admin.groups.edit',$g) }}">Edit</a>
                                 @endif
 
-                                @if(auth()->user()->hasPermission('groups.delete') && !$g->is_system)
+                                @if(auth()->user()->hasPermission('groups.delete'))
                                     @if($g->users_count === 0)
                                         <form method="post" action="{{ route('admin.groups.destroy',$g) }}">
                                             @csrf
