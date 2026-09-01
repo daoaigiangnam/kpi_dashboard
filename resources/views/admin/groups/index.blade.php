@@ -59,9 +59,9 @@
                                 type="button"
                                 class="btn gray"
                                 style="padding:5px 9px;min-width:34px"
-                                onclick="toggleGroupUsers({{ $g->id }})"
+                                onclick="showGroupUsers({{ $g->id }})"
                                 aria-expanded="false"
-                                aria-controls="group-users-{{ $g->id }}"
+                                aria-controls="group-users-detail-{{ $g->id }}"
                                 id="group-users-button-{{ $g->id }}"
                             >{{ $g->users_count }}</button>
                         @else
@@ -82,16 +82,27 @@
                                 @if(auth()->user()->hasPermission('groups.edit'))
                                     <a class="btn gray" href="{{ route('admin.groups.edit',$g) }}">Edit</a>
                                 @endif
+
                                 @if(auth()->user()->hasPermission('groups.delete') && !$g->is_system)
-                                    <form method="post" action="{{ route('admin.groups.destroy',$g) }}">
-                                        @csrf
-                                        @method('DELETE')
+                                    @if($g->users_count === 0)
+                                        <form method="post" action="{{ route('admin.groups.destroy',$g) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button
+                                                class="btn red"
+                                                type="submit"
+                                                onclick="return confirm('Delete this group? It will be hidden, not physically removed, and can be restored later.')"
+                                            >Delete</button>
+                                        </form>
+                                    @else
                                         <button
-                                            class="btn red"
-                                            type="submit"
-                                            onclick="return confirm({{ Js::from($g->users_count > 0 ? 'This group has '.$g->users_count.' assigned user(s). Deleting will hide the group, keep all user assignments for history, and remove the group permissions from active access control. Continue?' : 'Delete this group? It will be hidden, not physically removed, and can be restored later.') }})"
+                                            class="btn gray"
+                                            type="button"
+                                            disabled
+                                            title="Remove all assigned users before deleting this group."
+                                            style="opacity:.55;cursor:not-allowed"
                                         >Delete</button>
-                                    </form>
+                                    @endif
                                 @endif
                             @else
                                 @if(auth()->user()->hasPermission('groups.delete'))
@@ -105,42 +116,6 @@
                         </div>
                     </td>
                 </tr>
-
-                @if($g->users_count > 0)
-                    <tr id="group-users-{{ $g->id }}" style="display:none;background:#f8fafc">
-                        <td colspan="6" style="padding:16px 18px">
-                            <div style="font-weight:700;margin-bottom:8px">Users in {{ $g->name }}</div>
-                            <div class="table-wrap">
-                                <table class="table" style="min-width:760px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
-                                    <thead>
-                                        <tr>
-                                            <th>Employee Code</th>
-                                            <th>Name</th>
-                                            <th>Email</th>
-                                            <th>Department</th>
-                                            <th>Unit</th>
-                                            <th>Job Title</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($g->users as $user)
-                                            <tr>
-                                                <td>{{ $user->employee_code ?: '—' }}</td>
-                                                <td>{{ $user->name }}</td>
-                                                <td>{{ $user->email }}</td>
-                                                <td>{{ $user->departmentRelation?->name ?: '—' }}</td>
-                                                <td>{{ $user->unit?->name ?: '—' }}</td>
-                                                <td>{{ $user->jobTitle?->name ?: '—' }}</td>
-                                                <td>{{ $user->is_active ? 'Active' : 'Inactive' }}</td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        </td>
-                    </tr>
-                @endif
             @empty
                 <tr>
                     <td colspan="6" class="muted" style="text-align:center;padding:28px">No groups found.</td>
@@ -153,15 +128,100 @@
     <div style="margin-top:16px">{{ $groups->links() }}</div>
 </div>
 
-<script>
-function toggleGroupUsers(id) {
-    const row = document.getElementById('group-users-' + id);
-    const button = document.getElementById('group-users-button-' + id);
-    if (!row || !button) return;
+{{-- User details are deliberately rendered after the group table, not inside it. --}}
+@foreach($groups as $g)
+    @if($g->users_count > 0)
+        <div
+            id="group-users-detail-{{ $g->id }}"
+            class="card group-users-detail"
+            style="display:none;margin-top:18px"
+        >
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+                <div>
+                    <div style="font-weight:700;font-size:16px">Users in {{ $g->name }}</div>
+                    <div class="muted">{{ $g->users_count }} assigned user(s). Remove users here before deleting this group.</div>
+                </div>
+                <button type="button" class="btn gray" onclick="hideGroupUsers({{ $g->id }})">Close</button>
+            </div>
 
-    const open = row.style.display === 'table-row';
-    row.style.display = open ? 'none' : 'table-row';
-    button.setAttribute('aria-expanded', open ? 'false' : 'true');
+            <div class="table-wrap">
+                <table class="table" style="min-width:1050px">
+                    <thead>
+                        <tr>
+                            <th>Employee Code</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Department</th>
+                            <th>Unit</th>
+                            <th>Job Title</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($g->users as $user)
+                            <tr>
+                                <td>{{ $user->employee_code ?: '—' }}</td>
+                                <td><strong>{{ $user->name }}</strong></td>
+                                <td>{{ $user->email }}</td>
+                                <td>{{ $user->departmentRelation?->name ?: '—' }}</td>
+                                <td>{{ $user->unit?->name ?: '—' }}</td>
+                                <td>{{ $user->jobTitle?->name ?: '—' }}</td>
+                                <td>
+                                    @if($user->is_active)
+                                        <span style="display:inline-block;padding:4px 8px;border-radius:999px;background:#e8f6ed;color:#24613f;font-size:12px">Active</span>
+                                    @else
+                                        <span style="display:inline-block;padding:4px 8px;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:12px">Inactive</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if(auth()->user()->hasPermission('groups.edit'))
+                                        <form method="post" action="{{ route('admin.groups.users.remove', [$g, $user]) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button
+                                                class="btn red"
+                                                type="submit"
+                                                onclick="return confirm({{ Js::from('Remove '.$user->name.' from '.$g->name.'? The user account will not be deleted.') }})"
+                                            >Remove</button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+@endforeach
+
+<script>
+function showGroupUsers(id) {
+    document.querySelectorAll('.group-users-detail').forEach(function (panel) {
+        panel.style.display = 'none';
+    });
+
+    document.querySelectorAll('[id^="group-users-button-"]').forEach(function (button) {
+        button.setAttribute('aria-expanded', 'false');
+    });
+
+    const panel = document.getElementById('group-users-detail-' + id);
+    const button = document.getElementById('group-users-button-' + id);
+    if (!panel || !button) return;
+
+    panel.style.display = 'block';
+    button.setAttribute('aria-expanded', 'true');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function hideGroupUsers(id) {
+    const panel = document.getElementById('group-users-detail-' + id);
+    const button = document.getElementById('group-users-button-' + id);
+    if (!panel || !button) return;
+
+    panel.style.display = 'none';
+    button.setAttribute('aria-expanded', 'false');
 }
 </script>
 @endsection
