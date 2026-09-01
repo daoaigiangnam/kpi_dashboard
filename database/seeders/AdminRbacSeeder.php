@@ -25,7 +25,7 @@ class AdminRbacSeeder extends Seeder
         $viewer=UserGroup::updateOrCreate(['name'=>'KPI Viewer'],['description'=>'Read-only KPI access','is_system'=>true]);
         $super->permissions()->sync($all);
         $admin->permissions()->sync(Permission::whereIn('code',['admin.view','users.view','users.create','users.edit','users.import','users.export','groups.view','groups.create','groups.edit','groups.permissions','job_titles.view','job_titles.create','job_titles.edit','job_titles.import','job_titles.export','kpi.dashboard.view','kpi.import','kpi.config'])->pluck('id'));
-        $viewer->permissions()->sync(Permission::where('code','kpi.dashboard.view')->pluck('id));
+        $viewer->permissions()->sync(Permission::where('code','kpi.dashboard.view')->pluck('id'));
         User::updateOrCreate(['email'=>'admin@example.com'],['name'=>'System Administrator','password'=>'ChangeMe123!','user_group_id'=>$super->id,'is_active'=>true]);
     }
 }
