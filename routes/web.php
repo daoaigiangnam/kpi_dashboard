@@ -60,6 +60,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::put('job-titles/{jobTitle}',[JobTitleController::class,'update'])->middleware('permission:job_titles.edit')->name('job_titles.update');
  Route::delete('job-titles/{jobTitle}',[JobTitleController::class,'destroy'])->middleware('permission:job_titles.delete')->name('job_titles.destroy');
  Route::patch('job-titles/{jobTitle}/restore',[JobTitleController::class,'restore'])->middleware('permission:job_titles.delete')->name('job_titles.restore');
+ Route::delete('job-titles/{jobTitle}/users/{user}',[JobTitleController::class,'removeUser'])->middleware('permission:job_titles.edit')->name('job_titles.users.remove');
  Route::get('departments',[DepartmentController::class,'index'])->middleware('permission:departments.view')->name('departments.index');
  Route::get('departments/template',[DepartmentController::class,'template'])->middleware('permission:departments.import')->name('departments.template');
  Route::get('departments/export',[DepartmentController::class,'export'])->middleware('permission:departments.export')->name('departments.export');
