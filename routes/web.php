@@ -18,6 +18,9 @@ Route::post('/login',[LoginController::class,'login'])->middleware(['guest','thr
 Route::post('/logout',[LoginController::class,'logout'])->middleware('auth')->name('logout');
 Route::get('/signup',[RegisterController::class,'show'])->middleware('guest')->name('register');
 Route::post('/signup',[RegisterController::class,'register'])->middleware(['guest','throttle:3,10'])->name('register.store');
+Route::get('/signup/verify',[RegisterController::class,'showVerify'])->middleware('guest')->name('register.verify');
+Route::post('/signup/verify',[RegisterController::class,'verify'])->middleware(['guest','throttle:10,10'])->name('register.verify.submit');
+Route::post('/signup/verify/resend',[RegisterController::class,'resendVerify'])->middleware(['guest','throttle:3,10'])->name('register.verify.resend');
 Route::get('/forgot-password',[ForgotPasswordController::class,'show'])->middleware('guest')->name('password.request');
 Route::post('/forgot-password',[ForgotPasswordController::class,'send'])->middleware(['guest','throttle:5,1'])->name('password.email');
 Route::get('/reset-password/{token}',[ResetPasswordController::class,'show'])->middleware('guest')->name('password.reset');
