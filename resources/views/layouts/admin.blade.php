@@ -32,9 +32,7 @@
             margin-bottom: 28px;
         }
 
-        .nav-toggle {
-            display: none;
-        }
+        .nav-toggle { display: none; }
 
         .nav a {
             display: block;
@@ -99,13 +97,8 @@
             vertical-align: middle;
         }
 
-        .table th {
-            white-space: nowrap;
-        }
-
-        .table td:last-child {
-            white-space: nowrap;
-        }
+        .table th { white-space: nowrap; }
+        .table td:last-child { white-space: nowrap; }
 
         .actions {
             display: flex;
@@ -126,25 +119,11 @@
             font-size: 14px;
         }
 
-        .btn:hover {
-            background: #267349;
-        }
-
-        .btn.gray {
-            background: #64748b;
-        }
-
-        .btn.gray:hover {
-            background: #475569;
-        }
-
-        .btn.red {
-            background: #d9534f;
-        }
-
-        .btn.red:hover {
-            background: #c43d39;
-        }
+        .btn:hover { background: #267349; }
+        .btn.gray { background: #64748b; }
+        .btn.gray:hover { background: #475569; }
+        .btn.red { background: #d9534f; }
+        .btn.red:hover { background: #c43d39; }
 
         .form {
             max-width: 720px;
@@ -166,9 +145,7 @@
             box-shadow: 0 0 0 3px #2e8b571a;
         }
 
-        .field {
-            margin-bottom: 15px;
-        }
+        .field { margin-bottom: 15px; }
 
         .alert {
             padding: 12px;
@@ -232,37 +209,23 @@
                 cursor: pointer;
             }
 
-            .nav-toggle:hover {
-                background: #2f8f5b;
-            }
+            .nav-toggle:hover { background: #2f8f5b; }
 
             .nav-links {
                 display: none;
                 padding-top: 10px;
             }
 
-            .nav.open .nav-links {
-                display: block;
-            }
-
-            .nav a {
-                margin: 2px 0;
-                padding: 9px 10px;
-            }
-
-            .nav form {
-                margin-top: 12px !important;
-                padding-bottom: 2px;
-            }
+            .nav.open .nav-links { display: block; }
+            .nav a { margin: 2px 0; padding: 9px 10px; }
+            .nav form { margin-top: 12px !important; padding-bottom: 2px; }
 
             .main {
                 margin-left: 0;
                 padding: 78px 16px 24px;
             }
 
-            .top {
-                margin-bottom: 16px;
-            }
+            .top { margin-bottom: 16px; }
 
             .top h1 {
                 font-size: 28px !important;
@@ -274,9 +237,7 @@
                 gap: 12px;
             }
 
-            .card {
-                padding: 16px;
-            }
+            .card { padding: 16px; }
         }
     </style>
 </head>
@@ -284,7 +245,6 @@
 <body>
 
 <aside class="nav" id="adminNav">
-
     <div class="brand">KPI Dashboard</div>
 
     <button
@@ -298,77 +258,47 @@
     </button>
 
     <div class="nav-links">
-
-        <a href="{{ route('admin.dashboard') }}">
-            Dashboard
-        </a>
+        <a href="{{ route('admin.dashboard') }}">Dashboard</a>
 
         @if(auth()->user()->hasPermission('users.view'))
-            <a href="{{ route('admin.users.index') }}">
-                Users
-            </a>
+            <a href="{{ route('admin.users.index') }}">Users</a>
         @endif
 
         @if(auth()->user()->hasPermission('groups.view'))
-            <a href="{{ route('admin.groups.index') }}">
-                User Groups
-            </a>
+            <a href="{{ route('admin.groups.index') }}">User Groups</a>
         @endif
 
         @if(auth()->user()->hasPermission('job_titles.view'))
-            <a href="{{ route('admin.job_titles.index') }}">
-                Job Titles
-            </a>
+            <a href="{{ route('admin.job_titles.index') }}">Job Titles</a>
         @endif
 
         @if(auth()->user()->hasPermission('departments.view'))
-            <a href="{{ route('admin.departments.index') }}">
-                Departments
-            </a>
+            <a href="{{ route('admin.departments.index') }}">Departments</a>
         @endif
 
         @if(auth()->user()->hasPermission('units.view'))
-            <a href="{{ route('admin.units.index') }}">
-                Units
-            </a>
+            <a href="{{ route('admin.units.index') }}">Units</a>
         @endif
 
-        <form
-            method="post"
-            action="{{ route('logout') }}"
-            style="margin-top:25px"
-        >
+        <form method="post" action="{{ route('logout') }}" style="margin-top:25px">
             @csrf
-
-            <button class="btn gray" type="submit">
-                Logout
-            </button>
+            <button class="btn gray" type="submit">Logout</button>
         </form>
-
     </div>
-
 </aside>
 
 <main class="main">
-
     <div class="top">
         <div>
-            <h1 style="margin:0">
-                @yield('title')
-            </h1>
-
+            <h1 style="margin:0">@yield('title')</h1>
             <div class="muted">
-                {{ auth()->user()->name }}
-                ·
-                {{ auth()->user()->group?->name }}
+                {{ auth()->user()->name }} · {{ auth()->user()->group?->name }}
             </div>
         </div>
     </div>
 
     @if(session('success'))
-        <div class="alert">
-            {{ session('success') }}
-        </div>
+        <div class="alert">{{ session('success') }}</div>
     @endif
 
     @if($errors->any())
@@ -382,7 +312,6 @@
     @endif
 
     @yield('content')
-
 </main>
 
 <script>
@@ -390,11 +319,7 @@
         const nav = document.getElementById('adminNav');
         const button = nav.querySelector('.nav-toggle');
         const open = nav.classList.toggle('open');
-
-        button.setAttribute(
-            'aria-expanded',
-            open ? 'true' : 'false'
-        );
+        button.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 </script>
 
