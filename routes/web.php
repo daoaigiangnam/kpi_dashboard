@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\JobTitleController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\UnitController;
+use App\Http\Controllers\Admin\SystemSettingController;
 
 Route::get('/login',[LoginController::class,'show'])->name('login');
 Route::post('/login',[LoginController::class,'login'])->name('login.attempt');
@@ -69,6 +70,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::put('units/{unit}',[UnitController::class,'update'])->middleware('permission:units.edit')->name('units.update');
  Route::delete('units/{unit}',[UnitController::class,'destroy'])->middleware('permission:units.delete')->name('units.destroy');
  Route::patch('units/{unit}/restore',[UnitController::class,'restore'])->middleware('permission:units.delete')->name('units.restore');
+ Route::get('settings',[SystemSettingController::class,'index'])->middleware('permission:system.settings')->name('settings.index');
+ Route::put('settings',[SystemSettingController::class,'update'])->middleware('permission:system.settings')->name('settings.update');
 });
 
 Route::redirect('/','/admin');
