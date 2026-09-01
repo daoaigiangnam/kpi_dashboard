@@ -21,20 +21,20 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
-        $showHidden = $request->boolean('show_hidden');
+        $showDeleted = $request->boolean('deleted');
         $query = User::with(['group','jobTitle','departmentRelation','unit']);
-        if ($showHidden) $query->withTrashed();
+        if ($showDeleted) $query->onlyTrashed();
         $users = $query->when($search !== '', function ($q) use ($search) {
             $q->where(function ($q) use ($search) {
                 $q->where('employee_code','like',"%{$search}%")
                   ->orWhere('name','like',"%{$search}%")
                   ->orWhere('email','like',"%{$search}%")
                   ->orWhere('phone','like',"%{$search}%")
-                  ->orWhereHas('departmentRelation', fn($d) => $d->where('name','like',"%{$search}%"))
-                  ->orWhereHas('unit', fn($u) => $u->where('name','like',"%{$search}%"));
+                  ->orWhereHas('departmentRelation', fn($d) => $d->withTrashed()->where('name','like',"%{$search}%"))
+                  ->orWhereHas('unit', fn($u) => $u->withTrashed()->where('name','like',"%{$search}%"));
             });
         })->orderBy('name')->paginate(20)->withQueryString();
-        return view('admin.users.index', compact('users','search','showHidden'));
+        return view('admin.users.index', compact('users','search','showDeleted'));
     }
 
     public function create()
@@ -78,9 +78,9 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        if ($user->id === auth()->id()) return back()->withErrors('You cannot hide your own account.');
+        if ($user->id === auth()->id()) return back()->withErrors('You cannot delete your own account.');
         $user->delete();
-        return back()->with('success','User hidden. The record was retained for history.');
+        return back()->with('success','User deleted. The record was retained for history and can be restored later.');
     }
 
     public function restore(int $user)
@@ -108,9 +108,9 @@ class UserController extends Controller
     public function export(Request $request)
     {
         $search = trim((string) $request->query('search',''));
-        $showHidden = $request->boolean('show_hidden');
+        $showDeleted = $request->boolean('deleted');
         $query = User::withTrashed()->with(['group','jobTitle','departmentRelation','unit']);
-        if (!$showHidden) $query->whereNull('users.deleted_at');
+        if (!$showDeleted) $query->whereNull('users.deleted_at');
         $users = $query->when($search !== '', function($q) use($search) {
             $q->where(function($q) use($search) {
                 $q->where('employee_code','like',"%{$search}%")->orWhere('name','like',"%{$search}%")->orWhere('email','like',"%{$search}%")->orWhere('phone','like',"%{$search}%")
@@ -119,7 +119,7 @@ class UserController extends Controller
         })->orderBy('name')->get();
         $sheet = (new Spreadsheet())->getActiveSheet(); $sheet->setTitle('Users');
         $sheet->fromArray([['Employee Code','Name','Email','Phone','Date of Birth','Gender','Join Date','Department','Unit','Group','Job Title Code','Job Title','Target Workload Point','Notes','Status']],null,'A1');
-        $row=2; foreach($users as $u){$status=$u->trashed()?'Hidden':($u->is_active?'Active':'Inactive');$sheet->fromArray([[$u->employee_code,$u->name,$u->email,$u->phone,$u->date_of_birth?->format('Y-m-d'),$u->gender,$u->join_date?->format('Y-m-d'),$u->departmentRelation?->name,$u->unit?->name,$u->group?->name,$u->jobTitle?->code,$u->jobTitle?->name,$u->jobTitle?->target_workload_point,$u->notes,$status]],null,"A{$row}");$row++;}
+        $row=2; foreach($users as $u){$status=$u->trashed()?'Deleted':($u->is_active?'Active':'Inactive');$sheet->fromArray([[$u->employee_code,$u->name,$u->email,$u->phone,$u->date_of_birth?->format('Y-m-d'),$u->gender,$u->join_date?->format('Y-m-d'),$u->departmentRelation?->name,$u->unit?->name,$u->group?->name,$u->jobTitle?->code,$u->jobTitle?->name,$u->jobTitle?->target_workload_point,$u->notes,$status]],null,"A{$row}");$row++;}
         $sheet->getStyle('A1:O1')->getFont()->setBold(true); foreach(range('A','O') as $column)$sheet->getColumnDimension($column)->setAutoSize(true); $sheet->freezePane('A2'); $sheet->setAutoFilter('A1:O'.max(1,$row-1));
         $writer=new Xlsx($sheet->getParent()); return response()->streamDownload(fn()=> $writer->save('php://output'),'users-'.now()->format('Ymd-His').'.xlsx',['Content-Type'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
