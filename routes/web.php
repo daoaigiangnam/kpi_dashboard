@@ -86,7 +86,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::get('kpi-parameters',[KpiParameterController::class,'index'])->middleware('permission:kpi.parameters')->name('kpi_parameters.index');
  Route::put('kpi-parameters',[KpiParameterController::class,'update'])->middleware('permission:kpi.parameters')->name('kpi_parameters.update');
  Route::get('tickets',[TicketController::class,'index'])->middleware('permission:kpi.tickets')->name('tickets.index');
- Route::get('tickets/template',[TicketController::class,'template'])->middleware('permission:kpi.tickets')->name('tickets.template');
+ Route::get('tickets/template',function(){return response()->download(public_path('templates/ticket-import-template.xls'),'ticket-import-template.xls',['Content-Type'=>'application/vnd.ms-excel']);})->middleware('permission:kpi.tickets')->name('tickets.template');
  Route::get('tickets/export',[TicketController::class,'export'])->middleware('permission:kpi.tickets')->name('tickets.export');
  Route::post('tickets/import',[TicketController::class,'import'])->middleware('permission:kpi.tickets')->name('tickets.import');
  Route::get('settings',[SystemSettingController::class,'index'])->middleware('permission:system.settings')->name('settings.index');
