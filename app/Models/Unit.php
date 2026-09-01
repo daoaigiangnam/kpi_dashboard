@@ -9,7 +9,7 @@ class Unit extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['code','name','description','is_active'];
+    protected $fillable = ['code','name','address','phone','tax_code','description','is_active'];
     protected $casts = ['is_active'=>'boolean'];
 
     public function users(): HasMany { return $this->hasMany(User::class); }
