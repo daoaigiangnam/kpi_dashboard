@@ -8,8 +8,11 @@ use App\Models\JobTitle;
 use App\Models\SystemSetting;
 use App\Models\Unit;
 use App\Models\User;
+use App\Notifications\RegistrationEmailVerificationNotification;
 use App\Notifications\UserRegistrationNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
@@ -67,23 +70,116 @@ class RegisterController extends Controller
                 ->withInput($request->except(['password', 'password_confirmation']));
         }
 
-        $user = User::create([
-            'employee_code' => $credentials['employee_code'],
-            'name' => $credentials['name'],
-            'email' => $credentials['email'],
-            'phone' => $credentials['phone'] ?? null,
-            'date_of_birth' => $credentials['date_of_birth'] ?? null,
-            'gender' => $credentials['gender'] ?? null,
-            'join_date' => $credentials['join_date'] ?? null,
-            'department_id' => $credentials['department_id'] ?? null,
-            'unit_id' => $credentials['unit_id'] ?? null,
-            'job_title_id' => $credentials['job_title_id'] ?? null,
-            'notes' => $credentials['notes'] ?? null,
-            'password' => $credentials['password'],
-            'is_active' => false,
-            'registration_status' => 'pending',
-        ]);
+        $expireMinutes = (int) SystemSetting::value('password_reset.otp_expire_minutes', '10');
+        $otp = (string) random_int(100000, 999999);
 
+        DB::table('registration_email_verifications')->updateOrInsert(
+            ['email' => $credentials['email']],
+            [
+                'payload' => json_encode(collect($credentials)->except(['password', 'captcha_position'])->all(), JSON_THROW_ON_ERROR),
+                'password_hash' => Hash::make($credentials['password']),
+                'otp_hash' => Hash::make($otp),
+                'expires_at' => now()->addMinutes($expireMinutes),
+                'attempts' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        $verificationId = DB::table('registration_email_verifications')
+            ->where('email', $credentials['email'])
+            ->value('id');
+
+        try {
+            Notification::route('mail', $credentials['email'])->notify(new RegistrationEmailVerificationNotification($otp, $expireMinutes));
+        } catch (\Throwable $e) {
+            DB::table('registration_email_verifications')->where('id', $verificationId)->delete();
+            Log::error('Unable to send registration email verification OTP.', [
+                'email' => $credentials['email'],
+                'exception' => $e->getMessage(),
+            ]);
+
+            $this->refreshCaptcha($request);
+
+            return back()
+                ->withErrors(['email' => 'We could not send the verification email. Please check your email address or contact the administrator.'])
+                ->withInput($request->except(['password', 'password_confirmation']));
+        }
+
+        $request->session()->put('registration_verification_id', $verificationId);
+
+        return redirect()->route('register.verify')->with('status', 'A verification OTP has been sent to your email address.');
+    }
+
+    public function showVerify(Request $request): mixed
+    {
+        $verification = $this->currentVerification($request);
+        if (!$verification) {
+            return redirect()->route('register')->withErrors(['email' => 'Your registration verification session has expired. Please register again.']);
+        }
+
+        return view('auth.verify-registration', [
+            'email' => $verification->email,
+            'expiresAt' => $verification->expires_at,
+        ]);
+    }
+
+    public function verify(Request $request): mixed
+    {
+        $request->validate(['otp' => ['required', 'digits:6']]);
+
+        $verification = $this->currentVerification($request);
+        if (!$verification) {
+            return redirect()->route('register')->withErrors(['email' => 'Your registration verification session has expired. Please register again.']);
+        }
+
+        $maxAttempts = (int) SystemSetting::value('password_reset.max_otp_attempts', '5');
+
+        if (now()->greaterThan($verification->expires_at)) {
+            DB::table('registration_email_verifications')->where('id', $verification->id)->delete();
+            $request->session()->forget('registration_verification_id');
+
+            return redirect()->route('register')->withErrors(['email' => 'The verification OTP has expired. Please register again.']);
+        }
+
+        if ((int) $verification->attempts >= $maxAttempts) {
+            DB::table('registration_email_verifications')->where('id', $verification->id)->delete();
+            $request->session()->forget('registration_verification_id');
+
+            return redirect()->route('register')->withErrors(['email' => 'Too many invalid OTP attempts. Please register again.']);
+        }
+
+        if (!Hash::check($request->string('otp')->toString(), $verification->otp_hash)) {
+            DB::table('registration_email_verifications')->where('id', $verification->id)->increment('attempts');
+
+            return back()->withErrors(['otp' => 'The verification OTP is invalid. Please check your email and try again.']);
+        }
+
+        $payload = json_decode($verification->payload, true, 512, JSON_THROW_ON_ERROR);
+
+        $user = DB::transaction(function () use ($payload, $verification) {
+            return User::create([
+                'employee_code' => $payload['employee_code'],
+                'name' => $payload['name'],
+                'email' => $payload['email'],
+                'phone' => $payload['phone'] ?? null,
+                'date_of_birth' => $payload['date_of_birth'] ?? null,
+                'gender' => $payload['gender'] ?? null,
+                'join_date' => $payload['join_date'] ?? null,
+                'department_id' => $payload['department_id'] ?? null,
+                'unit_id' => $payload['unit_id'] ?? null,
+                'job_title_id' => $payload['job_title_id'] ?? null,
+                'notes' => $payload['notes'] ?? null,
+                'password' => $verification->password_hash,
+                'is_active' => false,
+                'registration_status' => 'pending',
+            ]);
+        });
+
+        DB::table('registration_email_verifications')->where('id', $verification->id)->delete();
+        $request->session()->forget('registration_verification_id');
+
+        $notificationEmail = trim((string) SystemSetting::value('system.notification_email', ''));
         try {
             Notification::route('mail', $notificationEmail)->notify(new UserRegistrationNotification($user));
         } catch (\Throwable $e) {
@@ -94,7 +190,48 @@ class RegisterController extends Controller
             ]);
         }
 
-        return redirect()->route('login')->with('status', 'Registration submitted successfully. Your account is pending Super Admin approval. You will be able to sign in after approval.');
+        return redirect()->route('login')->with('status', 'Email verified successfully. Your registration is now pending Super Admin approval. You will be able to sign in after approval.');
+    }
+
+    public function resendVerify(Request $request): mixed
+    {
+        $verification = $this->currentVerification($request);
+        if (!$verification) {
+            return redirect()->route('register')->withErrors(['email' => 'Your registration verification session has expired. Please register again.']);
+        }
+
+        $expireMinutes = (int) SystemSetting::value('password_reset.otp_expire_minutes', '10');
+        $otp = (string) random_int(100000, 999999);
+
+        DB::table('registration_email_verifications')->where('id', $verification->id)->update([
+            'otp_hash' => Hash::make($otp),
+            'expires_at' => now()->addMinutes($expireMinutes),
+            'attempts' => 0,
+            'updated_at' => now(),
+        ]);
+
+        try {
+            Notification::route('mail', $verification->email)->notify(new RegistrationEmailVerificationNotification($otp, $expireMinutes));
+        } catch (\Throwable $e) {
+            Log::error('Unable to resend registration email verification OTP.', [
+                'email' => $verification->email,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors(['otp' => 'We could not resend the verification email. Please try again later.']);
+        }
+
+        return back()->with('status', 'A new verification OTP has been sent to your email address.');
+    }
+
+    private function currentVerification(Request $request): ?object
+    {
+        $id = $request->session()->get('registration_verification_id');
+        if (!$id) {
+            return null;
+        }
+
+        return DB::table('registration_email_verifications')->where('id', $id)->first();
     }
 
     private function refreshCaptcha(Request $request): void
