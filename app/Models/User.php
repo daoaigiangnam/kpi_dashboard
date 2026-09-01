@@ -1,13 +1,17 @@
 <?php
+
 namespace App\Models;
+
+use Illuminate\Auth\Passwords\CanResetPassword as CanResetPasswordTrait;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class User extends Authenticatable
+class User extends Authenticatable implements CanResetPasswordContract
 {
-    use Notifiable, SoftDeletes;
+    use Notifiable, SoftDeletes, CanResetPasswordTrait;
 
     protected $fillable = ['employee_code','name','email','phone','date_of_birth','gender','join_date','department','location','department_id','unit_id','user_group_id','job_title_id','notes','password','is_active'];
     protected $hidden = ['password','remember_token'];
