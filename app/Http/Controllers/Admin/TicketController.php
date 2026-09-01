@@ -23,14 +23,15 @@ class TicketController extends Controller
         $priority = strtoupper(trim((string) $request->query('priority', '')));
         $employeeId = $request->query('employee_id');
 
-        $tickets = $this->ticketQuery($search, $priority, $employeeId)
-            ->paginate(25)->withQueryString();
+        $baseQuery = $this->ticketQuery($search, $priority, $employeeId);
+        $ticketTotals = $this->ticketTotals(clone $baseQuery);
+        $tickets = $baseQuery->paginate(25)->withQueryString();
 
         $priorities = KpiSlaPriority::orderBy('sort_order')->pluck('code');
         $employees = User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'email']);
         $totalTickets = Ticket::count();
 
-        return view('admin.tickets.index', compact('tickets', 'search', 'priority', 'employeeId', 'priorities', 'employees', 'totalTickets'));
+        return view('admin.tickets.index', compact('tickets', 'search', 'priority', 'employeeId', 'priorities', 'employees', 'totalTickets', 'ticketTotals'));
     }
 
     public function export(Request $request)
@@ -39,14 +40,14 @@ class TicketController extends Controller
         $priority = strtoupper(trim((string) $request->query('priority', '')));
         $employeeId = $request->query('employee_id');
 
-        $tickets = $this->ticketQuery($search, $priority, $employeeId)->get();
+        $query = $this->ticketQuery($search, $priority, $employeeId);
+        $tickets = (clone $query)->get();
+        $ticketTotals = $this->ticketTotals(clone $query);
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Ticket Data');
 
-        // This export is deliberately a verification sheet: raw Bitrix inputs
-        // are followed by the exact calculated fields currently stored by the system.
         $sheet->fromArray([
             [
                 'Bitrix Ticket ID', 'Employee ID', 'Employee Name', 'Employee Email',
@@ -83,12 +84,34 @@ class TicketController extends Controller
             $row++;
         }
 
+        $totalRow = max(2, $row);
+        $sheet->fromArray([[
+            'Tổng', '', '', '', '',
+            $ticketTotals['created_count'],
+            $ticketTotals['started_count'],
+            $ticketTotals['finished_count'],
+            $ticketTotals['pause_minutes'],
+            $ticketTotals['reopen_ticket_count'],
+            $ticketTotals['company_department_count'],
+            $ticketTotals['resolution_detail_count'],
+            $ticketTotals['result_screenshot_count'],
+            $ticketTotals['workload_point'],
+            $ticketTotals['resolution_minutes'],
+            $ticketTotals['sla_target_minutes'],
+            $ticketTotals['sla_met'],
+            $ticketTotals['process_met'],
+            $ticketTotals['started'],
+            '',
+        ]], null, 'A' . $totalRow);
+
         $lastRow = max(1, $row - 1);
         $sheet->getStyle('A1:T1')->getFont()->setBold(true);
         $sheet->getStyle('A1:T1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFB7DEE8');
+        $sheet->getStyle('A' . $totalRow . ':T' . $totalRow)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $totalRow . ':T' . $totalRow)->getFill()->setFillType('solid')->getStartColor()->setARGB('FFFFF2CC');
         $sheet->freezePane('A2');
         $sheet->setAutoFilter('A1:T' . $lastRow);
-        $sheet->getStyle('N2:N' . $lastRow)->getNumberFormat()->setFormatCode('0.00');
+        $sheet->getStyle('N2:N' . $totalRow)->getNumberFormat()->setFormatCode('0.00');
 
         foreach (range('A', 'T') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
@@ -121,24 +144,47 @@ class TicketController extends Controller
             ->orderBy('external_ticket_id');
     }
 
+    private function ticketTotals($query): array
+    {
+        return [
+            'ticket_count' => (clone $query)->count(),
+            'created_count' => (clone $query)->whereNotNull('created_on')->count(),
+            'started_count' => (clone $query)->whereNotNull('started_on')->count(),
+            'finished_count' => (clone $query)->whereNotNull('finished_on')->count(),
+            'pause_minutes' => (int) ((clone $query)->sum('pause_minutes') ?? 0),
+            'reopen_ticket_count' => (clone $query)->where('reopen_count', '>', 0)->count(),
+            'company_department_count' => (clone $query)->whereNotNull('company_department')->where('company_department', '<>', '')->count(),
+            'resolution_detail_count' => (clone $query)->whereNotNull('resolution_detail')->where('resolution_detail', '<>', '')->count(),
+            'result_screenshot_count' => (clone $query)->whereNotNull('result_screenshot')->where('result_screenshot', '<>', '')->count(),
+            'workload_point' => (float) ((clone $query)->sum('workload_point') ?? 0),
+            'resolution_minutes' => (int) ((clone $query)->sum('resolution_minutes') ?? 0),
+            'sla_target_minutes' => (int) ((clone $query)->sum('sla_target_minutes') ?? 0),
+            'sla_met' => (clone $query)->where('sla_status', 'Đạt')->count(),
+            'sla_not_met' => (clone $query)->where('sla_status', 'Không Đạt')->count(),
+            'process_met' => (clone $query)->where('process_status', 'Đạt')->count(),
+            'started' => (clone $query)->where('started_status', 'Có')->count(),
+        ];
+    }
+
     public function template()
     {
         $sheet = (new Spreadsheet())->getActiveSheet();
         $sheet->setTitle('Tickets');
         $sheet->fromArray([
             ['ID', 'Priority (Ưu tiên)', 'Created on', 'Started on', 'Finished on', 'Pause(min)', 'Reopen', 'Company/Dept', 'Chi tiết nội dung đã xử lý', 'File chụp màn hình kết quả xử lý'],
-            ['1001', 'P1', '2025-09-01 08:00', '2025-09-01 08:05', '2025-09-01 10:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
-            ['1002', 'P2', '2025-09-02 09:00', '2025-09-02 09:30', '2025-09-02 15:00', 60, 1, 'HelpDesk', 'Có', 'Có'],
-            ['1003', 'P3', '2025-09-03 09:00', '2025-09-03 10:40', '2025-09-03 12:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
-            ['1004', 'P4', '2025-09-04 09:00', '2025-09-05 11:10', '2025-09-05 14:00', 0, 2, 'HelpDesk', 'Có', 'Có'],
-            ['1005', 'P2', '2025-09-05 09:00', '2025-09-05 08:30', '2025-09-05 17:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
-            ['1006', 'P3', '2025-09-06 09:00', '2025-09-06 10:40', '2025-09-06 13:00', 120, 0, 'HelpDesk', 'Có', 'Có'],
-            ['1007', 'P1', '2025-09-07 09:00', '2025-09-07 08:50', '2025-09-07 20:00', 180, 3, 'HelpDesk', 'Có', 'Có'],
-            ['1008', 'P4', '2025-09-08 09:00', '2025-09-08 09:24', '2025-09-08 15:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
-            ['1009', 'P3', '2025-09-09 09:00', '2025-09-09 09:20', '2025-09-09 18:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
-            ['1010', 'P2', '2025-09-10 09:00', '2025-09-10 09:10', '2025-09-10 16:00', 60, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1001', 'P1', '1/9/2025 8:00', '1/9/2025 8:05', '1/9/2025 10:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1002', 'P2', '2/9/2025 9:00', '2/9/2025 9:30', '2/9/2025 15:00', 60, 1, 'HelpDesk', 'Có', 'Có'],
+            ['1003', 'P3', '3/9/2025 10:00', '3/9/2025 10:40', '3/9/2025 12:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1004', 'P4', '4/9/2025 9:00', '4/9/2025 11:10', '4/9/2025 14:00', 0, 2, 'HelpDesk', 'Có', 'Có'],
+            ['1005', 'P2', '5/9/2025 8:00', '5/9/2025 8:30', '5/9/2025 17:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1006', 'P3', '6/9/2025 9:00', '6/9/2025 10:40', '6/9/2025 18:00', 120, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1007', 'P1', '7/9/2025 8:00', '7/9/2025 8:50', '7/9/2025 20:00', 180, 3, 'HelpDesk', 'Có', 'Có'],
+            ['1008', 'P4', '8/9/2025 9:00', '8/9/2025 9:40', '8/9/2025 18:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1009', 'P3', '9/9/2025 9:00', '9/9/2025 9:20', '9/9/2025 11:00', 0, 0, 'HelpDesk', 'Có', 'Có'],
+            ['1010', 'P2', '10/9/2025 8:00', '10/9/2025 8:10', '10/9/2025 16:00', 60, 0, 'HelpDesk', 'Có', 'Có'],
         ], null, 'A1');
         $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:J1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFC6E7F5');
         foreach (range('A', 'J') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
         $sheet->freezePane('A2');
         $sheet->setAutoFilter('A1:J11');
