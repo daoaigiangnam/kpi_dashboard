@@ -49,7 +49,7 @@
     </form>
 
     <div class="ticket-stat">{{ number_format($totalTickets) }} ticket(s) stored. Bitrix Ticket ID is unique; duplicate IDs are skipped during import. The Total row below recalculates from the current search/filter result.</div>
-    <div class="table-wrap" style="margin-top:14px"><table class="table ticket-table" style="min-width:2450px"><thead><tr>
+    <div class="table-wrap" style="margin-top:14px"><table class="table ticket-table" style="min-width:2100px"><thead><tr>
         <th>ID</th>
         <th>Priority (Ưu tiên)</th>
         <th>Created on</th>
@@ -66,10 +66,6 @@
         <th>SLA</th>
         <th>Process</th>
         <th>Started</th>
-        <th>Employee ID</th>
-        <th>Employee Name</th>
-        <th>Employee Email</th>
-        <th>Source</th>
     </tr></thead><tbody>
     @forelse($tickets as $ticket)
         <tr>
@@ -87,15 +83,11 @@
             <td>{{ $ticket->resolution_minutes ?? '' }}</td>
             <td><strong>{{ $ticket->sla_target_minutes ?? '' }}</strong></td>
             <td>@if($ticket->sla_status === 'Đạt')<span class="badge ok">Đạt</span>@elseif($ticket->sla_status === 'Không Đạt')<span class="badge bad">Không Đạt</span>@else<span class="badge neutral">{{ $ticket->sla_status ?: '' }}</span>@endif</td>
-            <td>@if($ticket->process_status === 'Đạt')<span class="badge ok">Đạt</span>@else<span class="badge bad">{{ $ticket->process_status ?: '' }}</span>@endif</td>
+            <td>@if($ticket->process_status === 'Đạt')<span class="badge ok">Đạt</span>@elseif($ticket->process_status === 'Không Đạt')<span class="badge bad">Không Đạt</span>@else<span class="badge neutral">{{ $ticket->process_status ?: '' }}</span>@endif</td>
             <td><span class="badge neutral">{{ $ticket->started_status }}</span></td>
-            <td>{{ $ticket->employee_id }}</td>
-            <td>{{ $ticket->employee?->name ?: '' }}</td>
-            <td>{{ $ticket->employee?->email ?: '' }}</td>
-            <td>{{ $ticket->source ?: '' }}</td>
         </tr>
     @empty
-        <tr><td colspan="20" style="text-align:center;padding:28px" class="muted">No Ticket data found.</td></tr>
+        <tr><td colspan="16" style="text-align:center;padding:28px" class="muted">No Ticket data found.</td></tr>
     @endforelse
     <tr class="ticket-total">
         <td>Tổng</td>
@@ -114,10 +106,6 @@
         <td>{{ number_format($ticketTotals['sla_met']) }}</td>
         <td>{{ number_format($ticketTotals['process_met']) }}</td>
         <td>{{ number_format($ticketTotals['started']) }}</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
     </tr>
     </tbody></table></div>
     <div style="margin-top:16px">{{ $tickets->links() }}</div>
