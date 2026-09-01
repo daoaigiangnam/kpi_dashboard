@@ -15,9 +15,12 @@ class GroupController extends Controller
     public function index(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
+        $showHidden = $request->boolean('hidden');
 
-        // Always include soft-deleted groups so they remain searchable and recoverable.
-        $query = UserGroup::withTrashed()
+        // Normal view contains active groups only. Hidden groups are available only
+        // through the dedicated recovery view, keeping deleted records out of daily work.
+        $query = UserGroup::query()
+            ->when($showHidden, fn ($q) => $q->onlyTrashed())
             ->withCount('users')
             ->with([
                 'permissions',
@@ -42,7 +45,7 @@ class GroupController extends Controller
 
         $groups = $query->paginate(20)->withQueryString();
 
-        return view('admin.groups.index', compact('groups', 'search'));
+        return view('admin.groups.index', compact('groups', 'search', 'showHidden'));
     }
 
     public function create()
@@ -98,8 +101,7 @@ class GroupController extends Controller
     public function destroy(UserGroup $group)
     {
         // Groups are soft-deleted (hidden), never physically removed.
-        // This applies to both custom and system groups so an empty group can be hidden
-        // and later restored. A group with assigned users must be emptied first.
+        // A group with assigned users must be emptied first.
         $userCount = $group->users()->count();
         if ($userCount > 0) {
             return back()->withErrors("This group cannot be deleted while {$userCount} user(s) are assigned. Remove all users from the group first.");
@@ -107,7 +109,7 @@ class GroupController extends Controller
 
         $group->delete();
 
-        return back()->with('success', 'Group deleted (hidden). The record was retained for history and can be restored later.');
+        return back()->with('success', 'Group hidden. The record was retained for recovery and can be restored later.');
     }
 
     public function restore(int $group)
@@ -124,7 +126,6 @@ class GroupController extends Controller
             return back()->withErrors('The selected user is not assigned to this group.');
         }
 
-        // Never allow an administrator to accidentally remove the last Super Admin account.
         if ($group->name === 'Super Admin' && $group->users()->count() <= 1) {
             return back()->withErrors('The last Super Admin cannot be removed from the Super Admin group.');
         }
@@ -137,8 +138,10 @@ class GroupController extends Controller
     public function export(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
+        $showHidden = $request->boolean('hidden');
 
-        $groups = UserGroup::withTrashed()
+        $groups = UserGroup::query()
+            ->when($showHidden, fn ($q) => $q->onlyTrashed())
             ->withCount('users')
             ->with([
                 'permissions',
