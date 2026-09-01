@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>KPI Dashboard Login</title>
     <style>
-        *{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;background:#f4f8f5;display:grid;place-items:center;min-height:100vh;margin:0;color:#172033}.box{background:#fff;width:min(390px,calc(100% - 32px));padding:30px;border-radius:14px;box-shadow:0 12px 35px #17321f14;border:1px solid #e1e9e3}.subtitle{color:#64748b;margin:0 0 22px}.field{margin-bottom:16px}.label{display:block;margin-bottom:6px;font-weight:600}.password-wrap{position:relative}.input{width:100%;padding:12px;border:1px solid #cbd8cf;border-radius:8px}.password-wrap .input{padding-right:72px}.show{position:absolute;right:7px;top:6px;border:0;background:transparent;color:#23784e;font-weight:700;cursor:pointer;padding:6px}.remember{display:flex;align-items:center;gap:7px;margin:4px 0 18px;font-size:14px}.remember input{width:auto;margin:0}.captcha-box{padding:12px;background:#f8faf9;border:1px solid #d7e3db;border-radius:8px;margin-bottom:16px}.captcha-label{display:block;font-weight:600;margin-bottom:8px}.captcha-code{display:inline-block;min-width:110px;padding:7px 12px;margin-bottom:8px;background:#fff;border:1px dashed #aebeb4;border-radius:6px;text-align:center;font-size:22px;font-weight:700;letter-spacing:6px;user-select:none}.button{width:100%;padding:12px;border:0;border-radius:8px;background:#238b57;color:#fff;font-weight:700;cursor:pointer}.button:hover{background:#197247}.forgot{display:block;text-align:center;margin-top:17px;color:#23784e;text-decoration:none;font-size:14px}.error,.status{padding:11px;border-radius:8px;margin-bottom:15px}.error{background:#fee2e2;color:#991b1b}.status{background:#dcfce7;color:#166534}.security-note{font-size:12px;color:#64748b;margin:-7px 0 16px}
+        *{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;background:#f4f8f5;display:grid;place-items:center;min-height:100vh;margin:0;color:#172033}.box{background:#fff;width:min(390px,calc(100% - 32px));padding:30px;border-radius:14px;box-shadow:0 12px 35px #17321f14;border:1px solid #e1e9e3}.subtitle{color:#64748b;margin:0 0 22px}.field{margin-bottom:16px}.label{display:block;margin-bottom:6px;font-weight:600}.password-wrap{position:relative}.input{width:100%;padding:12px;border:1px solid #cbd8cf;border-radius:8px}.password-wrap .input{padding-right:72px}.show{position:absolute;right:7px;top:6px;border:0;background:transparent;color:#23784e;font-weight:700;cursor:pointer;padding:6px}.remember{display:flex;align-items:center;gap:7px;margin:4px 0 18px;font-size:14px}.remember input{width:auto;margin:0}.captcha-box{padding:12px;background:#f8faf9;border:1px solid #d7e3db;border-radius:8px;margin-bottom:16px}.captcha-label{display:block;font-weight:600;margin-bottom:8px}.slider-track{position:relative;height:42px;border-radius:21px;background:#e7eee9;border:1px solid #cbd8cf;touch-action:none;user-select:none;overflow:hidden}.slider-target{position:absolute;top:3px;height:34px;width:34px;border-radius:50%;border:2px dashed #8da397;background:#fff;transform:translateX(-50%);pointer-events:none}.slider-fill{position:absolute;left:0;top:0;height:100%;width:0;background:#d8eee0;pointer-events:none}.slider-thumb{position:absolute;top:3px;left:3px;width:34px;height:34px;border-radius:50%;background:#238b57;color:#fff;display:grid;place-items:center;font-weight:700;box-shadow:0 2px 7px #17321f26;cursor:grab;z-index:2;transform:translateX(0)}.slider-thumb.dragging{cursor:grabbing}.slider-success{display:none;text-align:center;color:#166534;font-weight:700;padding-top:8px;font-size:13px}.captcha-box.verified .slider-success{display:block}.captcha-box.verified .slider-track{opacity:.75}.captcha-hint{font-size:12px;color:#64748b;margin:8px 0 0}.button{width:100%;padding:12px;border:0;border-radius:8px;background:#238b57;color:#fff;font-weight:700;cursor:pointer}.button:hover{background:#197247}.forgot{display:block;text-align:center;margin-top:17px;color:#23784e;text-decoration:none;font-size:14px}.error,.status{padding:11px;border-radius:8px;margin-bottom:15px}.error{background:#fee2e2;color:#991b1b}.status{background:#dcfce7;color:#166534}.security-note{font-size:12px;color:#64748b;margin:-7px 0 16px}
     </style>
 </head>
 <body>
@@ -21,7 +21,7 @@
         <div class="error">{{ $errors->first() }}</div>
     @endif
 
-    <form method="post" action="{{ route('login.attempt') }}">
+    <form method="post" action="{{ route('login.attempt') }}" id="login-form">
         @csrf
         <div class="field">
             <label class="label" for="email">Email</label>
@@ -36,12 +36,18 @@
             </div>
         </div>
 
-        <div class="captcha-box">
-            <label class="captcha-label" for="captcha_answer">Security Code</label>
-            <div class="captcha-code" aria-label="4-digit security code">{{ $captchaQuestion }}</div>
-            <input class="input" id="captcha_answer" type="text" name="captcha_answer" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" minlength="4" required autocomplete="off" placeholder="Enter 4 digits">
+        <div class="captcha-box" id="captcha-box">
+            <span class="captcha-label">Security Check</span>
+            <div class="slider-track" id="slider-track" role="slider" aria-label="Slide to complete security check" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+                <div class="slider-fill" id="slider-fill"></div>
+                <div class="slider-target" style="left:{{ $captchaTarget }}%"></div>
+                <div class="slider-thumb" id="slider-thumb">›</div>
+            </div>
+            <div class="slider-success">✓ Verification complete</div>
+            <p class="captcha-hint">Drag the green button to the circle. Works with mouse or touch.</p>
+            <input type="hidden" name="captcha_position" id="captcha_position" value="">
         </div>
-        <p class="security-note">Enter the 4-digit code before signing in.</p>
+        <p class="security-note">A new challenge is generated after each failed verification or login attempt.</p>
 
         <label class="remember"><input type="checkbox" name="remember" value="1"> Remember me</label>
         <button class="button" type="submit">Sign in</button>
@@ -51,6 +57,25 @@
 </div>
 <script>
 function togglePassword(){const input=document.getElementById('password');const button=document.querySelector('.show');const show=input.type==='password';input.type=show?'text':'password';button.textContent=show?'Hide':'Show';}
+(function(){
+ const track=document.getElementById('slider-track'), thumb=document.getElementById('slider-thumb'), fill=document.getElementById('slider-fill'), hidden=document.getElementById('captcha_position'), box=document.getElementById('captcha-box');
+ let dragging=false, verified=false, position=0;
+ function setPosition(clientX){
+   const rect=track.getBoundingClientRect(), max=rect.width-thumb.offsetWidth-6;
+   position=Math.max(0,Math.min(100,((clientX-rect.left-thumb.offsetWidth/2-3)/max)*100));
+   thumb.style.transform='translateX('+((max*position/100))+'px)';
+   fill.style.width=Math.min(100,position+4)+'%';
+   track.setAttribute('aria-valuenow',Math.round(position));
+ }
+ function finish(){
+   if(position>=92){position=100;setPosition(track.getBoundingClientRect().right-thumb.offsetWidth/2);verified=true;hidden.value='100';box.classList.add('verified');thumb.textContent='✓';thumb.style.cursor='default';}
+ }
+ thumb.addEventListener('pointerdown',e=>{if(verified)return;dragging=true;thumb.classList.add('dragging');thumb.setPointerCapture(e.pointerId);setPosition(e.clientX);});
+ thumb.addEventListener('pointermove',e=>{if(dragging&&!verified)setPosition(e.clientX);});
+ thumb.addEventListener('pointerup',()=>{if(!verified){dragging=false;thumb.classList.remove('dragging');finish();}});
+ track.addEventListener('keydown',e=>{if(verified)return;if(['ArrowRight','ArrowUp'].includes(e.key)){e.preventDefault();setPosition(Math.min(100,position+5)*track.clientWidth/100+track.getBoundingClientRect().left);finish();}if(['ArrowLeft','ArrowDown'].includes(e.key)){e.preventDefault();setPosition(Math.max(0,position-5)*track.clientWidth/100+track.getBoundingClientRect().left);}});
+ document.getElementById('login-form').addEventListener('submit',e=>{if(!verified){e.preventDefault();alert('Please complete the slider security check.');}});
+})();
 </script>
 </body>
 </html>
