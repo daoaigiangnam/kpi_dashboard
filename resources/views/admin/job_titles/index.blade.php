@@ -7,7 +7,7 @@
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:18px">
         <div>
             <div style="font-weight:700;font-size:16px">Job Title Management</div>
-            <div class="muted">Manage job titles and Target Workload Point used by KPI calculation. Hidden job titles remain searchable for recovery.</div>
+            <div class="muted">Manage job titles and Target Workload Point used by KPI calculation. Hidden job titles are removed from the normal list and can be recovered from Find Hidden.</div>
         </div>
         <div class="actions">
             @if(auth()->user()->hasPermission('job_titles.import'))
@@ -29,16 +29,30 @@
         </div>
     </div>
 
-    <form method="get" action="{{ route('admin.job_titles.index') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
-        <input class="input" style="max-width:520px;margin-top:0" type="search" name="search" value="{{ $search }}" placeholder="Search code, job title, level or description">
-        <button class="btn" type="submit">Search</button>
-        @if($search !== '')
-            <a class="btn gray" href="{{ route('admin.job_titles.index') }}">Clear</a>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+        <form method="get" action="{{ route('admin.job_titles.index') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;min-width:280px">
+            <input type="hidden" name="show_hidden" value="{{ $showHidden ? 1 : 0 }}">
+            <input class="input" style="max-width:520px;margin-top:0" type="search" name="search" value="{{ $search }}" placeholder="Search code, job title, level or description">
+            <button class="btn" type="submit">Search</button>
+            @if($search !== '')
+                <a class="btn gray" href="{{ route('admin.job_titles.index', ['show_hidden'=>$showHidden ? 1 : 0]) }}">Clear</a>
+            @endif
+        </form>
+        @if(auth()->user()->hasPermission('job_titles.delete'))
+            @if($showHidden)
+                <a class="btn gray" href="{{ route('admin.job_titles.index') }}">← Active Job Titles</a>
+            @else
+                <a class="btn gray" href="{{ route('admin.job_titles.index', ['show_hidden'=>1]) }}">Find Hidden</a>
+            @endif
         @endif
-    </form>
+    </div>
 
     <div class="muted" style="margin-bottom:10px">
-        {{ $jobTitles->total() }} job title(s) found. Hidden job titles remain available here for Restore.
+        @if($showHidden)
+            {{ $jobTitles->total() }} hidden job title(s) found. Select Restore to return a job title to the active list.
+        @else
+            {{ $jobTitles->total() }} active job title(s) found. Hidden job titles are not displayed here.
+        @endif
     </div>
 
     <div class="table-wrap">
@@ -72,7 +86,7 @@
                         @endif
                     </td>
                     <td>
-                        @if($jt->trashed())
+                        @if($showHidden)
                             <span style="display:inline-block;padding:4px 8px;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:12px">Hidden</span>
                         @elseif($jt->is_active)
                             <span style="display:inline-block;padding:4px 8px;border-radius:999px;background:#e8f6ed;color:#24613f;font-size:12px">Active</span>
@@ -82,7 +96,15 @@
                     </td>
                     <td>
                         <div class="actions">
-                            @if(!$jt->trashed())
+                            @if($showHidden)
+                                @if(auth()->user()->hasPermission('job_titles.delete'))
+                                    <form method="post" action="{{ route('admin.job_titles.restore',$jt->id) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button class="btn" type="submit">Restore</button>
+                                    </form>
+                                @endif
+                            @else
                                 @if(auth()->user()->hasPermission('job_titles.edit'))
                                     <a class="btn gray" href="{{ route('admin.job_titles.edit',$jt) }}">Edit</a>
                                 @endif
@@ -91,26 +113,18 @@
                                         <form method="post" action="{{ route('admin.job_titles.destroy',$jt) }}">
                                             @csrf
                                             @method('DELETE')
-                                            <button class="btn red" type="submit" onclick="return confirm('Delete this job title? It will be hidden, not physically removed, and can be restored later.')">Delete</button>
+                                            <button class="btn red" type="submit" onclick="return confirm('Hide this job title? It will not be physically deleted and can be restored later from Find Hidden.')">Delete</button>
                                         </form>
                                     @else
-                                        <button class="btn gray" type="button" disabled title="Remove all assigned users before deleting this job title." style="opacity:.55;cursor:not-allowed">Delete</button>
+                                        <button class="btn gray" type="button" disabled title="Remove all assigned users before hiding this job title." style="opacity:.55;cursor:not-allowed">Delete</button>
                                     @endif
-                                @endif
-                            @else
-                                @if(auth()->user()->hasPermission('job_titles.delete'))
-                                    <form method="post" action="{{ route('admin.job_titles.restore',$jt->id) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button class="btn" type="submit">Restore</button>
-                                    </form>
                                 @endif
                             @endif
                         </div>
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="muted" style="text-align:center;padding:28px">No job titles found.</td></tr>
+                <tr><td colspan="7" class="muted" style="text-align:center;padding:28px">{{ $showHidden ? 'No hidden job titles found.' : 'No active job titles found.' }}</td></tr>
             @endforelse
             </tbody>
         </table>
