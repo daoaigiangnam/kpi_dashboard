@@ -8,8 +8,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class KpiCalculationRun extends Model
 {
     protected $fillable = [
-        'run_code', 'employee_id', 'period_from', 'period_to', 'criteria',
-        'weights_snapshot', 'metrics', 'total_kpi', 'calculated_by', 'calculated_at',
+        'run_code',
+        'calculation_key',
+        'employee_id',
+        'period_from',
+        'period_to',
+        'criteria',
+        'weights_snapshot',
+        'metrics',
+        'total_kpi',
+        'calculated_by',
+        'calculated_at',
     ];
 
     protected $casts = [
