@@ -8,6 +8,7 @@ class Ticket extends Model
 {
     protected $fillable = [
         'external_ticket_id',
+        'employee_id',
         'priority',
         'created_on',
         'started_on',
@@ -39,4 +40,9 @@ class Ticket extends Model
         'sla_target_minutes' => 'integer',
         'source_payload' => 'array',
     ];
+
+    public function employee()
+    {
+        return $this->belongsTo(User::class, 'employee_id');
+    }
 }
