@@ -14,6 +14,9 @@ Route::post('/logout',[LoginController::class,'logout'])->middleware('auth')->na
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::get('/',[DashboardController::class,'index'])->middleware('permission:admin.view')->name('dashboard');
  Route::get('users',[UserController::class,'index'])->middleware('permission:users.view')->name('users.index');
+ Route::get('users/template',[UserController::class,'template'])->middleware('permission:users.import')->name('users.template');
+ Route::get('users/export',[UserController::class,'export'])->middleware('permission:users.export')->name('users.export');
+ Route::post('users/import',[UserController::class,'import'])->middleware('permission:users.import')->name('users.import');
  Route::get('users/create',[UserController::class,'create'])->middleware('permission:users.create')->name('users.create');
  Route::post('users',[UserController::class,'store'])->middleware('permission:users.create')->name('users.store');
  Route::get('users/{user}/edit',[UserController::class,'edit'])->middleware('permission:users.edit')->name('users.edit');
