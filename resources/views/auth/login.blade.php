@@ -3,17 +3,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>KPI Dashboard — Sign in</title>
+    <title>KPI Dashboard System — Sign in</title>
     <style>
         *{box-sizing:border-box}
         :root{--navy:#0f172a;--slate:#475569;--muted:#64748b;--line:#dbe4ee;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff6ff}
-        body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#eaf1f8;display:grid;place-items:center;min-height:100vh;margin:0;color:var(--navy);position:relative;overflow:hidden}
-        body:before{content:"";position:absolute;width:760px;height:760px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.18) 0%,rgba(59,130,246,.09) 32%,rgba(59,130,246,0) 70%);top:-390px;left:-210px;pointer-events:none}
-        body:after{content:"";position:absolute;width:720px;height:720px;border-radius:50%;background:radial-gradient(circle,rgba(14,165,233,.15) 0%,rgba(56,189,248,.07) 35%,rgba(56,189,248,0) 72%);bottom:-390px;right:-170px;pointer-events:none}
-        .box{position:relative;z-index:1;background:rgba(255,255,255,.97);backdrop-filter:blur(16px);width:min(410px,calc(100% - 32px));padding:32px;border:1px solid rgba(203,213,225,.9);border-radius:18px;box-shadow:0 28px 70px rgba(15,23,42,.15),0 4px 14px rgba(15,23,42,.06)}
+        body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(135deg,#dce8f7 0%,#edf3fa 42%,#dfeef8 100%);display:grid;place-items:center;min-height:100vh;margin:0;color:var(--navy);position:relative;overflow:hidden}
+        body:before{content:"";position:absolute;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.25) 0%,rgba(59,130,246,.14) 30%,rgba(59,130,246,.04) 55%,rgba(59,130,246,0) 72%);top:-520px;left:-280px;pointer-events:none}
+        body:after{content:"";position:absolute;width:850px;height:850px;border-radius:50%;background:radial-gradient(circle,rgba(14,165,233,.22) 0%,rgba(56,189,248,.12) 32%,rgba(56,189,248,.04) 55%,rgba(56,189,248,0) 73%);bottom:-500px;right:-240px;pointer-events:none}
+        .box{position:relative;z-index:1;background:rgba(255,255,255,.98);backdrop-filter:blur(18px);width:min(410px,calc(100% - 32px));padding:32px;border:1px solid rgba(203,213,225,.95);border-radius:18px;box-shadow:0 30px 80px rgba(15,23,42,.18),0 6px 18px rgba(15,23,42,.08)}
         .brand{display:flex;align-items:center;gap:10px;margin-bottom:28px}
-        .brand-mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(145deg,#3b82f6,#1d4ed8);color:#fff;display:grid;place-items:center;font-size:17px;font-weight:800;box-shadow:0 7px 16px rgba(37,99,235,.25)}
-        .brand-name{font-size:17px;font-weight:750;letter-spacing:-.2px;color:var(--navy)}
+        .brand-mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(145deg,#3b82f6,#1d4ed8);color:#fff;display:grid;place-items:center;font-size:17px;font-weight:800;box-shadow:0 7px 16px rgba(37,99,235,.30)}
+        .brand-name{font-size:17px;font-weight:750;letter-spacing:-.25px;color:var(--navy)}
         h2{font-size:25px;line-height:1.2;margin:0 0 7px;letter-spacing:-.5px}
         .subtitle{color:var(--muted);margin:0 0 24px;font-size:14px}
         .field{margin-bottom:17px}
@@ -45,14 +45,14 @@
         .error{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
         .status{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
         .security-note{font-size:11px;color:var(--muted);margin:0 0 16px;line-height:1.4}
-        @media(max-width:480px){body{background:#eef3f8}.box{padding:26px;width:min(410px,calc(100% - 24px));border-radius:15px}.brand{margin-bottom:24px}h2{font-size:23px}}
+        @media(max-width:480px){body{background:linear-gradient(135deg,#e2ebf7 0%,#eef4fa 48%,#e3eff8 100%)}.box{padding:26px;width:min(410px,calc(100% - 24px));border-radius:15px}.brand{margin-bottom:24px}h2{font-size:23px}}
     </style>
 </head>
 <body>
 <div class="box">
     <div class="brand">
         <div class="brand-mark">K</div>
-        <div class="brand-name">KPI Dashboard</div>
+        <div class="brand-name">KPI Dashboard System</div>
     </div>
 
     <h2>Welcome back</h2>
