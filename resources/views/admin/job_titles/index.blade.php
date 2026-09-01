@@ -8,6 +8,9 @@
             <div class="muted">Define job titles and the Target Workload Point used by KPI calculation.</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+            @if(auth()->user()->hasPermission('job_titles.import'))
+                <a class="btn gray" href="{{ route('admin.job_titles.template') }}">Download Import Template</a>
+            @endif
             @if(auth()->user()->hasPermission('job_titles.export'))
                 <a class="btn gray" href="{{ route('admin.job_titles.export', ['search' => $search]) }}">Export Excel</a>
             @endif
@@ -33,20 +36,9 @@
     </form>
 
     <div class="muted" style="margin-bottom:10px">{{ $jobTitles->total() }} job title(s)</div>
-
     <div class="table-wrap">
         <table class="table">
-            <thead>
-                <tr>
-                    <th>Code</th>
-                    <th>Job Title</th>
-                    <th>Level</th>
-                    <th>Target Workload Point</th>
-                    <th>Users</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Code</th><th>Job Title</th><th>Level</th><th>Target Workload Point</th><th>Users</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
                 @forelse($jobTitles as $jobTitle)
                     <tr>
@@ -57,14 +49,9 @@
                         <td>{{ $jobTitle->users_count }}</td>
                         <td>{{ $jobTitle->is_active ? 'Active' : 'Inactive' }}</td>
                         <td>
-                            @if(auth()->user()->hasPermission('job_titles.edit'))
-                                <a class="btn gray" href="{{ route('admin.job_titles.edit',$jobTitle) }}">Edit</a>
-                            @endif
+                            @if(auth()->user()->hasPermission('job_titles.edit')) <a class="btn gray" href="{{ route('admin.job_titles.edit',$jobTitle) }}">Edit</a> @endif
                             @if(auth()->user()->hasPermission('job_titles.delete'))
-                                <form style="display:inline" method="post" action="{{ route('admin.job_titles.destroy',$jobTitle) }}">
-                                    @csrf @method('DELETE')
-                                    <button class="btn red" onclick="return confirm('Delete this job title?')">Delete</button>
-                                </form>
+                                <form style="display:inline" method="post" action="{{ route('admin.job_titles.destroy',$jobTitle) }}">@csrf @method('DELETE')<button class="btn red" onclick="return confirm('Delete this job title?')">Delete</button></form>
                             @endif
                         </td>
                     </tr>
