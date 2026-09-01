@@ -3,15 +3,55 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>KPI Dashboard Login</title>
+    <title>KPI Dashboard — Sign in</title>
     <style>
-        *{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;background:#f4f8f5;display:grid;place-items:center;min-height:100vh;margin:0;color:#172033}.box{background:#fff;width:min(390px,calc(100% - 32px));padding:30px;border-radius:14px;box-shadow:0 12px 35px #17321f14;border:1px solid #e1e9e3}.subtitle{color:#64748b;margin:0 0 22px}.field{margin-bottom:16px}.label{display:block;margin-bottom:6px;font-weight:600}.password-wrap{position:relative}.input{width:100%;padding:12px;border:1px solid #cbd8cf;border-radius:8px}.password-wrap .input{padding-right:72px}.show{position:absolute;right:7px;top:6px;border:0;background:transparent;color:#23784e;font-weight:700;cursor:pointer;padding:6px}.captcha-box{padding:12px;background:#f8faf9;border:1px solid #d7e3db;border-radius:8px;margin-bottom:16px}.captcha-label{display:block;font-weight:600;margin-bottom:8px}.slider-track{position:relative;height:42px;border-radius:21px;background:#e7eee9;border:1px solid #cbd8cf;touch-action:none;user-select:none;overflow:hidden}.slider-target{position:absolute;top:3px;height:34px;width:34px;border-radius:50%;border:2px dashed #8da397;background:#fff;transform:translateX(-50%);pointer-events:none}.slider-fill{position:absolute;left:0;top:0;height:100%;width:0;background:#d8eee0;pointer-events:none}.slider-thumb{position:absolute;top:3px;left:3px;width:34px;height:34px;border-radius:50%;background:#238b57;color:#fff;display:grid;place-items:center;font-weight:700;box-shadow:0 2px 7px #17321f26;cursor:grab;z-index:2;transform:translateX(0)}.slider-thumb.dragging{cursor:grabbing}.slider-success{display:none;text-align:center;color:#166534;font-weight:700;padding-top:8px;font-size:13px}.captcha-box.verified .slider-success{display:block}.captcha-box.verified .slider-track{opacity:.75}.captcha-hint{font-size:12px;color:#64748b;margin:8px 0 0}.button{width:100%;padding:12px;border:0;border-radius:8px;background:#238b57;color:#fff;font-weight:700;cursor:pointer}.button:hover{background:#197247}.forgot{display:block;text-align:center;margin-top:17px;color:#23784e;text-decoration:none;font-size:14px}.error,.status{padding:11px;border-radius:8px;margin-bottom:15px}.error{background:#fee2e2;color:#991b1b}.status{background:#dcfce7;color:#166534}.security-note{font-size:12px;color:#64748b;margin:-7px 0 16px}
+        *{box-sizing:border-box}
+        body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f8fafc;display:grid;place-items:center;min-height:100vh;margin:0;color:#0f172a}
+        .box{background:#fff;width:min(410px,calc(100% - 32px));padding:32px;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 18px 45px rgba(15,23,42,.08)}
+        .brand{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+        .brand-mark{width:34px;height:34px;border-radius:9px;background:#2563eb;color:#fff;display:grid;place-items:center;font-size:17px;font-weight:800;box-shadow:0 5px 12px rgba(37,99,235,.22)}
+        .brand-name{font-size:17px;font-weight:750;letter-spacing:-.2px;color:#0f172a}
+        h2{font-size:25px;line-height:1.2;margin:0 0 7px;letter-spacing:-.5px}
+        .subtitle{color:#64748b;margin:0 0 24px;font-size:14px}
+        .field{margin-bottom:17px}
+        .label{display:block;margin-bottom:7px;font-size:13px;font-weight:650;color:#334155}
+        .password-wrap{position:relative}
+        .input{width:100%;height:44px;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#0f172a;font-size:14px;outline:none;transition:border-color .15s,box-shadow .15s}
+        .input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+        .password-wrap .input{padding-right:72px}
+        .show{position:absolute;right:7px;top:5px;height:34px;border:0;background:transparent;color:#2563eb;font-size:12px;font-weight:700;cursor:pointer;padding:6px 8px}
+        .captcha-box{padding:13px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:13px}
+        .captcha-label{display:block;font-size:13px;font-weight:650;color:#334155;margin-bottom:9px}
+        .slider-track{position:relative;height:42px;border-radius:21px;background:#e2e8f0;border:1px solid #cbd5e1;touch-action:none;user-select:none;overflow:hidden}
+        .slider-target{position:absolute;top:3px;height:34px;width:34px;border-radius:50%;border:2px dashed #94a3b8;background:#fff;transform:translateX(-50%);pointer-events:none}
+        .slider-fill{position:absolute;left:0;top:0;height:100%;width:0;background:#dbeafe;pointer-events:none}
+        .slider-thumb{position:absolute;top:3px;left:3px;width:34px;height:34px;border-radius:50%;background:#2563eb;color:#fff;display:grid;place-items:center;font-weight:800;box-shadow:0 3px 8px rgba(37,99,235,.28);cursor:grab;z-index:2;transform:translateX(0)}
+        .slider-thumb.dragging{cursor:grabbing}
+        .slider-success{display:none;text-align:center;color:#166534;font-weight:700;padding-top:8px;font-size:12px}
+        .captcha-box.verified .slider-success{display:block}
+        .captcha-box.verified .slider-track{opacity:.75}
+        .captcha-hint{font-size:11px;color:#64748b;margin:8px 0 0;line-height:1.35}
+        .button{width:100%;height:44px;padding:11px;border:0;border-radius:9px;background:#2563eb;color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s,transform .05s}
+        .button:hover{background:#1d4ed8}
+        .button:active{transform:translateY(1px)}
+        .forgot{display:block;text-align:center;margin-top:17px;color:#2563eb;text-decoration:none;font-size:13px;font-weight:600}
+        .forgot:hover{text-decoration:underline}
+        .error,.status{padding:11px 12px;border-radius:9px;margin-bottom:16px;font-size:13px}
+        .error{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+        .status{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+        .security-note{font-size:11px;color:#64748b;margin:0 0 16px;line-height:1.4}
+        @media(max-width:480px){.box{padding:26px;width:min(410px,calc(100% - 24px));border-radius:14px}.brand{margin-bottom:24px}h2{font-size:23px}}
     </style>
 </head>
 <body>
 <div class="box">
-    <h2>KPI Dashboard</h2>
-    <p class="subtitle">Admin Sign In</p>
+    <div class="brand">
+        <div class="brand-mark">K</div>
+        <div class="brand-name">KPI Dashboard</div>
+    </div>
+
+    <h2>Welcome back</h2>
+    <p class="subtitle">Sign in to continue to your dashboard.</p>
 
     @if(session('status'))
         <div class="status">{{ session('status') }}</div>
@@ -37,22 +77,22 @@
         </div>
 
         <div class="captcha-box" id="captcha-box">
-            <span class="captcha-label">Security Check</span>
+            <span class="captcha-label">Security check</span>
             <div class="slider-track" id="slider-track" role="slider" aria-label="Slide to complete security check" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
                 <div class="slider-fill" id="slider-fill"></div>
                 <div class="slider-target" id="slider-target" style="left:{{ $captchaTarget }}%"></div>
                 <div class="slider-thumb" id="slider-thumb">›</div>
             </div>
             <div class="slider-success">✓ Verification complete</div>
-            <p class="captcha-hint">Drag the green button to the circle. Works with mouse or touch.</p>
+            <p class="captcha-hint">Drag the blue button to the circle. Works with mouse or touch.</p>
             <input type="hidden" name="captcha_position" id="captcha_position" value="">
         </div>
-        <p class="security-note">A new challenge is generated after each failed verification or login attempt.</p>
+        <p class="security-note">Complete the security check before signing in.</p>
 
         <button class="button" type="submit">Sign in</button>
     </form>
 
-    <a class="forgot" href="{{ route('password.request') }}">Forgot Password?</a>
+    <a class="forgot" href="{{ route('password.request') }}">Forgot password?</a>
 </div>
 <script>
 function togglePassword(){const input=document.getElementById('password');const button=document.querySelector('.show');const show=input.type==='password';input.type=show?'text':'password';button.textContent=show?'Hide':'Show';}
