@@ -1,21 +1,22 @@
 <?php
-
 namespace App\Models;
-
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class User extends Authenticatable
 {
-    use Notifiable;
+    use Notifiable, SoftDeletes;
 
-    protected $fillable = ['employee_code','name','email','phone','date_of_birth','gender','join_date','department','location','user_group_id','job_title_id','notes','password','is_active'];
+    protected $fillable = ['employee_code','name','email','phone','date_of_birth','gender','join_date','department','location','department_id','unit_id','user_group_id','job_title_id','notes','password','is_active'];
     protected $hidden = ['password','remember_token'];
     protected $casts = ['is_active'=>'boolean','date_of_birth'=>'date','join_date'=>'date','password'=>'hashed'];
 
     public function group(): BelongsTo { return $this->belongsTo(UserGroup::class,'user_group_id'); }
     public function jobTitle(): BelongsTo { return $this->belongsTo(JobTitle::class); }
+    public function departmentRelation(): BelongsTo { return $this->belongsTo(Department::class,'department_id'); }
+    public function unit(): BelongsTo { return $this->belongsTo(Unit::class,'unit_id'); }
 
     public function hasPermission(string $permission): bool
     {
