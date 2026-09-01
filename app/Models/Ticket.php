@@ -22,7 +22,7 @@ class Ticket extends Model
     protected static function booted(): void
     {
         static::saving(function (self $ticket): void {
-            $priority = KpiSlaPriority::query()
+            $priority = \App\Models\KpiSlaPriority::query()
                 ->where('code', strtoupper((string) $ticket->priority))
                 ->first();
             $ticket->workload_point = $ticket->finished_on !== null
@@ -33,7 +33,7 @@ class Ticket extends Model
 
     public function getWorkloadPointAttribute($value)
     {
-        $priority = KpiSlaPriority::query()
+        $priority = \App\Models\KpiSlaPriority::query()
             ->where('code', strtoupper((string) $this->priority))
             ->first();
         return $priority?->workload_point ?? $value;
