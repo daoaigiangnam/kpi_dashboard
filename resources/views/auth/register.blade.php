@@ -20,7 +20,7 @@
 <div class="box">
     <div class="brand"><div class="mark">K</div><div class="brand-name">KPI Dashboard System</div></div>
     <h1>Create your account</h1>
-    <p class="subtitle">Submit your employee information for Super Admin approval.</p>
+    <p class="subtitle">Enter your employee information. We will send a verification OTP to your email before submitting the registration for Super Admin approval.</p>
 
     @if($errors->any())<div class="error">{{ $errors->first() }}</div>@endif
 
@@ -62,7 +62,7 @@
             <input type="hidden" name="captcha_position" id="captcha_position" value="">
         </div>
 
-        <button class="button" type="submit">Submit Registration</button>
+        <button class="button" type="submit">Verify Email &amp; Continue</button>
     </form>
     <a class="back" href="{{ route('login') }}">← Back to Sign in</a>
 </div>
