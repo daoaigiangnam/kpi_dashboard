@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\KpiParameterController;
 use App\Http\Controllers\Admin\TicketController;
 use App\Http\Controllers\Admin\TicketTemplateController;
 use App\Http\Controllers\Admin\KpiCalculationController;
+use App\Http\Controllers\Admin\TicketKpiPageController;
 
 Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name('login');
 Route::post('/login',[LoginController::class,'login'])->middleware(['guest','throttle:5,1'])->name('login.attempt');
@@ -87,7 +88,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::patch('units/{unit}/restore',[UnitController::class,'restore'])->middleware('permission:units.delete')->name('units.restore');
  Route::get('kpi-parameters',[KpiParameterController::class,'index'])->middleware('permission:kpi.parameters')->name('kpi_parameters.index');
  Route::put('kpi-parameters',[KpiParameterController::class,'update'])->middleware('permission:kpi.parameters')->name('kpi_parameters.update');
- Route::get('tickets',[TicketController::class,'index'])->middleware('permission:kpi.tickets')->name('tickets.index');
+ Route::get('tickets',[TicketKpiPageController::class,'index'])->middleware('permission:kpi.tickets')->name('tickets.index');
  Route::get('tickets/template',[TicketTemplateController::class,'download'])->middleware('permission:kpi.tickets')->name('tickets.template');
  Route::get('tickets/export',[TicketController::class,'export'])->middleware('permission:kpi.tickets')->name('tickets.export');
  Route::post('tickets/import',[TicketController::class,'import'])->middleware('permission:kpi.tickets')->name('tickets.import');
