@@ -34,7 +34,8 @@ class TicketController extends Controller
             })
             ->when($priority !== '', fn ($q) => $q->where('priority', $priority))
             ->when($employeeId !== null && $employeeId !== '', fn ($q) => $q->where('employee_id', (int) $employeeId))
-            ->orderByDesc('created_on')
+            ->orderByRaw('CAST(external_ticket_id AS UNSIGNED) ASC')
+            ->orderBy('external_ticket_id')
             ->paginate(25)
             ->withQueryString();
 
