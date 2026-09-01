@@ -1,1 +1,49 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KPI Dashboard Login</title><style>body{font-family:Arial;background:#f5f7fb;display:grid;place-items:center;min-height:100vh;margin:0}.box{background:#fff;width:360px;padding:30px;border-radius:12px;box-shadow:0 10px 35px #17203318}input{width:100%;padding:11px;box-sizing:border-box;margin:6px 0 15px;border:1px solid #d5dbe5;border-radius:7px}button{width:100%;padding:11px;border:0;border-radius:7px;background:#2563eb;color:#fff;font-weight:600}.error{background:#fee2e2;padding:10px;border-radius:7px;margin-bottom:15px}</style></head><body><div class="box"><h2>KPI Dashboard</h2><p>Admin Sign In</p>@if($errors->any())<div class="error">{{ $errors->first() }}</div>@endif<form method="post" action="{{ route('login.attempt') }}">@csrf<label>Email</label><input type="email" name="email" value="{{ old('email') }}" required autofocus><label>Password</label><input type="password" name="password" required><label><input style="width:auto;margin-right:6px" type="checkbox" name="remember" value="1"> Remember me</label><button type="submit">Sign in</button></form></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>KPI Dashboard Login</title>
+    <style>
+        *{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;background:#f4f8f5;display:grid;place-items:center;min-height:100vh;margin:0;color:#172033}.box{background:#fff;width:min(390px,calc(100% - 32px));padding:30px;border-radius:14px;box-shadow:0 12px 35px #17321f14;border:1px solid #e1e9e3}.subtitle{color:#64748b;margin:0 0 22px}.field{margin-bottom:16px}.label{display:block;margin-bottom:6px;font-weight:600}.password-wrap{position:relative}.input{width:100%;padding:12px;border:1px solid #cbd8cf;border-radius:8px}.password-wrap .input{padding-right:72px}.show{position:absolute;right:7px;top:6px;border:0;background:transparent;color:#23784e;font-weight:700;cursor:pointer;padding:6px}.remember{display:flex;align-items:center;gap:7px;margin:4px 0 18px;font-size:14px}.remember input{width:auto;margin:0}.button{width:100%;padding:12px;border:0;border-radius:8px;background:#238b57;color:#fff;font-weight:700;cursor:pointer}.button:hover{background:#197247}.forgot{display:block;text-align:center;margin-top:17px;color:#23784e;text-decoration:none;font-size:14px}.error,.status{padding:11px;border-radius:8px;margin-bottom:15px}.error{background:#fee2e2;color:#991b1b}.status{background:#dcfce7;color:#166534}
+    </style>
+</head>
+<body>
+<div class="box">
+    <h2>KPI Dashboard</h2>
+    <p class="subtitle">Admin Sign In</p>
+
+    @if(session('status'))
+        <div class="status">{{ session('status') }}</div>
+    @endif
+
+    @if($errors->any())
+        <div class="error">{{ $errors->first() }}</div>
+    @endif
+
+    <form method="post" action="{{ route('login.attempt') }}">
+        @csrf
+        <div class="field">
+            <label class="label" for="email">Email</label>
+            <input class="input" id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username">
+        </div>
+
+        <div class="field">
+            <label class="label" for="password">Password</label>
+            <div class="password-wrap">
+                <input class="input" id="password" type="password" name="password" required autocomplete="current-password">
+                <button class="show" type="button" onclick="togglePassword()">Show</button>
+            </div>
+        </div>
+
+        <label class="remember"><input type="checkbox" name="remember" value="1"> Remember me</label>
+        <button class="button" type="submit">Sign in</button>
+    </form>
+
+    <a class="forgot" href="{{ route('password.request') }}">Forgot Password?</a>
+</div>
+<script>
+function togglePassword(){const input=document.getElementById('password');const button=document.querySelector('.show');const show=input.type==='password';input.type=show?'text':'password';button.textContent=show?'Hide':'Show';}
+</script>
+</body>
+</html>
