@@ -1,25 +1,41 @@
 # KPI Dashboard
 
-PHP/Laravel + MySQL KPI Dashboard foundation.
+## Admin foundation
 
-## Initial Admin foundation
+PHP 8.2+ / Laravel 11 / MySQL 8+.
 
-Branch: `feature/admin-foundation`
+Implemented Admin foundation:
+- Login / logout with session authentication
+- Active/inactive Admin users
+- User CRUD
+- User Groups CRUD
+- Group-based permission RBAC
+- Permission assignment UI by module
+- Permission middleware for every Admin action
+- Admin dashboard summary
+- Database migrations and seed data
+- PhpSpreadsheet dependency prepared for the KPI Excel import phase
 
-Implemented:
+### Default groups
+- **Super Admin** — all permissions
+- **KPI Admin** — administration and KPI operations
+- **KPI Viewer** — dashboard read-only
 
-- Authenticated `/admin` area (expects the project's standard Laravel `auth` middleware/scaffolding).
-- User management foundation.
-- User Groups and permission-based RBAC.
-- Seeded groups: `Super Admin`, `KPI Admin`, `KPI Viewer`.
-- Permission codes prepared for Admin, Users, KPI Dashboard, Import and Configuration.
-- MySQL migrations for groups, permissions and group-permission mapping.
+### Default development account
+`admin@example.com` / `ChangeMe123!`
 
-## Setup
+Change it immediately outside local development.
 
+### Setup
 ```bash
-php artisan migrate
-php artisan db:seed --class=AdminRbacSeeder
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve
 ```
 
-> The repository was initially only a README. The branch establishes the first application code structure for the Admin/RBAC layer. Authentication UI/scaffolding is intentionally left to the selected Laravel authentication stack before deployment.
+Open `/login`.
+
+### Next KPI phase
+The Admin/RBAC core is intentionally independent from KPI calculation. The next layer can add Employee Master/Mapping, Ticket RAW Excel import, KPI configuration and calculation. Bitrix API can later become another data provider without replacing the KPI engine.
