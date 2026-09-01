@@ -26,6 +26,8 @@ class AdminRbacSeeder extends Seeder
             ['Job Titles','Create Job Titles','job_titles.create'],
             ['Job Titles','Edit Job Titles','job_titles.edit'],
             ['Job Titles','Delete Job Titles','job_titles.delete'],
+            ['Job Titles','Import Job Titles','job_titles.import'],
+            ['Job Titles','Export Job Titles','job_titles.export'],
             ['KPI','View Dashboard','kpi.dashboard.view'],
             ['KPI','Import Ticket Data','kpi.import'],
             ['KPI','Manage Configuration','kpi.config'],
@@ -45,6 +47,7 @@ class AdminRbacSeeder extends Seeder
             'admin.view','users.view','users.create','users.edit',
             'groups.view','groups.create','groups.edit','groups.permissions',
             'job_titles.view','job_titles.create','job_titles.edit',
+            'job_titles.import','job_titles.export',
             'kpi.dashboard.view','kpi.import','kpi.config'
         ])->pluck('id'));
         $viewer->permissions()->sync(Permission::where('code', 'kpi.dashboard.view')->pluck('id'));
