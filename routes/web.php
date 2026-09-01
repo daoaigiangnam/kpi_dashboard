@@ -42,6 +42,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::delete('users/{user}',[UserController::class,'destroy'])->middleware('permission:users.delete')->name('users.destroy');
  Route::patch('users/{user}/restore',[UserController::class,'restore'])->middleware('permission:users.delete')->name('users.restore');
  Route::get('groups',[GroupController::class,'index'])->middleware('permission:groups.view')->name('groups.index');
+ Route::get('groups/export',[GroupController::class,'export'])->middleware('permission:groups.view')->name('groups.export');
  Route::get('groups/create',[GroupController::class,'create'])->middleware('permission:groups.create')->name('groups.create');
  Route::post('groups',[GroupController::class,'store'])->middleware('permission:groups.create')->name('groups.store');
  Route::get('groups/{group}/edit',[GroupController::class,'edit'])->middleware('permission:groups.edit')->name('groups.edit');
