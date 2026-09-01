@@ -40,7 +40,7 @@
             <span class="captcha-label">Security Check</span>
             <div class="slider-track" id="slider-track" role="slider" aria-label="Slide to complete security check" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
                 <div class="slider-fill" id="slider-fill"></div>
-                <div class="slider-target" style="left:{{ $captchaTarget }}%"></div>
+                <div class="slider-target" id="slider-target" style="left:{{ $captchaTarget }}%"></div>
                 <div class="slider-thumb" id="slider-thumb">›</div>
             </div>
             <div class="slider-success">✓ Verification complete</div>
@@ -58,7 +58,8 @@
 <script>
 function togglePassword(){const input=document.getElementById('password');const button=document.querySelector('.show');const show=input.type==='password';input.type=show?'text':'password';button.textContent=show?'Hide':'Show';}
 (function(){
- const track=document.getElementById('slider-track'), thumb=document.getElementById('slider-thumb'), fill=document.getElementById('slider-fill'), hidden=document.getElementById('captcha_position'), box=document.getElementById('captcha-box');
+ const track=document.getElementById('slider-track'), thumb=document.getElementById('slider-thumb'), fill=document.getElementById('slider-fill'), hidden=document.getElementById('captcha_position'), target=document.getElementById('slider-target'), box=document.getElementById('captcha-box');
+ const targetPosition=parseFloat(getComputedStyle(target).left)/track.getBoundingClientRect().width*100;
  let dragging=false, verified=false, position=0;
  function setPosition(clientX){
    const rect=track.getBoundingClientRect(), max=rect.width-thumb.offsetWidth-6;
@@ -67,13 +68,16 @@ function togglePassword(){const input=document.getElementById('password');const 
    fill.style.width=Math.min(100,position+4)+'%';
    track.setAttribute('aria-valuenow',Math.round(position));
  }
+ function reset(){position=0;thumb.style.transform='translateX(0)';fill.style.width='0';track.setAttribute('aria-valuenow','0');}
  function finish(){
-   if(position>=92){position=100;setPosition(track.getBoundingClientRect().right-thumb.offsetWidth/2);verified=true;hidden.value='100';box.classList.add('verified');thumb.textContent='✓';thumb.style.cursor='default';}
+   if(Math.abs(position-targetPosition)<=8){
+     verified=true;hidden.value=position.toFixed(2);box.classList.add('verified');thumb.textContent='✓';thumb.style.cursor='default';
+   }else{reset();hidden.value='';}
  }
  thumb.addEventListener('pointerdown',e=>{if(verified)return;dragging=true;thumb.classList.add('dragging');thumb.setPointerCapture(e.pointerId);setPosition(e.clientX);});
  thumb.addEventListener('pointermove',e=>{if(dragging&&!verified)setPosition(e.clientX);});
  thumb.addEventListener('pointerup',()=>{if(!verified){dragging=false;thumb.classList.remove('dragging');finish();}});
- track.addEventListener('keydown',e=>{if(verified)return;if(['ArrowRight','ArrowUp'].includes(e.key)){e.preventDefault();setPosition(Math.min(100,position+5)*track.clientWidth/100+track.getBoundingClientRect().left);finish();}if(['ArrowLeft','ArrowDown'].includes(e.key)){e.preventDefault();setPosition(Math.max(0,position-5)*track.clientWidth/100+track.getBoundingClientRect().left);}});
+ track.addEventListener('keydown',e=>{if(verified)return;if(['ArrowRight','ArrowUp'].includes(e.key)){e.preventDefault();setPosition(track.getBoundingClientRect().left+track.clientWidth*(Math.min(100,position+5)/100));finish();}if(['ArrowLeft','ArrowDown'].includes(e.key)){e.preventDefault();setPosition(track.getBoundingClientRect().left+track.clientWidth*(Math.max(0,position-5)/100));}});
  document.getElementById('login-form').addEventListener('submit',e=>{if(!verified){e.preventDefault();alert('Please complete the slider security check.');}});
 })();
 </script>
