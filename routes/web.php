@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\GroupController;
@@ -15,6 +16,8 @@ use App\Http\Controllers\Admin\SystemSettingController;
 Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name('login');
 Route::post('/login',[LoginController::class,'login'])->middleware(['guest','throttle:5,1'])->name('login.attempt');
 Route::post('/logout',[LoginController::class,'logout'])->middleware('auth')->name('logout');
+Route::get('/signup',[RegisterController::class,'show'])->middleware('guest')->name('register');
+Route::post('/signup',[RegisterController::class,'register'])->middleware(['guest','throttle:3,10'])->name('register.store');
 Route::get('/forgot-password',[ForgotPasswordController::class,'show'])->middleware('guest')->name('password.request');
 Route::post('/forgot-password',[ForgotPasswordController::class,'send'])->middleware(['guest','throttle:5,1'])->name('password.email');
 Route::get('/reset-password/{token}',[ResetPasswordController::class,'show'])->middleware('guest')->name('password.reset');
@@ -23,6 +26,9 @@ Route::post('/reset-password',[ResetPasswordController::class,'reset'])->middlew
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::get('/',[DashboardController::class,'index'])->middleware('permission:admin.view')->name('dashboard');
  Route::get('users',[UserController::class,'index'])->middleware('permission:users.view')->name('users.index');
+ Route::get('users/pending',[UserController::class,'pending'])->middleware('permission:users.view')->name('users.pending');
+ Route::post('users/{user}/approve',[UserController::class,'approve'])->middleware('permission:users.view')->name('users.approve');
+ Route::post('users/{user}/reject',[UserController::class,'reject'])->middleware('permission:users.view')->name('users.reject');
  Route::get('users/template',[UserController::class,'template'])->middleware('permission:users.import')->name('users.template');
  Route::get('users/export',[UserController::class,'export'])->middleware('permission:users.export')->name('users.export');
  Route::post('users/import',[UserController::class,'import'])->middleware('permission:users.import')->name('users.import');
@@ -65,7 +71,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::post('units/import',[UnitController::class,'import'])->middleware('permission:units.import')->name('units.import');
  Route::get('units/create',[UnitController::class,'create'])->middleware('permission:units.create')->name('units.create');
  Route::post('units',[UnitController::class,'store'])->middleware('permission:units.create')->name('units.store');
- Route::get('units/{unit}/edit',[UnitController::class,'edit'])->middleware('permission:units.edit')->name('units.edit');
+ Route::get('units/{unit}/edit',[UnitController::class,'edit'])->middleware('permission:units.edit')->name('admin.units.edit');
  Route::put('units/{unit}',[UnitController::class,'update'])->middleware('permission:units.edit')->name('units.update');
  Route::delete('units/{unit}',[UnitController::class,'destroy'])->middleware('permission:units.delete')->name('units.destroy');
  Route::patch('units/{unit}/restore',[UnitController::class,'restore'])->middleware('permission:units.delete')->name('units.restore');
