@@ -13,7 +13,7 @@
 <style>
     .ticket-toolbar{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
     .ticket-import{display:grid;grid-template-columns:minmax(240px,1fr) minmax(260px,320px) auto;gap:10px;align-items:end}
-    .ticket-filter{display:grid;grid-template-columns:minmax(220px,1fr) 120px 120px 150px minmax(220px,280px) auto;gap:10px;align-items:end;margin-top:16px}
+    .ticket-filter{display:grid;grid-template-columns:minmax(220px,1fr) 120px 150px 150px minmax(220px,280px) auto;gap:10px;align-items:end;margin-top:16px}
     .ticket-stat{font-size:13px;color:#66736b;margin-top:10px}
     .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
     .badge.ok{background:#e8f6ed;color:#24613f}.badge.bad{background:#fcebea;color:#8f2f2c}.badge.neutral{background:#eef2f7;color:#475569}
@@ -22,7 +22,6 @@
     .ticket-table th,.ticket-table td{vertical-align:middle;white-space:nowrap}
     .ticket-table th:nth-child(9),.ticket-table td:nth-child(9){white-space:normal;min-width:120px}
     .ticket-table th:nth-child(10),.ticket-table td:nth-child(10){white-space:normal;min-width:180px}
-    .ticket-table th:nth-child(11),.ticket-table td:nth-child(11){white-space:normal;min-width:180px}
     .kpi-result{margin-top:20px;border:1px solid #cfdbe7;border-radius:10px;background:#fff;overflow:hidden}
     .kpi-result-head{padding:12px 16px;background:#e8f5e9;border-bottom:1px solid #cfdbe7;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
     .kpi-grid{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;padding:14px}
@@ -38,11 +37,11 @@
     <div class="ticket-toolbar">
         <div>
             <h2 style="margin:0 0 4px">Ticket Data & KPI</h2>
-            <div class="muted">Search/Filter is the working dataset. <strong>Tính KPI</strong> creates an auditable KPI calculation run for the selected Employee and period, then keeps the detailed Ticket data below.</div>
+            <div class="muted">Import provides the working Ticket data. Search selects the Employee and evaluation period. <strong>Tính KPI</strong> creates one snapshot for that Employee + date range; selecting the same range again only shows the saved snapshot.</div>
         </div>
         <div class="actions">
             <a class="btn gray" href="{{ route('admin.tickets.template') }}">Download Import Template</a>
-            <a class="btn gray" href="{{ route('admin.tickets.export', request()->only(['search','priority','employee_id'])) }}">Export Excel</a>
+            <a class="btn gray" href="{{ route('admin.tickets.export', request()->only(['search','priority','employee_id','date_from','date_to'])) }}">Export Excel</a>
         </div>
     </div>
 
@@ -73,7 +72,7 @@
         <input type="hidden" name="date_from" value="{{ request('date_from') }}">
         <input type="hidden" name="date_to" value="{{ request('date_to') }}">
         <button class="btn" type="submit" @disabled(!$employeeId)>Tính KPI</button>
-        @if(!$employeeId)<span class="small" style="margin-left:8px">Select an Employee before calculating KPI.</span>@endif
+        @if(!$employeeId)<span class="small" style="margin-left:8px">Select an Employee and evaluation period before calculating KPI.</span>@endif
     </form>
 
     @if($selectedKpiRun)
@@ -81,7 +80,7 @@
         <div class="kpi-result">
             <div class="kpi-result-head">
                 <div><strong>Kết quả KPI</strong> — {{ $selectedKpiRun->run_code }} | {{ $selectedKpiRun->employee?->name }} | {{ $selectedKpiRun->period_from?->format('d/m/Y') ?? 'All dates' }} → {{ $selectedKpiRun->period_to?->format('d/m/Y') ?? 'All dates' }}</div>
-                <div class="small">Calculated {{ $selectedKpiRun->calculated_at?->format('d/m/Y H:i:s') }}</div>
+                <div class="small">Calculation Key: {{ $selectedKpiRun->calculation_key }} | Calculated {{ $selectedKpiRun->calculated_at?->format('d/m/Y H:i:s') }}</div>
             </div>
             <div class="kpi-grid">
                 <div class="kpi-card"><div class="label">PRODUCTIVITY (P)</div><div class="value">{{ number_format($m['p'] ?? 0, 2) }}</div></div>
@@ -108,14 +107,15 @@
     @endif
 
     @if($kpiHistory->count())
-        <div class="history-title">Lịch sử các lần Tính KPI — 10 lần gần nhất</div>
-        <div class="table-wrap"><table class="table history-table"><thead><tr><th>Run</th><th>Employee</th><th>Kỳ đánh giá</th><th>Calculated at</th><th>P</th><th>SLA</th><th>Q</th><th>PS</th><th>RES</th><th>Tổng KPI</th></tr></thead><tbody>
+        <div class="history-title">Lịch sử KPI — 10 Snapshot gần nhất của Employee</div>
+        <div class="table-wrap"><table class="table history-table"><thead><tr><th>Run</th><th>Employee</th><th>Kỳ đánh giá</th><th>Calculation Key</th><th>Calculated at</th><th>P</th><th>SLA</th><th>Q</th><th>PS</th><th>RES</th><th>Tổng KPI</th></tr></thead><tbody>
         @foreach($kpiHistory as $run)
             @php($hm = $run->metrics)
             <tr>
-                <td><a href="{{ route('admin.tickets.index', array_merge(request()->only(['search','priority','employee_id','date_from','date_to']), ['kpi_run'=>$run->id])) }}">{{ $run->run_code }}</a></td>
+                <td><a href="{{ route('admin.tickets.index', ['employee_id'=>$run->employee_id,'date_from'=>$run->period_from?->format('Y-m-d'),'date_to'=>$run->period_to?->format('Y-m-d'),'kpi_run'=>$run->id]) }}">{{ $run->run_code }}</a></td>
                 <td>{{ $run->employee?->name }}</td>
                 <td>{{ $run->period_from?->format('d/m/Y') ?? 'All' }} → {{ $run->period_to?->format('d/m/Y') ?? 'All' }}</td>
+                <td>{{ $run->calculation_key }}</td>
                 <td>{{ $run->calculated_at?->format('d/m/Y H:i') }}</td>
                 <td>{{ number_format($hm['p'] ?? 0,2) }}</td><td>{{ number_format($hm['sla']['kpi'] ?? 0,2) }}</td><td>{{ number_format($hm['quality']['kpi'] ?? 0,2) }}</td><td>{{ number_format($hm['process']['kpi'] ?? 0,2) }}</td><td>{{ number_format($hm['responsiveness']['kpi'] ?? 0,2) }}</td><td><strong>{{ number_format($run->total_kpi,2) }}</strong></td>
             </tr>
@@ -125,11 +125,11 @@
 
     <div class="ticket-stat">{{ number_format($totalTickets) }} ticket(s) stored. Bitrix Ticket ID is unique; duplicate IDs are skipped during import. The Total row below recalculates from the current search/filter result.</div>
     <div class="table-wrap" style="margin-top:14px"><table class="table ticket-table" style="min-width:2100px"><thead><tr>
-        <th>ID</th><th>Priority (Ưu tiên)</th><th>Created on</th><th>Started on</th><th>Finished on</th><th>Pause(min)</th><th>Reopen</th><th>Company/Dept</th><th>Chi tiết nội dung đã xử lý</th><th>File chụp màn hình kết quả xử lý</th><th>Workload Point to Priority</th><th>Resolution (min)</th><th>SLA Target</th><th>SLA</th><th>Process</th><th>Started</th>
+        <th>ID</th><th>Priority (Ưu tiên)</th><th>Created on</th><th>Started on</th><th>Finished on</th><th>Pause(min)</th><th>Reopen</th><th>Company/Dept</th><th>Chi tiết nội dung đã xử lý</th><th>File chụp màn hình kết quả xử lý</th><th>Workload Point Hoàn thành</th><th>Resolution (min)</th><th>SLA Target</th><th>SLA</th><th>Process</th><th>Started</th>
     </tr></thead><tbody>
     @forelse($tickets as $ticket)
         <tr>
-            <td><strong>{{ $ticket->external_ticket_id }}</strong></td><td>{{ $ticket->priority }}</td><td>{{ $ticket->created_on?->format('n/j/Y G:i') }}</td><td>{{ $ticket->started_on?->format('n/j/Y G:i') }}</td><td>{{ $ticket->finished_on?->format('n/j/Y G:i') }}</td><td>{{ $ticket->pause_minutes }}</td><td>{{ $ticket->reopen_count }}</td><td>{{ $ticket->company_department ?: '' }}</td><td>{{ $ticket->resolution_detail ?: '' }}</td><td>{{ $ticket->result_screenshot ?: '' }}</td><td><strong>{{ $ticket->workload_point !== null ? rtrim(rtrim(number_format((float) $ticket->workload_point, 2, '.', ''), '0'), '.') : '' }}</strong></td><td>{{ $ticket->resolution_minutes ?? '' }}</td><td><strong>{{ $ticket->sla_target_minutes ?? '' }}</strong></td><td>@if($ticket->sla_status === 'Đạt')<span class="badge ok">Đạt</span>@elseif($ticket->sla_status === 'Không Đạt')<span class="badge bad">Không Đạt</span>@else<span class="badge neutral">{{ $ticket->sla_status ?: '' }}</span>@endif</td><td>@if($ticket->process_status === 'Đạt')<span class="badge ok">Đạt</span>@elseif($ticket->process_status === 'Không Đạt')<span class="badge bad">Không Đạt</span>@else<span class="badge neutral">{{ $ticket->process_status ?: '' }}</span>@endif</td><td><span class="badge neutral">{{ $ticket->started_status }}</span></td>
+            <td><strong>{{ $ticket->external_ticket_id }}</strong></td><td>{{ $ticket->priority }}</td><td>{{ $ticket->created_on?->format('n/j/Y G:i') }}</td><td>{{ $ticket->started_on?->format('n/j/Y G:i') }}</td><td>{{ $ticket->finished_on?->format('n/j/Y G:i') }}</td><td>{{ $ticket->pause_minutes }}</td><td>{{ $ticket->reopen_count }}</td><td>{{ $ticket->company_department ?: '' }}</td><td>{{ $ticket->resolution_detail ?: '' }}</td><td>{{ $ticket->result_screenshot ?: '' }}</td><td><strong>{{ $ticket->workload_point !== null ? rtrim(rtrim(number_format((float) $ticket->workload_point, 2, '.', ''), '0'), '.') : '0' }}</strong></td><td>{{ $ticket->resolution_minutes ?? '' }}</td><td><strong>{{ $ticket->sla_target_minutes ?? '' }}</strong></td><td>@if($ticket->sla_status === 'Đạt')<span class="badge ok">Đạt</span>@elseif($ticket->sla_status === 'Không Đạt')<span class="badge bad">Không Đạt</span>@else<span class="badge neutral">{{ $ticket->sla_status ?: '' }}</span>@endif</td><td>@if($ticket->process_status === 'Đạt')<span class="badge ok">Đạt</span>@elseif($ticket->process_status === 'Không Đạt')<span class="badge bad">Không Đạt</span>@else<span class="badge neutral">{{ $ticket->process_status ?: '' }}</span>@endif</td><td><span class="badge neutral">{{ $ticket->started_status }}</span></td>
         </tr>
     @empty
         <tr><td colspan="16" style="text-align:center;padding:28px" class="muted">No Ticket data found.</td></tr>
