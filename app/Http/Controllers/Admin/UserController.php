@@ -34,7 +34,53 @@ class UserController extends Controller
                   ->orWhereHas('unit', fn($u) => $u->withTrashed()->where('name','like',"%{$search}%"));
             });
         })->orderBy('name')->paginate(20)->withQueryString();
-        return view('admin.users.index', compact('users','search','showDeleted'));
+        $pendingCount = User::where('registration_status','pending')->count();
+        return view('admin.users.index', compact('users','search','showDeleted','pendingCount'));
+    }
+
+    public function pending()
+    {
+        $this->ensureSuperAdmin();
+        $users = User::with(['jobTitle','departmentRelation','unit'])->where('registration_status','pending')->orderBy('created_at')->get();
+        return view('admin.users.pending', compact('users'));
+    }
+
+    public function approve(User $user)
+    {
+        $this->ensureSuperAdmin();
+        if ($user->registration_status !== 'pending') return back()->withErrors('This registration has already been reviewed.');
+
+        $user->update([
+            'is_active' => true,
+            'registration_status' => 'approved',
+            'registration_reviewed_at' => now(),
+            'registration_reviewed_by' => auth()->id(),
+            'registration_rejection_reason' => null,
+        ]);
+
+        return back()->with('success', 'Registration approved. The user can now sign in. Assign an access group from User Management if needed.');
+    }
+
+    public function reject(Request $request, User $user)
+    {
+        $this->ensureSuperAdmin();
+        if ($user->registration_status !== 'pending') return back()->withErrors('This registration has already been reviewed.');
+
+        $data = $request->validate(['reason' => ['nullable','string','max:1000']]);
+        $user->update([
+            'is_active' => false,
+            'registration_status' => 'rejected',
+            'registration_reviewed_at' => now(),
+            'registration_reviewed_by' => auth()->id(),
+            'registration_rejection_reason' => $data['reason'] ?? null,
+        ]);
+
+        return back()->with('success', 'Registration rejected. The account remains inactive.');
+    }
+
+    private function ensureSuperAdmin(): void
+    {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403, 'Only the Super Admin can approve or reject user registrations.');
     }
 
     public function create()
@@ -51,7 +97,7 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate($this->rules());
-        User::create($data + ['is_active'=>$request->boolean('is_active')]);
+        User::create($data + ['is_active'=>$request->boolean('is_active'),'registration_status'=>'approved']);
         return redirect()->route('admin.users.index')->with('success','User created.');
     }
 
@@ -73,6 +119,7 @@ class UserController extends Controller
         $data = $request->validate($rules);
         if (!$request->filled('password')) unset($data['password']);
         $user->update($data + ['is_active'=>$request->boolean('is_active')]);
+        if ($user->registration_status === 'pending' && $request->boolean('is_active')) $user->update(['registration_status'=>'approved','registration_reviewed_at'=>now(),'registration_reviewed_by'=>auth()->id()]);
         return redirect()->route('admin.users.index')->with('success','User updated.');
     }
 
@@ -147,7 +194,7 @@ class UserController extends Controller
             if($groupName!==''&&!$group){$errors[]="Row {$n}: Group '{$groupName}' was not found.";continue;} if($jobCode!==''&&!$job){$errors[]="Row {$n}: Job Title Code '{$jobCode}' was not found.";continue;} if($departmentName!==''&&!$department){$errors[]="Row {$n}: Department '{$departmentName}' was not found.";continue;} if($unitName!==''&&!$unit){$errors[]="Row {$n}: Unit '{$unitName}' was not found.";continue;}
             $existing=User::withTrashed()->where('employee_code',$code)->first() ?: User::withTrashed()->where('email',$email)->first();
             if(!$existing&&strlen($password)<8){$errors[]="Row {$n}: Password is required for new users and must be at least 8 characters.";continue;}
-            $data=['employee_code'=>$code,'name'=>$name,'email'=>$email,'phone'=>$v('phone')?:null,'date_of_birth'=>$dob?:null,'gender'=>$v('gender')?:null,'join_date'=>$join?:null,'department'=>$departmentName?:null,'location'=>$unitName?:null,'department_id'=>$department?->id,'unit_id'=>$unit?->id,'user_group_id'=>$group?->id,'job_title_id'=>$job?->id,'notes'=>$v('notes')?:null,'is_active'=>$status==='active'];
+            $data=['employee_code'=>$code,'name'=>$name,'email'=>$email,'phone'=>$v('phone')?:null,'date_of_birth'=>$dob?:null,'gender'=>$v('gender')?:null,'join_date'=>$join?:null,'department'=>$departmentName?:null,'location'=>$unitName?:null,'department_id'=>$department?->id,'unit_id'=>$unit?->id,'user_group_id'=>$group?->id,'job_title_id'=>$job?->id,'notes'=>$v('notes')?:null,'is_active'=>$status==='active','registration_status'=>'approved'];
             if($password!=='')$data['password']=Hash::make($password); $prepared[]=[$existing,$data];
         }
         if($errors)return back()->withErrors(array_slice($errors,0,50))->with('import_error_count',count($errors)); if(!$prepared)return back()->withErrors('The import file contains no valid data rows.');
