@@ -4,7 +4,6 @@ namespace App\Providers;
 
 use App\Models\SystemSetting;
 use App\Models\User;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -25,13 +24,11 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            $settings = Cache::remember('system_settings.mail', now()->addMinutes(5), function () {
-                return SystemSetting::query()
-                    ->whereIn('key', ['mail.mailer','mail.host','mail.port','mail.encryption','mail.username','mail.password','mail.from_address','mail.from_name'])
-                    ->get()
-                    ->mapWithKeys(fn (SystemSetting $setting) => [$setting->key => $setting->value])
-                    ->all();
-            });
+            $settings = SystemSetting::query()
+                ->whereIn('key', ['mail.mailer','mail.host','mail.port','mail.encryption','mail.username','mail.password','mail.from_address','mail.from_name'])
+                ->get()
+                ->mapWithKeys(fn (SystemSetting $setting) => [$setting->key => $setting->value])
+                ->all();
 
             if (!empty($settings['mail.mailer'])) {
                 config(['mail.default' => $settings['mail.mailer']]);
