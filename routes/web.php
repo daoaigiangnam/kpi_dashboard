@@ -15,7 +15,6 @@ use App\Http\Controllers\Admin\SystemSettingController;
 Route::get('/login',[LoginController::class,'show'])->name('login');
 Route::post('/login',[LoginController::class,'login'])->name('login.attempt');
 Route::post('/logout',[LoginController::class,'logout'])->middleware('auth')->name('logout');
-
 Route::get('/forgot-password',[ForgotPasswordController::class,'show'])->middleware('guest')->name('password.request');
 Route::post('/forgot-password',[ForgotPasswordController::class,'send'])->middleware(['guest','throttle:5,1'])->name('password.email');
 Route::get('/reset-password/{token}',[ResetPasswordController::class,'show'])->middleware('guest')->name('password.reset');
@@ -72,6 +71,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::patch('units/{unit}/restore',[UnitController::class,'restore'])->middleware('permission:units.delete')->name('units.restore');
  Route::get('settings',[SystemSettingController::class,'index'])->middleware('permission:system.settings')->name('settings.index');
  Route::put('settings',[SystemSettingController::class,'update'])->middleware('permission:system.settings')->name('settings.update');
+ Route::post('settings/test-mail',[SystemSettingController::class,'testMail'])->middleware('permission:system.settings')->name('settings.test-mail');
 });
 
 Route::redirect('/','/admin');
