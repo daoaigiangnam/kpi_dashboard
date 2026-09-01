@@ -49,6 +49,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::put('groups/{group}',[GroupController::class,'update'])->middleware('permission:groups.edit')->name('groups.update');
  Route::delete('groups/{group}',[GroupController::class,'destroy'])->middleware('permission:groups.delete')->name('groups.destroy');
  Route::patch('groups/{group}/restore',[GroupController::class,'restore'])->middleware('permission:groups.delete')->name('groups.restore');
+ Route::delete('groups/{group}/users/{user}',[GroupController::class,'removeUser'])->middleware('permission:groups.edit')->name('groups.users.remove');
  Route::get('job-titles',[JobTitleController::class,'index'])->middleware('permission:job_titles.view')->name('job_titles.index');
  Route::get('job-titles/template',[JobTitleController::class,'template'])->middleware('permission:job_titles.import')->name('job_titles.template');
  Route::get('job-titles/export',[JobTitleController::class,'export'])->middleware('permission:job_titles.export')->name('job_titles.export');
