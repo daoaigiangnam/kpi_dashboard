@@ -9,11 +9,8 @@
     .ticket-filter{display:grid;grid-template-columns:minmax(220px,1fr) 140px minmax(220px,280px) auto;gap:10px;align-items:end;margin-top:16px}
     .ticket-stat{font-size:13px;color:#66736b;margin-top:10px}
     .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
-    .badge.ok{background:#e8f6ed;color:#24613f}
-    .badge.bad{background:#fcebea;color:#8f2f2c}
-    .badge.neutral{background:#eef2f7;color:#475569}
-    .small{font-size:12px;color:#66736b}
-    .import-note{margin-top:10px;padding:10px 12px;background:#f5f8fc;border:1px solid #dbe4ee;border-radius:8px;color:#475569;font-size:12px;line-height:1.45}
+    .badge.ok{background:#e8f6ed;color:#24613f}.badge.bad{background:#fcebea;color:#8f2f2c}.badge.neutral{background:#eef2f7;color:#475569}
+    .small{font-size:12px;color:#66736b}.import-note{margin-top:10px;padding:10px 12px;background:#f5f8fc;border:1px solid #dbe4ee;border-radius:8px;color:#475569;font-size:12px;line-height:1.45}
     @media(max-width:900px){.ticket-import,.ticket-filter{grid-template-columns:1fr}}
 </style>
 
@@ -25,101 +22,35 @@
         </div>
         <div class="actions">
             <a class="btn gray" href="{{ route('admin.tickets.template') }}">Download Import Template</a>
+            <a class="btn gray" href="{{ route('admin.tickets.export', request()->only(['search','priority','employee_id'])) }}">Export Excel</a>
         </div>
     </div>
 
     <form method="post" action="{{ route('admin.tickets.import') }}" enctype="multipart/form-data" style="margin-top:18px">
         @csrf
         <div class="ticket-import">
-            <div class="field" style="margin:0">
-                <label for="ticket-file"><strong>Ticket Excel / CSV</strong></label>
-                <input id="ticket-file" class="input" type="file" name="file" accept=".xlsx,.xls,.csv" required>
-                <div class="small" style="margin-top:5px">Import only raw input fields. Calculated KPI columns are not required in the file.</div>
-            </div>
-            <div class="field" style="margin:0">
-                <label for="ticket-employee"><strong>Employee</strong></label>
-                <select id="ticket-employee" class="input" name="employee_id" required>
-                    <option value="">Select employee...</option>
-                    @foreach($employees as $employee)
-                        <option value="{{ $employee->id }}" @selected((string) old('employee_id') === (string) $employee->id)>{{ $employee->name }} — {{ $employee->email }}</option>
-                    @endforeach
-                </select>
-                <div class="small" style="margin-top:5px">All valid rows in this file will be linked to this Employee ID.</div>
-            </div>
+            <div class="field" style="margin:0"><label for="ticket-file"><strong>Ticket Excel / CSV</strong></label><input id="ticket-file" class="input" type="file" name="file" accept=".xlsx,.xls,.csv" required><div class="small" style="margin-top:5px">Import only raw input fields. Calculated KPI columns are not required in the file.</div></div>
+            <div class="field" style="margin:0"><label for="ticket-employee"><strong>Employee</strong></label><select id="ticket-employee" class="input" name="employee_id" required><option value="">Select employee...</option>@foreach($employees as $employee)<option value="{{ $employee->id }}" @selected((string) old('employee_id') === (string) $employee->id)>{{ $employee->name }} — {{ $employee->email }}</option>@endforeach</select><div class="small" style="margin-top:5px">All valid rows in this file will be linked to this Employee ID.</div></div>
             <div><button class="btn" type="submit">Import Tickets</button></div>
         </div>
-        <div class="import-note">
-            <strong>Data rule:</strong> Ticket ID is the original Bitrix Ticket ID and must be unique. The Excel Total row is for report checking only and is never stored. Workload Point, Resolution, SLA Target, SLA, Process and Started are calculated by the system, not imported as KPI results.
-        </div>
+        <div class="import-note"><strong>Data rule:</strong> Ticket ID is the original Bitrix Ticket ID and must be unique. The Excel Total row is for report checking only and is never stored. Workload Point, Resolution, SLA Target, SLA, Process and Started are calculated by the system, not imported as KPI results.</div>
     </form>
 
     <form method="get" action="{{ route('admin.tickets.index') }}" class="ticket-filter">
-        <div class="field" style="margin:0">
-            <label for="ticket-search"><strong>Search</strong></label>
-            <input id="ticket-search" class="input" type="text" name="search" value="{{ $search }}" placeholder="Bitrix Ticket ID, Company/Dept, processing detail">
-        </div>
-        <div class="field" style="margin:0">
-            <label for="ticket-priority"><strong>Priority</strong></label>
-            <select id="ticket-priority" class="input" name="priority">
-                <option value="">All</option>
-                @foreach($priorities as $item)
-                    <option value="{{ $item }}" @selected($priority === $item)>{{ $item }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="field" style="margin:0">
-            <label for="ticket-employee-filter"><strong>Employee</strong></label>
-            <select id="ticket-employee-filter" class="input" name="employee_id">
-                <option value="">All employees</option>
-                @foreach($employees as $employee)
-                    <option value="{{ $employee->id }}" @selected((string) $employeeId === (string) $employee->id)>{{ $employee->name }}</option>
-                @endforeach
-            </select>
-        </div>
+        <div class="field" style="margin:0"><label for="ticket-search"><strong>Search</strong></label><input id="ticket-search" class="input" type="text" name="search" value="{{ $search }}" placeholder="Bitrix Ticket ID, Company/Dept, processing detail"></div>
+        <div class="field" style="margin:0"><label for="ticket-priority"><strong>Priority</strong></label><select id="ticket-priority" class="input" name="priority"><option value="">All</option>@foreach($priorities as $item)<option value="{{ $item }}" @selected($priority === $item)>{{ $item }}</option>@endforeach</select></div>
+        <div class="field" style="margin:0"><label for="ticket-employee-filter"><strong>Employee</strong></label><select id="ticket-employee-filter" class="input" name="employee_id"><option value="">All employees</option>@foreach($employees as $employee)<option value="{{ $employee->id }}" @selected((string) $employeeId === (string) $employee->id)>{{ $employee->name }}</option>@endforeach</select></div>
         <div><button class="btn gray" type="submit">Search</button></div>
     </form>
 
     <div class="ticket-stat">{{ number_format($totalTickets) }} ticket(s) stored. Bitrix Ticket ID is unique; duplicate IDs are skipped during import.</div>
-
-    <div class="table-wrap" style="margin-top:14px">
-        <table class="table" style="min-width:1650px">
-            <thead><tr>
-                <th>Bitrix Ticket ID</th><th>Employee</th><th>Priority</th><th>Created on</th><th>Started on</th><th>Finished on</th>
-                <th>Pause (min)</th><th>Reopen</th><th>Company/Dept</th><th>Workload Point</th><th>Resolution (min)</th>
-                <th>SLA Target</th><th>SLA</th><th>Process</th><th>Started</th><th>Source</th>
-            </tr></thead>
-            <tbody>
-            @forelse($tickets as $ticket)
-                <tr>
-                    <td><strong>{{ $ticket->external_ticket_id }}</strong></td>
-                    <td>{{ $ticket->employee?->name ?: '—' }}</td>
-                    <td>{{ $ticket->priority }}</td>
-                    <td>{{ $ticket->created_on?->format('Y-m-d H:i') }}</td>
-                    <td>{{ $ticket->started_on?->format('Y-m-d H:i') }}</td>
-                    <td>{{ $ticket->finished_on?->format('Y-m-d H:i') }}</td>
-                    <td>{{ $ticket->pause_minutes }}</td><td>{{ $ticket->reopen_count }}</td>
-                    <td>{{ $ticket->company_department ?: '—' }}</td>
-                    <td>{{ $ticket->workload_point !== null ? number_format((float) $ticket->workload_point, 2) : '—' }}</td>
-                    <td>{{ $ticket->resolution_minutes ?? '—' }}</td><td>{{ $ticket->sla_target_minutes ?? '—' }}</td>
-                    <td>
-                        @if($ticket->sla_status === 'Đạt')<span class="badge ok">Đạt</span>
-                        @elseif($ticket->sla_status === 'Không Đạt')<span class="badge bad">Không Đạt</span>
-                        @else<span class="badge neutral">{{ $ticket->sla_status ?: '—' }}</span>@endif
-                    </td>
-                    <td>
-                        @if($ticket->process_status === 'Đạt')<span class="badge ok">Đạt</span>
-                        @else<span class="badge bad">{{ $ticket->process_status ?: '—' }}</span>@endif
-                    </td>
-                    <td><span class="badge neutral">{{ $ticket->started_status }}</span></td>
-                    <td class="small">{{ $ticket->source }}</td>
-                </tr>
-            @empty
-                <tr><td colspan="16" style="text-align:center;padding:28px" class="muted">No Ticket data found.</td></tr>
-            @endforelse
-            </tbody>
-        </table>
-    </div>
-
+    <div class="table-wrap" style="margin-top:14px"><table class="table" style="min-width:1650px"><thead><tr><th>Bitrix Ticket ID</th><th>Employee</th><th>Priority</th><th>Created on</th><th>Started on</th><th>Finished on</th><th>Pause (min)</th><th>Reopen</th><th>Company/Dept</th><th>Workload Point</th><th>Resolution (min)</th><th>SLA Target</th><th>SLA</th><th>Process</th><th>Started</th><th>Source</th></tr></thead><tbody>
+    @forelse($tickets as $ticket)
+        <tr><td><strong>{{ $ticket->external_ticket_id }}</strong></td><td>{{ $ticket->employee?->name ?: '—' }}</td><td>{{ $ticket->priority }}</td><td>{{ $ticket->created_on?->format('Y-m-d H:i') }}</td><td>{{ $ticket->started_on?->format('Y-m-d H:i') }}</td><td>{{ $ticket->finished_on?->format('Y-m-d H:i') }}</td><td>{{ $ticket->pause_minutes }}</td><td>{{ $ticket->reopen_count }}</td><td>{{ $ticket->company_department ?: '—' }}</td><td>{{ $ticket->workload_point !== null ? number_format((float) $ticket->workload_point, 2) : '—' }}</td><td>{{ $ticket->resolution_minutes ?? '—' }}</td><td>{{ $ticket->sla_target_minutes ?? '—' }}</td><td>@if($ticket->sla_status === 'Đạt')<span class="badge ok">Đạt</span>@elseif($ticket->sla_status === 'Không Đạt')<span class="badge bad">Không Đạt</span>@else<span class="badge neutral">{{ $ticket->sla_status ?: '—' }}</span>@endif</td><td>@if($ticket->process_status === 'Đạt')<span class="badge ok">Đạt</span>@else<span class="badge bad">{{ $ticket->process_status ?: '—' }}</span>@endif</td><td><span class="badge neutral">{{ $ticket->started_status }}</span></td><td class="small">{{ $ticket->source }}</td></tr>
+    @empty
+        <tr><td colspan="16" style="text-align:center;padding:28px" class="muted">No Ticket data found.</td></tr>
+    @endforelse
+    </tbody></table></div>
     <div style="margin-top:16px">{{ $tickets->links() }}</div>
 </div>
 @endsection
