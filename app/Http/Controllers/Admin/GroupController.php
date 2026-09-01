@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
+use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -101,13 +102,13 @@ class GroupController extends Controller
         }
 
         $userCount = $group->users()->count();
+        if ($userCount > 0) {
+            return back()->withErrors("This group cannot be deleted while {$userCount} user(s) are assigned. Remove all users from the group first.");
+        }
+
         $group->delete();
 
-        $message = $userCount > 0
-            ? "Group deleted (hidden). {$userCount} assigned user(s) were retained in the group history. The hidden group no longer grants permissions. Restore the group to reactivate its assignments."
-            : 'Group deleted (hidden). The record was retained for history and can be restored later.';
-
-        return back()->with('success', $message);
+        return back()->with('success', 'Group deleted (hidden). The record was retained for history and can be restored later.');
     }
 
     public function restore(int $group)
@@ -115,7 +116,23 @@ class GroupController extends Controller
         $model = UserGroup::withTrashed()->findOrFail($group);
         $model->restore();
 
-        return back()->with('success', 'Group restored. Existing user assignments and permissions are active again.');
+        return back()->with('success', 'Group restored. Existing permissions are active again.');
+    }
+
+    public function removeUser(UserGroup $group, User $user)
+    {
+        if ($user->user_group_id !== $group->id) {
+            return back()->withErrors('The selected user is not assigned to this group.');
+        }
+
+        // Never allow an administrator to accidentally remove the last Super Admin account.
+        if ($group->name === 'Super Admin' && $group->users()->count() <= 1) {
+            return back()->withErrors('The last Super Admin cannot be removed from the Super Admin group.');
+        }
+
+        $user->update(['user_group_id' => null]);
+
+        return back()->with('success', "{$user->name} was removed from {$group->name}. The user account remains active and can be assigned to another group.");
     }
 
     public function export(Request $request)
