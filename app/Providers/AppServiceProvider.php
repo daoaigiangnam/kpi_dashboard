@@ -40,8 +40,10 @@ class AppServiceProvider extends ServiceProvider
                 config(['mail.mailers.smtp.port' => (int) $settings['mail.port']]);
             }
 
+            $encryption = $settings['mail.encryption'] ?? 'tls';
+
             config([
-                'mail.mailers.smtp.scheme' => ($settings['mail.encryption'] ?? 'tls') === 'none' ? null : ($settings['mail.encryption'] ?? 'tls'),
+                'mail.mailers.smtp.scheme' => $encryption === 'ssl' ? 'smtps' : 'smtp',
                 'mail.mailers.smtp.username' => $settings['mail.username'] ?? null,
                 'mail.mailers.smtp.password' => $settings['mail.password'] ?? null,
                 'mail.from.address' => $settings['mail.from_address'] ?? config('mail.from.address'),
