@@ -157,6 +157,20 @@ class RegisterController extends Controller
 
         $payload = json_decode($verification->payload, true, 512, JSON_THROW_ON_ERROR);
 
+        if (User::withTrashed()->where('email', $payload['email'])->exists()) {
+            DB::table('registration_email_verifications')->where('id', $verification->id)->delete();
+            $request->session()->forget('registration_verification_id');
+
+            return redirect()->route('register')->withErrors(['email' => 'This email address is already registered in the system.']);
+        }
+
+        if (User::withTrashed()->where('employee_code', $payload['employee_code'])->exists()) {
+            DB::table('registration_email_verifications')->where('id', $verification->id)->delete();
+            $request->session()->forget('registration_verification_id');
+
+            return redirect()->route('register')->withErrors(['employee_code' => 'This employee code is already registered in the system.']);
+        }
+
         $user = DB::transaction(function () use ($payload, $verification) {
             return User::create([
                 'employee_code' => $payload['employee_code'],
@@ -179,7 +193,6 @@ class RegisterController extends Controller
         DB::table('registration_email_verifications')->where('id', $verification->id)->delete();
         $request->session()->forget('registration_verification_id');
 
-        $notificationEmail = trim((string) SystemSetting::value('system.notification_email', ''));
         try {
             Notification::route('mail', $notificationEmail)->notify(new UserRegistrationNotification($user));
         } catch (\Throwable $e) {
