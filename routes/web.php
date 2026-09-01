@@ -13,22 +13,20 @@ Route::post('/logout',[LoginController::class,'logout'])->middleware('auth')->na
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::get('/',[DashboardController::class,'index'])->middleware('permission:admin.view')->name('dashboard');
-
  Route::get('users',[UserController::class,'index'])->middleware('permission:users.view')->name('users.index');
  Route::get('users/create',[UserController::class,'create'])->middleware('permission:users.create')->name('users.create');
  Route::post('users',[UserController::class,'store'])->middleware('permission:users.create')->name('users.store');
  Route::get('users/{user}/edit',[UserController::class,'edit'])->middleware('permission:users.edit')->name('users.edit');
  Route::put('users/{user}',[UserController::class,'update'])->middleware('permission:users.edit')->name('users.update');
  Route::delete('users/{user}',[UserController::class,'destroy'])->middleware('permission:users.delete')->name('users.destroy');
-
  Route::get('groups',[GroupController::class,'index'])->middleware('permission:groups.view')->name('groups.index');
  Route::get('groups/create',[GroupController::class,'create'])->middleware('permission:groups.create')->name('groups.create');
  Route::post('groups',[GroupController::class,'store'])->middleware('permission:groups.create')->name('groups.store');
  Route::get('groups/{group}/edit',[GroupController::class,'edit'])->middleware('permission:groups.edit')->name('groups.edit');
  Route::put('groups/{group}',[GroupController::class,'update'])->middleware('permission:groups.edit')->name('groups.update');
  Route::delete('groups/{group}',[GroupController::class,'destroy'])->middleware('permission:groups.delete')->name('groups.destroy');
-
  Route::get('job-titles',[JobTitleController::class,'index'])->middleware('permission:job_titles.view')->name('job_titles.index');
+ Route::get('job-titles/template',[JobTitleController::class,'template'])->middleware('permission:job_titles.import')->name('job_titles.template');
  Route::get('job-titles/export',[JobTitleController::class,'export'])->middleware('permission:job_titles.export')->name('job_titles.export');
  Route::post('job-titles/import',[JobTitleController::class,'import'])->middleware('permission:job_titles.import')->name('job_titles.import');
  Route::get('job-titles/create',[JobTitleController::class,'create'])->middleware('permission:job_titles.create')->name('job_titles.create');
