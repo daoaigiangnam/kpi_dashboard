@@ -9,8 +9,7 @@ class Department extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['code','name','description','is_active'];
-    protected $casts = ['is_active'=>'boolean'];
+    protected $fillable = ['code','name','description'];
 
     public function users(): HasMany { return $this->hasMany(User::class); }
 }
