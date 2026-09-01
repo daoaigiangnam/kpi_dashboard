@@ -13,6 +13,7 @@ class SystemSettingController extends Controller
         'mail.mailer' => 'log', 'mail.host' => '', 'mail.port' => '587', 'mail.encryption' => 'tls',
         'mail.username' => '', 'mail.password' => '', 'mail.from_address' => '', 'mail.from_name' => 'KPI Dashboard',
         'password_reset.otp_expire_minutes' => '10', 'password_reset.link_expire_minutes' => '60', 'password_reset.max_otp_attempts' => '5',
+        'security.login_max_attempts' => '5', 'security.login_lockout_minutes' => '15',
     ];
 
     public function index(): mixed
@@ -30,6 +31,8 @@ class SystemSettingController extends Controller
             'mail_from_address' => ['nullable', 'email', 'max:255'], 'mail_from_name' => ['required', 'string', 'max:150'],
             'otp_expire_minutes' => ['required', 'integer', 'min:1', 'max:60'], 'link_expire_minutes' => ['required', 'integer', 'min:5', 'max:1440'],
             'max_otp_attempts' => ['required', 'integer', 'min:1', 'max:20'],
+            'login_max_attempts' => ['required', 'integer', 'min:1', 'max:20'],
+            'login_lockout_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
         ]);
 
         $values = [
@@ -39,6 +42,8 @@ class SystemSettingController extends Controller
             'password_reset.otp_expire_minutes' => (string) $data['otp_expire_minutes'],
             'password_reset.link_expire_minutes' => (string) $data['link_expire_minutes'],
             'password_reset.max_otp_attempts' => (string) $data['max_otp_attempts'],
+            'security.login_max_attempts' => (string) $data['login_max_attempts'],
+            'security.login_lockout_minutes' => (string) $data['login_lockout_minutes'],
         ];
         if (filled($data['mail_password'] ?? null)) $values['mail.password'] = $data['mail_password'];
 
