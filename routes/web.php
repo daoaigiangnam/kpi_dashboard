@@ -12,8 +12,8 @@ use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\SystemSettingController;
 
-Route::get('/login',[LoginController::class,'show'])->name('login');
-Route::post('/login',[LoginController::class,'login'])->name('login.attempt');
+Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name('login');
+Route::post('/login',[LoginController::class,'login'])->middleware(['guest','throttle:5,1'])->name('login.attempt');
 Route::post('/logout',[LoginController::class,'logout'])->middleware('auth')->name('logout');
 Route::get('/forgot-password',[ForgotPasswordController::class,'show'])->middleware('guest')->name('password.request');
 Route::post('/forgot-password',[ForgotPasswordController::class,'send'])->middleware(['guest','throttle:5,1'])->name('password.email');
