@@ -1,5 +1,5 @@
 {
-  "name": "kpi-dashboard",
+  "name": "daoaigiangnam/kpi-dashboard",
   "type": "project",
   "description": "KPI Dashboard Admin foundation",
   "require": {
@@ -14,9 +14,17 @@
     "phpunit/phpunit": "^10.5"
   },
   "autoload": {
-    "psr-4": {"App\\": "app/", "Database\\Factories\\": "database/factories/", "Database\\Seeders\\": "database/seeders/"}
+    "psr-4": {
+      "App\\": "app/",
+      "Database\\Factories\\": "database/factories/",
+      "Database\\Seeders\\": "database/seeders/"
+    }
   },
-  "scripts": {"post-autoload-dump": ["@php artisan package:discover --ansi"]},
+  "scripts": {
+    "post-autoload-dump": [
+      "@php artisan package:discover --ansi"
+    ]
+  },
   "minimum-stability": "stable",
   "prefer-stable": true
 }
