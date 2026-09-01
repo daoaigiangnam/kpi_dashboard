@@ -2,15 +2,38 @@
 @section('title','Job Titles')
 @section('content')
 <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px;flex-wrap:wrap">
         <div>
             <strong>Job Title Management</strong>
             <div class="muted">Define job titles and the Target Workload Point used by KPI calculation.</div>
         </div>
-        @if(auth()->user()->hasPermission('job_titles.create'))
-            <a class="btn" href="{{ route('admin.job_titles.create') }}">+ New Job Title</a>
-        @endif
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            @if(auth()->user()->hasPermission('job_titles.export'))
+                <a class="btn gray" href="{{ route('admin.job_titles.export', ['search' => $search]) }}">Export Excel</a>
+            @endif
+            @if(auth()->user()->hasPermission('job_titles.import'))
+                <form method="post" action="{{ route('admin.job_titles.import') }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    @csrf
+                    <input class="input" type="file" name="file" accept=".xlsx,.xls,.csv" required style="width:auto;margin-top:0">
+                    <button class="btn gray" type="submit">Import Excel</button>
+                </form>
+            @endif
+            @if(auth()->user()->hasPermission('job_titles.create'))
+                <a class="btn" href="{{ route('admin.job_titles.create') }}">+ New Job Title</a>
+            @endif
+        </div>
     </div>
+
+    <form method="get" action="{{ route('admin.job_titles.index') }}" style="display:flex;gap:8px;margin-bottom:15px;max-width:720px">
+        <input class="input" type="search" name="search" value="{{ $search }}" placeholder="Search by code, job title, level or description" style="margin-top:0">
+        <button class="btn" type="submit">Search</button>
+        @if($search !== '')
+            <a class="btn gray" href="{{ route('admin.job_titles.index') }}">Clear</a>
+        @endif
+    </form>
+
+    <div class="muted" style="margin-bottom:10px">{{ $jobTitles->total() }} job title(s)</div>
+
     <div class="table-wrap">
         <table class="table">
             <thead>
