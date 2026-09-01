@@ -44,6 +44,8 @@ Open `/login`.
 - PHP must be able to read the whole project directory, including `vendor/` and `storage/`.
 - Do not commit `.env`, `vendor/`, runtime cache, or application logs.
 - `CACHE_STORE=file` is the recommended baseline for this initial deployment.
+- On aaPanel/Nginx, disable or adjust the site-level open_basedir restriction so the project root is allowed.
+- Ensure Laravel runtime directories exist: `storage/framework/cache/data`, `storage/framework/sessions`, `storage/framework/views`, and `storage/logs`.
 
 ### Next KPI phase
 The Admin/RBAC core is intentionally independent from KPI calculation. The next layer can add Employee Master/Mapping, Job Titles, Ticket RAW Excel import, KPI configuration, calculation and reporting. Bitrix API can later become another data provider without replacing the KPI engine.
