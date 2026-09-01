@@ -13,7 +13,6 @@
   <div class="field"><label>Tax Code (MST) *</label><input class="input" name="tax_code" value="{{ old('tax_code',$unit->tax_code) }}" required placeholder="0123456789"></div>
   <div class="field" style="grid-column:1 / -1"><label>Description</label><textarea class="input" name="description" rows="3" maxlength="255">{{ old('description',$unit->description) }}</textarea></div>
  </div>
- <div class="field"><label><input type="checkbox" name="is_active" value="1" @checked(old('is_active',$unit->exists ? $unit->is_active : true))> Active</label></div>
  <button class="btn" type="submit">Save Unit</button> <a class="btn gray" href="{{ route('admin.units.index') }}">Cancel</a>
 </form></div>
 @endsection
