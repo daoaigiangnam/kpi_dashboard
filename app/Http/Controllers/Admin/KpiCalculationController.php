@@ -19,19 +19,19 @@ class KpiCalculationController extends Controller
             'employee_id' => ['required', 'integer', 'exists:users,id'],
             'search' => ['nullable', 'string', 'max:255'],
             'priority' => ['nullable', 'string', 'max:10'],
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'date_from' => ['required', 'date'],
+            'date_to' => ['required', 'date', 'after_or_equal:date_from'],
         ]);
 
         $employee = User::query()->with('jobTitle')->where('is_active', true)->findOrFail($data['employee_id']);
         $search = trim((string) ($data['search'] ?? ''));
         $priority = strtoupper(trim((string) ($data['priority'] ?? '')));
-        $dateFrom = $data['date_from'] ?? null;
-        $dateTo = $data['date_to'] ?? null;
+        $dateFrom = $data['date_from'];
+        $dateTo = $data['date_to'];
 
-        // One KPI snapshot per Employee + Date Range. Reusing the same range
-        // must read the existing snapshot instead of recalculating it.
-        $calculationKey = sprintf('%d_%s_%s', $employee->id, $dateFrom ?: 'ALL', $dateTo ?: 'ALL');
+        // One KPI snapshot per Employee + Date Range.
+        // Reusing the same range must read the existing snapshot instead of recalculating it.
+        $calculationKey = sprintf('%d_%s_%s', $employee->id, $dateFrom, $dateTo);
 
         if ($existing = KpiCalculationRun::query()->where('calculation_key', $calculationKey)->with('employee')->first()) {
             return redirect()->route('admin.tickets.index', array_filter([
@@ -55,10 +55,24 @@ class KpiCalculationController extends Controller
                 });
             })
             ->when($priority !== '', fn ($q) => $q->where('priority', $priority))
-            ->when($dateFrom, fn ($q) => $q->whereDate('created_on', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->whereDate('created_on', '<=', $dateTo));
+            ->whereDate('created_on', '>=', $dateFrom)
+            ->whereDate('created_on', '<=', $dateTo);
 
         $tickets = $query->get();
+
+        // Do not create an empty KPI snapshot. Search may legitimately return no data;
+        // KPI calculation requires at least one Ticket in the selected Employee + period.
+        if ($tickets->isEmpty()) {
+            return redirect()->route('admin.tickets.index', array_filter([
+                'search' => $search,
+                'priority' => $priority,
+                'employee_id' => $employee->id,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+            ], fn ($value) => $value !== null && $value !== ''))
+                ->with('warning', 'No Ticket data was found for this Employee and selected period. KPI was not calculated and no Snapshot was created.');
+        }
+
         $completed = $tickets->filter(fn ($ticket) => $ticket->finished_on !== null);
         $totalTickets = $tickets->count();
         $completedTickets = $completed->count();
@@ -116,6 +130,7 @@ class KpiCalculationController extends Controller
             ],
             'weights_snapshot' => $weights->mapWithKeys(fn ($item) => [$item->code => ['name' => $item->name, 'weight' => (int) $item->weight]])->all(),
             'metrics' => [
+                'ticket_ids' => $tickets->pluck('id')->values()->all(),
                 'target_workload_point' => $targetWorkloadPoint,
                 'workload_point_completed' => $workloadPointCompleted,
                 'k' => $k,
