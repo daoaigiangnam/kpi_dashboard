@@ -8,6 +8,7 @@ use App\Models\JobTitle;
 use App\Models\SystemSetting;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\UserGroup;
 use App\Notifications\RegistrationEmailVerificationNotification;
 use App\Notifications\UserRegistrationNotification;
 use Illuminate\Http\Request;
@@ -171,7 +172,18 @@ class RegisterController extends Controller
             return redirect()->route('register')->withErrors(['employee_code' => 'This employee code is already registered in the system.']);
         }
 
-        $user = DB::transaction(function () use ($payload, $verification) {
+        $viewerGroup = UserGroup::where('name', 'KPI Viewer')->first();
+        if (!$viewerGroup) {
+            Log::error('KPI Viewer group is missing; self-registration cannot complete.', [
+                'email' => $payload['email'],
+            ]);
+
+            return redirect()->route('register')->withErrors([
+                'email' => 'Registration is temporarily unavailable. Please contact the administrator.',
+            ]);
+        }
+
+        $user = DB::transaction(function () use ($payload, $verification, $viewerGroup) {
             return User::create([
                 'employee_code' => $payload['employee_code'],
                 'name' => $payload['name'],
@@ -185,6 +197,7 @@ class RegisterController extends Controller
                 'job_title_id' => $payload['job_title_id'] ?? null,
                 'notes' => $payload['notes'] ?? null,
                 'password' => $verification->password_hash,
+                'user_group_id' => $viewerGroup->id,
                 'is_active' => false,
                 'registration_status' => 'pending',
             ]);
