@@ -1,1 +1,64 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KPI Dashboard Admin</title><style>body{margin:0;font-family:Inter,Arial,sans-serif;background:#f5f7fb;color:#172033}.nav{width:240px;position:fixed;inset:0 auto 0 0;background:#172033;color:#fff;padding:22px;box-sizing:border-box}.brand{font-size:20px;font-weight:700;margin-bottom:28px}.nav a{display:block;color:#cbd5e1;text-decoration:none;padding:10px 12px;border-radius:7px;margin:4px 0}.nav a:hover{background:#26344d;color:#fff}.main{margin-left:240px;padding:28px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}.card{background:#fff;border:1px solid #e5e9f0;border-radius:10px;padding:20px;box-shadow:0 2px 8px #1720330a}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:12px;border-bottom:1px solid #edf0f5;text-align:left}.btn{display:inline-block;border:0;border-radius:7px;padding:9px 14px;text-decoration:none;cursor:pointer;background:#2563eb;color:#fff}.btn.gray{background:#64748b}.btn.red{background:#dc2626}.form{max-width:720px}.input{width:100%;padding:10px;border:1px solid #d5dbe5;border-radius:7px;box-sizing:border-box;margin-top:5px}.field{margin-bottom:15px}.alert{padding:12px;background:#dcfce7;border-radius:7px;margin-bottom:15px}.error{padding:12px;background:#fee2e2;border-radius:7px;margin-bottom:15px}.check{margin:7px 0}.muted{color:#64748b;font-size:13px}@media(max-width:800px){.nav{position:static;width:auto}.main{margin:0}.grid{grid-template-columns:1fr 1fr}}</style></head><body><aside class="nav"><div class="brand">KPI Dashboard</div><a href="{{ route('admin.dashboard') }}">Dashboard</a>@if(auth()->user()->hasPermission('users.view'))<a href="{{ route('admin.users.index') }}">Users</a>@endif @if(auth()->user()->hasPermission('groups.view'))<a href="{{ route('admin.groups.index') }}">User Groups</a>@endif<form method="post" action="{{ route('logout') }}" style="margin-top:25px">@csrf<button class="btn gray" type="submit">Logout</button></form></aside><main class="main"><div class="top"><div><h1 style="margin:0">@yield('title')</h1><div class="muted">{{ auth()->user()->name }} · {{ auth()->user()->group?->name }}</div></div></div>@if(session('success'))<div class="alert">{{ session('success') }}</div>@endif@if($errors->any())<div class="error"><ul>@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>@endif @yield('content')</main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KPI Dashboard Admin</title>
+    <style>
+        body{margin:0;font-family:Inter,Arial,sans-serif;background:#f5f7fb;color:#172033}
+        .nav{width:240px;position:fixed;inset:0 auto 0 0;background:#172033;color:#fff;padding:22px;box-sizing:border-box}
+        .brand{font-size:20px;font-weight:700;margin-bottom:28px}
+        .nav a{display:block;color:#cbd5e1;text-decoration:none;padding:10px 12px;border-radius:7px;margin:4px 0}
+        .nav a:hover{background:#26344d;color:#fff}
+        .main{margin-left:240px;padding:28px}
+        .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+        .card{background:#fff;border:1px solid #e5e9f0;border-radius:10px;padding:20px;box-shadow:0 2px 8px #1720330a}
+        .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+        .table{width:100%;border-collapse:collapse}
+        .table th,.table td{padding:12px;border-bottom:1px solid #edf0f5;text-align:left}
+        .btn{display:inline-block;border:0;border-radius:7px;padding:9px 14px;text-decoration:none;cursor:pointer;background:#2563eb;color:#fff}
+        .btn.gray{background:#64748b}.btn.red{background:#dc2626}.form{max-width:720px}
+        .input{width:100%;padding:10px;border:1px solid #d5dbe5;border-radius:7px;box-sizing:border-box;margin-top:5px}
+        .field{margin-bottom:15px}.alert{padding:12px;background:#dcfce7;border-radius:7px;margin-bottom:15px}
+        .error{padding:12px;background:#fee2e2;border-radius:7px;margin-bottom:15px}.check{margin:7px 0}.muted{color:#64748b;font-size:13px}
+        @media(max-width:800px){.nav{position:static;width:auto}.main{margin:0}.grid{grid-template-columns:1fr 1fr}}
+    </style>
+</head>
+<body>
+<aside class="nav">
+    <div class="brand">KPI Dashboard</div>
+    <a href="{{ route('admin.dashboard') }}">Dashboard</a>
+    @if(auth()->user()->hasPermission('users.view'))
+        <a href="{{ route('admin.users.index') }}">Users</a>
+    @endif
+    @if(auth()->user()->hasPermission('groups.view'))
+        <a href="{{ route('admin.groups.index') }}">User Groups</a>
+    @endif
+    <form method="post" action="{{ route('logout') }}" style="margin-top:25px">
+        @csrf
+        <button class="btn gray" type="submit">Logout</button>
+    </form>
+</aside>
+<main class="main">
+    <div class="top">
+        <div>
+            <h1 style="margin:0">@yield('title')</h1>
+            <div class="muted">{{ auth()->user()->name }} · {{ auth()->user()->group?->name }}</div>
+        </div>
+    </div>
+    @if(session('success'))
+        <div class="alert">{{ session('success') }}</div>
+    @endif
+    @if($errors->any())
+        <div class="error">
+            <ul>
+                @foreach($errors->all() as $e)
+                    <li>{{ $e }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+    @yield('content')
+</main>
+</body>
+</html>
