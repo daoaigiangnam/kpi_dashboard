@@ -50,6 +50,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::delete('departments/{department}',[DepartmentController::class,'destroy'])->middleware('permission:departments.delete')->name('departments.destroy');
  Route::patch('departments/{department}/restore',[DepartmentController::class,'restore'])->middleware('permission:departments.delete')->name('departments.restore');
  Route::get('units',[UnitController::class,'index'])->middleware('permission:units.view')->name('units.index');
+ Route::get('units/template',[UnitController::class,'template'])->middleware('permission:units.import')->name('units.template');
+ Route::get('units/export',[UnitController::class,'export'])->middleware('permission:units.export')->name('units.export');
+ Route::post('units/import',[UnitController::class,'import'])->middleware('permission:units.import')->name('units.import');
  Route::get('units/create',[UnitController::class,'create'])->middleware('permission:units.create')->name('units.create');
  Route::post('units',[UnitController::class,'store'])->middleware('permission:units.create')->name('units.store');
  Route::get('units/{unit}/edit',[UnitController::class,'edit'])->middleware('permission:units.edit')->name('units.edit');
