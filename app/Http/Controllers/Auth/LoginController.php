@@ -52,13 +52,21 @@ class LoginController extends Controller
                 ->onlyInput('email');
         }
 
+        $remember = $request->boolean('remember');
+
         if (Auth::attempt([
             'email' => $credentials['email'],
             'password' => $credentials['password'],
             'is_active' => true,
-        ], $request->boolean('remember'))) {
+        ], $remember)) {
             Cache::forget($attemptKey);
             Cache::forget($lockKey);
+
+            // Make the checkbox meaningful: without Remember Me the session
+            // cookie expires when the browser closes; with it, Laravel's
+            // persistent session + remember token can survive a restart.
+            config(['session.expire_on_close' => ! $remember]);
+
             $request->session()->regenerate();
 
             return redirect()->intended('/admin');
