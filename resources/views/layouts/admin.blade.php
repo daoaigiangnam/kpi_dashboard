@@ -14,12 +14,9 @@
 <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleAdminNav()">☰</button>
 <div class="nav-links">
 <a href="{{ route('admin.dashboard') }}">Dashboard</a>
-@if(auth()->user()->hasPermission('users.view'))
-<a href="{{ route('admin.users.index') }}">Users</a>
-@endif
-@if(auth()->user()->hasPermission('groups.view'))
-<a href="{{ route('admin.groups.index') }}">User Groups</a>
-@endif
+@if(auth()->user()->hasPermission('users.view'))<a href="{{ route('admin.users.index') }}">Users</a>@endif
+@if(auth()->user()->hasPermission('groups.view'))<a href="{{ route('admin.groups.index') }}">User Groups</a>@endif
+@if(auth()->user()->hasPermission('job_titles.view'))<a href="{{ route('admin.job_titles.index') }}">Job Titles</a>@endif
 <form method="post" action="{{ route('logout') }}" style="margin-top:25px">
 @csrf
 <button class="btn gray" type="submit">Logout</button>
