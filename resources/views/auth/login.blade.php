@@ -18,7 +18,7 @@
         <div class="captcha-box" id="captcha-box"><span class="captcha-label">Security check</span><div class="slider-track" id="slider-track" role="slider" aria-label="Slide to complete security check" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div class="slider-fill" id="slider-fill"></div><div class="slider-target" id="slider-target" style="left:{{ $captchaTarget }}%"></div><div class="slider-thumb" id="slider-thumb">›</div></div><div class="slider-success">✓ Verification complete</div><p class="captcha-hint">Drag the blue button to the circle. Works with mouse or touch.</p><input type="hidden" name="captcha_position" id="captcha_position" value=""></div>
         <p class="security-note">Complete the security check before signing in.</p><button class="button" type="submit">Sign in</button>
     </form>
-    <div class="links"><a class="link" href="{{ route('register') }}">Sign up</a><a class="link" href="{{ route('password.request') }}">Forgot password?</a></div>
+    <div class="links">@if($signupEnabled)<a class="link" href="{{ route('register') }}">Sign up</a>@endif<a class="link" href="{{ route('password.request') }}">Forgot password?</a></div>
 </div>
 <script>
 function togglePassword(){const input=document.getElementById('password'),button=document.querySelector('.show'),show=input.type==='password';input.type=show?'text':'password';button.textContent=show?'Hide':'Show'}
