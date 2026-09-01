@@ -21,7 +21,6 @@ class GroupController extends Controller
             ->with([
                 'permissions',
                 'users' => fn ($users) => $users
-                    ->withTrashed()
                     ->with(['jobTitle', 'departmentRelation', 'unit'])
                     ->orderBy('name'),
             ])
@@ -30,12 +29,11 @@ class GroupController extends Controller
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%")
                         ->orWhereHas('users', function ($users) use ($search) {
-                            $users->withTrashed()
-                                ->where(function ($users) use ($search) {
-                                    $users->where('employee_code', 'like', "%{$search}%")
-                                        ->orWhere('name', 'like', "%{$search}%")
-                                        ->orWhere('email', 'like', "%{$search}%");
-                                });
+                            $users->where(function ($users) use ($search) {
+                                $users->where('employee_code', 'like', "%{$search}%")
+                                    ->orWhere('name', 'like', "%{$search}%")
+                                    ->orWhere('email', 'like', "%{$search}%");
+                            });
                         });
                 });
             })
@@ -129,7 +127,6 @@ class GroupController extends Controller
             ->with([
                 'permissions',
                 'users' => fn ($users) => $users
-                    ->withTrashed()
                     ->with(['jobTitle', 'departmentRelation', 'unit'])
                     ->orderBy('name'),
             ])
@@ -138,12 +135,11 @@ class GroupController extends Controller
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%")
                         ->orWhereHas('users', function ($users) use ($search) {
-                            $users->withTrashed()
-                                ->where(function ($users) use ($search) {
-                                    $users->where('employee_code', 'like', "%{$search}%")
-                                        ->orWhere('name', 'like', "%{$search}%")
-                                        ->orWhere('email', 'like', "%{$search}%");
-                                });
+                            $users->where(function ($users) use ($search) {
+                                $users->where('employee_code', 'like', "%{$search}%")
+                                    ->orWhere('name', 'like', "%{$search}%")
+                                    ->orWhere('email', 'like', "%{$search}%");
+                            });
                         });
                 });
             })
@@ -197,7 +193,7 @@ class GroupController extends Controller
                     $user->departmentRelation?->name,
                     $user->unit?->name,
                     $user->jobTitle?->name,
-                    $user->trashed() ? 'Deleted' : ($user->is_active ? 'Active' : 'Inactive'),
+                    $user->is_active ? 'Active' : 'Inactive',
                 ]], null, "A{$detailRow}");
                 $detailRow++;
             }
