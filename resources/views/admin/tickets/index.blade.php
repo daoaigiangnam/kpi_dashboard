@@ -11,6 +11,7 @@
     .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
     .badge.ok{background:#e8f6ed;color:#24613f}.badge.bad{background:#fcebea;color:#8f2f2c}.badge.neutral{background:#eef2f7;color:#475569}
     .small{font-size:12px;color:#66736b}.import-note{margin-top:10px;padding:10px 12px;background:#f5f8fc;border:1px solid #dbe4ee;border-radius:8px;color:#475569;font-size:12px;line-height:1.45}
+    .ticket-total td{font-weight:700;background:#fff7cc;border-top:2px solid #d6b656;white-space:nowrap}
     @media(max-width:900px){.ticket-import,.ticket-filter{grid-template-columns:1fr}}
 </style>
 
@@ -43,13 +44,31 @@
         <div><button class="btn gray" type="submit">Search</button></div>
     </form>
 
-    <div class="ticket-stat">{{ number_format($totalTickets) }} ticket(s) stored. Bitrix Ticket ID is unique; duplicate IDs are skipped during import.</div>
+    <div class="ticket-stat">{{ number_format($totalTickets) }} ticket(s) stored. Bitrix Ticket ID is unique; duplicate IDs are skipped during import. The Total row below recalculates from the current search/filter result.</div>
     <div class="table-wrap" style="margin-top:14px"><table class="table" style="min-width:1650px"><thead><tr><th>Bitrix Ticket ID</th><th>Employee</th><th>Priority</th><th>Created on</th><th>Started on</th><th>Finished on</th><th>Pause (min)</th><th>Reopen</th><th>Company/Dept</th><th>Workload Point</th><th>Resolution (min)</th><th>SLA Target</th><th>SLA</th><th>Process</th><th>Started</th><th>Source</th></tr></thead><tbody>
     @forelse($tickets as $ticket)
         <tr><td><strong>{{ $ticket->external_ticket_id }}</strong></td><td>{{ $ticket->employee?->name ?: '—' }}</td><td>{{ $ticket->priority }}</td><td>{{ $ticket->created_on?->format('Y-m-d H:i') }}</td><td>{{ $ticket->started_on?->format('Y-m-d H:i') }}</td><td>{{ $ticket->finished_on?->format('Y-m-d H:i') }}</td><td>{{ $ticket->pause_minutes }}</td><td>{{ $ticket->reopen_count }}</td><td>{{ $ticket->company_department ?: '—' }}</td><td>{{ $ticket->workload_point !== null ? number_format((float) $ticket->workload_point, 2) : '—' }}</td><td>{{ $ticket->resolution_minutes ?? '—' }}</td><td>{{ $ticket->sla_target_minutes ?? '—' }}</td><td>@if($ticket->sla_status === 'Đạt')<span class="badge ok">Đạt</span>@elseif($ticket->sla_status === 'Không Đạt')<span class="badge bad">Không Đạt</span>@else<span class="badge neutral">{{ $ticket->sla_status ?: '—' }}</span>@endif</td><td>@if($ticket->process_status === 'Đạt')<span class="badge ok">Đạt</span>@else<span class="badge bad">{{ $ticket->process_status ?: '—' }}</span>@endif</td><td><span class="badge neutral">{{ $ticket->started_status }}</span></td><td class="small">{{ $ticket->source }}</td></tr>
     @empty
         <tr><td colspan="16" style="text-align:center;padding:28px" class="muted">No Ticket data found.</td></tr>
     @endforelse
+    <tr class="ticket-total">
+        <td>Tổng ({{ number_format($ticketTotals['ticket_count']) }})</td>
+        <td>—</td>
+        <td>—</td>
+        <td>{{ number_format($ticketTotals['created_count']) }} dòng</td>
+        <td>{{ number_format($ticketTotals['started_count']) }} dòng</td>
+        <td>{{ number_format($ticketTotals['finished_count']) }} dòng</td>
+        <td>{{ number_format($ticketTotals['pause_minutes']) }}</td>
+        <td>{{ number_format($ticketTotals['reopen_ticket_count']) }} dòng &gt; 0</td>
+        <td>{{ number_format($ticketTotals['company_department_count']) }} dòng</td>
+        <td>{{ number_format($ticketTotals['workload_point'], 2) }}</td>
+        <td>{{ number_format($ticketTotals['resolution_minutes']) }}</td>
+        <td>{{ number_format($ticketTotals['sla_target_minutes']) }}</td>
+        <td>{{ number_format($ticketTotals['sla_met']) }} Đạt @if($ticketTotals['sla_not_met'] > 0) / {{ number_format($ticketTotals['sla_not_met']) }} Không Đạt @endif</td>
+        <td>{{ number_format($ticketTotals['process_met']) }} Đạt</td>
+        <td>{{ number_format($ticketTotals['started']) }} Có</td>
+        <td>—</td>
+    </tr>
     </tbody></table></div>
     <div style="margin-top:16px">{{ $tickets->links() }}</div>
 </div>
