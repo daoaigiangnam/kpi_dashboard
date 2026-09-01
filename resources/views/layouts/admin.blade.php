@@ -11,15 +11,15 @@
         body {
             margin: 0;
             font-family: Inter, Arial, sans-serif;
-            background: #f0fdf4;
-            color: #17321f;
+            background: #f6f9f7;
+            color: #17231c;
         }
 
         .nav {
             width: 240px;
             position: fixed;
             inset: 0 auto 0 0;
-            background: #172033;
+            background: #123b2a;
             color: #fff;
             padding: 22px;
             overflow-y: auto;
@@ -38,15 +38,16 @@
 
         .nav a {
             display: block;
-            color: #cbd5e1;
+            color: #dcebe2;
             text-decoration: none;
             padding: 10px 12px;
             border-radius: 7px;
             margin: 4px 0;
         }
 
-        .nav a:hover {
-            background: #26344d;
+        .nav a:hover,
+        .nav a.active {
+            background: #2f8f5b;
             color: #fff;
         }
 
@@ -65,10 +66,10 @@
 
         .card {
             background: #fff;
-            border: 1px solid #e5e9f0;
+            border: 1px solid #e1e9e4;
             border-radius: 10px;
             padding: 20px;
-            box-shadow: 0 2px 8px #1720330a;
+            box-shadow: 0 2px 8px #123b2a0a;
             min-width: 0;
         }
 
@@ -93,7 +94,7 @@
         .table th,
         .table td {
             padding: 12px;
-            border-bottom: 1px solid #edf0f5;
+            border-bottom: 1px solid #e8eee9;
             text-align: left;
             vertical-align: middle;
         }
@@ -120,17 +121,29 @@
             padding: 9px 14px;
             text-decoration: none;
             cursor: pointer;
-            background: #2563eb;
+            background: #2e8b57;
             color: #fff;
             font-size: 14px;
+        }
+
+        .btn:hover {
+            background: #267349;
         }
 
         .btn.gray {
             background: #64748b;
         }
 
+        .btn.gray:hover {
+            background: #475569;
+        }
+
         .btn.red {
-            background: #dc2626;
+            background: #d9534f;
+        }
+
+        .btn.red:hover {
+            background: #c43d39;
         }
 
         .form {
@@ -141,9 +154,16 @@
         .input {
             width: 100%;
             padding: 10px;
-            border: 1px solid #d5dbe5;
+            border: 1px solid #cfdad3;
             border-radius: 7px;
             margin-top: 5px;
+            background: #fff;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: #2e8b57;
+            box-shadow: 0 0 0 3px #2e8b571a;
         }
 
         .field {
@@ -152,20 +172,24 @@
 
         .alert {
             padding: 12px;
-            background: #dcfce7;
+            background: #e8f6ed;
+            color: #24613f;
+            border: 1px solid #cce9d6;
             border-radius: 7px;
             margin-bottom: 15px;
         }
 
         .error {
             padding: 12px;
-            background: #fee2e2;
+            background: #fcebea;
+            color: #8f2f2c;
+            border: 1px solid #f4c9c7;
             border-radius: 7px;
             margin-bottom: 15px;
         }
 
         .muted {
-            color: #64748b;
+            color: #66736b;
             font-size: 13px;
         }
 
@@ -202,10 +226,14 @@
                 height: 40px;
                 border: 0;
                 border-radius: 7px;
-                background: #26344d;
+                background: #1d5b40;
                 color: #fff;
                 font-size: 22px;
                 cursor: pointer;
+            }
+
+            .nav-toggle:hover {
+                background: #2f8f5b;
             }
 
             .nav-links {
