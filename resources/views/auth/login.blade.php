@@ -49,7 +49,7 @@
         </div>
         <p class="security-note">A new challenge is generated after each failed verification or login attempt.</p>
 
-        <label class="remember"><input type="checkbox" name="remember" value="1"> Remember me</label>
+        <label class="remember"><input type="checkbox" name="remember" value="1" autocomplete="off"> Remember me</label>
         <button class="button" type="submit">Sign in</button>
     </form>
 
