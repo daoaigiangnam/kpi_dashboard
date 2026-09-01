@@ -1,12 +1,221 @@
 <?php
+
 namespace App\Http\Controllers\Admin;
-use App\Http\Controllers\Controller; use App\Models\UserGroup; use App\Models\Permission; use Illuminate\Http\Request;
-class GroupController extends Controller {
- public function index(Request $request){$showHidden=$request->boolean('show_hidden');$query=UserGroup::withCount('users')->with('permissions');if($showHidden)$query->withTrashed();$groups=$query->orderBy('name')->paginate(20)->withQueryString();return view('admin.groups.index',compact('groups','showHidden'));}
- public function create(){return view('admin.groups.form',['group'=>new UserGroup(),'permissions'=>Permission::orderBy('module')->orderBy('name')->get()->groupBy('module')]);}
- public function store(Request $r){$d=$r->validate(['name'=>'required|string|max:100|unique:user_groups,name','description'=>'nullable|string|max:255','permissions'=>'array','permissions.*'=>'exists:permissions,id']);$g=UserGroup::create($d);$g->permissions()->sync($d['permissions']??[]);return redirect()->route('admin.groups.index')->with('success','Group created.');}
- public function edit(UserGroup $group){return view('admin.groups.form',['group'=>$group,'permissions'=>Permission::orderBy('module')->orderBy('name')->get()->groupBy('module')]);}
- public function update(Request $r,UserGroup $group){if($group->is_system&&$group->name==='Super Admin'&&$r->input('name')!=='Super Admin')return back()->withErrors('Super Admin cannot be renamed.');$d=$r->validate(['name'=>'required|string|max:100|unique:user_groups,name,'.$group->id,'description'=>'nullable|string|max:255','permissions'=>'array','permissions.*'=>'exists:permissions,id']);$group->update($d);$group->permissions()->sync($d['permissions']??[]);return redirect()->route('admin.groups.index')->with('success','Group updated.');}
- public function destroy(UserGroup $group){if($group->is_system)return back()->withErrors('System groups cannot be hidden.');$group->delete();return back()->with('success','Group hidden. The record was retained for history.');}
- public function restore(int $group){$model=UserGroup::withTrashed()->findOrFail($group);$model->restore();return back()->with('success','Group restored.');}
+
+use App\Http\Controllers\Controller;
+use App\Models\Permission;
+use App\Models\UserGroup;
+use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
+class GroupController extends Controller
+{
+    public function index(Request $request)
+    {
+        $search = trim((string) $request->query('search', ''));
+
+        // Always include soft-deleted groups so they remain searchable and recoverable.
+        $query = UserGroup::withTrashed()
+            ->withCount('users')
+            ->with([
+                'permissions',
+                'users' => fn ($users) => $users
+                    ->withTrashed()
+                    ->with(['jobTitle', 'departmentRelation', 'unit'])
+                    ->orderBy('name'),
+            ])
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhereHas('users', function ($users) use ($search) {
+                            $users->withTrashed()
+                                ->where(function ($users) use ($search) {
+                                    $users->where('employee_code', 'like', "%{$search}%")
+                                        ->orWhere('name', 'like', "%{$search}%")
+                                        ->orWhere('email', 'like', "%{$search}%");
+                                });
+                        });
+                });
+            })
+            ->orderBy('name');
+
+        $groups = $query->paginate(20)->withQueryString();
+
+        return view('admin.groups.index', compact('groups', 'search'));
+    }
+
+    public function create()
+    {
+        return view('admin.groups.form', [
+            'group' => new UserGroup(),
+            'permissions' => Permission::orderBy('module')->orderBy('name')->get()->groupBy('module'),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:100|unique:user_groups,name',
+            'description' => 'nullable|string|max:255',
+            'permissions' => 'array',
+            'permissions.*' => 'exists:permissions,id',
+        ]);
+
+        $group = UserGroup::create($data);
+        $group->permissions()->sync($data['permissions'] ?? []);
+
+        return redirect()->route('admin.groups.index')->with('success', 'Group created.');
+    }
+
+    public function edit(UserGroup $group)
+    {
+        return view('admin.groups.form', [
+            'group' => $group,
+            'permissions' => Permission::orderBy('module')->orderBy('name')->get()->groupBy('module'),
+        ]);
+    }
+
+    public function update(Request $request, UserGroup $group)
+    {
+        if ($group->is_system && $group->name === 'Super Admin' && $request->input('name') !== 'Super Admin') {
+            return back()->withErrors('Super Admin cannot be renamed.');
+        }
+
+        $data = $request->validate([
+            'name' => 'required|string|max:100|unique:user_groups,name,' . $group->id,
+            'description' => 'nullable|string|max:255',
+            'permissions' => 'array',
+            'permissions.*' => 'exists:permissions,id',
+        ]);
+
+        $group->update($data);
+        $group->permissions()->sync($data['permissions'] ?? []);
+
+        return redirect()->route('admin.groups.index')->with('success', 'Group updated.');
+    }
+
+    public function destroy(UserGroup $group)
+    {
+        if ($group->is_system) {
+            return back()->withErrors('System groups cannot be deleted or hidden.');
+        }
+
+        $userCount = $group->users()->count();
+        $group->delete();
+
+        $message = $userCount > 0
+            ? "Group deleted (hidden). {$userCount} assigned user(s) were retained in the group history. The hidden group no longer grants permissions. Restore the group to reactivate its assignments."
+            : 'Group deleted (hidden). The record was retained for history and can be restored later.';
+
+        return back()->with('success', $message);
+    }
+
+    public function restore(int $group)
+    {
+        $model = UserGroup::withTrashed()->findOrFail($group);
+        $model->restore();
+
+        return back()->with('success', 'Group restored. Existing user assignments and permissions are active again.');
+    }
+
+    public function export(Request $request)
+    {
+        $search = trim((string) $request->query('search', ''));
+
+        $groups = UserGroup::withTrashed()
+            ->withCount('users')
+            ->with([
+                'permissions',
+                'users' => fn ($users) => $users
+                    ->withTrashed()
+                    ->with(['jobTitle', 'departmentRelation', 'unit'])
+                    ->orderBy('name'),
+            ])
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhereHas('users', function ($users) use ($search) {
+                            $users->withTrashed()
+                                ->where(function ($users) use ($search) {
+                                    $users->where('employee_code', 'like', "%{$search}%")
+                                        ->orWhere('name', 'like', "%{$search}%")
+                                        ->orWhere('email', 'like', "%{$search}%");
+                                });
+                        });
+                });
+            })
+            ->orderBy('name')
+            ->get();
+
+        $spreadsheet = new Spreadsheet();
+
+        $summary = $spreadsheet->getActiveSheet();
+        $summary->setTitle('Groups');
+        $summary->fromArray([
+            ['Group', 'Description', 'Users', 'Permissions', 'Status', 'System Group'],
+        ], null, 'A1');
+
+        $row = 2;
+        foreach ($groups as $group) {
+            $summary->fromArray([[
+                $group->name,
+                $group->description,
+                $group->users_count,
+                $group->permissions->count(),
+                $group->trashed() ? 'Hidden' : 'Active',
+                $group->is_system ? 'Yes' : 'No',
+            ]], null, "A{$row}");
+            $row++;
+        }
+
+        $summary->getStyle('A1:F1')->getFont()->setBold(true);
+        foreach (range('A', 'F') as $column) {
+            $summary->getColumnDimension($column)->setAutoSize(true);
+        }
+        $summary->freezePane('A2');
+        $summary->setAutoFilter('A1:F' . max(1, $row - 1));
+
+        $detail = $spreadsheet->createSheet();
+        $detail->setTitle('Group Users');
+        $detail->fromArray([
+            ['Group', 'Group Status', 'Employee Code', 'Name', 'Email', 'Phone', 'Department', 'Unit', 'Job Title', 'User Status'],
+        ], null, 'A1');
+
+        $detailRow = 2;
+        foreach ($groups as $group) {
+            foreach ($group->users as $user) {
+                $detail->fromArray([[
+                    $group->name,
+                    $group->trashed() ? 'Hidden' : 'Active',
+                    $user->employee_code,
+                    $user->name,
+                    $user->email,
+                    $user->phone,
+                    $user->departmentRelation?->name,
+                    $user->unit?->name,
+                    $user->jobTitle?->name,
+                    $user->trashed() ? 'Deleted' : ($user->is_active ? 'Active' : 'Inactive'),
+                ]], null, "A{$detailRow}");
+                $detailRow++;
+            }
+        }
+
+        $detail->getStyle('A1:J1')->getFont()->setBold(true);
+        foreach (range('A', 'J') as $column) {
+            $detail->getColumnDimension($column)->setAutoSize(true);
+        }
+        $detail->freezePane('A2');
+        $detail->setAutoFilter('A1:J' . max(1, $detailRow - 1));
+
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(
+            fn () => $writer->save('php://output'),
+            'user-groups-' . now()->format('Ymd-His') . '.xlsx',
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        );
+    }
 }
