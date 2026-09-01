@@ -41,6 +41,30 @@ class Ticket extends Model
         'source_payload' => 'array',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $ticket): void {
+            $priority = KpiSlaPriority::query()
+                ->where('code', strtoupper((string) $ticket->priority))
+                ->first();
+
+            // Stored workload is the contribution to the completed-workload total.
+            // The row accessor below still displays the configured Priority WP.
+            $ticket->workload_point = $ticket->finished_on !== null
+                ? (float) ($priority?->workload_point ?? 0)
+                : 0;
+        });
+    }
+
+    public function getWorkloadPointAttribute($value)
+    {
+        $priority = KpiSlaPriority::query()
+            ->where('code', strtoupper((string) $this->priority))
+            ->first();
+
+        return $priority?->workload_point ?? $value;
+    }
+
     public function employee()
     {
         return $this->belongsTo(User::class, 'employee_id');
