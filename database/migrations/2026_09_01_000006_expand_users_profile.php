@@ -15,9 +15,7 @@ return new class extends Migration {
             $t->date('join_date')->nullable()->after('gender');
             $t->string('department', 150)->nullable()->after('join_date');
             $t->string('location', 150)->nullable()->after('department');
-            $t->unsignedBigInteger('job_title_id')->nullable()->after('user_group_id');
             $t->string('notes', 500)->nullable()->after('location');
-            $t->foreign('job_title_id')->references('id')->on('job_titles')->nullOnDelete();
             $t->index(['department', 'is_active']);
         });
     }
@@ -25,10 +23,9 @@ return new class extends Migration {
     public function down(): void
     {
         Schema::table('users', function (Blueprint $t) {
-            $t->dropForeign(['job_title_id']);
             $t->dropIndex(['department', 'is_active']);
             $t->dropUnique(['employee_code']);
-            $t->dropColumn(['employee_code','phone','date_of_birth','gender','join_date','department','location','job_title_id','notes']);
+            $t->dropColumn(['employee_code','phone','date_of_birth','gender','join_date','department','location','notes']);
         });
     }
 };
