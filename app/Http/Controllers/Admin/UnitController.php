@@ -15,8 +15,11 @@ class UnitController extends Controller
     public function index(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
-        $query = Unit::withCount('users');
+        $showDeleted = $request->boolean('deleted');
+
+        $query = $showDeleted ? Unit::withTrashed() : Unit::query();
         $units = $query
+            ->withCount('users')
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($x) use ($search) {
                     $x->where('code', 'like', "%{$search}%")
@@ -27,16 +30,17 @@ class UnitController extends Controller
                         ->orWhere('description', 'like', "%{$search}%");
                 });
             })
+            ->when($showDeleted, fn ($q) => $q->whereNotNull('deleted_at'))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.units.index', compact('units', 'search'));
+        return view('admin.units.index', compact('units', 'search', 'showDeleted'));
     }
 
     public function create()
     {
-        return view('admin.units.form', ['unit' => new Unit(['is_active' => true])]);
+        return view('admin.units.form', ['unit' => new Unit()]);
     }
 
     public function store(Request $request)
@@ -74,13 +78,13 @@ class UnitController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Units');
         $sheet->fromArray([
-            ['Code', 'Unit Name', 'Address', 'Phone', 'MST', 'Description', 'Status'],
-            ['UNIT-001', 'Example Unit', 'Example address', '0281234567', '0123456789', 'Example only - remove this row before import.', 'Active'],
+            ['Code', 'Unit Name', 'Address', 'Phone', 'MST', 'Description'],
+            ['UNIT-001', 'Example Unit', 'Example address', '0281234567', '0123456789', 'Example only - remove this row before import.'],
         ], null, 'A1');
-        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
-        foreach (range('A', 'G') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
+        $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+        foreach (range('A', 'F') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:G2');
+        $sheet->setAutoFilter('A1:F2');
         $writer = new Xlsx($spreadsheet);
         return response()->streamDownload(fn () => $writer->save('php://output'), 'unit-import-template.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -90,7 +94,10 @@ class UnitController extends Controller
     public function export(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
-        $units = Unit::query()
+        $showDeleted = $request->boolean('deleted');
+        $query = $showDeleted ? Unit::withTrashed() : Unit::query();
+
+        $units = $query
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($x) use ($search) {
                     $x->where('code', 'like', "%{$search}%")
@@ -101,27 +108,28 @@ class UnitController extends Controller
                         ->orWhere('description', 'like', "%{$search}%");
                 });
             })
+            ->when($showDeleted, fn ($q) => $q->whereNotNull('deleted_at'))
             ->orderBy('name')
             ->get();
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Units');
-        $sheet->fromArray([['Code', 'Unit Name', 'Address', 'Phone', 'MST', 'Description', 'Status']], null, 'A1');
+        $sheet->fromArray([['Code', 'Unit Name', 'Address', 'Phone', 'MST', 'Description']], null, 'A1');
         $row = 2;
         foreach ($units as $unit) {
             $sheet->fromArray([[
-                $unit->code, $unit->name, $unit->address, $unit->phone, $unit->tax_code,
-                $unit->description, $unit->is_active ? 'Active' : 'Inactive',
+                $unit->code, $unit->name, $unit->address, $unit->phone, $unit->tax_code, $unit->description,
             ]], null, "A{$row}");
             $row++;
         }
-        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
-        foreach (range('A', 'G') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
+        $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+        foreach (range('A', 'F') as $column) $sheet->getColumnDimension($column)->setAutoSize(true);
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:G' . max(1, $row - 1));
+        $sheet->setAutoFilter('A1:F' . max(1, $row - 1));
         $writer = new Xlsx($spreadsheet);
-        return response()->streamDownload(fn () => $writer->save('php://output'), 'units-' . now()->format('Ymd-His') . '.xlsx', [
+        $suffix = $showDeleted ? '-deleted' : '';
+        return response()->streamDownload(fn () => $writer->save('php://output'), 'units' . $suffix . '-' . now()->format('Ymd-His') . '.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
@@ -137,7 +145,7 @@ class UnitController extends Controller
 
         if (count($rows) < 2) return back()->withErrors('The import file contains no data rows.');
         $headers = array_map(fn ($v) => strtolower(trim((string) $v)), $rows[1]);
-        $required = ['code', 'unit name', 'address', 'phone', 'mst', 'description', 'status'];
+        $required = ['code', 'unit name', 'address', 'phone', 'mst', 'description'];
         $missing = array_values(array_diff($required, $headers));
         if ($missing) return back()->withErrors('Invalid template. Missing columns: ' . implode(', ', $missing) . '.');
 
@@ -149,17 +157,15 @@ class UnitController extends Controller
             $v = fn ($h) => trim((string) ($row[$columns[$h]] ?? ''));
             $code = $v('code'); $name = $v('unit name'); $address = $v('address');
             $phone = $v('phone'); $taxCode = $v('mst'); $description = $v('description');
-            $status = strtolower($v('status') ?: 'active');
             if ($code === '' && $name === '' && $address === '' && $phone === '' && $taxCode === '') continue;
             if ($code === '' || !preg_match('/^[A-Za-z0-9_-]+$/', $code)) { $errors[] = "Row {$n}: Code is required and may contain only letters, numbers, hyphens and underscores."; continue; }
             if ($name === '') { $errors[] = "Row {$n}: Unit Name is required."; continue; }
             if ($address === '') { $errors[] = "Row {$n}: Address is required."; continue; }
             if ($phone === '') { $errors[] = "Row {$n}: Phone is required."; continue; }
             if ($taxCode === '') { $errors[] = "Row {$n}: MST is required."; continue; }
-            if (!in_array($status, ['active', 'inactive'], true)) { $errors[] = "Row {$n}: Status must be Active or Inactive."; continue; }
             if (isset($seen[$code])) { $errors[] = "Row {$n}: Duplicate Code '{$code}' in the import file."; continue; }
             $seen[$code] = true;
-            $prepared[] = ['code' => $code, 'name' => $name, 'address' => $address, 'phone' => $phone, 'tax_code' => $taxCode, 'description' => $description !== '' ? $description : null, 'is_active' => $status === 'active'];
+            $prepared[] = ['code' => $code, 'name' => $name, 'address' => $address, 'phone' => $phone, 'tax_code' => $taxCode, 'description' => $description !== '' ? $description : null];
         }
 
         if ($errors) return back()->withErrors(array_slice($errors, 0, 50))->with('import_error_count', count($errors));
@@ -189,7 +195,6 @@ class UnitController extends Controller
             'phone' => ['required', 'string', 'max:30'],
             'tax_code' => ['required', 'string', 'max:50', Rule::unique('units', 'tax_code')->ignore($unit?->id)],
             'description' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['boolean'],
         ];
     }
 }
