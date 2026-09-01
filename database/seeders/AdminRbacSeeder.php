@@ -6,7 +6,7 @@ use App\Models\UserGroup;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
-class AdminRbacSeeder
+class AdminRbacSeeder extends Seeder
 {
     public function run(): void
     {
