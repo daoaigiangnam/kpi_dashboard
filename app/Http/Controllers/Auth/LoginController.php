@@ -16,7 +16,7 @@ class LoginController extends Controller
         $this->refreshCaptcha($request);
 
         return view('auth.login', [
-            'captchaQuestion' => $request->session()->get('login_captcha.question'),
+            'captchaTarget' => $request->session()->get('login_captcha.target', 50),
         ]);
     }
 
@@ -25,16 +25,18 @@ class LoginController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
-            'captcha_answer' => ['required', 'digits:4'],
+            'captcha_position' => ['required', 'numeric', 'between:0,100'],
         ]);
 
-        $expected = (string) $request->session()->pull('login_captcha.answer', '');
+        $challenge = $request->session()->pull('login_captcha');
+        $expected = (float) ($challenge['target'] ?? -1);
+        $position = (float) $credentials['captcha_position'];
 
-        if ($expected === '' || ! hash_equals($expected, (string) $credentials['captcha_answer'])) {
+        if ($expected < 0 || abs($position - $expected) > 8) {
             $this->refreshCaptcha($request);
 
             return back()
-                ->withErrors(['captcha_answer' => 'Security code is incorrect. Please enter the new 4-digit code.'])
+                ->withErrors(['captcha_position' => 'Slider verification failed. Please try the new challenge.'])
                 ->onlyInput('email');
         }
 
@@ -61,12 +63,7 @@ class LoginController extends Controller
         ], $remember)) {
             Cache::forget($attemptKey);
             Cache::forget($lockKey);
-
-            // Make the checkbox meaningful: without Remember Me the session
-            // cookie expires when the browser closes; with it, Laravel's
-            // persistent session + remember token can survive a restart.
             config(['session.expire_on_close' => ! $remember]);
-
             $request->session()->regenerate();
 
             return redirect()->intended('/admin');
@@ -104,11 +101,9 @@ class LoginController extends Controller
 
     private function refreshCaptcha(Request $request): void
     {
-        $code = (string) random_int(1000, 9999);
-
         $request->session()->put('login_captcha', [
-            'question' => $code,
-            'answer' => $code,
+            'target' => random_int(20, 80),
+            'created_at' => now()->timestamp,
         ]);
     }
 
