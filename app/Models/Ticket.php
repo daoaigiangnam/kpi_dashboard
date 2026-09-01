@@ -25,6 +25,9 @@ class Ticket extends Model
             $priority = \App\Models\KpiSlaPriority::query()
                 ->where('code', strtoupper((string) $ticket->priority))
                 ->first();
+
+            // Workload Point is earned only when the ticket is completed.
+            // Unfinished tickets must always store/display 0.
             $ticket->workload_point = $ticket->finished_on !== null
                 ? (float) ($priority?->workload_point ?? 0)
                 : 0;
@@ -33,10 +36,9 @@ class Ticket extends Model
 
     public function getWorkloadPointAttribute($value)
     {
-        $priority = \App\Models\KpiSlaPriority::query()
-            ->where('code', strtoupper((string) $this->priority))
-            ->first();
-        return $priority?->workload_point ?? $value;
+        // Return the stored calculated value. Do not replace it with the
+        // Priority catalog value because unfinished tickets intentionally store 0.
+        return $value;
     }
 
     public function employee()
