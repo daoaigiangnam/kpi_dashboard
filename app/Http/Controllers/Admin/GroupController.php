@@ -97,10 +97,9 @@ class GroupController extends Controller
 
     public function destroy(UserGroup $group)
     {
-        if ($group->is_system) {
-            return back()->withErrors('System groups cannot be deleted or hidden.');
-        }
-
+        // Groups are soft-deleted (hidden), never physically removed.
+        // This applies to both custom and system groups so an empty group can be hidden
+        // and later restored. A group with assigned users must be emptied first.
         $userCount = $group->users()->count();
         if ($userCount > 0) {
             return back()->withErrors("This group cannot be deleted while {$userCount} user(s) are assigned. Remove all users from the group first.");
