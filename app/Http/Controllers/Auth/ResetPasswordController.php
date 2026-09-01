@@ -27,6 +27,7 @@ class ResetPasswordController extends Controller
             'email' => ['required', 'email'],
             'otp' => ['required', 'digits:6'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password_confirmation' => ['required', 'string'],
         ]);
 
         $otpRecord = DB::table('password_reset_otps')
