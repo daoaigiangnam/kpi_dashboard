@@ -10,6 +10,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Notifications\UserRegistrationNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 
@@ -83,7 +84,15 @@ class RegisterController extends Controller
             'registration_status' => 'pending',
         ]);
 
-        Notification::route('mail', $notificationEmail)->notify(new UserRegistrationNotification($user));
+        try {
+            Notification::route('mail', $notificationEmail)->notify(new UserRegistrationNotification($user));
+        } catch (\Throwable $e) {
+            Log::error('Unable to send new user registration notification.', [
+                'user_id' => $user->id,
+                'notification_email' => $notificationEmail,
+                'exception' => $e->getMessage(),
+            ]);
+        }
 
         return redirect()->route('login')->with('status', 'Registration submitted successfully. Your account is pending Super Admin approval. You will be able to sign in after approval.');
     }
