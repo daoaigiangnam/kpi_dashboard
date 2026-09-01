@@ -7,10 +7,10 @@
     <style>
         *{box-sizing:border-box}
         :root{--navy:#0f172a;--slate:#475569;--muted:#64748b;--line:#dbe4ee;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff6ff}
-        body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at 15% 15%,rgba(59,130,246,.12),transparent 32%),radial-gradient(circle at 85% 80%,rgba(14,165,233,.10),transparent 30%),linear-gradient(135deg,#f8fafc 0%,#eef4f8 52%,#f6f9fc 100%);display:grid;place-items:center;min-height:100vh;margin:0;color:var(--navy);position:relative;overflow:hidden}
-        body:before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;background:rgba(255,255,255,.55);filter:blur(4px);top:-280px;right:-170px;pointer-events:none}
-        body:after{content:"";position:absolute;width:420px;height:420px;border-radius:50%;background:rgba(219,234,254,.32);filter:blur(8px);bottom:-250px;left:-170px;pointer-events:none}
-        .box{position:relative;z-index:1;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);width:min(410px,calc(100% - 32px));padding:32px;border:1px solid rgba(203,213,225,.78);border-radius:18px;box-shadow:0 24px 65px rgba(15,23,42,.11),0 3px 12px rgba(15,23,42,.04)}
+        body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#eaf1f8;display:grid;place-items:center;min-height:100vh;margin:0;color:var(--navy);position:relative;overflow:hidden}
+        body:before{content:"";position:absolute;width:760px;height:760px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.18) 0%,rgba(59,130,246,.09) 32%,rgba(59,130,246,0) 70%);top:-390px;left:-210px;pointer-events:none}
+        body:after{content:"";position:absolute;width:720px;height:720px;border-radius:50%;background:radial-gradient(circle,rgba(14,165,233,.15) 0%,rgba(56,189,248,.07) 35%,rgba(56,189,248,0) 72%);bottom:-390px;right:-170px;pointer-events:none}
+        .box{position:relative;z-index:1;background:rgba(255,255,255,.97);backdrop-filter:blur(16px);width:min(410px,calc(100% - 32px));padding:32px;border:1px solid rgba(203,213,225,.9);border-radius:18px;box-shadow:0 28px 70px rgba(15,23,42,.15),0 4px 14px rgba(15,23,42,.06)}
         .brand{display:flex;align-items:center;gap:10px;margin-bottom:28px}
         .brand-mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(145deg,#3b82f6,#1d4ed8);color:#fff;display:grid;place-items:center;font-size:17px;font-weight:800;box-shadow:0 7px 16px rgba(37,99,235,.25)}
         .brand-name{font-size:17px;font-weight:750;letter-spacing:-.2px;color:var(--navy)}
@@ -45,7 +45,7 @@
         .error{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
         .status{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
         .security-note{font-size:11px;color:var(--muted);margin:0 0 16px;line-height:1.4}
-        @media(max-width:480px){body{background:linear-gradient(145deg,#f8fafc,#eef4f8)}.box{padding:26px;width:min(410px,calc(100% - 24px));border-radius:15px}.brand{margin-bottom:24px}h2{font-size:23px}}
+        @media(max-width:480px){body{background:#eef3f8}.box{padding:26px;width:min(410px,calc(100% - 24px));border-radius:15px}.brand{margin-bottom:24px}h2{font-size:23px}}
     </style>
 </head>
 <body>
