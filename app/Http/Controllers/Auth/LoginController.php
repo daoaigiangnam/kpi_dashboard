@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class LoginController extends Controller
 {
@@ -35,20 +38,50 @@ class LoginController extends Controller
                 ->onlyInput('email');
         }
 
+        $maxAttempts = (int) SystemSetting::value('security.login_max_attempts', '5');
+        $lockoutMinutes = (int) SystemSetting::value('security.login_lockout_minutes', '15');
+        $key = $this->loginSecurityKey($request, $credentials['email']);
+        $attemptKey = $key.':attempts';
+        $lockKey = $key.':lock';
+
+        if (Cache::has($lockKey)) {
+            $this->refreshCaptcha($request);
+
+            return back()
+                ->withErrors(['email' => "Too many failed login attempts. Please try again in {$lockoutMinutes} minutes."])
+                ->onlyInput('email');
+        }
+
         if (Auth::attempt([
             'email' => $credentials['email'],
             'password' => $credentials['password'],
             'is_active' => true,
         ], $request->boolean('remember'))) {
+            Cache::forget($attemptKey);
+            Cache::forget($lockKey);
             $request->session()->regenerate();
 
             return redirect()->intended('/admin');
         }
 
+        Cache::add($attemptKey, 0, now()->addMinutes($lockoutMinutes));
+        $attempts = (int) Cache::increment($attemptKey);
+
         $this->refreshCaptcha($request);
 
+        if ($attempts >= $maxAttempts) {
+            Cache::forget($attemptKey);
+            Cache::put($lockKey, true, now()->addMinutes($lockoutMinutes));
+
+            return back()
+                ->withErrors(['email' => "Too many failed login attempts. Login is locked for {$lockoutMinutes} minutes."])
+                ->onlyInput('email');
+        }
+
+        $remaining = max(0, $maxAttempts - $attempts);
+
         return back()
-            ->withErrors(['email' => 'Invalid credentials or inactive account.'])
+            ->withErrors(['email' => "Invalid credentials or inactive account. {$remaining} attempt(s) remaining before temporary lockout."])
             ->onlyInput('email');
     }
 
@@ -70,5 +103,10 @@ class LoginController extends Controller
             'question' => "What is {$left} + {$right}?",
             'answer' => (string) ($left + $right),
         ]);
+    }
+
+    private function loginSecurityKey(Request $request, string $email): string
+    {
+        return 'login-security:'.hash('sha256', Str::lower(trim($email)).'|'.$request->ip());
     }
 }
