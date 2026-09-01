@@ -30,6 +30,18 @@
             <input name="notification_email" type="email" class="input" value="{{ old('notification_email', $settings['system.notification_email']) }}" required placeholder="admin@example.com" style="margin-top:0">
         </div>
 
+        <h3 style="margin:0 0 14px">User Registration</h3>
+        <div style="padding:15px 16px;background:#f8fafc;border:1px solid #dbe3ec;border-radius:10px;margin-bottom:24px">
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+                <input type="hidden" name="allow_self_registration" value="0">
+                <input type="checkbox" name="allow_self_registration" value="1" @checked($settings['security.allow_self_registration'] === '1') style="margin-top:3px">
+                <span>
+                    <strong>Allow Self-Service Signup</strong>
+                    <span class="muted" style="display:block;margin-top:4px">Show the Sign up option on the Login page and allow users to start the email-verified registration process. When disabled, direct access to the registration page is also blocked.</span>
+                </span>
+            </label>
+        </div>
+
         <h3 style="margin:0 0 14px">Password Recovery</h3>
         <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:24px">
             <div class="field"><label>OTP Expiry (minutes)</label><input name="otp_expire_minutes" type="number" min="1" max="60" class="input" value="{{ old('otp_expire_minutes', $settings['password_reset.otp_expire_minutes']) }}"></div>
