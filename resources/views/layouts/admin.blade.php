@@ -87,6 +87,10 @@
             <a href="{{ route('admin.kpi_parameters.index') }}">KPI Parameters</a>
         @endif
 
+        @if(auth()->user()->hasPermission('kpi.tickets'))
+            <a href="{{ route('admin.tickets.index') }}">Ticket Data</a>
+        @endif
+
         @if(auth()->user()->hasPermission('system.settings'))
             <a href="{{ route('admin.settings.index') }}">System Settings</a>
         @endif
