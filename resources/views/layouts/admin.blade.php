@@ -11,8 +11,8 @@
         body {
             margin: 0;
             font-family: Inter, Arial, sans-serif;
-            background: #f5f7fb;
-            color: #172033;
+            background: #f0fdf4;
+            color: #17321f;
         }
 
         .nav {
