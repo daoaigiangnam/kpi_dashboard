@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\SystemSettingController;
 use App\Http\Controllers\Admin\KpiParameterController;
 use App\Http\Controllers\Admin\TicketController;
 use App\Http\Controllers\Admin\TicketTemplateController;
+use App\Http\Controllers\Admin\KpiCalculationController;
 
 Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name('login');
 Route::post('/login',[LoginController::class,'login'])->middleware(['guest','throttle:5,1'])->name('login.attempt');
@@ -90,6 +91,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::get('tickets/template',[TicketTemplateController::class,'download'])->middleware('permission:kpi.tickets')->name('tickets.template');
  Route::get('tickets/export',[TicketController::class,'export'])->middleware('permission:kpi.tickets')->name('tickets.export');
  Route::post('tickets/import',[TicketController::class,'import'])->middleware('permission:kpi.tickets')->name('tickets.import');
+ Route::post('tickets/calculate-kpi',[KpiCalculationController::class,'calculate'])->middleware('permission:kpi.tickets')->name('tickets.calculate_kpi');
  Route::get('settings',[SystemSettingController::class,'index'])->middleware('permission:system.settings')->name('settings.index');
  Route::put('settings',[SystemSettingController::class,'update'])->middleware('permission:system.settings')->name('settings.update');
  Route::post('settings/test-mail',[SystemSettingController::class,'testMail'])->middleware('permission:system.settings')->name('settings.test-mail');
