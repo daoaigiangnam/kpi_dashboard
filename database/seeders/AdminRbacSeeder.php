@@ -1,39 +1,4 @@
 <?php
-
 namespace Database\Seeders;
-
-use App\Models\Permission;
-use App\Models\UserGroup;
-use Illuminate\Database\Seeder;
-
-class AdminRbacSeeder extends Seeder
-{
-    public function run(): void
-    {
-        $permissions = [
-            ['module'=>'Admin','name'=>'Access Admin','code'=>'admin.access'],
-            ['module'=>'Users','name'=>'View Users','code'=>'users.view'],
-            ['module'=>'Users','name'=>'Create Users','code'=>'users.create'],
-            ['module'=>'Users','name'=>'Update Users','code'=>'users.update'],
-            ['module'=>'Users','name'=>'Disable Users','code'=>'users.disable'],
-            ['module'=>'User Groups','name'=>'View Groups','code'=>'groups.view'],
-            ['module'=>'User Groups','name'=>'Manage Permissions','code'=>'groups.permissions'],
-            ['module'=>'KPI','name'=>'View Dashboard','code'=>'kpi.dashboard.view'],
-            ['module'=>'KPI','name'=>'Import Ticket Data','code'=>'kpi.import'],
-            ['module'=>'KPI','name'=>'Manage Configuration','code'=>'kpi.config'],
-        ];
-
-        foreach ($permissions as $item) {
-            Permission::updateOrCreate(['code'=>$item['code']], $item);
-        }
-
-        $all = Permission::pluck('id');
-        $super = UserGroup::updateOrCreate(['name'=>'Super Admin'], ['description'=>'Full administration access','is_system'=>true]);
-        $kpi = UserGroup::updateOrCreate(['name'=>'KPI Admin'], ['description'=>'KPI administration access','is_system'=>false]);
-        $viewer = UserGroup::updateOrCreate(['name'=>'KPI Viewer'], ['description'=>'Read-only KPI dashboard','is_system'=>false]);
-
-        $super->permissions()->sync($all);
-        $kpi->permissions()->sync(Permission::whereIn('code',['admin.access','users.view','kpi.dashboard.view','kpi.import','kpi.config'])->pluck('id'));
-        $viewer->permissions()->sync(Permission::where('code','kpi.dashboard.view')->pluck('id'));
-    }
-}
+use App\Models\Permission; use App\Models\UserGroup; use App\Models\User; use Illuminate\Database\Seeder;
+class AdminRbacSeeder extends Seeder { public function run():void { $defs=[['Admin','Access Admin','admin.view'],['Users','View Users','users.view'],['Users','Create Users','users.create'],['Users','Edit Users','users.edit'],['Users','Delete Users','users.delete'],['User Groups','View Groups','groups.view'],['User Groups','Create Groups','groups.create'],['User Groups','Edit Groups','groups.edit'],['User Groups','Delete Groups','groups.delete'],['User Groups','Manage Permissions','groups.permissions'],['KPI','View Dashboard','kpi.dashboard.view'],['KPI','Import Ticket Data','kpi.import'],['KPI','Manage Configuration','kpi.config']]; foreach($defs as [$m,$n,$c])Permission::updateOrCreate(['code'=>$c],['module'=>$m,'name'=>$n]);$all=Permission::pluck('id');$super=UserGroup::updateOrCreate(['name'=>'Super Admin'],['description'=>'Full system administration','is_system'=>true]);$admin=UserGroup::updateOrCreate(['name'=>'KPI Admin'],['description'=>'KPI administration','is_system'=>true]);$viewer=UserGroup::updateOrCreate(['name'=>'KPI Viewer'],['description'=>'Read-only KPI access','is_system'=>true]);$super->permissions()->sync($all);$admin->permissions()->sync(Permission::whereIn('code',['admin.view','users.view','users.create','users.edit','groups.view','groups.create','groups.edit','groups.permissions','kpi.dashboard.view','kpi.import','kpi.config'])->pluck('id'));$viewer->permissions()->sync(Permission::where('code','kpi.dashboard.view')->pluck('id'));User::updateOrCreate(['email'=>'admin@example.com'],['name'=>'System Administrator','password'=>'ChangeMe123!','user_group_id'=>$super->id,'is_active'=>true]); } }
