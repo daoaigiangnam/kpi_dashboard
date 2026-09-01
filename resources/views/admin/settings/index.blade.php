@@ -6,7 +6,7 @@
 <div class="card form" style="max-width:900px">
     <div style="margin-bottom:22px">
         <h2 style="margin:0 0 6px">System Settings</h2>
-        <div class="muted">Central configuration for email delivery, password recovery and future KPI parameters.</div>
+        <div class="muted">Central configuration for email delivery, password recovery, login security and future KPI parameters.</div>
     </div>
 
     <form method="post" action="{{ route('admin.settings.update') }}">
@@ -29,6 +29,20 @@
             <div class="field"><label>OTP Expiry (minutes)</label><input name="otp_expire_minutes" type="number" min="1" max="60" class="input" value="{{ old('otp_expire_minutes', $settings['password_reset.otp_expire_minutes']) }}"></div>
             <div class="field"><label>Reset Link Expiry (minutes)</label><input name="link_expire_minutes" type="number" min="5" max="1440" class="input" value="{{ old('link_expire_minutes', $settings['password_reset.link_expire_minutes']) }}"></div>
             <div class="field"><label>Maximum OTP Attempts</label><input name="max_otp_attempts" type="number" min="1" max="20" class="input" value="{{ old('max_otp_attempts', $settings['password_reset.max_otp_attempts']) }}"></div>
+        </div>
+
+        <h3 style="margin:0 0 14px">Login Security</h3>
+        <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:24px">
+            <div class="field">
+                <label>Failed Login Attempts Before Lock</label>
+                <input name="login_max_attempts" type="number" min="1" max="20" class="input" value="{{ old('login_max_attempts', $settings['security.login_max_attempts']) }}">
+                <div class="muted" style="margin-top:5px">The CAPTCHA must still be solved before credentials are checked.</div>
+            </div>
+            <div class="field">
+                <label>Login Lockout Duration (minutes)</label>
+                <input name="login_lockout_minutes" type="number" min="1" max="1440" class="input" value="{{ old('login_lockout_minutes', $settings['security.login_lockout_minutes']) }}">
+                <div class="muted" style="margin-top:5px">Lock is tracked by email + client IP and uses the application cache, so repeated bad passwords stop reaching authentication.</div>
+            </div>
         </div>
 
         <div style="padding:14px 16px;background:#f6f9f7;border:1px solid #e1e9e4;border-radius:8px;margin-bottom:20px">
