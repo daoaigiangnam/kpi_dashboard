@@ -25,7 +25,7 @@ class LoginController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
-            'captcha_answer' => ['required', 'digits_between:1,3'],
+            'captcha_answer' => ['required', 'digits:4'],
         ]);
 
         $expected = (string) $request->session()->pull('login_captcha.answer', '');
@@ -34,7 +34,7 @@ class LoginController extends Controller
             $this->refreshCaptcha($request);
 
             return back()
-                ->withErrors(['captcha_answer' => 'CAPTCHA is incorrect. Please solve the new CAPTCHA and try again.'])
+                ->withErrors(['captcha_answer' => 'Security code is incorrect. Please enter the new 4-digit code.'])
                 ->onlyInput('email');
         }
 
@@ -104,12 +104,11 @@ class LoginController extends Controller
 
     private function refreshCaptcha(Request $request): void
     {
-        $left = random_int(10, 49);
-        $right = random_int(1, 49);
+        $code = (string) random_int(1000, 9999);
 
         $request->session()->put('login_captcha', [
-            'question' => "What is {$left} + {$right}?",
-            'answer' => (string) ($left + $right),
+            'question' => $code,
+            'answer' => $code,
         ]);
     }
 
