@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\GroupController;
@@ -12,6 +14,11 @@ use App\Http\Controllers\Admin\UnitController;
 Route::get('/login',[LoginController::class,'show'])->name('login');
 Route::post('/login',[LoginController::class,'login'])->name('login.attempt');
 Route::post('/logout',[LoginController::class,'logout'])->middleware('auth')->name('logout');
+
+Route::get('/forgot-password',[ForgotPasswordController::class,'show'])->middleware('guest')->name('password.request');
+Route::post('/forgot-password',[ForgotPasswordController::class,'send'])->middleware(['guest','throttle:5,1'])->name('password.email');
+Route::get('/reset-password/{token}',[ResetPasswordController::class,'show'])->middleware('guest')->name('password.reset');
+Route::post('/reset-password',[ResetPasswordController::class,'reset'])->middleware(['guest','throttle:10,1'])->name('password.update');
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::get('/',[DashboardController::class,'index'])->middleware('permission:admin.view')->name('dashboard');
