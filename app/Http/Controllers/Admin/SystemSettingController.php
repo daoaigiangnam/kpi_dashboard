@@ -13,6 +13,7 @@ class SystemSettingController extends Controller
         'mail.mailer' => 'log', 'mail.host' => '', 'mail.port' => '587', 'mail.encryption' => 'tls',
         'mail.username' => '', 'mail.password' => '', 'mail.from_address' => '', 'mail.from_name' => 'KPI Dashboard System',
         'system.notification_email' => '',
+        'security.allow_self_registration' => '1',
         'password_reset.otp_expire_minutes' => '10', 'password_reset.link_expire_minutes' => '60', 'password_reset.max_otp_attempts' => '5',
         'security.login_max_attempts' => '5', 'security.login_lockout_minutes' => '15',
     ];
@@ -31,6 +32,7 @@ class SystemSettingController extends Controller
             'mail_username' => ['nullable', 'string', 'max:255'], 'mail_password' => ['nullable', 'string', 'max:1000'],
             'mail_from_address' => ['nullable', 'email', 'max:255'], 'mail_from_name' => ['required', 'string', 'max:150'],
             'notification_email' => ['required', 'email', 'max:255'],
+            'allow_self_registration' => ['required', 'boolean'],
             'otp_expire_minutes' => ['required', 'integer', 'min:1', 'max:60'], 'link_expire_minutes' => ['required', 'integer', 'min:5', 'max:1440'],
             'max_otp_attempts' => ['required', 'integer', 'min:1', 'max:20'],
             'login_max_attempts' => ['required', 'integer', 'min:1', 'max:20'],
@@ -42,6 +44,7 @@ class SystemSettingController extends Controller
             'mail.encryption' => $data['mail_encryption'], 'mail.username' => $data['mail_username'] ?? '',
             'mail.from_address' => $data['mail_from_address'] ?? '', 'mail.from_name' => $data['mail_from_name'],
             'system.notification_email' => $data['notification_email'],
+            'security.allow_self_registration' => $data['allow_self_registration'] ? '1' : '0',
             'password_reset.otp_expire_minutes' => (string) $data['otp_expire_minutes'],
             'password_reset.link_expire_minutes' => (string) $data['link_expire_minutes'],
             'password_reset.max_otp_attempts' => (string) $data['max_otp_attempts'],
