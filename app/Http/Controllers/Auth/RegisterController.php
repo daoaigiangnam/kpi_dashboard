@@ -193,13 +193,20 @@ class RegisterController extends Controller
         DB::table('registration_email_verifications')->where('id', $verification->id)->delete();
         $request->session()->forget('registration_verification_id');
 
-        try {
-            Notification::route('mail', $notificationEmail)->notify(new UserRegistrationNotification($user));
-        } catch (\Throwable $e) {
-            Log::error('Unable to send new user registration notification.', [
+        $notificationEmail = trim((string) SystemSetting::value('system.notification_email', ''));
+        if (filter_var($notificationEmail, FILTER_VALIDATE_EMAIL)) {
+            try {
+                Notification::route('mail', $notificationEmail)->notify(new UserRegistrationNotification($user));
+            } catch (\Throwable $e) {
+                Log::error('Unable to send new user registration notification.', [
+                    'user_id' => $user->id,
+                    'notification_email' => $notificationEmail,
+                    'exception' => $e->getMessage(),
+                ]);
+            }
+        } else {
+            Log::warning('New user registration created without admin notification email configured.', [
                 'user_id' => $user->id,
-                'notification_email' => $notificationEmail,
-                'exception' => $e->getMessage(),
             ]);
         }
 
