@@ -60,8 +60,6 @@ class KpiCalculationController extends Controller
 
         $tickets = $query->get();
 
-        // Do not create an empty KPI snapshot. Search may legitimately return no data;
-        // KPI calculation requires at least one Ticket in the selected Employee + period.
         if ($tickets->isEmpty()) {
             return redirect()->route('admin.tickets.index', array_filter([
                 'search' => $search,
@@ -100,10 +98,19 @@ class KpiCalculationController extends Controller
         $slaCompliance = $weightedTotal > 0 ? ($weightedMet / $weightedTotal) * 100 : 0;
         $slaKpi = ($slaCompliance * $weight('sla_compliance')) / 100;
 
-        $reopenedTickets = $completed->filter(fn ($ticket) => (int) $ticket->reopen_count > 0)->count();
-        $reopenRate = $completedTickets > 0 ? ($reopenedTickets / $completedTickets) * 100 : 0;
-        $quality = 100 - $reopenRate;
-        $q = ($quality * $weight('quality_reopen')) / 100;
+        // Quality is based on completed Tickets only. If there are no completed
+        // Tickets, Quality is 0% (not 100%) because there is no valid denominator.
+        if ($completedTickets === 0) {
+            $reopenedTickets = 0;
+            $reopenRate = 0;
+            $quality = 0;
+            $q = 0;
+        } else {
+            $reopenedTickets = $completed->filter(fn ($ticket) => (int) $ticket->reopen_count > 0)->count();
+            $reopenRate = ($reopenedTickets / $completedTickets) * 100;
+            $quality = 100 - $reopenRate;
+            $q = ($quality * $weight('quality_reopen')) / 100;
+        }
 
         $processMet = $completed->filter(fn ($ticket) => $ticket->process_status === 'Đạt')->count();
         $processCompliance = $completedTickets > 0 ? ($processMet / $completedTickets) * 100 : 0;
