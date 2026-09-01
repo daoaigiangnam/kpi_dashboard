@@ -6,7 +6,7 @@
 <div class="card form" style="max-width:900px">
     <div style="margin-bottom:22px">
         <h2 style="margin:0 0 6px">System Settings</h2>
-        <div class="muted">Central configuration for email delivery, password recovery, login security and future KPI parameters.</div>
+        <div class="muted">Central configuration for email delivery, registration notifications, password recovery, login security and future KPI parameters.</div>
     </div>
 
     <form method="post" action="{{ route('admin.settings.update') }}">
@@ -22,6 +22,12 @@
             <div class="field"><label>SMTP Password</label><input name="mail_password" type="password" class="input" autocomplete="new-password" placeholder="{{ $mailPasswordConfigured ? 'Configured — leave blank to keep current password' : 'Enter SMTP password' }}"><div class="muted" style="margin-top:5px">Stored encrypted in the database; never stored in .env or displayed back to the browser.</div></div>
             <div class="field"><label>From Email</label><input name="mail_from_address" type="email" class="input" value="{{ old('mail_from_address', $settings['mail.from_address']) }}"></div>
             <div class="field"><label>From Name</label><input name="mail_from_name" class="input" value="{{ old('mail_from_name', $settings['mail.from_name']) }}"></div>
+        </div>
+
+        <div style="padding:15px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:24px">
+            <strong>System Notification Email</strong>
+            <div class="muted" style="margin:5px 0 10px">Exactly one email address receives system notifications, including new self-service user registration requests.</div>
+            <input name="notification_email" type="email" class="input" value="{{ old('notification_email', $settings['system.notification_email']) }}" required placeholder="admin@example.com" style="margin-top:0">
         </div>
 
         <h3 style="margin:0 0 14px">Password Recovery</h3>
