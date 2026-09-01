@@ -31,6 +31,8 @@
         .input:focus{outline:none;border-color:#2e8b57;box-shadow:0 0 0 3px #2e8b571a}
         .field{margin-bottom:15px}
         .alert{padding:12px;background:#e8f6ed;color:#24613f;border:1px solid #cce9d6;border-radius:7px;margin-bottom:15px}
+        .warning{padding:12px;background:#fff7cc;color:#735b00;border:1px solid #ead27a;border-radius:7px;margin-bottom:15px}
+        .info{padding:12px;background:#eef6ff;color:#24527a;border:1px solid #c9dff5;border-radius:7px;margin-bottom:15px}
         .error{padding:12px;background:#fcebea;color:#8f2f2c;border:1px solid #f4c9c7;border-radius:7px;margin-bottom:15px}
         .muted{color:#66736b;font-size:13px}
         @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -112,6 +114,14 @@
 
     @if(session('success'))
         <div class="alert">{{ session('success') }}</div>
+    @endif
+
+    @if(session('info'))
+        <div class="info">{{ session('info') }}</div>
+    @endif
+
+    @if(session('warning'))
+        <div class="warning">{{ session('warning') }}</div>
     @endif
 
     @if($errors->any())
