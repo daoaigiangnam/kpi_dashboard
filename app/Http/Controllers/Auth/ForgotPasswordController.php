@@ -12,14 +12,33 @@ use Illuminate\Support\Facades\Password;
 
 class ForgotPasswordController extends Controller
 {
-    public function show(): mixed
+    public function show(Request $request): mixed
     {
-        return view('auth.forgot-password');
+        $this->refreshCaptcha($request);
+
+        return view('auth.forgot-password', [
+            'captchaTarget' => $request->session()->get('forgot_captcha.target', 50),
+        ]);
     }
 
     public function send(Request $request): mixed
     {
-        $credentials = $request->validate(['email' => ['required', 'email']]);
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'captcha_position' => ['required', 'numeric', 'between:0,100'],
+        ]);
+
+        $challenge = $request->session()->pull('forgot_captcha');
+        $expected = (float) ($challenge['target'] ?? -1);
+        $position = (float) $credentials['captcha_position'];
+
+        if ($expected < 0 || abs($position - $expected) > 8) {
+            $this->refreshCaptcha($request);
+
+            return back()
+                ->withErrors(['captcha_position' => 'Slider verification failed. Please try the new challenge.'])
+                ->onlyInput('email');
+        }
 
         $user = User::query()
             ->where('email', $credentials['email'])
@@ -47,5 +66,13 @@ class ForgotPasswordController extends Controller
         $user->notify(new PasswordResetOtpNotification($token, $otp));
 
         return back()->with('status', 'A password reset email with an OTP and secure reset link has been sent.');
+    }
+
+    private function refreshCaptcha(Request $request): void
+    {
+        $request->session()->put('forgot_captcha', [
+            'target' => random_int(20, 80),
+            'created_at' => now()->timestamp,
+        ]);
     }
 }
