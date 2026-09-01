@@ -87,6 +87,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::put('kpi-parameters',[KpiParameterController::class,'update'])->middleware('permission:kpi.parameters')->name('kpi_parameters.update');
  Route::get('tickets',[TicketController::class,'index'])->middleware('permission:kpi.tickets')->name('tickets.index');
  Route::get('tickets/template',[TicketController::class,'template'])->middleware('permission:kpi.tickets')->name('tickets.template');
+ Route::get('tickets/export',[TicketController::class,'export'])->middleware('permission:kpi.tickets')->name('tickets.export');
  Route::post('tickets/import',[TicketController::class,'import'])->middleware('permission:kpi.tickets')->name('tickets.import');
  Route::get('settings',[SystemSettingController::class,'index'])->middleware('permission:system.settings')->name('settings.index');
  Route::put('settings',[SystemSettingController::class,'update'])->middleware('permission:system.settings')->name('settings.update');
