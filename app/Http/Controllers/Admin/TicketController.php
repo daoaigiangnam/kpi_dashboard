@@ -48,72 +48,80 @@ class TicketController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Ticket Data');
 
-        $sheet->fromArray([
-            [
-                'Bitrix Ticket ID', 'Employee ID', 'Employee Name', 'Employee Email',
-                'Priority (Ưu tiên)', 'Created on', 'Started on', 'Finished on', 'Pause(min)', 'Reopen',
-                'Company/Dept', 'Chi tiết nội dung đã xử lý', 'File chụp màn hình kết quả xử lý',
-                'Workload Point to Priority', 'Resolution (min)', 'SLA Target (min)', 'SLA', 'Process', 'Started', 'Source',
-            ],
-        ], null, 'A1');
+        // Keep Excel export exactly aligned with the 16 columns shown on screen.
+        $sheet->fromArray([[
+            'ID',
+            'Priority (Ưu tiên)',
+            'Created on',
+            'Started on',
+            'Finished on',
+            'Pause(min)',
+            'Reopen',
+            'Company/Dept',
+            'Chi tiết nội dung đã xử lý',
+            'File chụp màn hình kết quả xử lý',
+            'Workload Point to Priority',
+            'Resolution (min)',
+            'SLA Target',
+            'SLA',
+            'Process',
+            'Started',
+        ]], null, 'A1');
 
         $row = 2;
         foreach ($tickets as $ticket) {
             $sheet->fromArray([[
                 $ticket->external_ticket_id,
-                $ticket->employee_id,
-                $ticket->employee?->name,
-                $ticket->employee?->email,
                 $ticket->priority,
-                $ticket->created_on?->format('Y-m-d H:i'),
-                $ticket->started_on?->format('Y-m-d H:i'),
-                $ticket->finished_on?->format('Y-m-d H:i'),
+                $ticket->created_on?->format('n/j/Y G:i'),
+                $ticket->started_on?->format('n/j/Y G:i'),
+                $ticket->finished_on?->format('n/j/Y G:i'),
                 $ticket->pause_minutes,
                 $ticket->reopen_count,
-                $ticket->company_department,
-                $ticket->resolution_detail,
-                $ticket->result_screenshot,
-                $ticket->workload_point !== null ? (float) $ticket->workload_point : null,
-                $ticket->resolution_minutes,
-                $ticket->sla_target_minutes,
-                $ticket->sla_status,
-                $ticket->process_status,
-                $ticket->started_status,
-                $ticket->source,
+                $ticket->company_department ?: '',
+                $ticket->resolution_detail ?: '',
+                $ticket->result_screenshot ?: '',
+                $ticket->workload_point !== null ? rtrim(rtrim(number_format((float) $ticket->workload_point, 2, '.', ''), '0'), '.') : '',
+                $ticket->resolution_minutes ?? '',
+                $ticket->sla_target_minutes ?? '',
+                $ticket->sla_status ?: '',
+                $ticket->process_status ?: '',
+                $ticket->started_status ?: '',
             ]], null, 'A' . $row);
             $row++;
         }
 
+        // Match the on-screen Total row position and values exactly.
         $totalRow = max(2, $row);
         $sheet->fromArray([[
-            'Tổng', '', '', '', '',
-            $ticketTotals['created_count'],
-            $ticketTotals['started_count'],
+            'Tổng',
+            $ticketTotals['ticket_count'],
+            '',
+            '',
             $ticketTotals['finished_count'],
             $ticketTotals['pause_minutes'],
             $ticketTotals['reopen_ticket_count'],
-            $ticketTotals['company_department_count'],
-            $ticketTotals['resolution_detail_count'],
-            $ticketTotals['result_screenshot_count'],
-            $ticketTotals['workload_point'],
-            $ticketTotals['resolution_minutes'],
-            $ticketTotals['sla_target_minutes'],
+            '',
+            '',
+            '',
+            rtrim(rtrim(number_format($ticketTotals['workload_point'], 2, '.', ''), '0'), '.'),
+            '',
+            '',
             $ticketTotals['sla_met'],
             $ticketTotals['process_met'],
             $ticketTotals['started'],
-            '',
         ]], null, 'A' . $totalRow);
 
         $lastRow = max(1, $row - 1);
-        $sheet->getStyle('A1:T1')->getFont()->setBold(true);
-        $sheet->getStyle('A1:T1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFB7DEE8');
-        $sheet->getStyle('A' . $totalRow . ':T' . $totalRow)->getFont()->setBold(true);
-        $sheet->getStyle('A' . $totalRow . ':T' . $totalRow)->getFill()->setFillType('solid')->getStartColor()->setARGB('FFFFF2CC');
+        $sheet->getStyle('A1:P1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:P1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFB7DEE8');
+        $sheet->getStyle('A' . $totalRow . ':P' . $totalRow)->getFont()->setBold(true);
+        $sheet->getStyle('A' . $totalRow . ':P' . $totalRow)->getFill()->setFillType('solid')->getStartColor()->setARGB('FFFFF2CC');
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:T' . $lastRow);
-        $sheet->getStyle('N2:N' . $totalRow)->getNumberFormat()->setFormatCode('0.00');
+        $sheet->setAutoFilter('A1:P' . $lastRow);
+        $sheet->getStyle('K2:K' . $totalRow)->getNumberFormat()->setFormatCode('0.00');
 
-        foreach (range('A', 'T') as $column) {
+        foreach (range('A', 'P') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
