@@ -17,6 +17,7 @@ class LoginController extends Controller
 
         return view('auth.login', [
             'captchaTarget' => $request->session()->get('login_captcha.target', 50),
+            'signupEnabled' => SystemSetting::value('security.allow_self_registration', '1') === '1',
         ]);
     }
 
@@ -54,16 +55,13 @@ class LoginController extends Controller
                 ->onlyInput('email');
         }
 
-        $remember = $request->boolean('remember');
-
         if (Auth::attempt([
             'email' => $credentials['email'],
             'password' => $credentials['password'],
             'is_active' => true,
-        ], $remember)) {
+        ])) {
             Cache::forget($attemptKey);
             Cache::forget($lockKey);
-            config(['session.expire_on_close' => ! $remember]);
             $request->session()->regenerate();
 
             return redirect()->intended('/admin');
