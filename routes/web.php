@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\GroupController;
@@ -30,6 +31,12 @@ Route::get('/forgot-password',[ForgotPasswordController::class,'show'])->middlew
 Route::post('/forgot-password',[ForgotPasswordController::class,'send'])->middleware(['guest','throttle:5,1'])->name('password.email');
 Route::get('/reset-password/{token}',[ResetPasswordController::class,'show'])->middleware('guest')->name('password.reset');
 Route::post('/reset-password',[ResetPasswordController::class,'reset'])->middleware(['guest','throttle:10,1'])->name('password.update');
+
+Route::middleware('auth')->group(function(){
+ Route::get('/account',[AccountController::class,'index'])->name('account.index');
+ Route::put('/account',[AccountController::class,'update'])->name('account.update');
+ Route::put('/account/password',[AccountController::class,'updatePassword'])->name('account.password.update');
+});
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::get('/',[DashboardController::class,'index'])->middleware('permission:admin.view')->name('dashboard');
