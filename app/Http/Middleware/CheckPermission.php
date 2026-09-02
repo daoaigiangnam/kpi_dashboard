@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -14,13 +13,14 @@ class CheckPermission
     {
         $user = $request->user();
 
-        if (!$user || !$user->hasPermission($permission)) {
-            return $this->forceReauthentication($request);
+        if (!$user) {
+            return redirect()->route('login')->withErrors(['email' => 'Please sign in to continue.']);
         }
 
-        // Permissions are database-driven. If an administrator changes the
-        // user's group/permissions while the user still has an old session,
-        // force a fresh login so the session cannot retain stale authorization.
+        if (!$user->hasPermission($permission)) {
+            abort(403, 'You do not have permission to access this feature.');
+        }
+
         $permissionFingerprint = $this->permissionFingerprint($user);
         $sessionFingerprint = $request->session()->get('auth.permission_fingerprint');
 
@@ -28,11 +28,6 @@ class CheckPermission
             return $this->forceReauthentication($request, 'Your access permissions have changed. Please sign in again.');
         }
 
-        // Do not invalidate a valid login merely because the user's group has
-        // permissions for features that have not been implemented yet. Such
-        // permissions are valid future grants; they should only matter when
-        // their corresponding route/feature exists. Invalidating the whole
-        // session here caused users to be logged out immediately after login.
         $request->session()->put('auth.permission_fingerprint', $permissionFingerprint);
 
         return $next($request);
@@ -48,7 +43,7 @@ class CheckPermission
         return $user->group?->permissions()->orderBy('code')->pluck('code')->all() ?? [];
     }
 
-    private function forceReauthentication(Request $request, string $message = 'Your session is no longer valid. Please sign in again.'): Response
+    private function forceReauthentication(Request $request, string $message): Response
     {
         Auth::logout();
         $request->session()->invalidate();
