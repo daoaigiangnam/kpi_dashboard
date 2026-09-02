@@ -97,6 +97,8 @@
             <a href="{{ route('admin.settings.index') }}">System Settings</a>
         @endif
 
+        <a href="{{ route('account.index') }}">Account Information</a>
+
         <form method="post" action="{{ route('logout') }}" style="margin-top:25px">
             @csrf
             <button class="btn gray" type="submit">Logout</button>
