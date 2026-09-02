@@ -106,4 +106,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::post('settings/test-mail',[SystemSettingController::class,'testMail'])->middleware('permission:system.settings')->name('settings.test-mail');
 });
 
-Route::redirect('/','/admin');
+Route::get('/', function () {
+    if (!auth()->check()) return redirect()->route('login');
+    return auth()->user()->hasPermission('admin.view')
+        ? redirect()->route('admin.dashboard')
+        : redirect()->route('account.index');
+});
