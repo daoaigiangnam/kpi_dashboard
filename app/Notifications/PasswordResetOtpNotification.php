@@ -3,12 +3,19 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class PasswordResetOtpNotification extends Notification
+class PasswordResetOtpNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    /** @var int */
+    public $tries = 3;
+
+    /** @var array<int, int> */
+    public $backoff = [60, 300, 900];
 
     public function __construct(
         private readonly string $token,
