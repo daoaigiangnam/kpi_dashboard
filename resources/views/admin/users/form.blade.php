@@ -27,12 +27,24 @@
 
 <div class="card">
  <h3 style="margin-top:0">Account &amp; Security</h3>
- <div class="muted" style="margin-bottom:16px">Login password and account access settings are managed separately from employee information.</div>
- <div class="grid" style="grid-template-columns:1fr 1fr">
-  <div class="field"><label>Password {{ $user->exists ? '(leave blank to keep current)' : '*' }}</label><input class="input" type="password" name="password" {{ $user->exists ? '' : 'required' }} minlength="8" autocomplete="new-password"></div>
-  <div class="field"><label>Confirm Password</label><input class="input" type="password" name="password_confirmation" {{ $user->exists ? '' : 'required' }} minlength="8" autocomplete="new-password"></div>
+ <div class="muted" style="margin-bottom:16px">The user signs in with Email. Passwords are never entered by an administrator.</div>
+ <div class="field" style="margin-bottom:0">
+  <label>Account Status</label>
+  <div style="margin-top:6px"><label><input type="checkbox" name="is_active" value="1" @checked(old('is_active',$user->exists ? $user->is_active : true))> Active — user can log in and access permitted dashboards</label></div>
  </div>
- <div class="field" style="margin-bottom:0"><label><input type="checkbox" name="is_active" value="1" @checked(old('is_active',$user->exists ? $user->is_active : true))> Active — user can log in and access permitted dashboards</label></div>
+ @if($user->exists)
+ <div style="margin-top:16px;padding-top:16px;border-top:1px solid #dbe3e8;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+  <div>
+   <strong>Password</strong>
+   <div class="muted" style="margin-top:4px">Send the user a new OTP and secure link to create/change their password.</div>
+  </div>
+  <button class="btn gray" type="submit" form="reset-password-form" onclick="return confirm('Send a new password reset email?')">Reset Password</button>
+ </div>
+ @else
+ <div style="margin-top:16px;padding:12px 14px;background:#f0f7f3;border:1px solid #cfe4d7;border-radius:8px;color:#245b38">
+  After saving the employee record, the system automatically sends the user an email containing an OTP and secure link to create the first password.
+ </div>
+ @endif
 </div>
 
 <div>
@@ -40,4 +52,7 @@
  <a class="btn gray" href="{{ route('admin.users.index') }}">Cancel</a>
 </div>
 </form>
+@if($user->exists)
+<form id="reset-password-form" method="post" action="{{ route('admin.users.reset_password',$user) }}" style="display:none">@csrf</form>
+@endif
 @endsection
