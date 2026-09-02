@@ -44,6 +44,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::post('users',[UserController::class,'store'])->middleware('permission:users.create')->name('users.store');
  Route::get('users/{user}/edit',[UserController::class,'edit'])->middleware('permission:users.edit')->name('users.edit');
  Route::put('users/{user}',[UserController::class,'update'])->middleware('permission:users.edit')->name('users.update');
+ Route::post('users/{user}/reset-password',[UserController::class,'resetPassword'])->middleware('permission:users.edit')->name('users.reset_password');
  Route::delete('users/{user}',[UserController::class,'destroy'])->middleware('permission:users.delete')->name('users.destroy');
  Route::patch('users/{user}/restore',[UserController::class,'restore'])->middleware('permission:users.delete')->name('users.restore');
  Route::get('groups',[GroupController::class,'index'])->middleware('permission:groups.view')->name('groups.index');
