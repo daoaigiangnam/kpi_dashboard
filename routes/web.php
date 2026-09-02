@@ -39,7 +39,13 @@ Route::middleware('auth')->group(function(){
 });
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
- Route::get('/',[DashboardController::class,'index'])->middleware('permission:admin.view')->name('dashboard');
+ Route::get('/',function(){
+     if (auth()->user()->hasPermission('admin.view')) {
+         return redirect()->route('admin.dashboard');
+     }
+     return redirect()->route('account.index');
+ })->name('home');
+ Route::get('dashboard',[DashboardController::class,'index'])->middleware('permission:admin.view')->name('dashboard');
  Route::get('users',[UserController::class,'index'])->middleware('permission:users.view')->name('users.index');
  Route::get('users/pending',[UserController::class,'pending'])->middleware('permission:users.view')->name('users.pending');
  Route::post('users/{user}/approve',[UserController::class,'approve'])->middleware('permission:users.view')->name('users.approve');
