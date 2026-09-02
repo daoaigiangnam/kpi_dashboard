@@ -15,7 +15,7 @@ Implemented Admin foundation:
 - Admin dashboard summary
 - Database migrations and seed data
 - PhpSpreadsheet dependency prepared for KPI Excel import
-- File cache configuration for simple deployment
+- Database-backed queue for background email processing
 
 ### Default groups
 - **Super Admin** — all permissions
@@ -44,8 +44,13 @@ Open `/login`.
 - PHP must be able to read the whole project directory, including `vendor/` and `storage/`.
 - Do not commit `.env`, `vendor/`, runtime cache, or application logs.
 - `CACHE_STORE=file` is the recommended baseline for this initial deployment.
+- `QUEUE_CONNECTION=database` is the production baseline for background email jobs.
+- Run a persistent queue worker under Supervisor in production; see `deploy/supervisor/kpi-dashboard-worker.conf`.
 - On aaPanel/Nginx, disable or adjust the site-level open_basedir restriction so the project root is allowed.
 - Ensure Laravel runtime directories exist: `storage/framework/cache/data`, `storage/framework/sessions`, `storage/framework/views`, and `storage/logs`.
+
+### New server / recovery
+See **[deployment/NEW_SERVER_SETUP.md](deployment/NEW_SERVER_SETUP.md)** for the complete reproducible new-server installation, production update, queue/Supervisor setup, SMTP configuration, permissions, smoke tests and recovery runbook.
 
 ### Next KPI phase
 The Admin/RBAC core is intentionally independent from KPI calculation. The next layer can add Employee Master/Mapping, Job Titles, Ticket RAW Excel import, KPI configuration, calculation and reporting. Bitrix API can later become another data provider without replacing the KPI engine.
