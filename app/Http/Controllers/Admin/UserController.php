@@ -103,7 +103,7 @@ class UserController extends Controller
         ]);
 
         try {
-            $this->sendPasswordSetupEmail($user);
+            $this->sendPasswordSetupEmail($user, true);
             return redirect()->route('admin.users.index')->with('success', 'User created. A password setup email with OTP and secure link has been sent to '.$user->email.'.');
         } catch (\Throwable $e) {
             report($e);
@@ -139,7 +139,7 @@ class UserController extends Controller
         }
 
         try {
-            $this->sendPasswordSetupEmail($user);
+            $this->sendPasswordSetupEmail($user, false);
             return back()->with('success', 'A new password reset email with OTP and secure link has been sent to '.$user->email.'.');
         } catch (\Throwable $e) {
             report($e);
@@ -147,7 +147,7 @@ class UserController extends Controller
         }
     }
 
-    private function sendPasswordSetupEmail(User $user): void
+    private function sendPasswordSetupEmail(User $user, bool $initialSetup = false): void
     {
         $token = Password::broker()->createToken($user);
         $otp = (string) random_int(100000, 999999);
@@ -162,7 +162,7 @@ class UserController extends Controller
             'updated_at' => now(),
         ]);
 
-        $user->notify(new PasswordResetOtpNotification($token, $otp));
+        $user->notify(new PasswordResetOtpNotification($token, $otp, $initialSetup));
     }
 
     public function destroy(User $user)
@@ -243,7 +243,7 @@ class UserController extends Controller
         $newUsers=[];
         DB::transaction(function()use($prepared,&$newUsers){foreach($prepared as [$existing,$data]){if($existing){$existing->update($data);if($existing->trashed())$existing->restore();}else{$newUsers[]=User::create($data);}}});
         $mailFailures=0;
-        foreach($newUsers as $newUser){try{$this->sendPasswordSetupEmail($newUser);}catch(\Throwable $e){report($e);$mailFailures++;}}
+        foreach($newUsers as $newUser){try{$this->sendPasswordSetupEmail($newUser, true);}catch(\Throwable $e){report($e);$mailFailures++;}}
         $message=count($prepared).' user(s) imported successfully. New user accounts receive a password setup email with OTP and secure link.';
         if($mailFailures>0)$message.=" {$mailFailures} setup email(s) could not be sent; use Reset Password from the user record to resend.";
         return back()->with($mailFailures>0?'warning':'success',$message);
