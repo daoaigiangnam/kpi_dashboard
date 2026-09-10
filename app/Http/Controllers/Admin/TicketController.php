@@ -67,25 +67,7 @@ class TicketController extends Controller
             $row++;
         }
         $totalRow = max(2, $row);
-        $sheet->fromArray([[
-            'Tổng',
-            $ticketTotals['ticket_count'],
-            '',
-            '',
-            $ticketTotals['finished_count'],
-            $ticketTotals['pause_minutes'],
-            $ticketTotals['reopen_ticket_count'],
-            '',
-            '',
-            '',
-            rtrim(rtrim(number_format($ticketTotals['workload_point'], 2, '.', ''), '0'), '.'),
-            '',
-            '',
-            $ticketTotals['sla_met'],
-            $ticketTotals['process_met'],
-            $ticketTotals['started'],
-        ]], null, 'A'.$totalRow);
-
+        $sheet->fromArray([['Tổng',$ticketTotals['ticket_count'],'','',$ticketTotals['finished_count'],$ticketTotals['pause_minutes'],$ticketTotals['reopen_ticket_count'],'','','',rtrim(rtrim(number_format($ticketTotals['workload_point'], 2, '.', ''), '0'), '0'),'','',$ticketTotals['sla_met'],$ticketTotals['process_met'],$ticketTotals['started']]], null, 'A'.$totalRow);
         $sheet->getStyle('A1:P1')->getFont()->setBold(true);
         $sheet->getStyle('A1:P1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFB7DEE8');
         $sheet->getStyle('A'.$totalRow.':P'.$totalRow)->getFont()->setBold(true);
@@ -176,17 +158,10 @@ class TicketController extends Controller
     {
         $data = $request->validate([
             'employee_id' => ['required','integer','exists:users,id'],
-            'file' => [
-                'required',
-                'file',
-                'max:20480',
-                function ($attribute, $value, $fail) {
-                    $extension = strtolower((string) $value->getClientOriginalExtension());
-                    if (!in_array($extension, ['xlsx', 'xls', 'csv'], true)) {
-                        $fail('The file field must be a file of type: xlsx, xls, csv.');
-                    }
-                },
-            ],
+            'file' => ['required','file','max:20480', function ($attribute, $value, $fail) {
+                $extension = strtolower((string) $value->getClientOriginalExtension());
+                if (!in_array($extension, ['xlsx', 'xls', 'csv'], true)) $fail('The file field must be a file of type: xlsx, xls, csv.');
+            }],
         ]);
         $employee = User::query()->where('id', $data['employee_id'])->where('is_active', true)->first();
         if (!$employee) return back()->withErrors(['employee_id' => 'The selected employee is not active.']);
@@ -209,7 +184,7 @@ class TicketController extends Controller
             'finished_on' => $this->findHeader($headers, ['finished on']),
             'pause_minutes' => $this->findHeader($headers, ['pause min','pause minutes','pause']),
             'reopen_count' => $this->findHeader($headers, ['reopen','reopen count']),
-            'company_department' => $this->findHeader($headers, ['company dept','company department','company']),
+            'company_department' => $this->findHeader($headers, ['company dept','company department']),
             'resolution_detail' => $this->findHeader($headers, ['chi tiet noi dung da xu ly','resolution detail']),
             'result_screenshot' => $this->findHeader($headers, ['file chup man hinh ket qua xu ly','result screenshot']),
         ];
@@ -224,16 +199,16 @@ class TicketController extends Controller
         foreach (array_slice($rows, 1, null, true) as $rowNumber => $row) {
             $value = fn (string $field): string => $columns[$field] ? trim((string) ($row[$columns[$field]] ?? '')) : '';
             $externalId = $value('id');
-            $priorityCode = $this->normalizePriorityCode($value('priority'));
+            $priorityCode = $this->resolvePriorityCode($value('priority'), $priorityConfig);
             if ($externalId === '' || in_array(mb_strtolower($externalId), ['tong','tổng','total'], true)) continue;
             if (isset($seen[$externalId])) { $duplicateIds[] = $externalId; continue; }
             $seen[$externalId] = true;
             if (Ticket::where('external_ticket_id', $externalId)->exists()) { $duplicateIds[] = $externalId; continue; }
-            if (!isset($priorityConfig[$priorityCode])) { $errors[] = "Row {$rowNumber}: Priority '{$priorityCode}' is not configured in KPI Parameters."; continue; }
+            if ($priorityCode === null) { $errors[] = "Row {$rowNumber}: Priority '{$value('priority')}' is not configured in KPI Parameters."; continue; }
             try {
-                $createdOn = $this->parseDateTime($value('created_on'));
-                $startedOn = $this->parseDateTime($value('started_on'));
-                $finishedOn = $this->parseDateTime($value('finished_on'));
+                $createdOn = $this->parseDate($value('created_on'));
+                $startedOn = $this->parseDate($value('started_on'));
+                $finishedOn = $this->parseDate($value('finished_on'));
             } catch (\Throwable) {
                 $errors[] = "Row {$rowNumber}: Invalid date/time. Use YYYY-MM-DD HH:MM or the Excel date format.";
                 continue;
@@ -259,7 +234,7 @@ class TicketController extends Controller
             $prepared[] = [
                 'external_ticket_id' => $externalId,
                 'employee_id' => $employee->id,
-                'priority' => $priorityCode,
+                'priority' => $config->code,
                 'created_on' => $createdOn,
                 'started_on' => $startedOn,
                 'finished_on' => $finishedOn,
@@ -295,13 +270,16 @@ class TicketController extends Controller
         return back()->with('success', $message.' The Excel Total row was not stored.');
     }
 
-    private function normalizePriorityCode(string $value): string
+    private function resolvePriorityCode(string $value, $priorityConfig): ?string
     {
-        $normalized = strtoupper(trim($value));
-        if (preg_match('/^(P\d+)\s*-\s*.+$/', $normalized, $matches)) {
-            return $matches[1];
+        $input = strtoupper(trim($value));
+        if ($input === '') return null;
+        foreach ($priorityConfig as $config) {
+            $configured = strtoupper(trim((string) $config->code));
+            if ($input === $configured) return $config->code;
+            if (preg_match('/^(P\d+)/', $input, $inputMatch) && preg_match('/^(P\d+)/', $configured, $configuredMatch) && $inputMatch[1] === $configuredMatch[1]) return $config->code;
         }
-        return $normalized;
+        return null;
     }
 
     private function normalizeHeader(mixed $value): string
@@ -327,32 +305,13 @@ class TicketController extends Controller
         return (int) round((float) str_replace([',', ' '], '', $value));
     }
 
-    private function parseDateTime(string $value): ?Carbon
+    private function parseDate(string $value): ?Carbon
     {
         if ($value === '') return null;
-
-        // Excel date cells are commonly returned as numeric serials by PhpSpreadsheet.
-        // A date-only cell becomes YYYY-MM-DD 00:00:00 in the database; a datetime cell keeps its time.
-        if (is_numeric($value) && (float) $value > 0) {
-            return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
+        if (is_numeric($value) && (float) $value > 0) return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
+        foreach (['Y-m-d H:i:s','Y-m-d H:i','d/m/Y H:i:s','d/m/Y H:i','d-m-Y H:i:s','d-m-Y H:i','Y-m-d'] as $format) {
+            try { return Carbon::createFromFormat($format, $value); } catch (\Throwable) {}
         }
-
-        // Support the formats used by Bitrix exports and the application import template.
-        foreach ([
-            'Y-m-d H:i:s', 'Y-m-d H:i',
-            'n/j/Y G:i:s', 'n/j/Y G:i',
-            'm/d/Y H:i:s', 'm/d/Y H:i',
-            'd/m/Y H:i:s', 'd/m/Y H:i',
-            'd-m-Y H:i:s', 'd-m-Y H:i',
-            'Y-m-d', 'n/j/Y', 'm/d/Y', 'd/m/Y', 'd-m-Y',
-        ] as $format) {
-            try {
-                return Carbon::createFromFormat($format, $value);
-            } catch (\Throwable) {
-                // Try the next supported format.
-            }
-        }
-
         return Carbon::parse($value);
     }
 }
