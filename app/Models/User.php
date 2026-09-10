@@ -13,7 +13,7 @@ class User extends Authenticatable implements CanResetPasswordContract
 {
     use Notifiable, SoftDeletes, CanResetPasswordTrait;
 
-    protected $fillable = ['employee_code','name','email','phone','date_of_birth','gender','join_date','department','location','department_id','unit_id','user_group_id','job_title_id','notes','password','is_active','registration_status','registration_reviewed_at','registration_reviewed_by','registration_rejection_reason'];
+    protected $fillable = ['employee_code','external_id','name','email','phone','date_of_birth','gender','join_date','department','location','department_id','unit_id','user_group_id','job_title_id','notes','password','is_active','registration_status','registration_reviewed_at','registration_reviewed_by','registration_rejection_reason'];
     protected $hidden = ['password','remember_token'];
     protected $casts = ['is_active'=>'boolean','date_of_birth'=>'date','join_date'=>'date','registration_reviewed_at'=>'datetime','password'=>'hashed'];
 
