@@ -67,7 +67,20 @@ class TicketController extends Controller
             $row++;
         }
         $totalRow = max(2, $row);
-        $sheet->fromArray([['Tổng',$ticketTotals['ticket_count'],'','',$ticketTotals['finished_count'],$ticketTotals['pause_minutes'],$ticketTotals['reopen_ticket_count'],'','','',rtrim(rtrim(number_format($ticketTotals['workload_point'], 2, '.', ''), '0'), '0'),'','',$ticketTotals['sla_met'],$ticketTotals['process_met'],$ticketTotals['started']]], null, 'A'.$totalRow);
+        $sheet->fromArray([[
+            'Tổng',
+            $ticketTotals['ticket_count'],
+            '', '',
+            $ticketTotals['finished_count'],
+            $ticketTotals['pause_minutes'],
+            $ticketTotals['reopen_ticket_count'],
+            '', '', '',
+            rtrim(rtrim(number_format($ticketTotals['workload_point'], 2, '.', ''), '0'), '.'),
+            '', '',
+            $ticketTotals['sla_met'],
+            $ticketTotals['process_met'],
+            $ticketTotals['started'],
+        ]], null, 'A'.$totalRow);
         $sheet->getStyle('A1:P1')->getFont()->setBold(true);
         $sheet->getStyle('A1:P1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFB7DEE8');
         $sheet->getStyle('A'.$totalRow.':P'.$totalRow)->getFont()->setBold(true);
@@ -184,12 +197,12 @@ class TicketController extends Controller
             'finished_on' => $this->findHeader($headers, ['finished on']),
             'pause_minutes' => $this->findHeader($headers, ['pause min','pause minutes','pause']),
             'reopen_count' => $this->findHeader($headers, ['reopen','reopen count']),
-            'company_department' => $this->findHeader($headers, ['company dept','company department']),
+            'company_department' => $this->findHeader($headers, ['company dept','company department','company']),
             'resolution_detail' => $this->findHeader($headers, ['chi tiet noi dung da xu ly','resolution detail']),
             'result_screenshot' => $this->findHeader($headers, ['file chup man hinh ket qua xu ly','result screenshot']),
         ];
         foreach (['id','priority','created_on'] as $required) if (!$columns[$required]) return back()->withErrors("Invalid Ticket template. Missing required column: {$required}.");
-        $priorityConfig = KpiSlaPriority::get()->keyBy(fn ($item) => strtoupper($item->code));
+        $priorityConfig = KpiSlaPriority::query()->get()->keyBy(fn ($item) => strtoupper(trim((string) $item->code)));
         if ($priorityConfig->isEmpty()) return back()->withErrors('No SLA Priority configuration is available. Please configure KPI Parameters first.');
         $errors = [];
         $prepared = [];
@@ -199,12 +212,12 @@ class TicketController extends Controller
         foreach (array_slice($rows, 1, null, true) as $rowNumber => $row) {
             $value = fn (string $field): string => $columns[$field] ? trim((string) ($row[$columns[$field]] ?? '')) : '';
             $externalId = $value('id');
-            $priorityCode = $this->resolvePriorityCode($value('priority'), $priorityConfig);
+            $priorityKey = $this->resolvePriorityKey($value('priority'), $priorityConfig);
             if ($externalId === '' || in_array(mb_strtolower($externalId), ['tong','tổng','total'], true)) continue;
             if (isset($seen[$externalId])) { $duplicateIds[] = $externalId; continue; }
             $seen[$externalId] = true;
             if (Ticket::where('external_ticket_id', $externalId)->exists()) { $duplicateIds[] = $externalId; continue; }
-            if ($priorityCode === null) { $errors[] = "Row {$rowNumber}: Priority '{$value('priority')}' is not configured in KPI Parameters."; continue; }
+            if ($priorityKey === null) { $errors[] = "Row {$rowNumber}: Priority '{$value('priority')}' is not configured in KPI Parameters."; continue; }
             try {
                 $createdOn = $this->parseDate($value('created_on'));
                 $startedOn = $this->parseDate($value('started_on'));
@@ -222,7 +235,7 @@ class TicketController extends Controller
                 $resolutionMinutes = (int) round(($finishedOn->timestamp - $createdOn->timestamp) / 60) - $pause;
                 if ($resolutionMinutes < 0) { $errors[] = "Row {$rowNumber}: Resolution time becomes negative after Pause(min)."; continue; }
             }
-            $config = $priorityConfig[$priorityCode];
+            $config = $priorityConfig[$priorityKey];
             $companyDepartment = $value('company_department');
             $resolutionDetail = $value('resolution_detail');
             $resultScreenshot = $value('result_screenshot');
@@ -270,14 +283,14 @@ class TicketController extends Controller
         return back()->with('success', $message.' The Excel Total row was not stored.');
     }
 
-    private function resolvePriorityCode(string $value, $priorityConfig): ?string
+    private function resolvePriorityKey(string $value, $priorityConfig): ?string
     {
         $input = strtoupper(trim($value));
         if ($input === '') return null;
-        foreach ($priorityConfig as $config) {
+        foreach ($priorityConfig as $key => $config) {
             $configured = strtoupper(trim((string) $config->code));
-            if ($input === $configured) return $config->code;
-            if (preg_match('/^(P\d+)/', $input, $inputMatch) && preg_match('/^(P\d+)/', $configured, $configuredMatch) && $inputMatch[1] === $configuredMatch[1]) return $config->code;
+            if ($input === $configured) return $key;
+            if (preg_match('/^(P\d+)/', $input, $inputMatch) && preg_match('/^(P\d+)/', $configured, $configuredMatch) && $inputMatch[1] === $configuredMatch[1]) return $key;
         }
         return null;
     }
