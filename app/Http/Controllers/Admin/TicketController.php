@@ -292,30 +292,30 @@ class TicketController extends Controller
         $value = trim($value);
         if ($value === '') return null;
 
-        // PhpSpreadsheet may return the raw Excel serial when the cell is a real Excel date.
+        // Keep real Excel datetime values exactly as supplied, including their time component.
         if (is_numeric($value) && (float) $value > 0) {
             return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
         }
 
-        // Bitrix exports dates in US-style M/D/YYYY. Parse this explicitly before
-        // generic Carbon parsing so values such as 9/1/2026 are never interpreted
-        // as 1 September vs 9 January incorrectly.
+        // Explicitly reset the time for date-only values. Carbon/PHP otherwise uses the
+        // current clock time for omitted time fields, which incorrectly injected values
+        // such as 21:31 into Bitrix Started on / Finished on dates.
         $formats = [
             'n/j/Y H:i:s',
             'n/j/Y H:i',
             'm/d/Y H:i:s',
             'm/d/Y H:i',
-            'n/j/Y',
-            'm/d/Y',
+            '!n/j/Y',
+            '!m/d/Y',
             'Y-m-d H:i:s',
             'Y-m-d H:i',
             'd/m/Y H:i:s',
             'd/m/Y H:i',
-            'd/m/Y',
+            '!d/m/Y',
             'd-m-Y H:i:s',
             'd-m-Y H:i',
-            'd-m-Y',
-            'Y-m-d',
+            '!d-m-Y',
+            '!Y-m-d',
         ];
 
         foreach ($formats as $format) {
