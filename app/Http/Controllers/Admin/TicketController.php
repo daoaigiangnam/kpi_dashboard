@@ -156,7 +156,6 @@ class TicketController extends Controller
             ['1010','P2 - High','10/9/2025 8:00','10/9/2025 8:10','10/9/2025 16:00',60,0,'HelpDesk','Có','Có'],
         ];
         $sheet->fromArray($rows, null, 'A1');
-        $thin = new \PhpOffice\PhpSpreadsheet\Style\Border();
         $sheet->getStyle('A1:J11')->getBorders()->getAllBorders()->setBorderStyle('thin')->getColor()->setARGB('FF000000');
         $sheet->getStyle('A1:J1')->getFont()->setBold(true)->setName('Times New Roman')->setSize(11);
         $sheet->getStyle('A1:J1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFC6E7F5');
@@ -210,7 +209,7 @@ class TicketController extends Controller
             'finished_on' => $this->findHeader($headers, ['finished on']),
             'pause_minutes' => $this->findHeader($headers, ['pause min','pause minutes','pause']),
             'reopen_count' => $this->findHeader($headers, ['reopen','reopen count']),
-            'company_department' => $this->findHeader($headers, ['company dept','company department']),
+            'company_department' => $this->findHeader($headers, ['company dept','company department','company']),
             'resolution_detail' => $this->findHeader($headers, ['chi tiet noi dung da xu ly','resolution detail']),
             'result_screenshot' => $this->findHeader($headers, ['file chup man hinh ket qua xu ly','result screenshot']),
         ];
@@ -232,9 +231,9 @@ class TicketController extends Controller
             if (Ticket::where('external_ticket_id', $externalId)->exists()) { $duplicateIds[] = $externalId; continue; }
             if (!isset($priorityConfig[$priorityCode])) { $errors[] = "Row {$rowNumber}: Priority '{$priorityCode}' is not configured in KPI Parameters."; continue; }
             try {
-                $createdOn = $this->parseDate($value('created_on'));
-                $startedOn = $this->parseDate($value('started_on'));
-                $finishedOn = $this->parseDate($value('finished_on'));
+                $createdOn = $this->parseDateTime($value('created_on'));
+                $startedOn = $this->parseDateTime($value('started_on'));
+                $finishedOn = $this->parseDateTime($value('finished_on'));
             } catch (\Throwable) {
                 $errors[] = "Row {$rowNumber}: Invalid date/time. Use YYYY-MM-DD HH:MM or the Excel date format.";
                 continue;
@@ -328,13 +327,32 @@ class TicketController extends Controller
         return (int) round((float) str_replace([',', ' '], '', $value));
     }
 
-    private function parseDate(string $value): ?Carbon
+    private function parseDateTime(string $value): ?Carbon
     {
         if ($value === '') return null;
-        if (is_numeric($value) && (float) $value > 0) return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
-        foreach (['Y-m-d H:i:s','Y-m-d H:i','d/m/Y H:i:s','d/m/Y H:i','d-m-Y H:i:s','d-m-Y H:i','Y-m-d'] as $format) {
-            try { return Carbon::createFromFormat($format, $value); } catch (\Throwable) {}
+
+        // Excel date cells are commonly returned as numeric serials by PhpSpreadsheet.
+        // A date-only cell becomes YYYY-MM-DD 00:00:00 in the database; a datetime cell keeps its time.
+        if (is_numeric($value) && (float) $value > 0) {
+            return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
         }
+
+        // Support the formats used by Bitrix exports and the application import template.
+        foreach ([
+            'Y-m-d H:i:s', 'Y-m-d H:i',
+            'n/j/Y G:i:s', 'n/j/Y G:i',
+            'm/d/Y H:i:s', 'm/d/Y H:i',
+            'd/m/Y H:i:s', 'd/m/Y H:i',
+            'd-m-Y H:i:s', 'd-m-Y H:i',
+            'Y-m-d', 'n/j/Y', 'm/d/Y', 'd/m/Y', 'd-m-Y',
+        ] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value);
+            } catch (\Throwable) {
+                // Try the next supported format.
+            }
+        }
+
         return Carbon::parse($value);
     }
 }
