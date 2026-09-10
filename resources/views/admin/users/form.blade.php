@@ -9,6 +9,7 @@
  <div class="muted" style="margin-bottom:16px">Personal information, organization and access role.</div>
  <div class="grid" style="grid-template-columns:1fr 1fr">
   <div class="field"><label>Employee Code *</label><input class="input" name="employee_code" value="{{ old('employee_code',$user->employee_code) }}" required placeholder="EMP-0001"></div>
+  <div class="field"><label>External ID *</label><input class="input" name="external_id" value="{{ old('external_id',$user->external_id) }}" required maxlength="100" placeholder="BITRIX-USER-1001"><div class="muted" style="margin-top:5px">External integration key for mapping this user with Bitrix or other systems.</div></div>
   <div class="field"><label>Full Name *</label><input class="input" name="name" value="{{ old('name',$user->name) }}" required></div>
   <div class="field"><label>Email / Login *</label><input class="input" type="email" name="email" value="{{ old('email',$user->email) }}" required></div>
   <div class="field"><label>Phone</label><input class="input" name="phone" value="{{ old('phone',$user->phone) }}"></div>
