@@ -70,13 +70,17 @@ class TicketController extends Controller
         $sheet->fromArray([[
             'Tổng',
             $ticketTotals['ticket_count'],
-            '', '',
+            '',
+            '',
             $ticketTotals['finished_count'],
             $ticketTotals['pause_minutes'],
             $ticketTotals['reopen_ticket_count'],
-            '', '', '',
+            '',
+            '',
+            '',
             rtrim(rtrim(number_format($ticketTotals['workload_point'], 2, '.', ''), '0'), '.'),
-            '', '',
+            '',
+            '',
             $ticketTotals['sla_met'],
             $ticketTotals['process_met'],
             $ticketTotals['started'],
@@ -130,41 +134,6 @@ class TicketController extends Controller
             'process_met' => (clone $completed)->where('process_status', 'Đạt')->count(),
             'started' => (clone $query)->where('started_status', 'Có')->count(),
         ];
-    }
-
-    public function template()
-    {
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Tickets');
-        $rows = [
-            ['ID','Priority (Ưu tiên)','Created on','Started on','Finished on','Pause(min)','Reopen','Company/Dept','Chi tiết nội dung đã xử lý','File chụp màn hình kết quả xử lý'],
-            ['1001','P1 - Critical','1/9/2025 8:00','1/9/2025 8:05','',0,0,'','',''],
-            ['1002','P2 - High','2/9/2025 9:00','2/9/2025 9:30','',60,0,'','',''],
-            ['1003','P3 - Medium','3/9/2025 10:00','3/9/2025 10:40','',0,0,'','',''],
-            ['1004','P4 - Low','4/9/2025 9:00','4/9/2025 11:10','',0,0,'','',''],
-            ['1005','P2 - High','5/9/2025 8:00','5/9/2025 8:30','',0,0,'','',''],
-            ['1006','P3 - Medium','6/9/2025 9:00','6/9/2025 10:40','6/9/2025 18:00',120,1,'HelpDesk','Có','Có'],
-            ['1007','P1 - Critical','7/9/2025 8:00','7/9/2025 8:50','7/9/2025 20:00',180,3,'HelpDesk','Có','Có'],
-            ['1008','P4 - Low','8/9/2025 9:00','8/9/2025 9:40','8/9/2025 18:00',0,2,'HelpDesk','Có','Có'],
-            ['1009','P3 - Medium','9/9/2025 9:00','9/9/2025 9:20','9/9/2025 11:00',0,0,'HelpDesk','Có','Có'],
-            ['1010','P2 - High','10/9/2025 8:00','10/9/2025 8:10','10/9/2025 16:00',60,0,'HelpDesk','Có','Có'],
-        ];
-        $sheet->fromArray($rows, null, 'A1');
-        $sheet->getStyle('A1:J11')->getBorders()->getAllBorders()->setBorderStyle('thin')->getColor()->setARGB('FF000000');
-        $sheet->getStyle('A1:J1')->getFont()->setBold(true)->setName('Times New Roman')->setSize(11);
-        $sheet->getStyle('A1:J1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFC6E7F5');
-        $sheet->getStyle('A1:J11')->getAlignment()->setHorizontal('center')->setVertical('center');
-        $sheet->getStyle('A1:J11')->getFont()->setName('Times New Roman')->setSize(11);
-        $sheet->getStyle('A1:J1')->getAlignment()->setWrapText(true);
-        $widths = ['A'=>10,'B'=>19,'C'=>20,'D'=>20,'E'=>21,'F'=>13,'G'=>13,'H'=>17,'I'=>28,'J'=>34];
-        foreach ($widths as $column => $width) $sheet->getColumnDimension($column)->setWidth($width);
-        $sheet->getRowDimension(1)->setRowHeight(30);
-        for ($r = 2; $r <= 11; $r++) $sheet->getRowDimension($r)->setRowHeight(21);
-        $sheet->freezePane('A2');
-        $sheet->setAutoFilter('A1:J11');
-        $writer = new Xlsx($spreadsheet);
-        return response()->streamDownload(fn () => $writer->save('php://output'), 'ticket-import-template.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     public function import(Request $request)
@@ -223,7 +192,7 @@ class TicketController extends Controller
                 $startedOn = $this->parseDate($value('started_on'));
                 $finishedOn = $this->parseDate($value('finished_on'));
             } catch (\Throwable) {
-                $errors[] = "Row {$rowNumber}: Invalid date/time. Use YYYY-MM-DD HH:MM or the Excel date format.";
+                $errors[] = "Row {$rowNumber}: Invalid date/time. Use the Bitrix date format (M/D/YYYY or M/D/YYYY HH:MM).";
                 continue;
             }
             if (!$createdOn) { $errors[] = "Row {$rowNumber}: Created on is required."; continue; }
@@ -233,7 +202,7 @@ class TicketController extends Controller
             $resolutionMinutes = null;
             if ($finishedOn) {
                 $resolutionMinutes = (int) round(($finishedOn->timestamp - $createdOn->timestamp) / 60) - $pause;
-                if ($resolutionMinutes < 0) { $errors[] = "Row {$rowNumber}: Resolution time becomes negative after Pause(min)."; continue; }
+                if ($resolutionMinutes < 0) { $errors[] = "Row {$rowNumber}: Resolution time becomes negative after Pause(min). Please check Created on, Finished on and Pause(min)."; continue; }
             }
             $config = $priorityConfig[$priorityKey];
             $companyDepartment = $value('company_department');
@@ -320,11 +289,43 @@ class TicketController extends Controller
 
     private function parseDate(string $value): ?Carbon
     {
+        $value = trim($value);
         if ($value === '') return null;
-        if (is_numeric($value) && (float) $value > 0) return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
-        foreach (['Y-m-d H:i:s','Y-m-d H:i','d/m/Y H:i:s','d/m/Y H:i','d-m-Y H:i:s','d-m-Y H:i','Y-m-d'] as $format) {
-            try { return Carbon::createFromFormat($format, $value); } catch (\Throwable) {}
+
+        // PhpSpreadsheet may return the raw Excel serial when the cell is a real Excel date.
+        if (is_numeric($value) && (float) $value > 0) {
+            return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
         }
+
+        // Bitrix exports dates in US-style M/D/YYYY. Parse this explicitly before
+        // generic Carbon parsing so values such as 9/1/2026 are never interpreted
+        // as 1 September vs 9 January incorrectly.
+        $formats = [
+            'n/j/Y H:i:s',
+            'n/j/Y H:i',
+            'm/d/Y H:i:s',
+            'm/d/Y H:i',
+            'n/j/Y',
+            'm/d/Y',
+            'Y-m-d H:i:s',
+            'Y-m-d H:i',
+            'd/m/Y H:i:s',
+            'd/m/Y H:i',
+            'd/m/Y',
+            'd-m-Y H:i:s',
+            'd-m-Y H:i',
+            'd-m-Y',
+            'Y-m-d',
+        ];
+
+        foreach ($formats as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value);
+            } catch (\Throwable) {
+                // Try the next known format.
+            }
+        }
+
         return Carbon::parse($value);
     }
 }
