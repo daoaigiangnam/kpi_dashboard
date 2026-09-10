@@ -144,16 +144,16 @@ class TicketController extends Controller
         $sheet->setTitle('Tickets');
         $rows = [
             ['ID','Priority (Ưu tiên)','Created on','Started on','Finished on','Pause(min)','Reopen','Company/Dept','Chi tiết nội dung đã xử lý','File chụp màn hình kết quả xử lý'],
-            ['1001','P1','1/9/2025 8:00','1/9/2025 8:05','',0,0,'','',''],
-            ['1002','P2','2/9/2025 9:00','2/9/2025 9:30','',60,0,'','',''],
-            ['1003','P3','3/9/2025 10:00','3/9/2025 10:40','',0,0,'','',''],
-            ['1004','P4','4/9/2025 9:00','4/9/2025 11:10','',0,0,'','',''],
-            ['1005','P2','5/9/2025 8:00','5/9/2025 8:30','',0,0,'','',''],
-            ['1006','P3','6/9/2025 9:00','6/9/2025 10:40','6/9/2025 18:00',120,1,'HelpDesk','Có','Có'],
-            ['1007','P1','7/9/2025 8:00','7/9/2025 8:50','7/9/2025 20:00',180,3,'HelpDesk','Có','Có'],
-            ['1008','P4','8/9/2025 9:00','8/9/2025 9:40','8/9/2025 18:00',0,2,'HelpDesk','Có','Có'],
-            ['1009','P3','9/9/2025 9:00','9/9/2025 9:20','9/9/2025 11:00',0,0,'HelpDesk','Có','Có'],
-            ['1010','P2','10/9/2025 8:00','10/9/2025 8:10','10/9/2025 16:00',60,0,'HelpDesk','Có','Có'],
+            ['1001','P1 - Critical','1/9/2025 8:00','1/9/2025 8:05','',0,0,'','',''],
+            ['1002','P2 - High','2/9/2025 9:00','2/9/2025 9:30','',60,0,'','',''],
+            ['1003','P3 - Medium','3/9/2025 10:00','3/9/2025 10:40','',0,0,'','',''],
+            ['1004','P4 - Low','4/9/2025 9:00','4/9/2025 11:10','',0,0,'','',''],
+            ['1005','P2 - High','5/9/2025 8:00','5/9/2025 8:30','',0,0,'','',''],
+            ['1006','P3 - Medium','6/9/2025 9:00','6/9/2025 10:40','6/9/2025 18:00',120,1,'HelpDesk','Có','Có'],
+            ['1007','P1 - Critical','7/9/2025 8:00','7/9/2025 8:50','7/9/2025 20:00',180,3,'HelpDesk','Có','Có'],
+            ['1008','P4 - Low','8/9/2025 9:00','8/9/2025 9:40','8/9/2025 18:00',0,2,'HelpDesk','Có','Có'],
+            ['1009','P3 - Medium','9/9/2025 9:00','9/9/2025 9:20','9/9/2025 11:00',0,0,'HelpDesk','Có','Có'],
+            ['1010','P2 - High','10/9/2025 8:00','10/9/2025 8:10','10/9/2025 16:00',60,0,'HelpDesk','Có','Có'],
         ];
         $sheet->fromArray($rows, null, 'A1');
         $thin = new \PhpOffice\PhpSpreadsheet\Style\Border();
@@ -225,7 +225,7 @@ class TicketController extends Controller
         foreach (array_slice($rows, 1, null, true) as $rowNumber => $row) {
             $value = fn (string $field): string => $columns[$field] ? trim((string) ($row[$columns[$field]] ?? '')) : '';
             $externalId = $value('id');
-            $priorityCode = strtoupper($value('priority'));
+            $priorityCode = $this->normalizePriorityCode($value('priority'));
             if ($externalId === '' || in_array(mb_strtolower($externalId), ['tong','tổng','total'], true)) continue;
             if (isset($seen[$externalId])) { $duplicateIds[] = $externalId; continue; }
             $seen[$externalId] = true;
@@ -294,6 +294,15 @@ class TicketController extends Controller
             if ($duplicateCount > 20) $message .= ' ...';
         }
         return back()->with('success', $message.' The Excel Total row was not stored.');
+    }
+
+    private function normalizePriorityCode(string $value): string
+    {
+        $normalized = strtoupper(trim($value));
+        if (preg_match('/^(P\d+)\s*-\s*.+$/', $normalized, $matches)) {
+            return $matches[1];
+        }
+        return $normalized;
     }
 
     private function normalizeHeader(mixed $value): string
