@@ -29,8 +29,6 @@ class KpiCalculationController extends Controller
         $dateFrom = $data['date_from'];
         $dateTo = $data['date_to'];
 
-        // One KPI snapshot per Employee + Date Range.
-        // Reusing the same range must read the existing snapshot instead of recalculating it.
         $calculationKey = sprintf('%d_%s_%s', $employee->id, $dateFrom, $dateTo);
 
         if ($existing = KpiCalculationRun::query()->where('calculation_key', $calculationKey)->with('employee')->first()) {
@@ -76,7 +74,9 @@ class KpiCalculationController extends Controller
         $completedTickets = $completed->count();
         $workloadPointCompleted = (float) $completed->sum(fn ($ticket) => (float) ($ticket->workload_point ?? 0));
 
-        $targetWorkloadPoint = (float) ($employee->jobTitle?->target_workload_point ?? 0);
+        // Productivity target is a single global KPI parameter, not a User/Job Title assignment.
+        // Keep Job Title only for existing HR/KPI profile data; it does not determine P anymore.
+        $targetWorkloadPoint = (float) config('kpi.productivity_target_workload_point', 100);
         $weights = KpiWeight::orderBy('sort_order')->get()->keyBy('code');
         $weight = fn (string $code): float => (float) ($weights[$code]->weight ?? 0);
 
@@ -98,8 +98,6 @@ class KpiCalculationController extends Controller
         $slaCompliance = $weightedTotal > 0 ? ($weightedMet / $weightedTotal) * 100 : 0;
         $slaKpi = ($slaCompliance * $weight('sla_compliance')) / 100;
 
-        // Quality is based on completed Tickets only. If there are no completed
-        // Tickets, Quality is 0% (not 100%) because there is no valid denominator.
         if ($completedTickets === 0) {
             $reopenedTickets = 0;
             $reopenRate = 0;
