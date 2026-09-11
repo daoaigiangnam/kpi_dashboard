@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\TicketTemplateController;
 use App\Http\Controllers\Admin\KpiCalculationController;
 use App\Http\Controllers\Admin\TicketKpiPageController;
 use App\Http\Controllers\Admin\ItToolsController;
+use App\Http\Controllers\Admin\ItToolsDashboardController;
 
 Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name('login');
 Route::post('/login',[LoginController::class,'login'])->middleware(['guest','throttle:5,1'])->name('login.attempt');
@@ -114,6 +115,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
 
  // IT Outsourcing Tools
  Route::get('it-tools',[ItToolsController::class,'index'])->middleware('permission:it_tools.view')->name('it_tools.index');
+ Route::get('it-tools/dashboard',[ItToolsDashboardController::class,'index'])->middleware('permission:it_tools.view')->name('it_tools.dashboard');
  Route::post('it-tools/audit',[ItToolsController::class,'audit'])->middleware('permission:it_tools.audit')->name('it_tools.audit');
  Route::post('it-tools/bulk-audit',[ItToolsController::class,'bulkAudit'])->middleware('permission:it_tools.audit')->name('it_tools.bulk_audit');
  Route::post('it-tools/bulk-import',[ItToolsController::class,'importBulk'])->middleware('permission:it_tools.audit')->name('it_tools.bulk_import');
