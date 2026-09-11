@@ -104,11 +104,19 @@ class ItToolsController extends Controller
 
     public function history(Request $request)
     {
+        if ($request->expectsJson()) {
+            $query = ItToolAudit::query()->latest();
+            if ($request->filled('domain')) {
+                $query->where('domain', 'like', '%' . trim($request->string('domain')) . '%');
+            }
+            return response()->json($query->paginate(min((int) $request->input('per_page', 50), 100)));
+        }
+
         $query = ItToolAudit::query()->latest();
         if ($request->filled('domain')) {
             $query->where('domain', 'like', '%' . trim($request->string('domain')) . '%');
         }
-        return response()->json($query->paginate(min((int) $request->input('per_page', 50), 100)));
+        return view('admin.it-tools.history', ['audits' => $query->paginate(50)]);
     }
 
     public function export(Request $request, AuditExcelService $excel): StreamedResponse
