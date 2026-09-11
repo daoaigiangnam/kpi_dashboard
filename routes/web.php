@@ -117,6 +117,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::post('it-tools/audit',[ItToolsController::class,'audit'])->middleware('permission:it_tools.audit')->name('it_tools.audit');
  Route::post('it-tools/bulk-audit',[ItToolsController::class,'bulkAudit'])->middleware('permission:it_tools.audit')->name('it_tools.bulk_audit');
  Route::get('it-tools/history',[ItToolsController::class,'history'])->middleware('permission:it_tools.view')->name('it_tools.history');
+ Route::get('it-tools/history/export',[ItToolsController::class,'export'])->middleware('permission:it_tools.view')->name('it_tools.history.export');
 });
 
 Route::get('/', function () {
