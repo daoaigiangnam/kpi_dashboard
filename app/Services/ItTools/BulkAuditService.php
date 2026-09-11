@@ -2,6 +2,8 @@
 
 namespace App\Services\ItTools;
 
+use App\Models\ItToolAudit;
+
 class BulkAuditService
 {
     public function __construct(private InternetAssetAuditService $audit)
@@ -14,43 +16,44 @@ class BulkAuditService
         $results = [];
 
         foreach ($items as $item) {
-            $domain = is_array($item) ? ($item['domain'] ?? '') : (string) $item;
+            $domain = is_array($item) ? trim((string) ($item['domain'] ?? '')) : trim((string) $item);
             $wanIp = is_array($item) ? ($item['wan_ip'] ?? null) : null;
-            $domain = trim((string) $domain);
+            $started = microtime(true);
 
             if ($domain === '') {
-                $results[] = [
-                    'status' => 'error',
-                    'domain' => null,
-                    'wan_ip' => $wanIp,
-                    'error' => 'Domain is required.',
-                ];
+                $results[] = ['status' => 'error', 'domain' => null, 'wan_ip' => $wanIp, 'error' => 'Domain is required.'];
                 continue;
             }
 
-            if (!filter_var($wanIp, FILTER_VALIDATE_IP) && $wanIp !== null && $wanIp !== '') {
-                $results[] = [
-                    'status' => 'error',
+            if ($wanIp !== null && $wanIp !== '' && filter_var($wanIp, FILTER_VALIDATE_IP) === false) {
+                $results[] = ['status' => 'error', 'domain' => $domain, 'wan_ip' => $wanIp, 'error' => 'Invalid WAN IP address.'];
+                continue;
+            }
+
+            try {
+                $auditResult = $this->audit->audit($domain, $wanIp ?: null);
+                ItToolAudit::create([
+                    'user_id' => auth()->id(),
                     'domain' => $domain,
-                    'wan_ip' => $wanIp,
-                    'error' => 'Invalid WAN IP address.',
-                ];
-                continue;
+                    'wan_ip' => $wanIp ?: null,
+                    'status' => 'completed',
+                    'duration_ms' => (int) round((microtime(true) - $started) * 1000),
+                    'result' => $auditResult,
+                ]);
+                $results[] = ['status' => 'ok', 'domain' => $domain, 'wan_ip' => $wanIp ?: null, 'audit' => $auditResult];
+            } catch (\Throwable $e) {
+                ItToolAudit::create([
+                    'user_id' => auth()->id(),
+                    'domain' => $domain,
+                    'wan_ip' => $wanIp ?: null,
+                    'status' => 'error',
+                    'duration_ms' => (int) round((microtime(true) - $started) * 1000),
+                    'error' => $e->getMessage(),
+                ]);
+                $results[] = ['status' => 'error', 'domain' => $domain, 'wan_ip' => $wanIp ?: null, 'error' => $e->getMessage()];
             }
-
-            $results[] = [
-                'status' => 'ok',
-                'domain' => $domain,
-                'wan_ip' => $wanIp ?: null,
-                'audit' => $this->audit->audit($domain, $wanIp ?: null),
-            ];
         }
 
-        return [
-            'requested' => count($items),
-            'processed' => count($results),
-            'max_items' => $maxItems,
-            'results' => $results,
-        ];
+        return ['requested' => count($items), 'processed' => count($results), 'max_items' => $maxItems, 'results' => $results];
     }
 }
