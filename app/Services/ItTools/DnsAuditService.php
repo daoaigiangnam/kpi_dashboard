@@ -9,14 +9,18 @@ class DnsAuditService
         $domain = strtolower(trim($domain));
         $records = [];
         foreach ([DNS_A, DNS_AAAA, DNS_CNAME, DNS_NS, DNS_MX, DNS_TXT, DNS_SOA, DNS_CAA] as $type) {
-            $records[$this->typeName($type)] = $this->normalize(dns_get_record($domain, $type) ?: []);
+            $records[$this->typeName($type)] = $this->normalize(@dns_get_record($domain, $type) ?: []);
         }
 
-        $txt = collect($records['TXT'])->pluck('value')->filter()->values()->all();
+        $txt = collect($records['TXT'] ?? [])
+            ->map(fn (array $row) => $row['txt'] ?? $row['value'] ?? null)
+            ->filter()
+            ->values();
+
         $result = [
             'domain' => $domain,
             'records' => $records,
-            'spf' => collect($txt)->first(fn ($v) => str_starts_with($v, 'v=spf1')),
+            'spf' => $txt->first(fn ($v) => str_starts_with($v, 'v=spf1')),
             'dmarc' => $this->lookupTxt('_dmarc.' . $domain),
             'dnssec' => $this->lookupDnssec($domain),
         ];
@@ -29,13 +33,20 @@ class DnsAuditService
 
     private function lookupTxt(string $name): ?string
     {
-        $records = dns_get_record($name, DNS_TXT) ?: [];
-        return collect($records)->pluck('txt')->merge(collect($records)->pluck('value'))->filter()->first();
+        $records = @dns_get_record($name, DNS_TXT) ?: [];
+        foreach ($records as $record) {
+            $value = $record['txt'] ?? $record['value'] ?? null;
+            if ($value) return $value;
+        }
+        return null;
     }
 
     private function lookupDnssec(string $domain): bool
     {
-        return function_exists('dns_get_record') && !empty(dns_get_record($domain, DNS_ANY));
+        if (defined('DNS_DNSKEY')) {
+            return !empty(@dns_get_record($domain, DNS_DNSKEY));
+        }
+        return false;
     }
 
     private function inferMailProvider(array $mx): ?string
@@ -44,10 +55,12 @@ class DnsAuditService
         foreach ([
             'Microsoft 365' => ['outlook.com', 'protection.outlook.com'],
             'Google Workspace' => ['google.com', 'googlemail.com'],
-            'Zoho Mail' => ['zoho.com'],
-            'Proton Mail' => ['protonmail.ch', 'proton.me'],
+            'Zoho Mail' => ['zoho.com', 'zoho.eu'],
+            'Proton Mail' => ['protonmail.ch', 'protonmail.com', 'proton.me'],
         ] as $name => $needles) {
-            foreach ($needles as $needle) if (stripos($hosts, $needle) !== false) return $name;
+            foreach ($needles as $needle) {
+                if (stripos($hosts, $needle) !== false) return $name;
+            }
         }
         return null;
     }
@@ -58,11 +71,13 @@ class DnsAuditService
         foreach ([
             'Cloudflare' => ['cloudflare.com'],
             'AWS Route 53' => ['awsdns-'],
-            'Google Cloud DNS' => ['googledomains.com'],
+            'Google Cloud DNS' => ['googledomains.com', 'google.com'],
             'Azure DNS' => ['azure-dns.com'],
             'Akamai Edge DNS' => ['akamaiedge.net'],
         ] as $name => $needles) {
-            foreach ($needles as $needle) if (stripos($hosts, $needle) !== false) return $name;
+            foreach ($needles as $needle) {
+                if (stripos($hosts, $needle) !== false) return $name;
+            }
         }
         return null;
     }
