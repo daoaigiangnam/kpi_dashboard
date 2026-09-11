@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ItToolAudit;
 use App\Services\ItTools\AuditExcelService;
+use App\Services\ItTools\BulkAuditImportService;
 use App\Services\ItTools\BulkAuditService;
 use App\Services\ItTools\InternetAssetAuditService;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ItToolsController extends Controller
@@ -63,6 +66,35 @@ class ItToolsController extends Controller
         ]);
 
         return response()->json($bulk->audit($data['items'], 100));
+    }
+
+    public function importBulk(Request $request, BulkAuditImportService $importer)
+    {
+        $data = $request->validate([
+            'file' => ['required','file','max:5120','mimes:xlsx,xls,csv,txt'],
+        ]);
+
+        return response()->json($importer->import($data['file']->getRealPath(), 100));
+    }
+
+    public function template(): StreamedResponse
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray([
+            ['Domain', 'WAN IP'],
+            ['example.com', '1.2.3.4'],
+            ['example.vn', ''],
+        ]);
+        $sheet->getColumnDimension('A')->setAutoSize(true);
+        $sheet->getColumnDimension('B')->setAutoSize(true);
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, 'it-tools-bulk-template.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'no-store',
+        ]);
     }
 
     public function history(Request $request)
