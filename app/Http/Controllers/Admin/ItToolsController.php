@@ -18,8 +18,17 @@ class ItToolsController extends Controller
         $data = $request->validate([
             'domain' => ['required','string','max:253'],
             'wan_ip' => ['nullable','ip'],
+            'dkim_selectors' => ['nullable','string','max:500'],
         ]);
 
-        return response()->json($audit->audit($data['domain'], $data['wan_ip'] ?? null));
+        $selectors = collect(preg_split('/[,\s]+/', (string) ($data['dkim_selectors'] ?? ''), -1, PREG_SPLIT_NO_EMPTY))
+            ->map(fn ($value) => preg_replace('/[^a-z0-9._-]/i', '', $value))
+            ->filter()->unique()->take(20)->values()->all();
+
+        return response()->json($audit->audit(
+            $data['domain'],
+            $data['wan_ip'] ?? null,
+            $selectors,
+        ));
     }
 }
