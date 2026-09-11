@@ -18,6 +18,9 @@ class BulkAuditService
         foreach ($items as $item) {
             $domain = is_array($item) ? trim((string) ($item['domain'] ?? '')) : trim((string) $item);
             $wanIp = is_array($item) ? ($item['wan_ip'] ?? null) : null;
+            $dkimSelectors = is_array($item) && isset($item['dkim_selectors']) && is_array($item['dkim_selectors'])
+                ? array_values(array_unique(array_slice($item['dkim_selectors'], 0, 20)))
+                : [];
             $started = microtime(true);
 
             if ($domain === '') {
@@ -31,7 +34,7 @@ class BulkAuditService
             }
 
             try {
-                $auditResult = $this->audit->audit($domain, $wanIp ?: null);
+                $auditResult = $this->audit->audit($domain, $wanIp ?: null, $dkimSelectors);
                 ItToolAudit::create([
                     'user_id' => auth()->id(),
                     'domain' => $domain,
