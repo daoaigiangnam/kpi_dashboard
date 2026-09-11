@@ -11,9 +11,10 @@ class InternetAssetAuditService
         private WebsiteAuditService $website,
         private IpAuditService $ip,
         private EmailSecurityAuditService $email,
+        private ServiceDiscoveryService $services,
     ) {}
 
-    public function audit(string $domain, ?string $wanIp = null, array $dkimSelectors = []): array
+    public function audit(string $domain, ?string $wanIp = null, array $dkimSelectors = [], array $serviceHosts = []): array
     {
         $domain = strtolower(trim($domain));
         $domainResult = $this->domain->check($domain);
@@ -21,6 +22,7 @@ class InternetAssetAuditService
         $websiteResult = $this->website->check($domain);
         $sslResult = $this->ssl->check($domain);
         $emailResult = $this->email->check($domain, $dkimSelectors);
+        $serviceResult = $this->services->discover($domain, $serviceHosts);
 
         $aRecords = collect(data_get($dnsResult, 'records.A', []))
             ->pluck('ip')->filter()->unique()->values()->all();
@@ -34,6 +36,7 @@ class InternetAssetAuditService
             'ssl_audit' => $sslResult,
             'website_audit' => $websiteResult,
             'email_audit' => $emailResult,
+            'service_discovery' => $serviceResult,
             'ip_audit' => $resolvedIp ? $this->ip->check($resolvedIp) : null,
             'wan_ip_supplied' => $wanIp,
             'resolved_ipv4' => $aRecords,
