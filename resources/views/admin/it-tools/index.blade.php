@@ -18,14 +18,20 @@
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <a class="button" href="{{ route('admin.it_tools.history') }}">Audit History</a>
         <a class="button" href="{{ route('admin.it_tools.history.export') }}">Export Excel</a>
+        <a class="button" href="{{ route('admin.it_tools.bulk_template') }}">Download Bulk Template</a>
     </div>
 </div>
 
 <div class="card" style="margin-top:20px">
     <h3>Bulk Audit</h3>
-    <p class="muted">Paste one domain per line, or JSON objects such as {"domain":"example.com","wan_ip":"1.2.3.4"}.</p>
+    <p class="muted">Paste one domain per line, or upload the Excel/CSV template.</p>
     <textarea id="bulk-items" rows="8" style="width:100%;font-family:monospace" placeholder="example.com\nexample.vn,1.2.3.4"></textarea>
-    <div style="margin-top:10px"><button id="bulk-run" type="button">Run Bulk Audit</button></div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button id="bulk-run" type="button">Run Bulk Audit</button>
+        <input id="bulk-file" type="file" accept=".xlsx,.xls,.csv,.txt">
+        <button id="bulk-import" type="button">Import File</button>
+        <span id="bulk-import-info" class="muted"></span>
+    </div>
 </div>
 
 <div id="result" style="margin-top:20px"></div>
@@ -34,6 +40,32 @@
 <script>
 const csrf = document.querySelector('[name=_token]').value;
 const esc = (value) => String(value ?? '').replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+
+async function runBulk(items) {
+    const target = document.getElementById('bulk-result');
+    if (!items.length) { target.innerHTML='<div class="card">Please enter at least one domain.</div>'; return; }
+    target.innerHTML='<div class="card">Bulk audit running…</div>';
+    try {
+        const response = await fetch('{{ route('admin.it_tools.bulk_audit') }}', {
+            method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},
+            body:JSON.stringify({items})
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Bulk audit failed');
+        const rows = (data.results || []).map(item => {
+            const audit = item.audit || {};
+            const d = audit.domain_audit || {};
+            const s = audit.ssl_audit || {};
+            const w = (audit.website_audit || {}).https || {};
+            const i = audit.ip_audit || {};
+            const e = audit.email_audit || {};
+            return `<tr><td>${esc(item.domain)}</td><td>${esc(d.days_remaining)}</td><td>${esc(s.vendor)}</td><td>${esc(s.days_remaining)}</td><td>${esc(w.status)}</td><td>${w.online ? 'ONLINE':'OFFLINE'}</td><td>${esc(i.provider || i.organization)}</td><td>${esc(e.provider)}</td></tr>`;
+        }).join('');
+        target.innerHTML = `<div class="card"><h3>Bulk Result</h3><p>${esc(data.processed)} processed / ${esc(data.requested)} requested</p><div style="overflow:auto"><table><thead><tr><th>Domain</th><th>Domain days</th><th>SSL Vendor</th><th>SSL days</th><th>HTTPS</th><th>Web</th><th>IP Provider</th><th>Mail</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    } catch (error) {
+        target.innerHTML='<div class="card">Bulk audit failed: '+esc(error.message)+'</div>';
+    }
+}
 
 document.getElementById('audit-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -57,37 +89,28 @@ document.getElementById('audit-form').addEventListener('submit', async (e) => {
 });
 
 document.getElementById('bulk-run').addEventListener('click', async () => {
-    const target = document.getElementById('bulk-result');
     const lines = document.getElementById('bulk-items').value.split(/\r?\n/).map(v => v.trim()).filter(Boolean).slice(0,100);
     const items = lines.map(line => {
-        try {
-            if (line.startsWith('{')) return JSON.parse(line);
-        } catch (_) {}
+        try { if (line.startsWith('{')) return JSON.parse(line); } catch (_) {}
         const parts = line.split(',').map(v => v.trim());
         return {domain: parts[0], wan_ip: parts[1] || null};
     });
-    if (!items.length) { target.innerHTML='<div class="card">Please enter at least one domain.</div>'; return; }
-    target.innerHTML='<div class="card">Bulk audit running…</div>';
+    await runBulk(items);
+});
+
+document.getElementById('bulk-import').addEventListener('click', async () => {
+    const file = document.getElementById('bulk-file').files[0];
+    const info = document.getElementById('bulk-import-info');
+    if (!file) { info.textContent = 'Choose an Excel/CSV file first.'; return; }
+    info.textContent = 'Importing…';
     try {
-        const response = await fetch('{{ route('admin.it_tools.bulk_audit') }}', {
-            method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},
-            body:JSON.stringify({items})
-        });
+        const form = new FormData(); form.append('file', file);
+        const response = await fetch('{{ route('admin.it_tools.bulk_import') }}', {method:'POST', headers:{'X-CSRF-TOKEN':csrf}, body:form});
         const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Bulk audit failed');
-        const rows = (data.results || []).map(item => {
-            const audit = item.audit || {};
-            const d = audit.domain_audit || {};
-            const s = audit.ssl_audit || {};
-            const w = (audit.website_audit || {}).https || {};
-            const i = audit.ip_audit || {};
-            const e = audit.email_audit || {};
-            return `<tr><td>${esc(item.domain)}</td><td>${esc(d.days_remaining)}</td><td>${esc(s.vendor)}</td><td>${esc(s.days_remaining)}</td><td>${esc(w.status)}</td><td>${w.online ? 'ONLINE':'OFFLINE'}</td><td>${esc(i.provider || i.organization)}</td><td>${esc(e.provider)}</td></tr>`;
-        }).join('');
-        target.innerHTML = `<div class="card"><h3>Bulk Result</h3><p>${esc(data.processed)} processed / ${esc(data.requested)} requested</p><div style="overflow:auto"><table><thead><tr><th>Domain</th><th>Domain days</th><th>SSL Vendor</th><th>SSL days</th><th>HTTPS</th><th>Web</th><th>IP Provider</th><th>Mail</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
-    } catch (error) {
-        target.innerHTML='<div class="card">Bulk audit failed: '+esc(error.message)+'</div>';
-    }
+        if (!response.ok) throw new Error(data.message || 'Import failed');
+        document.getElementById('bulk-items').value = (data.items || []).map(item => `${item.domain}${item.wan_ip ? ','+item.wan_ip : ''}`).join('\n');
+        info.textContent = `${data.count} rows imported. Review the list, then click Run Bulk Audit.`;
+    } catch (error) { info.textContent = 'Import failed: '+error.message; }
 });
 
 function renderAudit(target, data) {
