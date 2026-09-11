@@ -12,6 +12,7 @@ class InternetAssetAuditService
         private IpAuditService $ip,
         private EmailSecurityAuditService $email,
         private ServiceDiscoveryService $services,
+        private ProviderDetectionService $providers,
     ) {}
 
     public function audit(string $domain, ?string $wanIp = null, array $dkimSelectors = [], array $serviceHosts = []): array
@@ -27,6 +28,8 @@ class InternetAssetAuditService
         $aRecords = collect(data_get($dnsResult, 'records.A', []))
             ->pluck('ip')->filter()->unique()->values()->all();
         $resolvedIp = $wanIp ?: ($aRecords[0] ?? null);
+        $ipResult = $resolvedIp ? $this->ip->check($resolvedIp) : null;
+        $providerResult = $this->providers->detect($domain, $dnsResult, $websiteResult, $ipResult);
 
         return [
             'checked_at' => now()->toIso8601String(),
@@ -37,7 +40,8 @@ class InternetAssetAuditService
             'website_audit' => $websiteResult,
             'email_audit' => $emailResult,
             'service_discovery' => $serviceResult,
-            'ip_audit' => $resolvedIp ? $this->ip->check($resolvedIp) : null,
+            'provider_detection' => $providerResult,
+            'ip_audit' => $ipResult,
             'wan_ip_supplied' => $wanIp,
             'resolved_ipv4' => $aRecords,
         ];
