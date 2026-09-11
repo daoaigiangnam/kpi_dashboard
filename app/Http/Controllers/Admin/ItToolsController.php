@@ -26,15 +26,20 @@ class ItToolsController extends Controller
             'domain' => ['required','string','max:253'],
             'wan_ip' => ['nullable','ip'],
             'dkim_selectors' => ['nullable','string','max:500'],
+            'service_hosts' => ['nullable','string','max:1000'],
         ]);
 
         $selectors = collect(preg_split('/[,\s]+/', (string) ($data['dkim_selectors'] ?? ''), -1, PREG_SPLIT_NO_EMPTY))
             ->map(fn ($value) => preg_replace('/[^a-z0-9._-]/i', '', $value))
             ->filter()->unique()->take(20)->values()->all();
 
+        $serviceHosts = collect(preg_split('/[,\s]+/', (string) ($data['service_hosts'] ?? ''), -1, PREG_SPLIT_NO_EMPTY))
+            ->map(fn ($value) => preg_replace('/[^a-z0-9.-]/i', '', $value))
+            ->filter()->unique()->take(50)->values()->all();
+
         $started = microtime(true);
         try {
-            $result = $audit->audit($data['domain'], $data['wan_ip'] ?? null, $selectors);
+            $result = $audit->audit($data['domain'], $data['wan_ip'] ?? null, $selectors, $serviceHosts);
             ItToolAudit::create([
                 'user_id' => auth()->id(),
                 'domain' => $data['domain'],
