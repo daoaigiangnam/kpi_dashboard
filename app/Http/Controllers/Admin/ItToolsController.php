@@ -7,6 +7,7 @@ use App\Models\ItToolAudit;
 use App\Services\ItTools\BulkAuditService;
 use App\Services\ItTools\InternetAssetAuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ItToolsController extends Controller
 {
@@ -44,7 +45,7 @@ class ItToolsController extends Controller
                 'user_id' => auth()->id(),
                 'domain' => $data['domain'],
                 'wan_ip' => $data['wan_ip'] ?? null,
-                'status' => 'failed',
+                'status' => 'error',
                 'duration_ms' => (int) round((microtime(true) - $started) * 1000),
                 'error' => $e->getMessage(),
             ]);
@@ -60,32 +61,15 @@ class ItToolsController extends Controller
             'items.*.wan_ip' => ['nullable','ip'],
         ]);
 
-        $started = microtime(true);
-        $results = $bulk->audit($data['items'], 100);
-        foreach ($results as $item) {
-            ItToolAudit::create([
-                'user_id' => auth()->id(),
-                'domain' => $item['domain'] ?? 'unknown',
-                'wan_ip' => $item['wan_ip'] ?? null,
-                'status' => ($item['status'] ?? 'completed') === 'failed' ? 'failed' : 'completed',
-                'duration_ms' => $item['duration_ms'] ?? null,
-                'result' => $item,
-                'error' => $item['error'] ?? null,
-            ]);
-        }
-
-        return response()->json([
-            'count' => count($results),
-            'duration_ms' => (int) round((microtime(true) - $started) * 1000),
-            'results' => $results,
-        ]);
+        return response()->json($bulk->audit($data['items'], 100));
     }
 
     public function history(Request $request)
     {
-        $perPage = max(1, min((int) $request->input('per_page', 25), 100));
-        return response()->json(
-            ItToolAudit::query()->with('user:id,name')->latest()->paginate($perPage)
-        );
+        $query = ItToolAudit::query()->latest();
+        if ($request->filled('domain')) {
+            $query->where('domain', 'like', '%' . trim($request->string('domain')) . '%');
+        }
+        return response()->json($query->paginate(min((int) $request->input('per_page', 50), 100)));
     }
 }
