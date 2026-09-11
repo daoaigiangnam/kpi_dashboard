@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ItToolAudit;
+use App\Services\ItTools\AuditExcelService;
 use App\Services\ItTools\BulkAuditService;
 use App\Services\ItTools\InternetAssetAuditService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ItToolsController extends Controller
 {
@@ -71,5 +72,19 @@ class ItToolsController extends Controller
             $query->where('domain', 'like', '%' . trim($request->string('domain')) . '%');
         }
         return response()->json($query->paginate(min((int) $request->input('per_page', 50), 100)));
+    }
+
+    public function export(Request $request, AuditExcelService $excel): StreamedResponse
+    {
+        $domain = $request->input('domain');
+        $filename = 'it-tool-audits-' . now()->format('Ymd-His') . '.xlsx';
+
+        return response()->streamDownload(function () use ($excel, $domain) {
+            $writer = $excel->output($domain);
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'no-store',
+        ]);
     }
 }
