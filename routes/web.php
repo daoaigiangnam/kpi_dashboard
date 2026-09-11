@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\TicketController;
 use App\Http\Controllers\Admin\TicketTemplateController;
 use App\Http\Controllers\Admin\KpiCalculationController;
 use App\Http\Controllers\Admin\TicketKpiPageController;
+use App\Http\Controllers\Admin\ItToolsController;
 
 Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name('login');
 Route::post('/login',[LoginController::class,'login'])->middleware(['guest','throttle:5,1'])->name('login.attempt');
@@ -110,6 +111,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::get('settings',[SystemSettingController::class,'index'])->middleware('permission:system.settings')->name('settings.index');
  Route::put('settings',[SystemSettingController::class,'update'])->middleware('permission:system.settings')->name('settings.update');
  Route::post('settings/test-mail',[SystemSettingController::class,'testMail'])->middleware('permission:system.settings')->name('settings.test-mail');
+
+ // IT Outsourcing Tools
+ Route::get('it-tools',[ItToolsController::class,'index'])->middleware('permission:it_tools.view')->name('it_tools.index');
+ Route::post('it-tools/audit',[ItToolsController::class,'audit'])->middleware('permission:it_tools.audit')->name('it_tools.audit');
 });
 
 Route::get('/', function () {
