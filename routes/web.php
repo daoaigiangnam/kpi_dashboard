@@ -115,6 +115,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  // IT Outsourcing Tools
  Route::get('it-tools',[ItToolsController::class,'index'])->middleware('permission:it_tools.view')->name('it_tools.index');
  Route::post('it-tools/audit',[ItToolsController::class,'audit'])->middleware('permission:it_tools.audit')->name('it_tools.audit');
+ Route::post('it-tools/bulk-audit',[ItToolsController::class,'bulkAudit'])->middleware('permission:it_tools.audit')->name('it_tools.bulk_audit');
 });
 
 Route::get('/', function () {
