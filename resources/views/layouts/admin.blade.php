@@ -18,6 +18,10 @@ body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f9f7;color:#17231
 
 /* Prevent stray decorative pseudo-elements from escaping into admin pages. */
 body::before,body::after,.main::before,.main::after,.main *::before,.main *::after,.nav::before,.nav::after,.nav-group::before,.nav-group::after{content:none!important;display:none!important;background:none!important;box-shadow:none!important;transform:none!important;}
+
+/* Laravel pagination uses Tailwind utility classes for these SVG icons. This app does not load Tailwind, so size them explicitly. */
+.card nav[role="navigation"] svg{width:20px!important;height:20px!important;display:inline-block;vertical-align:middle;}
+.card nav[role="navigation"]{margin-top:16px;}
 </style></head>
 <body><aside class="nav" id="adminNav"><div class="brand">KPI Dashboard System</div><button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleAdminNav()">☰</button><div class="nav-links">
 @if(auth()->user()->hasPermission('admin.view'))<a href="{{ route('admin.dashboard') }}">Dashboard</a>@endif
