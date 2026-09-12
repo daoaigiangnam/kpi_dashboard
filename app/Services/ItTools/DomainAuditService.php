@@ -34,15 +34,29 @@ class DomainAuditService
 
         $tld = strtolower(substr(strrchr($domain, '.'), 1));
 
-        // .VN does not currently publish a standard IANA RDAP service. Try the
-        // registry WHOIS service from the application server before reporting the
-        // registration data as unavailable.
         if ($tld === 'vn') {
+            // VNNIC does not expose a public HTTPS RDAP endpoint and the current
+            // public lookup is web-based. Try the registry WHOIS socket first,
+            // then use read-only public WHOIS aggregators as a fallback so the
+            // audit still returns registration dates when the server cannot reach
+            // the VNNIC socket directly.
             $whois = $this->whoisVn($domain);
             if ($whois !== null) return $whois;
 
+            foreach ([
+                fn () => $this->whoisLs($domain),
+                fn () => $this->whoisHtmlFallback($domain),
+            ] as $fallback) {
+                try {
+                    $data = $fallback();
+                    if ($data !== null) return $data;
+                } catch (\Throwable) {
+                    // Continue to the next read-only fallback.
+                }
+            }
+
             $result['source'] = 'VNNIC WHOIS';
-            $result['error'] = 'VNNIC WHOIS lookup unavailable from this server.';
+            $result['error'] = 'VNNIC registry lookup unavailable from this server.';
             return $result;
         }
 
@@ -99,56 +113,142 @@ class DomainAuditService
         }
         fclose($socket);
 
-        if (trim($raw) === '') return null;
-
-        $result = [
-            'domain' => $domain,
-            'status' => 'ok',
-            'registrar' => $this->whoisField($raw, ['Registrar', 'Sponsoring Registrar', 'Registrant Organization']),
-            'created_at' => $this->whoisField($raw, ['Creation Date', 'Created Date', 'Registered Date']),
-            'expires_at' => $this->whoisField($raw, ['Expiration Date', 'Expiry Date', 'Registry Expiry Date']),
-            'days_remaining' => null,
-            'statuses' => $this->whoisFields($raw, ['Domain Status', 'Status']),
-            'nameservers' => $this->whoisNameservers($raw),
-            'source' => 'VNNIC WHOIS',
-            'error' => null,
-        ];
-
-        if ($result['expires_at']) {
-            try { $result['days_remaining'] = now()->diffInDays(Carbon::parse($result['expires_at']), false); }
-            catch (\Throwable) { /* keep null when registry date format is unknown */ }
-        }
-
-        if (!$result['registrar'] && !$result['expires_at'] && !$result['nameservers']) return null;
-        return $result;
+        return $this->parseWhoisText($domain, $raw, 'VNNIC WHOIS');
     }
 
-    private function whoisField(string $raw, array $labels): ?string
+    private function whoisLs(string $domain): ?array
     {
-        foreach ($labels as $label) {
-            if (preg_match('/^' . preg_quote($label, '/') . '\s*:\s*(.+)$/im', $raw, $m)) return trim($m[1]);
+        $response = Http::timeout(10)->acceptJson()->get('https://whois.ls/json/' . rawurlencode($domain));
+        if (!$response->successful()) return null;
+
+        $data = $response->json();
+        if (!is_array($data)) return null;
+        $data = $data['data'] ?? $data;
+        if (!is_array($data)) return null;
+
+        $result = $this->emptyResult($domain, 'WHOIS.LS');
+        $result['registrar'] = $this->firstValue($data, ['registrar', 'sponsoring_registrar', 'registrar_name']);
+        $result['created_at'] = $this->firstValue($data, ['creation_date', 'created', 'registered_on']);
+        $result['expires_at'] = $this->firstValue($data, ['expiration_date', 'registry_expiry_date', 'expires_on', 'expiry_date']);
+        $result['statuses'] = $this->toList($data['status'] ?? ($data['statuses'] ?? []));
+        $result['nameservers'] = array_values(array_unique(array_filter(array_map('strtolower', $this->toList($data['name_servers'] ?? ($data['nameservers'] ?? []))))));
+
+        return $this->finalizeResult($result);
+    }
+
+    private function whoisHtmlFallback(string $domain): ?array
+    {
+        $response = Http::timeout(10)->get('https://nicenic.com/whois/', ['query' => $domain]);
+        if (!$response->successful()) return null;
+        $html = $response->body();
+        if ($html === '') return null;
+
+        $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $result = $this->emptyResult($domain, 'NiceNIC WHOIS');
+        $result['registrar'] = $this->textField($text, ['Registrar', 'Sponsoring Registrar', 'Registrar Name']);
+        $result['created_at'] = $this->textField($text, ['Registration Time', 'Creation Date', 'Registered On', 'Creation Time']);
+        $result['expires_at'] = $this->textField($text, ['Expiration Time', 'Expiration Date', 'Expires On', 'Registry Expiry Date']);
+        $result['statuses'] = $this->textFields($text, ['Domain Status', 'Status']);
+        $result['nameservers'] = $this->textFields($text, ['Name Server', 'Nameserver', 'NameServer']);
+
+        return $this->finalizeResult($result);
+    }
+
+    private function parseWhoisText(string $domain, string $raw, string $source): ?array
+    {
+        if (trim($raw) === '') return null;
+
+        $result = $this->emptyResult($domain, $source);
+        $result['registrar'] = $this->whoisField($raw, ['Registrar', 'Sponsoring Registrar', 'Registrant Organization']);
+        $result['created_at'] = $this->whoisField($raw, ['Creation Date', 'Created Date', 'Registered Date', 'Registration Time']);
+        $result['expires_at'] = $this->whoisField($raw, ['Expiration Date', 'Expiry Date', 'Registry Expiry Date', 'Expiration Time']);
+        $result['statuses'] = $this->whoisFields($raw, ['Domain Status', 'Status']);
+        $result['nameservers'] = $this->whoisNameservers($raw);
+
+        return $this->finalizeResult($result);
+    }
+
+    private function emptyResult(string $domain, string $source): array
+    {
+        return [
+            'domain' => $domain,
+            'status' => 'unavailable',
+            'registrar' => null,
+            'created_at' => null,
+            'expires_at' => null,
+            'days_remaining' => null,
+            'statuses' => [],
+            'nameservers' => [],
+            'source' => $source,
+            'error' => null,
+        ];
+    }
+
+    private function finalizeResult(array $result): ?array
+    {
+        if ($result['expires_at']) {
+            try { $result['days_remaining'] = now()->diffInDays(Carbon::parse($result['expires_at']), false); }
+            catch (\Throwable) { /* Keep null if the provider uses an unknown date format. */ }
+        }
+
+        if ($result['registrar'] || $result['created_at'] || $result['expires_at'] || $result['nameservers']) {
+            $result['status'] = 'ok';
+            return $result;
+        }
+
+        return null;
+    }
+
+    private function firstValue(array $data, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            $value = $data[$key] ?? null;
+            if (is_array($value)) $value = $value[0] ?? null;
+            if (is_scalar($value) && trim((string) $value) !== '') return trim((string) $value);
         }
         return null;
     }
 
-    private function whoisFields(string $raw, array $labels): array
+    private function toList(mixed $value): array
+    {
+        if (is_array($value)) return array_values(array_filter(array_map(fn ($v) => is_scalar($v) ? trim((string) $v) : null, $value)));
+        if (is_scalar($value) && trim((string) $value) !== '') return [trim((string) $value)];
+        return [];
+    }
+
+    private function textField(string $text, array $labels): ?string
+    {
+        foreach ($labels as $label) {
+            if (preg_match('/^\s*' . preg_quote($label, '/') . '\s*:\s*(.+)$/im', $text, $m)) return trim($m[1]);
+        }
+        return null;
+    }
+
+    private function textFields(string $text, array $labels): array
     {
         $values = [];
         foreach ($labels as $label) {
-            if (preg_match_all('/^' . preg_quote($label, '/') . '\s*:\s*(.+)$/im', $raw, $m)) {
+            if (preg_match_all('/^\s*' . preg_quote($label, '/') . '\s*:\s*(.+)$/im', $text, $m)) {
                 $values = array_merge($values, array_map('trim', $m[1]));
             }
         }
         return array_values(array_unique(array_filter($values)));
     }
 
+    private function whoisField(string $raw, array $labels): ?string
+    {
+        return $this->textField($raw, $labels);
+    }
+
+    private function whoisFields(string $raw, array $labels): array
+    {
+        return $this->textFields($raw, $labels);
+    }
+
     private function whoisNameservers(string $raw): array
     {
-        $values = [];
-        if (preg_match_all('/^(?:Name Server|Nameserver|NameServer)\s*:\s*([^\s]+)$/im', $raw, $m)) {
-            $values = array_map('strtolower', $m[1]);
-        }
-        return array_values(array_unique($values));
+        $values = $this->textFields($raw, ['Name Server', 'Nameserver', 'NameServer']);
+        return array_values(array_unique(array_map('strtolower', $values)));
     }
 
     private function entityName(array $entities, array $roles): ?string
