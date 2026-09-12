@@ -23,7 +23,7 @@ return new class extends Migration {
         $groups = DB::table('user_groups')->whereIn('name', ['Super Admin', 'KPI Admin'])->pluck('id');
         foreach ($groups as $groupId) {
             DB::table('group_permissions')->updateOrInsert(
-                ['group_id' => $groupId, 'permission_id' => $permissionId],
+                ['user_group_id' => $groupId, 'permission_id' => $permissionId],
                 []
             );
         }
