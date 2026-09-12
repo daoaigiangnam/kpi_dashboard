@@ -8,6 +8,7 @@ use App\Services\ItTools\BulkAuditService;
 use App\Services\ItTools\InternetAssetAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ItToolsController extends Controller
@@ -19,98 +20,38 @@ class ItToolsController extends Controller
 
     public function audit(Request $request, InternetAssetAuditService $audit)
     {
-        $data = $request->validate([
-            'domain' => ['required', 'string', 'max:253'],
-            'wan_ip' => ['nullable', 'ip'],
-            'dkim_selectors' => ['nullable', 'string', 'max:500'],
-            'service_hosts' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        $selectors = collect(preg_split('/[,\s]+/', (string) ($data['dkim_selectors'] ?? ''), -1, PREG_SPLIT_NO_EMPTY))
-            ->map(fn ($v) => preg_replace('/[^a-z0-9._-]/i', '', $v))
-            ->filter()
-            ->unique()
-            ->take(20)
-            ->values()
-            ->all();
-
-        $serviceHosts = collect(preg_split('/[,\s]+/', (string) ($data['service_hosts'] ?? ''), -1, PREG_SPLIT_NO_EMPTY))
-            ->map(fn ($v) => preg_replace('/[^a-z0-9.-]/i', '', $v))
-            ->filter()
-            ->unique()
-            ->take(50)
-            ->values()
-            ->all();
-
-        return response()->json($audit->audit(
-            $data['domain'],
-            $data['wan_ip'] ?? null,
-            $selectors,
-            $serviceHosts
-        ));
+        $data = $request->validate(['domain'=>['required','string','max:253'],'wan_ip'=>['nullable','ip'],'dkim_selectors'=>['nullable','string','max:500'],'service_hosts'=>['nullable','string','max:1000']]);
+        $selectors=collect(preg_split('/[,\s]+/',(string)($data['dkim_selectors']??''),-1,PREG_SPLIT_NO_EMPTY))->map(fn($v)=>preg_replace('/[^a-z0-9._-]/i','',$v))->filter()->unique()->take(20)->values()->all();
+        $serviceHosts=collect(preg_split('/[,\s]+/',(string)($data['service_hosts']??''),-1,PREG_SPLIT_NO_EMPTY))->map(fn($v)=>preg_replace('/[^a-z0-9.-]/i','',$v))->filter()->unique()->take(50)->values()->all();
+        return response()->json($audit->audit($data['domain'],$data['wan_ip']??null,$selectors,$serviceHosts));
     }
 
     public function bulkAudit(Request $request, BulkAuditService $bulk)
     {
-        $data = $request->validate([
-            'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.domain' => ['required', 'string', 'max:253'],
-            'items.*.wan_ip' => ['nullable', 'ip'],
-        ]);
-
-        $request->headers->set('X-IT-Bulk-Audit', '1');
-
-        return response()->json($bulk->audit($data['items'], 100));
+        $data=$request->validate(['items'=>['required','array','min:1','max:100'],'items.*.domain'=>['required','string','max:253'],'items.*.wan_ip'=>['nullable','ip']]);
+        $request->headers->set('X-IT-Bulk-Audit','1');
+        return response()->json($bulk->audit($data['items'],100));
     }
 
     public function export(Request $request, AuditExcelService $excel): StreamedResponse
     {
-        $data = $request->validate([
-            'rows' => ['required', 'array', 'min:1', 'max:100'],
-            'rows.*' => ['required', 'array'],
-        ]);
-
-        $filename = 'it-tools-check-domain-' . now()->format('Ymd-His') . '.xlsx';
-        $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'it-tools-exports';
-        $path = $directory . DIRECTORY_SEPARATOR . $filename;
-
-        try {
-            if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
-                throw new \RuntimeException('Unable to create IT Tools temporary export directory.');
-            }
-            if (! is_writable($directory)) {
-                throw new \RuntimeException('IT Tools temporary export directory is not writable.');
-            }
-
-            $writer = $excel->outputRows($data['rows']);
+        $data=$request->validate(['rows'=>['required','array','min:1','max:100'],'rows.*'=>['required','array']]);
+        $filename='it-tools-check-domain-'.now()->format('Ymd-His').'.xlsx';
+        $directory=sys_get_temp_dir().DIRECTORY_SEPARATOR.'it-tools-exports';
+        $path=$directory.DIRECTORY_SEPARATOR.$filename;
+        try{
+            if(!is_dir($directory)&&!mkdir($directory,0775,true)&&!is_dir($directory)) throw new \RuntimeException('Unable to create IT Tools temporary export directory.');
+            if(!is_writable($directory)) throw new \RuntimeException('IT Tools temporary export directory is not writable.');
+            $spreadsheet=$excel->outputRows($data['rows']);
+            $writer=new Xlsx($spreadsheet);
             $writer->setPreCalculateFormulas(false);
             $writer->save($path);
-
-            if (! is_file($path) || filesize($path) < 100) {
-                throw new \RuntimeException('Excel file was not generated correctly.');
-            }
-
-            return response()->download($path, $filename, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Length' => (string) filesize($path),
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                'Cache-Control' => 'no-store, no-cache, must-revalidate',
-                'Pragma' => 'no-cache',
-            ])->deleteFileAfterSend(true);
-        } catch (\Throwable $e) {
-            if (is_file($path)) {
-                @unlink($path);
-            }
-
-            Log::error('IT Tools Excel export failed', [
-                'row_count' => count($data['rows']),
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'memory' => memory_get_usage(true),
-                'peak_memory' => memory_get_peak_usage(true),
-            ]);
-
-            abort(500, 'IT Tools Excel export failed: ' . $e->getMessage());
+            if(!is_file($path)||filesize($path)<100) throw new \RuntimeException('Excel file was not generated correctly.');
+            return response()->download($path,$filename,['Content-Type'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Length'=>(string)filesize($path),'Content-Disposition'=>'attachment; filename="'.$filename.'"','Cache-Control'=>'no-store, no-cache, must-revalidate','Pragma'=>'no-cache'])->deleteFileAfterSend(true);
+        }catch(\Throwable $e){
+            if(is_file($path)) @unlink($path);
+            Log::error('IT Tools Excel export failed',['row_count'=>count($data['rows']),'exception'=>get_class($e),'message'=>$e->getMessage(),'memory'=>memory_get_usage(true),'peak_memory'=>memory_get_peak_usage(true)]);
+            abort(500,'IT Tools Excel export failed: '.$e->getMessage());
         }
     }
 }
