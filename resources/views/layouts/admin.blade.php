@@ -16,11 +16,8 @@ body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f9f7;color:#17231
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.nav{position:fixed;left:0;top:0;bottom:auto;width:100%;height:auto;padding:14px 16px;overflow:visible}.brand{margin:0;display:inline-block;line-height:40px}.nav-toggle{display:block;position:absolute;right:16px;top:14px;width:40px;height:40px;border:0;border-radius:7px;background:#1d5b40;color:#fff;font-size:22px;cursor:pointer}.nav-links{display:none;padding-top:10px}.nav.open .nav-links{display:block}.main{margin-left:0;padding:78px 16px 24px}.grid{grid-template-columns:1fr;gap:12px}}
 
-/* Keep page-level decorative pseudo elements from visually escaping their owner.
-   Ticket Data uses its own layout and must not be affected by global pseudo elements. */
-.main::before,.main::after,.card::before,.card::after{content:none!important;display:none!important;background:none!important;box-shadow:none!important;transform:none!important;}
-/* The navigation is structural; it should never create an unrelated floating shape. */
-.nav::before,.nav::after,.nav-group::before,.nav-group::after{content:none!important;display:none!important;background:none!important;box-shadow:none!important;transform:none!important;}
+/* Prevent stray decorative pseudo-elements from escaping into admin pages. */
+body::before,body::after,.main::before,.main::after,.main *::before,.main *::after,.nav::before,.nav::after,.nav-group::before,.nav-group::after{content:none!important;display:none!important;background:none!important;box-shadow:none!important;transform:none!important;}
 </style></head>
 <body><aside class="nav" id="adminNav"><div class="brand">KPI Dashboard System</div><button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleAdminNav()">☰</button><div class="nav-links">
 @if(auth()->user()->hasPermission('admin.view'))<a href="{{ route('admin.dashboard') }}">Dashboard</a>@endif
