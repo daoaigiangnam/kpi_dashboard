@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Service;
-use App\Services\ServiceAlertEngine;
+use App\Services\ItTools\ServiceAlertEngine;
 use Illuminate\Console\Command;
 
 class ServiceMonitoringCommand extends Command
