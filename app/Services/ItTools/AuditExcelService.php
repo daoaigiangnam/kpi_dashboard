@@ -2,7 +2,6 @@
 
 namespace App\Services\ItTools;
 
-use App\Models\ItToolAudit;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -11,44 +10,41 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class AuditExcelService
 {
-    private int $exportLimit = 1000;
-
-    public function setExportLimit(int $limit): self
+    /**
+     * Export exactly the rows currently rendered by the Check Domain page.
+     * No database/history lookup is performed here.
+     */
+    public function outputRows(array $items): Xlsx
     {
-        $this->exportLimit = min(max($limit, 1), 1000);
-        return $this;
-    }
-
-    public function export(?string $domain = null): Spreadsheet
-    {
-        $query = ItToolAudit::query()->latest();
-        if ($domain !== null && trim($domain) !== '') {
-            $query->where('domain', 'like', '%' . trim($domain) . '%');
-        }
-
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('IT Audit Summary');
-
         $headers = [
-            'Checked At','Domain','WAN IP','Audit Status','Duration (ms)',
-            'Domain Expiry','Domain Days Left','Domain Source',
-            'HTTP Status','HTTP Online','HTTP Final URL','HTTP Response (ms)','HTTP Content-Type','HTTP Server','HTTP HSTS',
-            'HTTPS Status','HTTPS Online','HTTPS Final URL','HTTPS Response (ms)','HTTPS Content-Type','HTTPS Server','HTTPS HSTS','HTTPS Transport Verified',
-            'SSL Vendor','SSL Subject','SSL Issuer','SSL Valid From','SSL Expiry','SSL Days Left','Hostname Match','TLS Version','Cipher','SAN',
-            'Resolved IPv4','Primary IP','IP ASN','IP Network','IP Organization','IP Provider',
-            'DNS Provider','DNS Nameservers','DNSSEC','IPv4 Count','IPv6 Count','NS Count','MX Count','DNS Record Types','DNS Record Count',
-            'Email Provider','SPF','DMARC','DKIM','MTA-STS','TLS-RPT',
-            'CDN','WAF','Hosting Provider','Services Checked','Services Online','Services DNS Only','Services Not Found','Service Summary',
-            'Error',
+            'Checked At', 'Domain', 'WAN IP', 'Status',
+            'Domain Expiry', 'Domain Days', 'Domain Source',
+            'HTTP Status', 'HTTP Online', 'HTTP Final URL', 'HTTP ms',
+            'HTTPS Status', 'HTTPS Online', 'HTTPS Final URL',
+            'SSL Vendor', 'SSL Expiry', 'SSL Days', 'Hostname',
+            'Primary IP', 'Network', 'ASN', 'IP Provider',
+            'DNS Provider', 'Nameservers', 'DNSSEC', 'Record Types', 'MX',
+            'Mail Provider', 'SPF', 'DMARC', 'DKIM', 'MTA-STS', 'TLS-RPT',
+            'CDN', 'WAF', 'Hosting Provider', 'Services Checked', 'Services Online',
+            'Services Not Found', 'Service Summary', 'Error',
         ];
 
         $groups = [
-            ['Audit', 1, 5], ['Domain', 6, 8], ['Website / HTTP', 9, 15],
-            ['Website / HTTPS', 16, 23], ['SSL / TLS', 24, 33], ['IP / Hosting', 34, 39],
-            ['DNS Summary', 40, 47], ['Email Security', 48, 53],
-            ['Provider / Service Discovery', 54, 61], ['Error', 62, 62],
+            ['Audit', 1, 4],
+            ['Domain', 5, 7],
+            ['Website / HTTP', 8, 11],
+            ['Website / HTTPS', 12, 14],
+            ['SSL / TLS', 15, 18],
+            ['IP / Hosting', 19, 22],
+            ['DNS Summary', 23, 27],
+            ['Email Security', 28, 33],
+            ['Provider / Service Discovery', 34, 40],
+            ['Error', 41, 41],
         ];
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Check Domain');
 
         foreach ($groups as [$title, $start, $end]) {
             $startLetter = $this->columnLetter($start);
@@ -58,53 +54,76 @@ class AuditExcelService
             }
             $sheet->setCellValue($startLetter . '1', $title);
         }
+
         foreach ($headers as $index => $header) {
             $sheet->setCellValue($this->columnLetter($index + 1) . '2', $header);
         }
 
         $row = 3;
-        foreach ($query->limit($this->exportLimit)->get() as $audit) {
-            $r = (array) ($audit->result ?? []);
-            $d = (array) ($r['domain_audit'] ?? []);
-            $s = (array) ($r['ssl_audit'] ?? []);
-            $website = (array) ($r['website_audit'] ?? []);
-            $http = (array) ($website['http'] ?? []);
-            $https = (array) ($website['https'] ?? []);
-            $i = (array) ($r['ip_audit'] ?? []);
-            $e = (array) ($r['email_audit'] ?? []);
-            $dns = (array) ($r['dns_audit'] ?? []);
-            $records = (array) ($dns['records'] ?? []);
-            $p = (array) ($r['provider_detection'] ?? []);
-            $services = (array) ($r['service_discovery'] ?? []);
-            $serviceRows = collect($services['services'] ?? [])->filter(fn ($v) => is_array($v));
+        foreach ($items as $item) {
+            $item = is_array($item) ? $item : [];
+            $a = is_array($item['audit'] ?? null) ? $item['audit'] : $item;
+            $d = (array) ($a['domain_audit'] ?? []);
+            $s = (array) ($a['ssl_audit'] ?? []);
+            $w = (array) ($a['website_audit'] ?? []);
+            $h = (array) ($w['http'] ?? []);
+            $hs = (array) ($w['https'] ?? []);
+            $i = (array) ($a['ip_audit'] ?? []);
+            $e = (array) ($a['email_audit'] ?? []);
+            $dns = (array) ($a['dns_audit'] ?? []);
+            $p = (array) ($a['provider_detection'] ?? []);
+            $sv = (array) ($a['service_discovery'] ?? []);
+            $services = collect($sv['services'] ?? [])->filter(fn ($v) => is_array($v));
 
-            $types = collect($records)->filter(fn ($items) => !empty($items))->keys()->implode(', ');
-            $recordCount = collect($records)->sum(fn ($items) => is_array($items) ? count($items) : 0);
-            $nameservers = collect($dns['dns_nameservers'] ?? [])->filter()->implode(', ');
-            $resolvedIpv4 = collect($r['resolved_ipv4'] ?? [])->filter()->implode(', ');
-            $san = collect($s['san'] ?? [])->filter()->implode(', ');
-            $dkim = collect($e['dkim'] ?? [])->map(fn ($value, $selector) => $selector . ': ' . (!empty($value['present']) ? 'PASS' : 'MISSING'))->implode('; ');
-            $serviceOnline = $serviceRows->where('status', 'online')->count();
-            $serviceDnsOnly = $serviceRows->where('status', 'dns_only')->count();
-            $serviceNotFound = $serviceRows->where('status', 'not_found')->count();
-            $serviceSummary = $serviceRows->map(function ($service) {
+            $dkim = $this->dkimSummary($e['dkim'] ?? []);
+            $serviceSummary = $services->map(function ($service) {
                 $hostname = $service['hostname'] ?? ($service['label'] ?? 'unknown');
                 $status = strtoupper((string) ($service['status'] ?? 'unknown'));
-                $ips = collect($service['ips'] ?? [])->filter()->implode(',');
-                return $hostname . '=' . $status . ($ips !== '' ? ' [' . $ips . ']' : '');
+                return $hostname . '=' . $status;
             })->implode('; ');
 
             $values = [
-                $audit->created_at?->toIso8601String(), $audit->domain, $audit->wan_ip, strtoupper((string) $audit->status), $audit->duration_ms,
-                $d['expires_at'] ?? null, isset($d['days_remaining']) ? (int) floor((float) $d['days_remaining']) : null, $d['source'] ?? null,
-                $http['status'] ?? null, isset($http['online']) ? ($http['online'] ? 'YES' : 'NO') : null, $http['final_url'] ?? null, $http['response_time_ms'] ?? null, $http['content_type'] ?? null, $http['server'] ?? null, isset($http['hsts']) ? ($http['hsts'] ? 'YES' : 'NO') : null,
-                $https['status'] ?? null, isset($https['online']) ? ($https['online'] ? 'YES' : 'NO') : null, $https['final_url'] ?? null, $https['response_time_ms'] ?? null, $https['content_type'] ?? null, $https['server'] ?? null, isset($https['hsts']) ? ($https['hsts'] ? 'YES' : 'NO') : null, isset($https['transport_verified']) ? ($https['transport_verified'] ? 'YES' : 'NO') : null,
-                $s['vendor'] ?? null, $s['subject'] ?? null, $s['issuer'] ?? null, $s['valid_from'] ?? null, $s['valid_to'] ?? null, isset($s['days_remaining']) ? (int) floor((float) $s['days_remaining']) : null, isset($s['verify']) ? ($s['verify'] ? 'YES' : 'NO') : null, $s['tls_version'] ?? null, $s['cipher'] ?? null, $san,
-                $resolvedIpv4, $i['ip'] ?? null, $i['asn'] ?? null, $i['network'] ?? null, $i['organization'] ?? null, $i['provider'] ?? null,
-                $dns['dns_provider'] ?? ($p['dns_provider'] ?? null), $nameservers, isset($dns['dnssec']) ? ($dns['dnssec'] ? 'DETECTED' : 'NOT DETECTED') : null, count($records['A'] ?? []), count($records['AAAA'] ?? []), count($records['NS'] ?? []), count($records['MX'] ?? []), $types, $recordCount,
-                $e['provider'] ?? null, !empty($e['spf_present']) ? ($e['spf'] ?? 'PASS') : ($e['spf'] ?? 'MISSING'), !empty($e['dmarc_present']) ? ($e['dmarc'] ?? 'PASS') : ($e['dmarc'] ?? 'MISSING'), $dkim, !empty($e['mta_sts_present']) ? ($e['mta_sts'] ?? 'PASS') : ($e['mta_sts'] ?? 'MISSING'), !empty($e['tls_rpt_present']) ? ($e['tls_rpt'] ?? 'PASS') : ($e['tls_rpt'] ?? 'MISSING'),
-                $p['cdn'] ?? null, $p['waf'] ?? null, $p['hosting_provider'] ?? null, $services['checked_hosts'] ?? $serviceRows->count(), $serviceOnline, $serviceDnsOnly, $serviceNotFound, $serviceSummary,
-                $audit->error,
+                $a['checked_at'] ?? null,
+                $item['domain'] ?? ($a['domain'] ?? null),
+                $item['wan_ip'] ?? ($a['wan_ip_supplied'] ?? null),
+                strtoupper((string) ($item['status'] ?? 'ok')),
+                $d['expires_at'] ?? 'N/A',
+                $this->days($d['days_remaining'] ?? null),
+                $d['source'] ?? '—',
+                $h['status'] ?? '—',
+                $this->bool($h['online'] ?? null),
+                $h['final_url'] ?? '—',
+                $h['response_time_ms'] ?? '—',
+                $hs['status'] ?? '—',
+                $this->bool($hs['online'] ?? null),
+                $hs['final_url'] ?? '—',
+                $s['vendor'] ?? 'N/A',
+                $s['valid_to'] ?? 'N/A',
+                $this->days($s['days_remaining'] ?? null),
+                $this->bool($s['verify'] ?? null),
+                $i['ip'] ?? 'N/A',
+                $i['network'] ?? '—',
+                $i['asn'] ?? '—',
+                $i['provider'] ?? '—',
+                $dns['dns_provider'] ?? ($p['dns_provider'] ?? 'N/A'),
+                collect($dns['dns_nameservers'] ?? [])->filter()->implode(', ') ?: 'N/A',
+                ! empty($dns['dnssec']) ? 'DETECTED' : 'NOT DETECTED',
+                collect($dns['record_types_found'] ?? [])->filter()->implode(', ') ?: '—',
+                count($e['mx'] ?? []),
+                $e['provider'] ?? 'N/A',
+                ! empty($e['spf_present']) ? ($e['spf'] ?? 'PASS') : ($e['spf'] ?? 'MISSING'),
+                ! empty($e['dmarc_present']) ? ($e['dmarc'] ?? 'PASS') : ($e['dmarc'] ?? 'MISSING'),
+                $dkim ?: 'Not checked',
+                ! empty($e['mta_sts_present']) ? ($e['mta_sts'] ?? 'PASS') : ($e['mta_sts'] ?? 'MISSING'),
+                ! empty($e['tls_rpt_present']) ? ($e['tls_rpt'] ?? 'PASS') : ($e['tls_rpt'] ?? 'MISSING'),
+                $p['cdn'] ?? '—',
+                $p['waf'] ?? '—',
+                $p['hosting_provider'] ?? '—',
+                $sv['checked_hosts'] ?? $services->count(),
+                $services->where('status', 'online')->count(),
+                $services->where('status', 'not_found')->count(),
+                $serviceSummary ?: '—',
+                $item['error'] ?? '',
             ];
 
             foreach ($values as $col => $value) {
@@ -116,10 +135,12 @@ class AuditExcelService
         $lastColumn = count($headers);
         $lastRow = max(2, $row - 1);
         $lastColumnLetter = $this->columnLetter($lastColumn);
+
         $sheet->freezePane('A3');
         $sheet->setAutoFilter('A2:' . $lastColumnLetter . $lastRow);
         $sheet->getRowDimension(1)->setRowHeight(25);
         $sheet->getRowDimension(2)->setRowHeight(42);
+
         $sheet->getStyle('A1:' . $lastColumnLetter . '1')->getFont()->setBold(true)->getColor()->setARGB('FFFFFF');
         $sheet->getStyle('A1:' . $lastColumnLetter . '1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('17365D');
         $sheet->getStyle('A1:' . $lastColumnLetter . '1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
@@ -132,23 +153,43 @@ class AuditExcelService
         foreach (range(1, $lastColumn) as $col) {
             $sheet->getColumnDimension($this->columnLetter($col))->setWidth(16);
         }
-        foreach ([2, 6, 8, 24, 25, 26, 28, 35, 36, 37, 38, 39, 48, 54, 55, 56, 57, 58] as $col) {
+        foreach ([2, 5, 7, 15, 16, 19, 20, 21, 22, 23, 28, 34, 35, 36] as $col) {
             $sheet->getColumnDimension($this->columnLetter($col))->setWidth(20);
         }
-        foreach ([11, 18, 33, 40, 41, 47, 50, 51, 52, 60, 61, 62] as $col) {
+        foreach ([10, 14, 26, 31, 40, 41] as $col) {
             $sheet->getColumnDimension($this->columnLetter($col))->setWidth(30);
         }
         $sheet->getColumnDimension('A')->setWidth(23);
         $sheet->getColumnDimension('B')->setWidth(28);
-        $sheet->getColumnDimension('E')->setWidth(15);
-        $sheet->getColumnDimension($this->columnLetter(62))->setWidth(40);
+        $sheet->getColumnDimension('AK')->setWidth(40);
 
         return $spreadsheet;
     }
 
-    public function output(?string $domain = null): Xlsx
+    public function output(array $items): Xlsx
     {
-        return new Xlsx($this->export($domain));
+        return $this->outputRows($items);
+    }
+
+    private function dkimSummary(array $dkim): string
+    {
+        return collect($dkim)->map(function ($value, $selector) {
+            return $selector . ': ' . (! empty($value['present']) ? 'PASS' : 'MISSING');
+        })->implode('; ');
+    }
+
+    private function bool($value): string
+    {
+        return $value === true ? 'YES' : ($value === false ? 'NO' : '—');
+    }
+
+    private function days($value): string
+    {
+        if ($value === null || $value === '') {
+            return 'N/A';
+        }
+        $number = (float) $value;
+        return is_finite($number) ? number_format((int) floor($number)) . ' days' : (string) $value;
     }
 
     private function columnLetter(int $column): string
