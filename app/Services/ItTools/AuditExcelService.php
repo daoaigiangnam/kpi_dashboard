@@ -11,6 +11,14 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class AuditExcelService
 {
+    private int $exportLimit = 1000;
+
+    public function setExportLimit(int $limit): self
+    {
+        $this->exportLimit = min(max($limit, 1), 1000);
+        return $this;
+    }
+
     public function export(?string $domain = null): Spreadsheet
     {
         $query = ItToolAudit::query()->latest();
@@ -55,7 +63,7 @@ class AuditExcelService
         }
 
         $row = 3;
-        foreach ($query->limit(5000)->get() as $audit) {
+        foreach ($query->limit($this->exportLimit)->get() as $audit) {
             $r = (array) ($audit->result ?? []);
             $d = (array) ($r['domain_audit'] ?? []);
             $s = (array) ($r['ssl_audit'] ?? []);
