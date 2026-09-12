@@ -19,6 +19,11 @@ class ItToolsController extends Controller
         return view('admin.it-tools.check-domain');
     }
 
+    public function portCheckPage()
+    {
+        return view('admin.it-tools.port-check');
+    }
+
     public function portCheck(Request $request, PortCheckService $ports)
     {
         $data = $request->validate([
