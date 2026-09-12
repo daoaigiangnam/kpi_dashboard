@@ -10,32 +10,69 @@ class WebsiteAuditService
     {
         $host = trim($host);
         $results = [];
+
         foreach (['https', 'http'] as $scheme) {
             $url = $scheme . '://' . $host;
             $started = microtime(true);
+            $verifiedTransport = true;
+
             try {
-                $response = Http::timeout(10)->withOptions(['allow_redirects' => ['track_redirects' => true]])->get($url);
-                $results[$scheme] = [
-                    'url' => $url, 'status' => $response->status(),
-                    'final_url' => $response->effectiveUri()?->__toString(),
-                    'response_time_ms' => round((microtime(true) - $started) * 1000, 1),
-                    'content_type' => $response->header('Content-Type'),
-                    'server' => $response->header('Server'),
-                    'hsts' => $response->header('Strict-Transport-Security') !== null,
-                    'headers' => $this->securityHeaders($response),
-                    'online' => $response->successful() || $response->redirect(),
-                    'error' => null,
-                ];
-            } catch (\Throwable $e) {
-                $results[$scheme] = [
-                    'url' => $url, 'status' => null, 'final_url' => null,
-                    'response_time_ms' => round((microtime(true) - $started) * 1000, 1),
-                    'content_type' => null, 'server' => null, 'hsts' => false,
-                    'headers' => [], 'online' => false, 'error' => $e->getMessage(),
-                ];
+                $response = $this->request($url, true);
+            } catch (\Throwable $firstError) {
+                // A valid website can still be reachable when the server-side CA bundle
+                // is stale/missing. Retry only the transport check without certificate
+                // verification; the dedicated SSL audit remains responsible for TLS
+                // certificate and hostname validation.
+                try {
+                    $response = $this->request($url, false);
+                    $verifiedTransport = false;
+                } catch (\Throwable $e) {
+                    $results[$scheme] = [
+                        'url' => $url,
+                        'status' => null,
+                        'final_url' => null,
+                        'response_time_ms' => round((microtime(true) - $started) * 1000, 1),
+                        'content_type' => null,
+                        'server' => null,
+                        'hsts' => false,
+                        'headers' => [],
+                        'online' => false,
+                        'transport_verified' => false,
+                        'error' => $e->getMessage() ?: $firstError->getMessage(),
+                    ];
+                    continue;
+                }
             }
+
+            $status = $response->status();
+            $results[$scheme] = [
+                'url' => $url,
+                'status' => $status,
+                'final_url' => $response->effectiveUri()?->__toString(),
+                'response_time_ms' => round((microtime(true) - $started) * 1000, 1),
+                'content_type' => $response->header('Content-Type'),
+                'server' => $response->header('Server'),
+                'hsts' => $response->header('Strict-Transport-Security') !== null,
+                'headers' => $this->securityHeaders($response),
+                // Any HTTP response means the web service is reachable. A 4xx/5xx
+                // response is online but unhealthy, not offline.
+                'online' => $status >= 100 && $status <= 599,
+                'transport_verified' => $verifiedTransport,
+                'error' => null,
+            ];
         }
+
         return ['host' => $host, 'http' => $results['http'], 'https' => $results['https']];
+    }
+
+    private function request(string $url, bool $verify): \Illuminate\Http\Client\Response
+    {
+        return Http::timeout(10)
+            ->withOptions([
+                'allow_redirects' => ['track_redirects' => true],
+                'verify' => $verify,
+            ])
+            ->get($url);
     }
 
     private function securityHeaders($response): array
