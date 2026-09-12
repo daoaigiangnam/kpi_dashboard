@@ -65,10 +65,11 @@ class ServiceDiscoveryService
         foreach (['http', 'https'] as $scheme) {
             $started = microtime(true);
             try {
-                $response = Http::timeout(5)->withOptions(['allow_redirects' => ['track_redirects' => true]])->get($scheme . '://' . $host);
+                $response = Http::timeout(3)->withOptions(['allow_redirects' => ['track_redirects' => true]])->get($scheme . '://' . $host);
+                $status = $response->status();
                 $result[$scheme] = [
-                    'status' => $response->status(),
-                    'online' => $response->successful() || $response->redirect(),
+                    'status' => $status,
+                    'online' => $status >= 100 && $status <= 599,
                     'final_url' => $response->effectiveUri()?->__toString(),
                     'response_time_ms' => round((microtime(true) - $started) * 1000, 1),
                     'server' => $response->header('Server'),
