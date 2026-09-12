@@ -22,7 +22,6 @@ class AuditExcelService
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('IT Audit Summary');
 
-        // Bulk/History export is a summary report. Individual DNS records are intentionally omitted.
         $headers = [
             'Checked At','Domain','WAN IP','Audit Status','Duration (ms)',
             'Domain Expiry','Domain Days Left','Domain Source',
@@ -37,23 +36,16 @@ class AuditExcelService
         ];
 
         $groups = [
-            ['Audit', 1, 5],
-            ['Domain', 6, 8],
-            ['Website / HTTP', 9, 15],
-            ['Website / HTTPS', 16, 23],
-            ['SSL / TLS', 24, 33],
-            ['IP / Hosting', 34, 39],
-            ['DNS Summary', 40, 47],
-            ['Email Security', 48, 53],
-            ['Provider / Service Discovery', 54, 61],
-            ['Error', 62, 62],
+            ['Audit', 1, 5], ['Domain', 6, 8], ['Website / HTTP', 9, 15],
+            ['Website / HTTPS', 16, 23], ['SSL / TLS', 24, 33], ['IP / Hosting', 34, 39],
+            ['DNS Summary', 40, 47], ['Email Security', 48, 53],
+            ['Provider / Service Discovery', 54, 61], ['Error', 62, 62],
         ];
 
         foreach ($groups as [$title, $start, $end]) {
             $sheet->mergeCellsByColumnAndRow($start, 1, $end, 1);
             $sheet->setCellValueByColumnAndRow($start, 1, $title);
         }
-
         foreach ($headers as $index => $header) {
             $sheet->setCellValueByColumnAndRow($index + 1, 2, $header);
         }
@@ -93,10 +85,10 @@ class AuditExcelService
 
             $values = [
                 $audit->created_at?->toIso8601String(), $audit->domain, $audit->wan_ip, strtoupper((string) $audit->status), $audit->duration_ms,
-                $d['expires_at'] ?? null, $d['days_remaining'] ?? null, $d['source'] ?? null,
+                $d['expires_at'] ?? null, isset($d['days_remaining']) ? (int) floor((float) $d['days_remaining']) : null, $d['source'] ?? null,
                 $http['status'] ?? null, isset($http['online']) ? ($http['online'] ? 'YES' : 'NO') : null, $http['final_url'] ?? null, $http['response_time_ms'] ?? null, $http['content_type'] ?? null, $http['server'] ?? null, isset($http['hsts']) ? ($http['hsts'] ? 'YES' : 'NO') : null,
                 $https['status'] ?? null, isset($https['online']) ? ($https['online'] ? 'YES' : 'NO') : null, $https['final_url'] ?? null, $https['response_time_ms'] ?? null, $https['content_type'] ?? null, $https['server'] ?? null, isset($https['hsts']) ? ($https['hsts'] ? 'YES' : 'NO') : null, isset($https['transport_verified']) ? ($https['transport_verified'] ? 'YES' : 'NO') : null,
-                $s['vendor'] ?? null, $s['subject'] ?? null, $s['issuer'] ?? null, $s['valid_from'] ?? null, $s['valid_to'] ?? null, $s['days_remaining'] ?? null, isset($s['verify']) ? ($s['verify'] ? 'YES' : 'NO') : null, $s['tls_version'] ?? null, $s['cipher'] ?? null, $san,
+                $s['vendor'] ?? null, $s['subject'] ?? null, $s['issuer'] ?? null, $s['valid_from'] ?? null, $s['valid_to'] ?? null, isset($s['days_remaining']) ? (int) floor((float) $s['days_remaining']) : null, isset($s['verify']) ? ($s['verify'] ? 'YES' : 'NO') : null, $s['tls_version'] ?? null, $s['cipher'] ?? null, $san,
                 $resolvedIpv4, $i['ip'] ?? null, $i['asn'] ?? null, $i['network'] ?? null, $i['organization'] ?? null, $i['provider'] ?? null,
                 $dns['dns_provider'] ?? ($p['dns_provider'] ?? null), $nameservers, isset($dns['dnssec']) ? ($dns['dnssec'] ? 'DETECTED' : 'NOT DETECTED') : null, count($records['A'] ?? []), count($records['AAAA'] ?? []), count($records['NS'] ?? []), count($records['MX'] ?? []), $types, $recordCount,
                 $e['provider'] ?? null, !empty($e['spf_present']) ? ($e['spf'] ?? 'PASS') : ($e['spf'] ?? 'MISSING'), !empty($e['dmarc_present']) ? ($e['dmarc'] ?? 'PASS') : ($e['dmarc'] ?? 'MISSING'), $dkim, !empty($e['mta_sts_present']) ? ($e['mta_sts'] ?? 'PASS') : ($e['mta_sts'] ?? 'MISSING'), !empty($e['tls_rpt_present']) ? ($e['tls_rpt'] ?? 'PASS') : ($e['tls_rpt'] ?? 'MISSING'),
@@ -112,38 +104,35 @@ class AuditExcelService
 
         $lastColumn = count($headers);
         $lastRow = max(2, $row - 1);
-
         $sheet->freezePane('A3');
         $sheet->setAutoFilterByColumnAndRow(1, 2, $lastColumn, $lastRow);
-        $sheet->getRowDimension(1)->setRowHeight(24);
-        $sheet->getRowDimension(2)->setRowHeight(36);
+        $sheet->getRowDimension(1)->setRowHeight(25);
+        $sheet->getRowDimension(2)->setRowHeight(42);
 
         $sheet->getStyleByColumnAndRow(1, 1, $lastColumn, 1)->getFont()->setBold(true)->getColor()->setARGB('FFFFFF');
         $sheet->getStyleByColumnAndRow(1, 1, $lastColumn, 1)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('17365D');
         $sheet->getStyleByColumnAndRow(1, 1, $lastColumn, 1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
-
         $sheet->getStyleByColumnAndRow(1, 2, $lastColumn, 2)->getFont()->setBold(true);
         $sheet->getStyleByColumnAndRow(1, 2, $lastColumn, 2)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('D9EAF7');
         $sheet->getStyleByColumnAndRow(1, 2, $lastColumn, 2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
-
         $sheet->getStyleByColumnAndRow(1, 1, $lastColumn, $lastRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('D9E1E8');
         $sheet->getStyleByColumnAndRow(1, 3, $lastColumn, $lastRow)->getAlignment()->setVertical(Alignment::VERTICAL_TOP)->setWrapText(true);
 
-        if ($lastRow >= 3) {
-            $sheet->getStyleByColumnAndRow(1, 3, $lastColumn, $lastRow)->getFill()->setFillType(Fill::FILL_NONE);
-        }
-
+        // Fixed widths are intentional: PhpSpreadsheet auto-size across thousands of audit rows
+        // can be very expensive and can make a web download fail at the proxy/PHP-FPM layer.
         foreach (range(1, $lastColumn) as $col) {
-            $sheet->getColumnDimensionByColumn($col)->setAutoSize(true);
+            $sheet->getColumnDimensionByColumn($col)->setWidth(16);
         }
-
-        // Keep long summary columns readable without creating an excessively wide sheet.
-        foreach ([11, 18, 33, 40, 41, 47, 51, 52, 60, 61, 62] as $col) {
-            $sheet->getColumnDimensionByColumn($col)->setWidth(28);
-        }
-        foreach ([2, 6, 8, 24, 25, 26, 28, 35, 36, 37, 38, 39, 48, 49, 50, 54, 55, 56, 57, 58] as $col) {
+        foreach ([2, 6, 8, 24, 25, 26, 28, 35, 36, 37, 38, 39, 48, 54, 55, 56, 57, 58] as $col) {
             $sheet->getColumnDimensionByColumn($col)->setWidth(20);
         }
+        foreach ([11, 18, 33, 40, 41, 47, 50, 51, 52, 60, 61, 62] as $col) {
+            $sheet->getColumnDimensionByColumn($col)->setWidth(30);
+        }
+        $sheet->getColumnDimensionByColumn(1)->setWidth(23);
+        $sheet->getColumnDimensionByColumn(2)->setWidth(28);
+        $sheet->getColumnDimensionByColumn(5)->setWidth(15);
+        $sheet->getColumnDimensionByColumn(62)->setWidth(40);
 
         return $spreadsheet;
     }
