@@ -9,6 +9,7 @@ use App\Services\ItTools\BulkAuditImportService;
 use App\Services\ItTools\BulkAuditService;
 use App\Services\ItTools\InternetAssetAuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -96,17 +97,49 @@ class ItToolsController extends Controller
     {
         $domain = $request->input('domain');
         $filename = 'it-tool-audits-' . now()->format('Ymd-His') . '.xlsx';
-        $path = storage_path('app/' . $filename);
+        $directory = storage_path('app/it-tools-exports');
+        $path = $directory . DIRECTORY_SEPARATOR . $filename;
 
-        // Build the workbook before sending any HTTP output. This avoids an incomplete
-        // chunked response when PhpSpreadsheet hits a runtime/proxy limit during generation.
-        $writer = $excel->output($domain);
-        $writer->save($path);
+        try {
+            if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
+                throw new \RuntimeException('Unable to create IT Tools export directory.');
+            }
+            if (! is_writable($directory)) {
+                throw new \RuntimeException('IT Tools export directory is not writable.');
+            }
 
-        return response()->download($path, $filename, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Cache-Control' => 'no-store, no-cache, must-revalidate',
-            'Pragma' => 'no-cache',
-        ])->deleteFileAfterSend(true);
+            // PhpSpreadsheet keeps the workbook in memory while writing. Keep the export
+            // bounded to the same history window shown by the application and avoid
+            // generating an unbounded workbook during an HTTP request.
+            $limit = min(max((int) $request->input('limit', 1000), 1), 1000);
+            $excel->setExportLimit($limit);
+            $writer = $excel->output($domain);
+            $writer->setPreCalculateFormulas(false);
+            $writer->save($path);
+
+            if (! is_file($path) || filesize($path) < 100) {
+                throw new \RuntimeException('Excel file was not generated correctly.');
+            }
+
+            return response()->download($path, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Length' => (string) filesize($path),
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate',
+                'Pragma' => 'no-cache',
+            ])->deleteFileAfterSend(true);
+        } catch (\Throwable $e) {
+            if (is_file($path)) @unlink($path);
+            Log::error('IT Tools Excel export failed', [
+                'domain' => $domain,
+                'limit' => $request->input('limit', 1000),
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+                'memory' => memory_get_usage(true),
+                'peak_memory' => memory_get_peak_usage(true),
+            ]);
+
+            abort(500, 'IT Tools Excel export failed: ' . $e->getMessage());
+        }
     }
 }
