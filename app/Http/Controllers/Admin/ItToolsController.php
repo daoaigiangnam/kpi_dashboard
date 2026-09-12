@@ -48,7 +48,10 @@ class ItToolsController extends Controller
         return response()->streamDownload(function()use($spreadsheet){(new Xlsx($spreadsheet))->save('php://output');},'it-tools-bulk-template.xlsx',['Content-Type'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Cache-Control'=>'no-store']);
     }
 
-    public function history(Request $request){$query=ItToolAudit::query()->latest();if($request->filled('domain'))$query->where('domain','like','%'.trim($request->string('domain')).'%');if($request->expectsJson())return response()->json($query->paginate(min((int)$request->input('per_page',50),100)));return view('admin.it-tools.history',['audits'=>$query->paginate(50));}
+    public function history(Request $request)
+    {
+        $query=ItToolAudit::query()->latest();if($request->filled('domain'))$query->where('domain','like','%'.trim($request->string('domain')).'%');if($request->expectsJson())return response()->json($query->paginate(min((int)$request->input('per_page',50),100)));return view('admin.it-tools.history',['audits'=>$query->paginate(50)]);
+    }
 
     public function export(Request $request, AuditExcelService $excel)
     {
