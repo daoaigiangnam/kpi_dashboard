@@ -59,9 +59,9 @@ async function runBulk(items) {
             const w = (audit.website_audit || {}).https || {};
             const i = audit.ip_audit || {};
             const e = audit.email_audit || {};
-            return `<tr><td>${esc(item.domain)}</td><td>${esc(d.days_remaining)}</td><td>${esc(s.vendor)}</td><td>${esc(s.days_remaining)}</td><td>${esc(w.status)}</td><td>${w.online ? 'ONLINE':'OFFLINE'}</td><td>${esc(i.provider || i.organization)}</td><td>${esc(e.provider)}</td></tr>`;
+            return `<tr><td>${esc(item.domain)}</td><td>${esc(d.days_remaining)}</td><td>${esc(s.vendor)}</td><td>${esc(s.days_remaining)}</td><td>${esc(w.status)}</td><td>${w.online ? 'ONLINE':'OFFLINE'}</td><td>${esc(i.network || i.organization || i.provider)}</td><td>${esc(e.provider)}</td></tr>`;
         }).join('');
-        target.innerHTML = `<div class="card"><h3>Bulk Result</h3><p>${esc(data.processed)} processed / ${esc(data.requested)} requested</p><div style="overflow:auto"><table><thead><tr><th>Domain</th><th>Domain days</th><th>SSL Vendor</th><th>SSL days</th><th>HTTPS</th><th>Web</th><th>IP Provider</th><th>Mail</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+        target.innerHTML = `<div class="card"><h3>Bulk Result</h3><p>${esc(data.processed)} processed / ${esc(data.requested)} requested</p><div style="overflow:auto"><table><thead><tr><th>Domain</th><th>Domain days</th><th>SSL Vendor</th><th>SSL days</th><th>HTTPS</th><th>Web</th><th>IP Network</th><th>Mail</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
     } catch (error) {
         target.innerHTML='<div class="card">Bulk audit failed: '+esc(error.message)+'</div>';
     }
@@ -127,15 +127,17 @@ function renderAudit(target, data) {
     const aaaaCount=(dns.records?.AAAA||[]).length;
     const mxCount=(dns.records?.MX||[]).length;
     const dnsLabel=dns.dns_provider || (nsCount ? 'Unknown provider' : 'No NS records');
-    const ipProvider=i.organization || i.provider || 'Provider unavailable';
+    const ipNetwork=i.network || i.organization || i.provider || 'Provider unavailable';
     const domainExpiry=d.expires_at || (d.status === 'unavailable' ? 'Registry data unavailable' : 'N/A');
     const domainDays=d.days_remaining ?? 'N/A';
+    const domainSource=d.source || '—';
+    const ipMeta=[i.asn, i.organization].filter(Boolean).join(' · ');
 
     target.innerHTML = `<div class="grid">
-        <div class="card"><div class="muted">Domain Expiry</div><h3>${esc(domainExpiry)}</h3><div>${esc(domainDays)}${typeof domainDays === 'number' ? ' days' : ''}</div></div>
+        <div class="card"><div class="muted">Domain Expiry</div><h3>${esc(domainExpiry)}</h3><div>${esc(domainDays)}${typeof domainDays === 'number' ? ' days' : ''} · ${esc(domainSource)}</div></div>
         <div class="card"><div class="muted">SSL</div><h3>${esc(s.vendor || 'N/A')}</h3><div>${esc(s.valid_to || 'N/A')} · ${esc(s.days_remaining ?? 'N/A')} days</div></div>
         <div class="card"><div class="muted">Website</div><h3>${statusLabel(https.online, https.status)}</h3><div>HTTPS ${esc(https.status ?? '—')} · ${esc(https.response_time_ms ?? '—')} ms${https.transport_verified === false ? ' · TLS transport unverified' : ''}</div></div>
-        <div class="card"><div class="muted">IP / Provider</div><h3>${esc(i.ip || 'N/A')}</h3><div>${esc(ipProvider)}</div></div>
+        <div class="card"><div class="muted">IP / Network</div><h3>${esc(i.ip || 'N/A')}</h3><div>${esc(ipNetwork)}${ipMeta ? '<br>'+esc(ipMeta) : ''}</div></div>
         <div class="card"><div class="muted">Email</div><h3>${esc(e.provider || 'Unknown provider')}</h3><div>SPF ${e.spf_present ? 'PASS':'MISSING'} · DMARC ${e.dmarc_present ? 'PASS':'MISSING'}</div></div>
         <div class="card"><div class="muted">DNS</div><h3>${esc(dnsLabel)}</h3><div>${aCount} IPv4 · ${aaaaCount} IPv6 · ${nsCount} NS · ${mxCount} MX</div></div>
     </div>
