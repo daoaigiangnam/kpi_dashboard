@@ -42,23 +42,34 @@ const formatDays=v=>{if(v===null||v===undefined||v==='')return'N/A';const n=Numb
 
 async function runBulk(items){
  const target=document.getElementById('bulk-result');
+ const button=document.getElementById('bulk-run');
  if(!items.length){target.innerHTML='<div class="card">Please enter at least one domain.</div>';return;}
+ button.disabled=true;button.textContent='Running…';
  target.innerHTML='<div class="card">Bulk audit running…</div>';
  try{
-  const r=await fetch('{{ route('admin.it_tools.bulk_audit') }}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify({items})});
-  const data=await r.json(); if(!r.ok)throw new Error(data.message||'Bulk audit failed');
+  const r=await fetch('{{ route('admin.it_tools.bulk_audit') }}',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':csrf,'X-Requested-With':'XMLHttpRequest'},body:JSON.stringify({items})});
+  const text=await r.text();
+  let data={};try{data=text?JSON.parse(text):{};}catch(_){throw new Error('Server returned a non-JSON response (HTTP '+r.status+'). Check Laravel logs/routes.');}
+  if(!r.ok)throw new Error(data.message||('Bulk audit failed (HTTP '+r.status+')'));
   const rows=(data.results||[]).map(item=>{const a=item.audit||{},d=a.domain_audit||{},s=a.ssl_audit||{},w=(a.website_audit||{}).https||{},i=a.ip_audit||{},e=a.email_audit||{};return `<tr><td>${esc(item.domain)}</td><td>${esc(formatDays(d.days_remaining))}</td><td>${esc(s.vendor)}</td><td>${esc(formatDays(s.days_remaining))}</td><td>${esc(w.status)}</td><td>${w.online?'ONLINE':'OFFLINE'}</td><td>${esc(i.network||i.organization||i.provider)}</td><td>${esc(e.provider)}</td></tr>`}).join('');
   target.innerHTML=`<div class="card"><h3>Bulk Result</h3><p>${esc(data.processed)} processed / ${esc(data.requested)} requested</p><div style="overflow:auto"><table><thead><tr><th>Domain</th><th>Domain days</th><th>SSL Vendor</th><th>SSL days</th><th>HTTPS</th><th>Web</th><th>IP Network</th><th>Mail</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
- }catch(error){target.innerHTML='<div class="card">Bulk audit failed: '+esc(error.message)+'</div>';}
+ }catch(error){target.innerHTML='<div class="card">Bulk audit failed: '+esc(error.message)+'</div>';}finally{button.disabled=false;button.textContent='Run Bulk Audit';}
+}
+
+async function runBulkFromTextarea(){
+ const lines=document.getElementById('bulk-items').value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean).slice(0,100);
+ const items=lines.map(line=>{try{if(line.startsWith('{'))return JSON.parse(line);}catch(_){}const p=line.split(',').map(v=>v.trim());return{domain:p[0],wan_ip:p[1]||null};});
+ await runBulk(items);
 }
 
 document.getElementById('audit-form').addEventListener('submit',async e=>{
  e.preventDefault();const result=document.getElementById('result');result.innerHTML='<div class="card">Checking…</div>';
- try{const r=await fetch('{{ route('admin.it_tools.audit') }}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify({domain:document.getElementById('domain').value,wan_ip:document.getElementById('wan_ip').value||null,dkim_selectors:document.getElementById('dkim_selectors').value||null})});const data=await r.json();if(!r.ok)throw new Error(data.message||'Audit failed');renderAudit(result,data);}catch(error){result.innerHTML='<div class="card">Audit failed: '+esc(error.message)+'</div>';}
+ try{const r=await fetch('{{ route('admin.it_tools.audit') }}',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':csrf,'X-Requested-With':'XMLHttpRequest'},body:JSON.stringify({domain:document.getElementById('domain').value,wan_ip:document.getElementById('wan_ip').value||null,dkim_selectors:document.getElementById('dkim_selectors').value||null})});const data=await r.json();if(!r.ok)throw new Error(data.message||'Audit failed');renderAudit(result,data);}catch(error){result.innerHTML='<div class="card">Audit failed: '+esc(error.message)+'</div>';}
 });
 
-document.getElementById('bulk-run').addEventListener('click',async()=>{const lines=document.getElementById('bulk-items').value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean).slice(0,100);const items=lines.map(line=>{try{if(line.startsWith('{'))return JSON.parse(line);}catch(_){}const p=line.split(',').map(v=>v.trim());return{domain:p[0],wan_ip:p[1]||null};});await runBulk(items);});
-document.getElementById('bulk-import').addEventListener('click',async()=>{const file=document.getElementById('bulk-file').files[0],info=document.getElementById('bulk-import-info');if(!file){info.textContent='Choose an Excel/CSV file first.';return;}info.textContent='Importing…';try{const form=new FormData();form.append('file',file);const r=await fetch('{{ route('admin.it_tools.bulk_import') }}',{method:'POST',headers:{'X-CSRF-TOKEN':csrf},body:form});const data=await r.json();if(!r.ok)throw new Error(data.message||'Import failed');document.getElementById('bulk-items').value=(data.items||[]).map(item=>`${item.domain}${item.wan_ip?','+item.wan_ip:''}`).join('\n');info.textContent=`${data.count} rows imported. Review the list, then click Run Bulk Audit.`;}catch(error){info.textContent='Import failed: '+error.message;}});
+document.getElementById('bulk-run').addEventListener('click',runBulkFromTextarea);
+document.getElementById('bulk-items').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();runBulkFromTextarea();}});
+document.getElementById('bulk-import').addEventListener('click',async()=>{const file=document.getElementById('bulk-file').files[0],info=document.getElementById('bulk-import-info');if(!file){info.textContent='Choose an Excel/CSV file first.';return;}info.textContent='Importing…';try{const form=new FormData();form.append('file',file);const r=await fetch('{{ route('admin.it_tools.bulk_import') }}',{method:'POST',headers:{'Accept':'application/json','X-CSRF-TOKEN':csrf,'X-Requested-With':'XMLHttpRequest'},body:form});const data=await r.json();if(!r.ok)throw new Error(data.message||'Import failed');document.getElementById('bulk-items').value=(data.items||[]).map(item=>`${item.domain}${item.wan_ip?','+item.wan_ip:''}`).join('\n');info.textContent=`${data.count} rows imported. Review the list, then click Run Bulk Audit.`;}catch(error){info.textContent='Import failed: '+error.message;}});
 
 function statusLabel(online,status){if(online)return'ONLINE';if(status)return'UNREACHABLE';return'OFFLINE';}
 function formatRecordValue(row,type){if(!row||typeof row!=='object')return'';if(type==='MX')return`${row.target||row.value||''}${row.pri!==undefined?' (priority '+row.pri+')':''}`;if(type==='SOA')return`MNAME: ${row.mname||''} · RNAME: ${row.rname||''} · Serial: ${row.serial??''} · Refresh: ${row.refresh??''} · Retry: ${row.retry??''} · Expire: ${row.expire??''} · Minimum TTL: ${row['minimum-ttl']??row.minimum??''}`;if(row.txt||row.value||row.target||row.ip||row.ipv6||row.cname)return row.txt||row.value||row.target||row.ip||row.ipv6||row.cname;return Object.entries(row).filter(([k])=>!['host','class','ttl','type'].includes(k)).map(([k,v])=>`${k}: ${typeof v==='object'?JSON.stringify(v):v}`).join(' · ');}
