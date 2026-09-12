@@ -8,6 +8,9 @@ class DnsAuditService
     {
         $domain = strtolower(trim($domain));
         $records = [];
+
+        // Keep explicit RR queries for the common/important records and add DNS_ALL
+        // so the audit can also surface RR types that are not hard-coded here.
         $types = [
             'A' => DNS_A,
             'AAAA' => DNS_AAAA,
@@ -32,6 +35,7 @@ class DnsAuditService
             'LOC' => 'DNS_LOC',
             'DS' => 'DNS_DS',
             'DNSKEY' => 'DNS_DNSKEY',
+            'RRSIG' => 'DNS_RRSIG',
         ] as $name => $constant) {
             if (defined($constant)) {
                 $types[$name] = constant($constant);
@@ -42,6 +46,29 @@ class DnsAuditService
             $records[$name] = $this->normalize(@dns_get_record($domain, $type) ?: []);
         }
 
+        // DNS_ALL lets PHP return RR types supported by the resolver even when
+        // they are not explicitly listed above. Merge them by the authoritative
+        // record type and de-duplicate rows to keep the UI clean.
+        if (defined('DNS_ALL')) {
+            $allRecords = @dns_get_record($domain, DNS_ALL) ?: [];
+            foreach ($this->normalize($allRecords) as $row) {
+                $name = strtoupper((string) ($row['type'] ?? ''));
+                if ($name === '') {
+                    continue;
+                }
+
+                $records[$name] ??= [];
+                $records[$name][] = $row;
+                $records[$name] = $this->uniqueRecords($records[$name]);
+            }
+        }
+
+        // Only expose types that were actually returned. The checked list remains
+        // available separately so operators can distinguish an empty RR type.
+        foreach ($records as $name => $rows) {
+            $records[$name] = $this->uniqueRecords($rows);
+        }
+
         $txt = collect($records['TXT'] ?? [])
             ->map(fn (array $row) => $row['txt'] ?? $row['value'] ?? null)
             ->filter()
@@ -49,12 +76,20 @@ class DnsAuditService
 
         $ns = $records['NS'] ?? [];
         $dnsProvider = $this->inferDnsProvider($ns, $records['SOA'] ?? []);
-        $dnssec = !empty($records['DS'] ?? []) || !empty($records['DNSKEY'] ?? []);
+        $dnssec = !empty($records['DS'] ?? []) || !empty($records['DNSKEY'] ?? []) || !empty($records['RRSIG'] ?? []);
+
+        $foundTypes = collect($records)
+            ->filter(fn ($rows) => !empty($rows))
+            ->keys()
+            ->values()
+            ->all();
 
         return [
             'domain' => $domain,
             'records' => $records,
             'record_types_checked' => array_keys($types),
+            'record_types_found' => $foundTypes,
+            'dns_query_mode' => defined('DNS_ALL') ? 'DNS_ALL + targeted RR queries' : 'Targeted RR queries',
             'spf' => $txt->first(fn ($v) => str_starts_with(strtolower($v), 'v=spf1')),
             'dmarc' => $this->lookupTxt('_dmarc.' . $domain),
             'dnssec' => $dnssec,
@@ -134,5 +169,22 @@ class DnsAuditService
         return array_map(function (array $item) {
             return array_filter($item, fn ($v) => !is_array($v) && $v !== null);
         }, $items);
+    }
+
+    private function uniqueRecords(array $items): array
+    {
+        $seen = [];
+        $result = [];
+
+        foreach ($items as $item) {
+            $key = md5(json_encode($item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $result[] = $item;
+        }
+
+        return $result;
     }
 }
