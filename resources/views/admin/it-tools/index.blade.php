@@ -113,15 +113,31 @@ document.getElementById('bulk-import').addEventListener('click', async () => {
     } catch (error) { info.textContent = 'Import failed: '+error.message; }
 });
 
+function statusLabel(online, status) {
+    if (online) return 'ONLINE';
+    if (status) return 'UNREACHABLE';
+    return 'OFFLINE';
+}
+
 function renderAudit(target, data) {
     const d=data.domain_audit||{}, s=data.ssl_audit||{}, w=data.website_audit||{}, i=data.ip_audit||{}, e=data.email_audit||{}, dns=data.dns_audit||{};
+    const https=w.https||{};
+    const nsCount=(dns.records?.NS||[]).length;
+    const aCount=(dns.records?.A||[]).length;
+    const aaaaCount=(dns.records?.AAAA||[]).length;
+    const mxCount=(dns.records?.MX||[]).length;
+    const dnsLabel=dns.dns_provider || (nsCount ? 'Unknown provider' : 'No NS records');
+    const ipProvider=i.organization || i.provider || 'Provider unavailable';
+    const domainExpiry=d.expires_at || (d.status === 'unavailable' ? 'Registry data unavailable' : 'N/A');
+    const domainDays=d.days_remaining ?? 'N/A';
+
     target.innerHTML = `<div class="grid">
-        <div class="card"><div class="muted">Domain Expiry</div><h3>${esc(d.expires_at || 'N/A')}</h3><div>${esc(d.days_remaining ?? 'N/A')} days</div></div>
+        <div class="card"><div class="muted">Domain Expiry</div><h3>${esc(domainExpiry)}</h3><div>${esc(domainDays)}${typeof domainDays === 'number' ? ' days' : ''}</div></div>
         <div class="card"><div class="muted">SSL</div><h3>${esc(s.vendor || 'N/A')}</h3><div>${esc(s.valid_to || 'N/A')} · ${esc(s.days_remaining ?? 'N/A')} days</div></div>
-        <div class="card"><div class="muted">Website</div><h3>${w.https?.online ? 'ONLINE':'OFFLINE'}</h3><div>HTTPS ${esc(w.https?.status || '—')} · ${esc(w.https?.response_time_ms ?? '—')} ms</div></div>
-        <div class="card"><div class="muted">IP / Provider</div><h3>${esc(i.ip || 'N/A')}</h3><div>${esc(i.organization || i.provider || 'N/A')}</div></div>
-        <div class="card"><div class="muted">Email</div><h3>${esc(e.provider || 'N/A')}</h3><div>SPF ${e.spf_present ? 'PASS':'MISSING'} · DMARC ${e.dmarc_present ? 'PASS':'MISSING'}</div></div>
-        <div class="card"><div class="muted">DNS</div><h3>${esc(dns.dns_provider || 'N/A')}</h3><div>${esc((dns.records?.A || []).length)} IPv4 records</div></div>
+        <div class="card"><div class="muted">Website</div><h3>${statusLabel(https.online, https.status)}</h3><div>HTTPS ${esc(https.status ?? '—')} · ${esc(https.response_time_ms ?? '—')} ms${https.transport_verified === false ? ' · TLS transport unverified' : ''}</div></div>
+        <div class="card"><div class="muted">IP / Provider</div><h3>${esc(i.ip || 'N/A')}</h3><div>${esc(ipProvider)}</div></div>
+        <div class="card"><div class="muted">Email</div><h3>${esc(e.provider || 'Unknown provider')}</h3><div>SPF ${e.spf_present ? 'PASS':'MISSING'} · DMARC ${e.dmarc_present ? 'PASS':'MISSING'}</div></div>
+        <div class="card"><div class="muted">DNS</div><h3>${esc(dnsLabel)}</h3><div>${aCount} IPv4 · ${aaaaCount} IPv6 · ${nsCount} NS · ${mxCount} MX</div></div>
     </div>
     <div class="card" style="margin-top:20px"><h3>Audit JSON</h3><pre style="white-space:pre-wrap">${esc(JSON.stringify(data,null,2))}</pre></div>`;
 }
