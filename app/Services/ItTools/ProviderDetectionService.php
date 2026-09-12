@@ -8,29 +8,35 @@ class ProviderDetectionService
 {
     public function detect(string $domain, array $dns = [], array $website = [], ?array $ipAudit = null): array
     {
-        $signals = [];
         $ns = collect(data_get($dns, 'records.NS', []))->pluck('target')->map('strtolower')->all();
         $a = collect(data_get($dns, 'records.A', []))->pluck('ip')->filter()->values()->all();
-        $headers = collect($website)->flatten(1);
         $server = collect($website)->pluck('server')->filter()->implode(' ');
         $finalUrls = collect($website)->pluck('final_url')->filter()->implode(' ');
 
         $provider = $this->match($ns, $a, $server, $finalUrls);
         $cdn = $provider;
         $waf = $this->detectWaf($website, $ns, $server);
+        $network = $ipAudit['network'] ?? null;
+        $organization = $ipAudit['organization'] ?? null;
+        $ipProvider = $ipAudit['provider'] ?? null;
 
         return [
             'domain' => strtolower(trim($domain)),
             'dns_provider' => $this->dnsProvider($ns),
             'cdn' => $cdn,
             'waf' => $waf,
-            'hosting_provider' => $ipAudit['provider'] ?? ($ipAudit['organization'] ?? null),
+            // Network is a better infrastructure label than an individual
+            // registry contact when the RDAP response contains both.
+            'hosting_provider' => $network ?: $ipProvider ?: $organization,
             'signals' => [
                 'nameservers' => $ns,
                 'a_records' => $a,
                 'server_headers' => $server,
                 'final_urls' => $finalUrls,
-                'ip_provider' => $ipAudit['provider'] ?? null,
+                'ip_provider' => $ipProvider,
+                'ip_organization' => $organization,
+                'ip_network' => $network,
+                'ip_asn' => $ipAudit['asn'] ?? null,
             ],
         ];
     }
