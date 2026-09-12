@@ -7,8 +7,8 @@ class IpScannerService
     private const MAX_HOSTS = 256;
     private const MAX_CUSTOM_PORTS = 50;
     private const PROBE_PORTS = [80, 443, 22];
-    private const CONNECT_TIMEOUT = 0.25;
-    private const BATCH_SIZE = 128;
+    private const CONNECT_TIMEOUT = 0.05;
+    private const BATCH_SIZE = 256;
 
     public function scan(string $range, array $ports = [], bool $allPorts = false): array
     {
@@ -101,13 +101,17 @@ class IpScannerService
     private function scanIp(string $ip, array $ports, bool $allPorts): array
     {
         $started = microtime(true);
-        $probe = $allPorts ? ['online' => false, 'latency_ms' => null] : $this->probe($ip);
         $open = $this->scanPorts($ip, $ports);
+        $latency = $open !== [] ? round((microtime(true) - $started) * 1000, 1) : null;
+        $online = $open !== [];
 
-        $online = $probe['online'] || $open !== [];
-        $latency = $probe['latency_ms'];
-        if ($latency === null && $online) {
-            $latency = round((microtime(true) - $started) * 1000, 1);
+        if (!$online && !$allPorts) {
+            $probeStarted = microtime(true);
+            $probe = $this->scanPorts($ip, self::PROBE_PORTS);
+            if ($probe !== []) {
+                $online = true;
+                $latency = round((microtime(true) - $probeStarted) * 1000, 1);
+            }
         }
 
         $ptr = $this->reverseDns($ip);
@@ -124,22 +128,6 @@ class IpScannerService
         ];
     }
 
-    private function probe(string $ip): array
-    {
-        $started = microtime(true);
-        $open = $this->scanPorts($ip, self::PROBE_PORTS);
-
-        return [
-            'online' => $open !== [],
-            'latency_ms' => $open !== [] ? round((microtime(true) - $started) * 1000, 1) : null,
-        ];
-    }
-
-    /**
-     * Probe TCP ports concurrently in small batches. This avoids the old
-     * one-port-at-a-time timeout which could make a /24 scan hit the proxy
-     * or PHP-FPM request timeout.
-     */
     private function scanPorts(string $ip, array $ports): array
     {
         $open = [];
@@ -167,20 +155,17 @@ class IpScannerService
                 continue;
             }
 
-            $deadline = microtime(true) + self::CONNECT_TIMEOUT + 0.15;
+            $deadline = microtime(true) + self::CONNECT_TIMEOUT + 0.05;
             while ($sockets && microtime(true) < $deadline) {
                 $write = array_map(fn ($item) => $item['socket'], array_values($sockets));
                 $except = $write;
                 $read = [];
-                $seconds = max(0, $deadline - microtime(true));
-                $sec = (int) floor($seconds);
-                $usec = (int) (($seconds - $sec) * 1_000_000);
-
+                $remaining = max(0, $deadline - microtime(true));
+                $sec = (int) floor($remaining);
+                $usec = (int) (($remaining - $sec) * 1000000);
                 $changed = @stream_select($read, $write, $except, $sec, $usec);
-                if ($changed === false) {
-                    break;
-                }
-                if ($changed === 0) {
+
+                if ($changed === false || $changed === 0) {
                     break;
                 }
 
@@ -189,13 +174,14 @@ class IpScannerService
                     if (!isset($sockets[$id])) {
                         continue;
                     }
-                    $port = $sockets[$id]['port'];
                     $meta = @stream_get_meta_data($socket);
-                    $timedOut = microtime(true) >= $deadline;
-                    if (in_array($socket, $write, true) && !$timedOut && !($meta['timed_out'] ?? false)) {
-                        $open[] = ['port' => $port, 'service' => $this->serviceName($port)];
+                    if (in_array($socket, $write, true) && !in_array($socket, $except, true) && !($meta['timed_out'] ?? false)) {
+                        $open[] = [
+                            'port' => $sockets[$id]['port'],
+                            'service' => $this->serviceName($sockets[$id]['port']),
+                        ];
                     }
-                    fclose($socket);
+                    @fclose($socket);
                     unset($sockets[$id]);
                 }
             }
