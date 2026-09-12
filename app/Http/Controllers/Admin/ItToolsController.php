@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ItTools\AuditExcelService;
 use App\Services\ItTools\BulkAuditService;
 use App\Services\ItTools\InternetAssetAuditService;
+use App\Services\ItTools\PortCheckService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -16,6 +17,18 @@ class ItToolsController extends Controller
     public function index()
     {
         return view('admin.it-tools.check-domain');
+    }
+
+    public function portCheck(Request $request, PortCheckService $ports)
+    {
+        $data = $request->validate([
+            'host' => ['required', 'string', 'max:253'],
+            'ports' => ['required', 'array', 'min:1', 'max:30'],
+            'ports.*' => ['integer', 'between:1,65535'],
+        ]);
+
+        $portList = collect($data['ports'])->map(fn ($port) => (int) $port)->unique()->take(30)->values()->all();
+        return response()->json($ports->check($data['host'], $portList));
     }
 
     public function audit(Request $request, InternetAssetAuditService $audit)
@@ -62,8 +75,6 @@ class ItToolsController extends Controller
         $filename = 'it-tools-check-domain-' . now()->format('Ymd-His') . '.xlsx';
 
         try {
-            // Build the workbook from the rows currently displayed in the Check Domain UI.
-            // Do not write to storage and do not read audit history/database records.
             $spreadsheet = $excel->outputRows($data['rows']);
             $writer = new Xlsx($spreadsheet);
             $writer->setPreCalculateFormulas(false);
