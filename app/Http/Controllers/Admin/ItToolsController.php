@@ -97,7 +97,7 @@ class ItToolsController extends Controller
     {
         $domain = $request->input('domain');
         $filename = 'it-tool-audits-' . now()->format('Ymd-His') . '.xlsx';
-        $directory = storage_path('app/it-tools-exports');
+        $directory = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'it-tools-exports';
         $path = $directory . DIRECTORY_SEPARATOR . $filename;
 
         try {
@@ -108,9 +108,6 @@ class ItToolsController extends Controller
                 throw new \RuntimeException('IT Tools export directory is not writable.');
             }
 
-            // PhpSpreadsheet keeps the workbook in memory while writing. Keep the export
-            // bounded to the same history window shown by the application and avoid
-            // generating an unbounded workbook during an HTTP request.
             $limit = min(max((int) $request->input('limit', 1000), 1), 1000);
             $excel->setExportLimit($limit);
             $writer = $excel->output($domain);
