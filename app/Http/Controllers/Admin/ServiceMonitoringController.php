@@ -10,6 +10,11 @@ use Illuminate\Http\Request;
 
 class ServiceMonitoringController extends Controller
 {
+    public function index()
+    {
+        return $this->dashboard();
+    }
+
     public function dashboard()
     {
         $base = Service::query();
