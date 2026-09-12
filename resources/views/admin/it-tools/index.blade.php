@@ -16,18 +16,16 @@
 .it-bulk-table tbody tr:hover td{background:#eef6fb}
 .it-bulk-table td.wrap{white-space:normal;min-width:180px;max-width:360px;word-break:break-word;line-height:1.35}
 .it-bulk-table th:first-child,.it-bulk-table td:first-child{position:sticky;left:0;z-index:6;min-width:160px}
-.it-bulk-table th:nth-child(2),.it-bulk-table td:nth-child(2){position:sticky;left:160px;z-index:6;min-width:90px}
+.it-bulk-table th:nth-child(2),.it-bulk-table td:nth-child(2){position:sticky;left:160px;z-index:6;min-width:150px}
 .it-bulk-table thead tr.header-row th:first-child,.it-bulk-table thead tr.header-row th:nth-child(2){background:#e7eef4}
 .it-bulk-table tbody td:first-child,.it-bulk-table tbody td:nth-child(2){background:#fff}
 .it-bulk-table tbody tr:nth-child(even) td:first-child,.it-bulk-table tbody tr:nth-child(even) td:nth-child(2){background:#fbfcfd}
 .it-bulk-table td.status-ok{font-weight:700;text-align:center}
 .it-bulk-table td.status-error{font-weight:700;text-align:center}
 .it-bulk-table .status-online{font-weight:700}
-.it-bulk-table .status-pass{font-weight:700}
 .it-bulk-section-title{margin:0 0 4px}
 .it-bulk-meta{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
 .it-bulk-pill{display:inline-flex;align-items:center;padding:4px 9px;border:1px solid #d7e0e8;border-radius:999px;background:#f8fafc;font-size:12px}
-.it-bulk-table .muted-cell{color:#718096}
 </style>
 
 <div class="card">
@@ -78,12 +76,6 @@ async function requestAudit(item){
  return data;
 }
 
-function securityHeaderSummary(headers){
- if(!headers||typeof headers!=='object')return'—';
- const keys=Object.keys(headers).filter(k=>headers[k]);
- return keys.length?keys.join(', '):'None';
-}
-
 function serviceSummary(services){
  const rows=Array.isArray(services?.services)?services.services:[];
  if(!rows.length)return{checked:services?.checked_hosts??0,online:0,dnsOnly:0,notFound:0,summary:'—'};
@@ -97,7 +89,7 @@ function bulkValue(item){
  const a=item.audit||{},d=a.domain_audit||{},s=a.ssl_audit||{},wa=a.website_audit||{},http=wa.http||{},https=wa.https||{},i=a.ip_audit||{},e=a.email_audit||{},dns=a.dns_audit||{},p=a.provider_detection||{},sv=serviceSummary(a.service_discovery||{});
  const records=dns.records||{};
  return {
-  domain:item.domain,status:item.status==='ok'?'OK':'ERROR',
+  checkedAt:a.checked_at||'—',domain:item.domain,wanIp:item.wan_ip||a.wan_ip_supplied||'—',status:item.status==='ok'?'OK':'ERROR',duration:a.duration_ms??'—',
   domainExpiry:d.expires_at||'N/A',domainDays:formatDays(d.days_remaining),domainSource:d.source||'—',
   http:http.status??'—',httpOnline:boolLabel(http.online),httpUrl:http.final_url||'—',httpResponse:http.response_time_ms??'—',httpType:http.content_type||'—',httpServer:http.server||'—',httpHsts:boolLabel(http.hsts),
   https:https.status??'—',httpsOnline:boolLabel(https.online),httpsUrl:https.final_url||'—',httpsResponse:https.response_time_ms??'—',httpsType:https.content_type||'—',httpsServer:https.server||'—',httpsHsts:boolLabel(https.hsts),transport:boolLabel(https.transport_verified),
@@ -113,17 +105,17 @@ function bulkValue(item){
 function bulkResultRow(item){
  const v=bulkValue(item),ok=v.status==='OK';
  const td=(value,cls='')=>`<td class="${cls}">${esc(value)}</td>`;
- return `<tr>${td(v.domain)}${td(v.status,ok?'status-ok':'status-error')}${td(v.domainExpiry)}${td(v.domainDays)}${td(v.domainSource)}${td(v.http)}${td(v.httpOnline,v.httpOnline==='YES'?'status-online':'')}${td(v.httpUrl,'wrap')}${td(v.httpResponse)}${td(v.httpType)}${td(v.httpServer)}${td(v.httpHsts)}${td(v.https)}${td(v.httpsOnline,v.httpsOnline==='YES'?'status-online':'')}${td(v.httpsUrl,'wrap')}${td(v.httpsResponse)}${td(v.httpsType)}${td(v.httpsServer)}${td(v.httpsHsts)}${td(v.transport)}${td(v.sslVendor)}${td(v.sslSubject,'wrap')}${td(v.sslIssuer,'wrap')}${td(v.sslFrom)}${td(v.sslExpiry)}${td(v.sslDays)}${td(v.hostname)}${td(v.tls)}${td(v.cipher)}${td(v.san,'wrap')}${td(v.resolvedIpv4,'wrap')}${td(v.ip)}${td(v.asn)}${td(v.network)}${td(v.organization,'wrap')}${td(v.ipProvider)}${td(v.dnsProvider)}${td(v.nameservers,'wrap')}${td(v.dnssec)}${td(v.ipv4)}${td(v.ipv6)}${td(v.ns)}${td(v.mx)}${td(v.dnsTypes)}${td(v.dnsRecordCount)}${td(v.mail)}${td(v.spf,'wrap')}${td(v.dmarc,'wrap')}${td(v.dkim,'wrap')}${td(v.mta)}${td(v.tlsRpt)}${td(v.cdn)}${td(v.waf)}${td(v.hosting)}${td(v.servicesChecked)}${td(v.servicesOnline)}${td(v.servicesDnsOnly)}${td(v.servicesNotFound)}${td(v.serviceSummary,'wrap')}${td(v.error,'wrap')}</tr>`;
+ return `<tr>${td(v.checkedAt)}${td(v.domain)}${td(v.wanIp)}${td(v.status,ok?'status-ok':'status-error')}${td(v.duration)}${td(v.domainExpiry)}${td(v.domainDays)}${td(v.domainSource)}${td(v.http)}${td(v.httpOnline,v.httpOnline==='YES'?'status-online':'')}${td(v.httpUrl,'wrap')}${td(v.httpResponse)}${td(v.httpType)}${td(v.httpServer)}${td(v.httpHsts)}${td(v.https)}${td(v.httpsOnline,v.httpsOnline==='YES'?'status-online':'')}${td(v.httpsUrl,'wrap')}${td(v.httpsResponse)}${td(v.httpsType)}${td(v.httpsServer)}${td(v.httpsHsts)}${td(v.transport)}${td(v.sslVendor)}${td(v.sslSubject,'wrap')}${td(v.sslIssuer,'wrap')}${td(v.sslFrom)}${td(v.sslExpiry)}${td(v.sslDays)}${td(v.hostname)}${td(v.tls)}${td(v.cipher)}${td(v.san,'wrap')}${td(v.resolvedIpv4,'wrap')}${td(v.ip)}${td(v.asn)}${td(v.network)}${td(v.organization,'wrap')}${td(v.ipProvider)}${td(v.dnsProvider)}${td(v.nameservers,'wrap')}${td(v.dnssec)}${td(v.ipv4)}${td(v.ipv6)}${td(v.ns)}${td(v.mx)}${td(v.dnsTypes)}${td(v.dnsRecordCount)}${td(v.mail)}${td(v.spf,'wrap')}${td(v.dmarc,'wrap')}${td(v.dkim,'wrap')}${td(v.mta)}${td(v.tlsRpt)}${td(v.cdn)}${td(v.waf)}${td(v.hosting)}${td(v.servicesChecked)}${td(v.servicesOnline)}${td(v.servicesDnsOnly)}${td(v.servicesNotFound)}${td(v.serviceSummary,'wrap')}${td(v.error,'wrap')}</tr>`;
 }
 
 function renderBulkResults(target,results,total,progress){
  const groups=[
-  ['Audit',2,'g-audit'],['Domain',3,'g-domain'],['Website / HTTP',7,'g-web'],['Website / HTTPS',8,'g-web'],['SSL / TLS',10,'g-ssl'],['IP / Hosting',6,'g-ip'],['DNS Summary',8,'g-dns'],['Email Security',6,'g-mail'],['Provider / Service Discovery',8,'g-provider'],['Error',1,'g-error']
+  ['Audit',5,'g-audit'],['Domain',3,'g-domain'],['Website / HTTP',7,'g-web'],['Website / HTTPS',8,'g-web'],['SSL / TLS',10,'g-ssl'],['IP / Hosting',6,'g-ip'],['DNS Summary',9,'g-dns'],['Email Security',6,'g-mail'],['Provider / Service Discovery',8,'g-provider'],['Error',1,'g-error']
  ];
- const headers=['Domain','Status','Domain Expiry','Domain Days','Domain Source','HTTP Status','HTTP Online','HTTP Final URL','HTTP Response ms','HTTP Content-Type','HTTP Server','HTTP HSTS','HTTPS Status','HTTPS Online','HTTPS Final URL','HTTPS Response ms','HTTPS Content-Type','HTTPS Server','HTTPS HSTS','TLS Transport Verified','SSL Vendor','SSL Subject','SSL Issuer','SSL Valid From','SSL Expiry','SSL Days','Hostname Match','TLS Version','Cipher','SAN','Resolved IPv4','Primary IP','ASN','Network','Organization','IP Provider','DNS Provider','Nameservers','DNSSEC','IPv4 Count','IPv6 Count','NS Count','MX Count','DNS Record Types','DNS Record Count','Mail Provider','SPF','DMARC','DKIM','MTA-STS','TLS-RPT','CDN','WAF','Hosting Provider','Services Checked','Services Online','Services DNS Only','Services Not Found','Service Summary','Error'];
+ const headers=['Checked At','Domain','WAN IP','Status','Duration ms','Domain Expiry','Domain Days','Domain Source','HTTP Status','HTTP Online','HTTP Final URL','HTTP Response ms','HTTP Content-Type','HTTP Server','HTTP HSTS','HTTPS Status','HTTPS Online','HTTPS Final URL','HTTPS Response ms','HTTPS Content-Type','HTTPS Server','HTTPS HSTS','TLS Transport Verified','SSL Vendor','SSL Subject','SSL Issuer','SSL Valid From','SSL Expiry','SSL Days','Hostname Match','TLS Version','Cipher','SAN','Resolved IPv4','Primary IP','ASN','Network','Organization','IP Provider','DNS Provider','Nameservers','DNSSEC','IPv4 Count','IPv6 Count','NS Count','MX Count','DNS Record Types','DNS Record Count','Mail Provider','SPF','DMARC','DKIM','MTA-STS','TLS-RPT','CDN','WAF','Hosting Provider','Services Checked','Services Online','Services DNS Only','Services Not Found','Service Summary','Error'];
  const groupCells=groups.map(g=>`<th colspan="${g[1]}" class="${g[2]}">${esc(g[0])}</th>`).join('');
  const rows=results.map(bulkResultRow).join('');
- target.innerHTML=`<div class="card"><h3 class="it-bulk-section-title">Bulk Result</h3><div class="it-bulk-meta"><span class="it-bulk-pill"><strong>${results.length}</strong>&nbsp;/&nbsp;${total} completed</span><span class="it-bulk-pill">Progress: ${progress}%</span><span class="it-bulk-pill">DNS: summary only</span></div><div class="it-bulk-progress"><div style="width:${progress}%"></div></div><div class="it-bulk-table-wrap"><table class="it-bulk-table"><thead><tr class="group-row">${groupCells}</tr><tr class="header-row">${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p class="muted" style="margin-top:10px">Bulk Summary contains the same audit categories as Single Domain Audit. Individual DNS records are intentionally omitted; DNS counts, provider, nameservers, DNSSEC and record types are summarized.</p></div>`;
+ target.innerHTML=`<div class="card"><h3 class="it-bulk-section-title">Bulk Result</h3><div class="it-bulk-meta"><span class="it-bulk-pill"><strong>${results.length}</strong>&nbsp;/&nbsp;${total} completed</span><span class="it-bulk-pill">Progress: ${progress}%</span><span class="it-bulk-pill">DNS: summary only</span></div><div class="it-bulk-progress"><div style="width:${progress}%"></div></div><div class="it-bulk-table-wrap"><table class="it-bulk-table"><thead><tr class="group-row">${groupCells}</tr><tr class="header-row">${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p class="muted" style="margin-top:10px">Bulk Summary uses the same audit categories as Single Domain Audit. Individual DNS records are intentionally omitted; DNS provider, nameservers, DNSSEC, counts and record types are summarized.</p></div>`;
 }
 
 async function runBulk(items){
