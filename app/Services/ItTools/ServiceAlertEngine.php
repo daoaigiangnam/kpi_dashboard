@@ -11,7 +11,7 @@ class ServiceAlertEngine
 {
     public function evaluate(Service $service): ?ServiceAlertEvent
     {
-        if (!(bool) $service->is_active) {
+        if ($service->status !== 'active') {
             return null;
         }
 
