@@ -7,6 +7,8 @@ class IpScannerService
     private const MAX_HOSTS = 256;
     private const MAX_CUSTOM_PORTS = 50;
     private const PROBE_PORTS = [80, 443, 22];
+    private const CONNECT_TIMEOUT = 0.25;
+    private const BATCH_SIZE = 128;
 
     public function scan(string $range, array $ports = [], bool $allPorts = false): array
     {
@@ -47,7 +49,7 @@ class IpScannerService
                 throw new \InvalidArgumentException('IPv4 CIDR must be between /24 and /32.');
             }
             $base = ip2long($network);
-            $mask = $prefix === 0 ? 0 : (-1 << (32 - $prefix));
+            $mask = -1 << (32 - $prefix);
             $networkLong = $base & $mask;
             $count = 1 << (32 - $prefix);
             $ips = [];
@@ -82,69 +84,129 @@ class IpScannerService
 
     private function normalizePorts(array $ports): array
     {
-        $ports = collect($ports)->map(fn ($p) => (int) $p)->filter(fn ($p) => $p >= 1 && $p <= 65535)->unique()->values()->all();
+        $ports = collect($ports)
+            ->map(fn ($p) => (int) $p)
+            ->filter(fn ($p) => $p >= 1 && $p <= 65535)
+            ->unique()
+            ->values()
+            ->all();
+
         if (!$ports || count($ports) > self::MAX_CUSTOM_PORTS) {
             throw new \InvalidArgumentException('Select 1 to 50 TCP ports.');
         }
+
         return $ports;
     }
 
     private function scanIp(string $ip, array $ports, bool $allPorts): array
     {
         $started = microtime(true);
-        $probe = $allPorts ? [] : $this->probe($ip);
-        $open = [];
-        $checked = 0;
+        $probe = $allPorts ? ['online' => false, 'latency_ms' => null] : $this->probe($ip);
+        $open = $this->scanPorts($ip, $ports);
 
-        foreach ($ports as $port) {
-            $checked++;
-            if ($this->isOpen($ip, $port)) {
-                $open[] = [
-                    'port' => $port,
-                    'service' => $this->serviceName($port),
-                ];
-            }
-        }
-
-        $online = $allPorts ? ($open !== []) : ($probe['online'] || $open !== []);
-        $latency = $probe['latency_ms'] ?? null;
+        $online = $probe['online'] || $open !== [];
+        $latency = $probe['latency_ms'];
         if ($latency === null && $online) {
             $latency = round((microtime(true) - $started) * 1000, 1);
         }
+
+        $ptr = $this->reverseDns($ip);
 
         return [
             'ip' => $ip,
             'status' => $online ? 'online' : 'offline',
             'response_time_ms' => $latency,
-            'ptr' => $this->reverseDns($ip),
-            'hostname' => $this->reverseDns($ip),
+            'ptr' => $ptr,
+            'hostname' => $ptr,
             'open_ports' => $open,
             'open_port_count' => count($open),
-            'checked_ports' => $checked,
+            'checked_ports' => count($ports),
         ];
     }
 
     private function probe(string $ip): array
     {
-        foreach (self::PROBE_PORTS as $port) {
-            $started = microtime(true);
-            if ($this->isOpen($ip, $port)) {
-                return ['online' => true, 'latency_ms' => round((microtime(true) - $started) * 1000, 1)];
-            }
-        }
-        return ['online' => false, 'latency_ms' => null];
+        $started = microtime(true);
+        $open = $this->scanPorts($ip, self::PROBE_PORTS);
+
+        return [
+            'online' => $open !== [],
+            'latency_ms' => $open !== [] ? round((microtime(true) - $started) * 1000, 1) : null,
+        ];
     }
 
-    private function isOpen(string $ip, int $port): bool
+    /**
+     * Probe TCP ports concurrently in small batches. This avoids the old
+     * one-port-at-a-time timeout which could make a /24 scan hit the proxy
+     * or PHP-FPM request timeout.
+     */
+    private function scanPorts(string $ip, array $ports): array
     {
-        $errno = 0;
-        $error = '';
-        $stream = @stream_socket_client('tcp://' . (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $ip . ']' : $ip) . ':' . $port, $errno, $error, 0.35, STREAM_CLIENT_CONNECT);
-        if (is_resource($stream)) {
-            fclose($stream);
-            return true;
+        $open = [];
+        foreach (array_chunk($ports, self::BATCH_SIZE) as $batch) {
+            $sockets = [];
+            foreach ($batch as $port) {
+                $errno = 0;
+                $error = '';
+                $address = 'tcp://' . (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $ip . ']' : $ip) . ':' . $port;
+                $socket = @stream_socket_client(
+                    $address,
+                    $errno,
+                    $error,
+                    self::CONNECT_TIMEOUT,
+                    STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_CONNECT
+                );
+
+                if (is_resource($socket)) {
+                    stream_set_blocking($socket, false);
+                    $sockets[(int) $socket] = ['socket' => $socket, 'port' => $port];
+                }
+            }
+
+            if (!$sockets) {
+                continue;
+            }
+
+            $deadline = microtime(true) + self::CONNECT_TIMEOUT + 0.15;
+            while ($sockets && microtime(true) < $deadline) {
+                $write = array_map(fn ($item) => $item['socket'], array_values($sockets));
+                $except = $write;
+                $read = [];
+                $seconds = max(0, $deadline - microtime(true));
+                $sec = (int) floor($seconds);
+                $usec = (int) (($seconds - $sec) * 1_000_000);
+
+                $changed = @stream_select($read, $write, $except, $sec, $usec);
+                if ($changed === false) {
+                    break;
+                }
+                if ($changed === 0) {
+                    break;
+                }
+
+                foreach (array_merge($write, $except) as $socket) {
+                    $id = (int) $socket;
+                    if (!isset($sockets[$id])) {
+                        continue;
+                    }
+                    $port = $sockets[$id]['port'];
+                    $meta = @stream_get_meta_data($socket);
+                    $timedOut = microtime(true) >= $deadline;
+                    if (in_array($socket, $write, true) && !$timedOut && !($meta['timed_out'] ?? false)) {
+                        $open[] = ['port' => $port, 'service' => $this->serviceName($port)];
+                    }
+                    fclose($socket);
+                    unset($sockets[$id]);
+                }
+            }
+
+            foreach ($sockets as $item) {
+                @fclose($item['socket']);
+            }
         }
-        return false;
+
+        usort($open, fn ($a, $b) => $a['port'] <=> $b['port']);
+        return $open;
     }
 
     private function reverseDns(string $ip): ?string
