@@ -60,34 +60,14 @@ class ItToolsController extends Controller
         ]);
 
         $filename = 'it-tools-check-domain-' . now()->format('Ymd-His') . '.xlsx';
-        $directory = storage_path('app/it-tools-exports');
-        $path = $directory . DIRECTORY_SEPARATOR . $filename;
 
         try {
-            if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
-                throw new \RuntimeException('Unable to create IT Tools export directory.');
-            }
-            if (! is_writable($directory)) {
-                throw new \RuntimeException('IT Tools export directory is not writable.');
-            }
-
+            // Build the workbook from the rows currently displayed in the Check Domain UI.
+            // Do not write to storage and do not read audit history/database records.
             $spreadsheet = $excel->outputRows($data['rows']);
             $writer = new Xlsx($spreadsheet);
             $writer->setPreCalculateFormulas(false);
-            $writer->save($path);
-
-            if (! is_file($path) || filesize($path) < 100) {
-                throw new \RuntimeException('Excel file was not generated correctly.');
-            }
-
-            return response()->download($path, $filename, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Length' => (string) filesize($path),
-                'Cache-Control' => 'no-store, no-cache, must-revalidate',
-                'Pragma' => 'no-cache',
-            ])->deleteFileAfterSend(true);
         } catch (\Throwable $e) {
-            if (is_file($path)) @unlink($path);
             Log::error('IT Tools Excel export failed', [
                 'row_count' => count($data['rows']),
                 'exception' => get_class($e),
@@ -97,5 +77,13 @@ class ItToolsController extends Controller
             ]);
             abort(500, 'IT Tools Excel export failed: ' . $e->getMessage());
         }
+
+        return response()->streamDownload(function () use ($writer): void {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+        ]);
     }
 }
