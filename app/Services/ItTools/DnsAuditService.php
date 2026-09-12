@@ -8,7 +8,6 @@ class DnsAuditService
     {
         $domain = strtolower(trim($domain));
         $records = [];
-
         $types = [
             'A' => DNS_A,
             'AAAA' => DNS_AAAA,
@@ -18,11 +17,26 @@ class DnsAuditService
             'TXT' => DNS_TXT,
             'SOA' => DNS_SOA,
             'CAA' => DNS_CAA,
-            'HINFO' => DNS_HINFO,
-            'MINFO' => DNS_MINFO,
-            'SRV' => DNS_SRV,
-            'NAPTR' => DNS_NAPTR,
         ];
+
+        foreach ([
+            'HINFO' => 'DNS_HINFO',
+            'MINFO' => 'DNS_MINFO',
+            'SRV' => 'DNS_SRV',
+            'NAPTR' => 'DNS_NAPTR',
+            'SSHFP' => 'DNS_SSHFP',
+            'TLSA' => 'DNS_TLSA',
+            'SVCB' => 'DNS_SVCB',
+            'HTTPS' => 'DNS_HTTPS',
+            'RP' => 'DNS_RP',
+            'LOC' => 'DNS_LOC',
+            'DS' => 'DNS_DS',
+            'DNSKEY' => 'DNS_DNSKEY',
+        ] as $name => $constant) {
+            if (defined($constant)) {
+                $types[$name] = constant($constant);
+            }
+        }
 
         foreach ($types as $name => $type) {
             $records[$name] = $this->normalize(@dns_get_record($domain, $type) ?: []);
@@ -34,19 +48,20 @@ class DnsAuditService
             ->values();
 
         $ns = $records['NS'] ?? [];
-        $dnsProvider = $this->inferDnsProvider($ns);
+        $dnsProvider = $this->inferDnsProvider($ns, $records['SOA'] ?? []);
+        $dnssec = !empty($records['DS'] ?? []) || !empty($records['DNSKEY'] ?? []);
 
         return [
             'domain' => $domain,
             'records' => $records,
-            'record_types_checked' => array_keys($records),
+            'record_types_checked' => array_keys($types),
             'spf' => $txt->first(fn ($v) => str_starts_with(strtolower($v), 'v=spf1')),
             'dmarc' => $this->lookupTxt('_dmarc.' . $domain),
-            'dnssec' => defined('DNS_DNSKEY') && !empty(@dns_get_record($domain, DNS_DNSKEY)),
+            'dnssec' => $dnssec,
             'email_provider' => $this->inferMailProvider($records['MX'] ?? []),
             'dns_provider' => $dnsProvider,
-            'dns_provider_source' => $dnsProvider ? 'NS' : null,
-            'dns_nameservers' => collect($ns)->pluck('target')->filter()->map('strtolower')->unique()->values()->all(),
+            'dns_provider_source' => $dnsProvider ? 'NS/SOA' : null,
+            'dns_nameservers' => collect($ns)->pluck('target')->filter()->map(fn ($v) => rtrim(strtolower($v), '.'))->unique()->values()->all(),
         ];
     }
 
@@ -76,15 +91,21 @@ class DnsAuditService
         return null;
     }
 
-    private function inferDnsProvider(array $ns): ?string
+    private function inferDnsProvider(array $ns, array $soa): ?string
     {
-        $hosts = collect($ns)->pluck('target')->implode(' ');
-        $normalized = strtolower($hosts);
+        $nsHosts = collect($ns)->pluck('target')->filter()->map(fn ($v) => rtrim(strtolower($v), '.'));
+        $soaHosts = collect($soa)->flatMap(fn ($row) => [
+            $row['mname'] ?? null,
+            $row['rname'] ?? null,
+        ])->filter()->map(fn ($v) => rtrim(strtolower($v), '.'));
+        $normalized = $nsHosts->merge($soaHosts)->implode(' ');
+
         $providers = [
+            'P.A. Viet Nam / DOTVNDNS' => ['dotvndns.vn', 'dotvndns.com', 'pavietnam.vn', 'pavietnam.com'],
             'MATBAO' => ['matbao.vn', 'matbao.com'],
             'Cloudflare' => ['cloudflare.com'],
             'AWS Route 53' => ['awsdns-'],
-            'Google Cloud DNS' => ['googledomains.com', 'google.com'],
+            'Google Cloud DNS' => ['googledomains.com'],
             'Azure DNS' => ['azure-dns.com'],
             'Akamai Edge DNS' => ['akamaiedge.net', 'akam.net'],
             'DigitalOcean DNS' => ['digitalocean.com'],
@@ -96,15 +117,15 @@ class DnsAuditService
             'NS1' => ['nsone.net'],
             'Bunny DNS' => ['bunny.net'],
             'Hurricane Electric DNS' => ['he.net'],
-            'PA Vietnam' => ['pavietnam.vn'],
-            'DotVNDNS' => ['dotvndns.vn', 'dotvndns.com'],
         ];
+
         foreach ($providers as $name => $needles) {
             foreach ($needles as $needle) {
                 if (str_contains($normalized, strtolower($needle))) return $name;
             }
         }
-        $firstNs = collect($ns)->pluck('target')->filter()->map(fn ($v) => rtrim(strtolower($v), '.'))->first();
+
+        $firstNs = $nsHosts->first();
         return $firstNs ? 'Authoritative DNS: ' . $firstNs : null;
     }
 
