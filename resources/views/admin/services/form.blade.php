@@ -23,7 +23,7 @@
 <script>
 (function(){
  const type=document.getElementById('service_type_id'), term=document.getElementById('service_term_months'), expiry=document.getElementById('expiry_date'), policy=document.getElementById('alert_policy_id');
- const currentTerm='{{ old('service_term_months',$service->service_term_months) }}', currentPolicy='{{ old('alert_policy_id',$service->alert_policy_id) }}';
+ let currentTerm='{{ old('service_term_months',$service->service_term_months) }}', currentPolicy='{{ old('alert_policy_id',$service->alert_policy_id) }}';
  function refresh(){
    const opt=type.options[type.selectedIndex]; let terms=[];
    try{terms=JSON.parse(opt?.dataset.terms||'[]')}catch(e){}
@@ -41,7 +41,7 @@
    policy.disabled=!hasExpiry;
    if(!hasExpiry){ term.value=''; policy.value=''; }
  }
- type.addEventListener('change',()=>{ refresh(); currentTerm=''; currentPolicy=''; });
+ type.addEventListener('change',()=>{ currentTerm=''; currentPolicy=''; refresh(); });
  expiry.addEventListener('change',syncExpiryFields);
  refresh();
 })();
