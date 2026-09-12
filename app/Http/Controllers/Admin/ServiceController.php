@@ -28,7 +28,7 @@ class ServiceController extends Controller
             ))
             ->when($status !== '', fn ($q) => $q->where('status', $status))
             ->when($showDeleted, fn ($q) => $q->whereNotNull('deleted_at'))
-            ->orderBy('expiry_date')
+            ->orderByRaw('expiry_date IS NULL, expiry_date')
             ->paginate(25)
             ->withQueryString();
 
@@ -86,23 +86,33 @@ class ServiceController extends Controller
             'provider_id' => ['nullable', 'integer', Rule::exists('service_providers', 'id')->where(fn ($q) => $q->whereNull('deleted_at')->where('is_active', true))],
             'service_name' => ['required', 'string', 'max:190'],
             'value' => ['nullable', 'string', 'max:500'],
-            'service_term_months' => ['required', 'integer', Rule::in([1,3,6,9,12,24])],
-            'expiry_date' => ['required', 'date'],
-            'alert_policy_id' => ['required', 'integer', Rule::exists('service_alert_policies', 'id')->where(fn ($q) => $q->whereNull('deleted_at')->where('is_active', true))],
+            'service_term_months' => ['nullable', 'integer', Rule::in([1,3,6,9,12,24])],
+            'expiry_date' => ['nullable', 'date'],
+            'alert_policy_id' => ['nullable', 'integer', Rule::exists('service_alert_policies', 'id')->where(fn ($q) => $q->whereNull('deleted_at')->where('is_active', true))],
             'responsible_it_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
             'status' => ['required', 'in:active,suspended,expired'],
             'auto_renew' => ['nullable', 'boolean'],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        $hasExpiry = !empty($data['expiry_date']);
+        if ($hasExpiry && empty($data['service_term_months'])) {
+            abort(422, 'Service Term is required when Expiry Date is set.');
+        }
+        if ($hasExpiry && empty($data['alert_policy_id'])) {
+            abort(422, 'Alert Policy is required when Expiry Date is set.');
+        }
+
         $type = ServiceType::with('terms')->findOrFail($data['service_type_id']);
-        if (!$type->terms->pluck('months')->contains((int) $data['service_term_months'])) {
+        if (!empty($data['service_term_months']) && !$type->terms->pluck('months')->contains((int) $data['service_term_months'])) {
             abort(422, 'Selected service term is not allowed for this Service Type.');
         }
 
-        $policy = ServiceAlertPolicy::findOrFail($data['alert_policy_id']);
-        if ((int) $policy->service_type_id !== (int) $data['service_type_id']) {
-            abort(422, 'Selected Alert Policy does not belong to the selected Service Type.');
+        if (!empty($data['alert_policy_id'])) {
+            $policy = ServiceAlertPolicy::findOrFail($data['alert_policy_id']);
+            if ((int) $policy->service_type_id !== (int) $data['service_type_id']) {
+                abort(422, 'Selected Alert Policy does not belong to the selected Service Type.');
+            }
         }
 
         return $data;
