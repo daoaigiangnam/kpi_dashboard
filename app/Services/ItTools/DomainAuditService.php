@@ -36,12 +36,12 @@ class DomainAuditService
 
         if ($tld === 'vn') {
             // VNNIC does not expose a public HTTPS RDAP endpoint. Try the
-            // registry WHOIS socket first, then a public VN WHOIS API fallback,
-            // followed by generic read-only WHOIS aggregators.
+            // registry WHOIS socket first, then read-only public WHOIS APIs.
             $whois = $this->whoisVn($domain);
             if ($whois !== null) return $whois;
 
             foreach ([
+                fn () => $this->whoisInetPublic($domain),
                 fn () => $this->whoisNetVn($domain),
                 fn () => $this->whoisLs($domain),
                 fn () => $this->whoisHtmlFallback($domain),
@@ -113,6 +113,37 @@ class DomainAuditService
         fclose($socket);
 
         return $this->parseWhoisText($domain, $raw, 'VNNIC WHOIS');
+    }
+
+    private function whoisInetPublic(string $domain): ?array
+    {
+        // iNET exposes a read-only public WHOIS endpoint used by its own
+        // open-source domain exporter integration. It returns JSON and is a
+        // better machine-readable fallback than scraping a web page.
+        $response = Http::timeout(10)
+            ->acceptJson()
+            ->post('https://dms.inet.vn/api/public/whois/v1/whois/directly', [
+                'domainName' => $domain,
+            ]);
+
+        if (!$response->successful()) return null;
+
+        $data = $response->json();
+        if (!is_array($data)) return null;
+
+        $expiration = $this->firstValue($data, ['expirationDate', 'expiration_date', 'expires', 'expires_at']);
+        if (!$expiration) return null;
+
+        $result = $this->emptyResult($domain, 'iNET Public WHOIS');
+        $result['expires_at'] = $expiration;
+
+        $code = (string) ($data['code'] ?? '');
+        $message = trim((string) ($data['message'] ?? ''));
+        if ($code !== '' && $code !== '0') {
+            $result['error'] = $message !== '' ? $message : 'iNET WHOIS returned code ' . $code . '.';
+        }
+
+        return $this->finalizeResult($result);
     }
 
     private function whoisNetVn(string $domain): ?array
