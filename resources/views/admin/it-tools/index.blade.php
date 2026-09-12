@@ -6,22 +6,28 @@
 .it-bulk-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .it-bulk-progress{height:9px;background:#e9eef3;border-radius:99px;overflow:hidden;margin:10px 0}
 .it-bulk-progress>div{height:100%;width:0;transition:width .25s ease}
-.it-bulk-table-wrap{overflow:auto;border:1px solid #dfe5ea;border-radius:10px;margin-top:14px;max-height:620px;background:#fff}
-.it-bulk-table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font-size:12px;background:#fff}
-.it-bulk-table th,.it-bulk-table td{padding:8px 10px;border-right:1px solid #e5e9ed;border-bottom:1px solid #e5e9ed;vertical-align:top;white-space:nowrap}
-.it-bulk-table thead tr:first-child th{position:sticky;top:0;background:#dfe8ee;font-weight:800;text-align:center;z-index:5}
-.it-bulk-table thead tr:nth-child(2) th{position:sticky;top:33px;background:#f3f6f8;font-weight:700;white-space:nowrap;z-index:4}
-.it-bulk-table td.wrap{white-space:normal;min-width:180px;max-width:360px;word-break:break-word}
-.it-bulk-table th:first-child,.it-bulk-table td:first-child{position:sticky;left:0;background:#fff;z-index:6;min-width:180px}
-.it-bulk-table th:first-child{background:#dfe8ee}
-.it-bulk-table th:nth-child(2),.it-bulk-table td:nth-child(2){position:sticky;left:180px;background:#fff;z-index:6}
-.it-bulk-table th:nth-child(2){background:#f3f6f8}
-.it-bulk-table tr:hover td{background:#f8fbfd}
-.it-bulk-status-ok{font-weight:800}
-.it-bulk-status-error{font-weight:800}
+.it-bulk-table-wrap{overflow:auto;border:1px solid #d8e0e7;border-radius:10px;margin-top:14px;box-shadow:0 2px 8px rgba(20,40,60,.05);background:#fff}
+.it-bulk-table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;background:#fff}
+.it-bulk-table th,.it-bulk-table td{padding:8px 10px;border-right:1px solid #e3e8ed;border-bottom:1px solid #e3e8ed;vertical-align:top}
+.it-bulk-table thead tr.group-row th{position:sticky;top:0;color:#fff;font-size:12px;letter-spacing:.2px;text-align:center;white-space:nowrap;padding:7px 10px;border-right:1px solid rgba(255,255,255,.22);z-index:5}
+.it-bulk-table thead tr.group-row th.g-audit{background:#334e68}.it-bulk-table thead tr.group-row th.g-domain{background:#486581}.it-bulk-table thead tr.group-row th.g-web{background:#3c6e71}.it-bulk-table thead tr.group-row th.g-ssl{background:#6c5b7b}.it-bulk-table thead tr.group-row th.g-ip{background:#7b5e57}.it-bulk-table thead tr.group-row th.g-dns{background:#4f6d4f}.it-bulk-table thead tr.group-row th.g-mail{background:#8a6d3b}.it-bulk-table thead tr.group-row th.g-provider{background:#52616b}.it-bulk-table thead tr.group-row th.g-error{background:#7f1d1d}
+.it-bulk-table thead tr.header-row th{position:sticky;top:32px;background:#f3f6f8;color:#172b4d;font-weight:700;white-space:nowrap;text-align:left;z-index:4}
+.it-bulk-table tbody tr:nth-child(even) td{background:#fbfcfd}
+.it-bulk-table tbody tr:hover td{background:#eef6fb}
+.it-bulk-table td.wrap{white-space:normal;min-width:180px;max-width:360px;word-break:break-word;line-height:1.35}
+.it-bulk-table th:first-child,.it-bulk-table td:first-child{position:sticky;left:0;z-index:6;min-width:160px}
+.it-bulk-table th:nth-child(2),.it-bulk-table td:nth-child(2){position:sticky;left:160px;z-index:6;min-width:90px}
+.it-bulk-table thead tr.header-row th:first-child,.it-bulk-table thead tr.header-row th:nth-child(2){background:#e7eef4}
+.it-bulk-table tbody td:first-child,.it-bulk-table tbody td:nth-child(2){background:#fff}
+.it-bulk-table tbody tr:nth-child(even) td:first-child,.it-bulk-table tbody tr:nth-child(even) td:nth-child(2){background:#fbfcfd}
+.it-bulk-table td.status-ok{font-weight:700;text-align:center}
+.it-bulk-table td.status-error{font-weight:700;text-align:center}
+.it-bulk-table .status-online{font-weight:700}
+.it-bulk-table .status-pass{font-weight:700}
 .it-bulk-section-title{margin:0 0 4px}
-.it-bulk-note{margin-top:10px;font-size:12px}
-.it-bulk-count{display:inline-block;padding:3px 8px;border:1px solid #d7e0e6;border-radius:999px;background:#f7fafb;margin-left:6px}
+.it-bulk-meta{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
+.it-bulk-pill{display:inline-flex;align-items:center;padding:4px 9px;border:1px solid #d7e0e8;border-radius:999px;background:#f8fafc;font-size:12px}
+.it-bulk-table .muted-cell{color:#718096}
 </style>
 
 <div class="card">
@@ -62,6 +68,7 @@
 const csrf=document.querySelector('[name=_token]').value;
 const esc=v=>String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 const formatDays=v=>{if(v===null||v===undefined||v==='')return'N/A';const n=Number(v);return Number.isFinite(n)?Math.floor(n).toLocaleString('en-US')+' days':String(v);};
+const boolLabel=v=>v===true?'YES':v===false?'NO':'—';
 
 async function requestAudit(item){
  const r=await fetch('{{ route('admin.it_tools.audit') }}',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':csrf,'X-Requested-With':'XMLHttpRequest'},body:JSON.stringify({domain:item.domain,wan_ip:item.wan_ip||null,dkim_selectors:item.dkim_selectors||null})});
@@ -71,15 +78,76 @@ async function requestAudit(item){
  return data;
 }
 
-function bulkValue(item){const a=item.audit||{},d=a.domain_audit||{},s=a.ssl_audit||{},w=(a.website_audit||{}).https||{},i=a.ip_audit||{},e=a.email_audit||{},dns=a.dns_audit||{},p=a.provider_detection||{},svc=a.service_discovery||{};const records=dns.records||{};const types=(dns.record_types_found||Object.keys(records).filter(k=>(records[k]||[]).length));const dkim=Object.entries(e.dkim||{}).map(([k,v])=>k+': '+(v.present?'PASS':'MISSING')).join('; ')||'Not checked';const serviceSummary=Array.isArray(svc.services)?svc.services.filter(x=>x&&x.status==='online').map(x=>x.label||x.hostname).join(', '):'';return {checkedAt:a.checked_at||'—',domain:item.domain,status:item.status==='ok'?'OK':'ERROR',wanIp:item.wan_ip||a.wan_ip_supplied||'—',duration:a.duration_ms??'—',domainStatus:d.status||'—',domainExpiry:d.expires_at||'N/A',domainDays:formatDays(d.days_remaining),domainSource:d.source||'—',website:w.online?'ONLINE':(w.status?'UNREACHABLE':'OFFLINE'),https:w.status??'—',response:w.response_time_ms??'—',finalUrl:w.final_url||'—',sslVendor:s.vendor||'N/A',sslSubject:s.subject||'—',sslIssuer:s.issuer||'—',sslFrom:s.valid_from||'—',sslExpiry:s.valid_to||'N/A',sslDays:formatDays(s.days_remaining),hostname:s.verify?'YES':'NO',tls:s.tls_version||'—',cipher:s.cipher||'—',ip:i.ip||'N/A',resolvedIpv4:(a.resolved_ipv4||[]).join(', ')||'—',asn:i.asn||'—',network:i.network||i.organization||i.provider||'N/A',organization:i.organization||'—',ipProvider:i.provider||'—',dnsProvider:dns.dns_provider||p.dns_provider||'N/A',nameservers:(dns.dns_nameservers||[]).join(', ')||'N/A',dnssec:dns.dnssec?'DETECTED':'NOT DETECTED',ipv4Count:(records.A||[]).length,ipv6Count:(records.AAAA||[]).length,nsCount:(records.NS||[]).length,mxCount:(records.MX||[]).length,dnsTypes:types.join(', ')||'None',mail:e.provider||'N/A',spf:e.spf_present?'PASS':'MISSING',dmarc:e.dmarc_present?'PASS':'MISSING',dkim,mta:e.mta_sts_present?'PASS':'MISSING',tlsRpt:e.tls_rpt_present?'PASS':'MISSING',cdn:p.cdn||'—',waf:p.waf||'—',hosting:p.hosting_provider||'—',services:serviceSummary||`${svc.checked_hosts||0} hosts checked`,error:item.error||a.error||''};}
+function securityHeaderSummary(headers){
+ if(!headers||typeof headers!=='object')return'—';
+ const keys=Object.keys(headers).filter(k=>headers[k]);
+ return keys.length?keys.join(', '):'None';
+}
 
-function bulkResultRow(item){const v=bulkValue(item);const c=(x)=>esc(x);return `<tr><td>${c(v.domain)}</td><td class="${v.status==='OK'?'it-bulk-status-ok':'it-bulk-status-error'}">${c(v.status)}</td><td>${c(v.checkedAt)}</td><td>${c(v.wanIp)}</td><td>${c(v.duration)}</td><td>${c(v.domainStatus)}</td><td>${c(v.domainExpiry)}</td><td>${c(v.domainDays)}</td><td>${c(v.domainSource)}</td><td>${c(v.website)}</td><td>${c(v.https)}</td><td>${c(v.response)}</td><td class="wrap">${c(v.finalUrl)}</td><td>${c(v.sslVendor)}</td><td class="wrap">${c(v.sslSubject)}</td><td class="wrap">${c(v.sslIssuer)}</td><td>${c(v.sslFrom)}</td><td>${c(v.sslExpiry)}</td><td>${c(v.sslDays)}</td><td>${c(v.hostname)}</td><td>${c(v.tls)}</td><td class="wrap">${c(v.cipher)}</td><td>${c(v.ip)}</td><td class="wrap">${c(v.resolvedIpv4)}</td><td>${c(v.asn)}</td><td>${c(v.network)}</td><td class="wrap">${c(v.organization)}</td><td>${c(v.ipProvider)}</td><td>${c(v.dnsProvider)}</td><td class="wrap">${c(v.nameservers)}</td><td>${c(v.dnssec)}</td><td>${c(v.ipv4Count)}</td><td>${c(v.ipv6Count)}</td><td>${c(v.nsCount)}</td><td>${c(v.mxCount)}</td><td class="wrap">${c(v.dnsTypes)}</td><td>${c(v.mail)}</td><td class="wrap">${c(v.spf)}</td><td class="wrap">${c(v.dmarc)}</td><td class="wrap">${c(v.dkim)}</td><td>${c(v.mta)}</td><td>${c(v.tlsRpt)}</td><td>${c(v.cdn)}</td><td>${c(v.waf)}</td><td>${c(v.hosting)}</td><td class="wrap">${c(v.services)}</td><td class="wrap">${c(v.error)}</td></tr>`;}
+function serviceSummary(services){
+ const rows=Array.isArray(services?.services)?services.services:[];
+ if(!rows.length)return{checked:services?.checked_hosts??0,online:0,dnsOnly:0,notFound:0,summary:'—'};
+ const online=rows.filter(x=>x.status==='online').length;
+ const dnsOnly=rows.filter(x=>x.status==='dns_only').length;
+ const notFound=rows.filter(x=>x.status==='not_found').length;
+ return{checked:services?.checked_hosts??rows.length,online,dnsOnly,notFound,summary:rows.map(x=>(x.hostname||x.label||'unknown')+'='+String(x.status||'unknown').toUpperCase()).join('; ')};
+}
 
-function renderBulkResults(target,results,total,progress){const groups=[['Audit',5],['Domain',4],['Website',4],['SSL / TLS',9],['IP / Network',6],['DNS Summary',8],['Email Security',6],['Infrastructure',5],['Error',1]];const headers=['Domain','Status','Checked At','WAN IP','Duration ms','Domain Status','Domain Expiry','Domain Days','Domain Source','Website','HTTPS','Response ms','Final URL','SSL Vendor','SSL Subject','SSL Issuer','SSL Valid From','SSL Expiry','SSL Days','Hostname Match','TLS Version','Cipher','IP','Resolved IPv4','ASN','Network','Organization','IP Provider','DNS Provider','Nameservers','DNSSEC','IPv4','IPv6','NS','MX','Record Types','Mail Provider','SPF','DMARC','DKIM','MTA-STS','TLS-RPT','CDN','WAF','Hosting Provider','Services','Error'];const rows=results.map(bulkResultRow).join('');let groupHtml='';let pos=0;groups.forEach(([name,count])=>{groupHtml+=`<th colspan="${count}">${esc(name)}</th>`;pos+=count;});const headHtml=headers.map(h=>`<th>${esc(h)}</th>`).join('');target.innerHTML=`<div class="card"><h3 class="it-bulk-section-title">Bulk Result <span class="it-bulk-count">${results.length} / ${total}</span></h3><p><strong>${results.length} / ${total}</strong> completed</p><div class="it-bulk-progress"><div style="width:${progress}%"></div></div><div class="it-bulk-table-wrap"><table class="it-bulk-table"><thead><tr>${groupHtml}</tr><tr>${headHtml}</tr></thead><tbody>${rows}</tbody></table></div><p class="muted it-bulk-note">Summary contains the same audit categories as Single Domain Audit. Individual DNS Records are intentionally excluded; DNS is represented by provider, nameservers, DNSSEC, counts and detected record types.</p></div>`;}
+function bulkValue(item){
+ const a=item.audit||{},d=a.domain_audit||{},s=a.ssl_audit||{},wa=a.website_audit||{},http=wa.http||{},https=wa.https||{},i=a.ip_audit||{},e=a.email_audit||{},dns=a.dns_audit||{},p=a.provider_detection||{},sv=serviceSummary(a.service_discovery||{});
+ const records=dns.records||{};
+ return {
+  domain:item.domain,status:item.status==='ok'?'OK':'ERROR',
+  domainExpiry:d.expires_at||'N/A',domainDays:formatDays(d.days_remaining),domainSource:d.source||'—',
+  http:http.status??'—',httpOnline:boolLabel(http.online),httpUrl:http.final_url||'—',httpResponse:http.response_time_ms??'—',httpType:http.content_type||'—',httpServer:http.server||'—',httpHsts:boolLabel(http.hsts),
+  https:https.status??'—',httpsOnline:boolLabel(https.online),httpsUrl:https.final_url||'—',httpsResponse:https.response_time_ms??'—',httpsType:https.content_type||'—',httpsServer:https.server||'—',httpsHsts:boolLabel(https.hsts),transport:boolLabel(https.transport_verified),
+  sslVendor:s.vendor||'N/A',sslSubject:s.subject||'—',sslIssuer:s.issuer||'—',sslFrom:s.valid_from||'—',sslExpiry:s.valid_to||'N/A',sslDays:formatDays(s.days_remaining),hostname:s.verify?'YES':'NO',tls:s.tls_version||'—',cipher:s.cipher||'—',san:(s.san||[]).join(', ')||'—',
+  resolvedIpv4:(a.resolved_ipv4||[]).join(', ')||'—',ip:i.ip||'N/A',asn:i.asn||'—',network:i.network||'—',organization:i.organization||'—',ipProvider:i.provider||'—',
+  dnsProvider:dns.dns_provider||p.dns_provider||'N/A',nameservers:(dns.dns_nameservers||[]).join(', ')||'N/A',dnssec:dns.dnssec?'DETECTED':'NOT DETECTED',ipv4:(records.A||[]).length,ipv6:(records.AAAA||[]).length,ns:(records.NS||[]).length,mx:(records.MX||[]).length,dnsTypes:(dns.record_types_found||Object.keys(records).filter(k=>(records[k]||[]).length)).join(', ')||'—',dnsRecordCount:Object.values(records).reduce((n,v)=>n+(Array.isArray(v)?v.length:0),0),
+  mail:e.provider||'N/A',spf:e.spf_present?(e.spf||'PASS'):'MISSING',dmarc:e.dmarc_present?(e.dmarc||'PASS'):'MISSING',dkim:Object.entries(e.dkim||{}).map(([k,v])=>k+': '+(v.present?'PASS':'MISSING')).join('; ')||'Not checked',mta:e.mta_sts_present?(e.mta_sts||'PASS'):'MISSING',tlsRpt:e.tls_rpt_present?(e.tls_rpt||'PASS'):'MISSING',
+  cdn:p.cdn||'—',waf:p.waf||'—',hosting:p.hosting_provider||'—',servicesChecked:sv.checked,servicesOnline:sv.online,servicesDnsOnly:sv.dnsOnly,servicesNotFound:sv.notFound,serviceSummary:sv.summary,
+  error:item.error||''
+ };
+}
 
-async function runBulk(items){const target=document.getElementById('bulk-result');const button=document.getElementById('bulk-run');if(!items.length){target.innerHTML='<div class="card">Please enter at least one domain.</div>';return;}button.disabled=true;button.textContent='Running…';const results=[];target.innerHTML=`<div class="card"><h3>Bulk Audit</h3><p>0 / ${items.length} completed</p><div class="it-bulk-progress"><div></div></div><p id="bulk-current" class="muted">Preparing…</p></div>`;try{for(let index=0;index<items.length;index++){const item=items[index],current=document.getElementById('bulk-current');if(current)current.textContent=`[${index+1}/${items.length}] Checking ${item.domain}…`;try{const audit=await requestAudit(item);results.push({status:'ok',domain:item.domain,wan_ip:item.wan_ip||null,audit});}catch(error){results.push({status:'error',domain:item.domain,wan_ip:item.wan_ip||null,error:error.message});}renderBulkResults(target,results,items.length,Math.round(((index+1)/items.length)*100));}const title=target.querySelector('.it-bulk-section-title');if(title)title.insertAdjacentHTML('beforebegin','<p><strong>Bulk audit completed.</strong></p>');}finally{button.disabled=false;button.textContent='Run Bulk Audit';}}
+function bulkResultRow(item){
+ const v=bulkValue(item),ok=v.status==='OK';
+ const td=(value,cls='')=>`<td class="${cls}">${esc(value)}</td>`;
+ return `<tr>${td(v.domain)}${td(v.status,ok?'status-ok':'status-error')}${td(v.domainExpiry)}${td(v.domainDays)}${td(v.domainSource)}${td(v.http)}${td(v.httpOnline,v.httpOnline==='YES'?'status-online':'')}${td(v.httpUrl,'wrap')}${td(v.httpResponse)}${td(v.httpType)}${td(v.httpServer)}${td(v.httpHsts)}${td(v.https)}${td(v.httpsOnline,v.httpsOnline==='YES'?'status-online':'')}${td(v.httpsUrl,'wrap')}${td(v.httpsResponse)}${td(v.httpsType)}${td(v.httpsServer)}${td(v.httpsHsts)}${td(v.transport)}${td(v.sslVendor)}${td(v.sslSubject,'wrap')}${td(v.sslIssuer,'wrap')}${td(v.sslFrom)}${td(v.sslExpiry)}${td(v.sslDays)}${td(v.hostname)}${td(v.tls)}${td(v.cipher)}${td(v.san,'wrap')}${td(v.resolvedIpv4,'wrap')}${td(v.ip)}${td(v.asn)}${td(v.network)}${td(v.organization,'wrap')}${td(v.ipProvider)}${td(v.dnsProvider)}${td(v.nameservers,'wrap')}${td(v.dnssec)}${td(v.ipv4)}${td(v.ipv6)}${td(v.ns)}${td(v.mx)}${td(v.dnsTypes)}${td(v.dnsRecordCount)}${td(v.mail)}${td(v.spf,'wrap')}${td(v.dmarc,'wrap')}${td(v.dkim,'wrap')}${td(v.mta)}${td(v.tlsRpt)}${td(v.cdn)}${td(v.waf)}${td(v.hosting)}${td(v.servicesChecked)}${td(v.servicesOnline)}${td(v.servicesDnsOnly)}${td(v.servicesNotFound)}${td(v.serviceSummary,'wrap')}${td(v.error,'wrap')}</tr>`;
+}
 
-async function runBulkFromTextarea(){const lines=document.getElementById('bulk-items').value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean).slice(0,100);const items=lines.map(line=>{try{if(line.startsWith('{'))return JSON.parse(line);}catch(_){}const p=line.split(',').map(v=>v.trim());return{domain:p[0],wan_ip:p[1]||null};});await runBulk(items);}
+function renderBulkResults(target,results,total,progress){
+ const groups=[
+  ['Audit',2,'g-audit'],['Domain',3,'g-domain'],['Website / HTTP',7,'g-web'],['Website / HTTPS',8,'g-web'],['SSL / TLS',10,'g-ssl'],['IP / Hosting',6,'g-ip'],['DNS Summary',8,'g-dns'],['Email Security',6,'g-mail'],['Provider / Service Discovery',8,'g-provider'],['Error',1,'g-error']
+ ];
+ const headers=['Domain','Status','Domain Expiry','Domain Days','Domain Source','HTTP Status','HTTP Online','HTTP Final URL','HTTP Response ms','HTTP Content-Type','HTTP Server','HTTP HSTS','HTTPS Status','HTTPS Online','HTTPS Final URL','HTTPS Response ms','HTTPS Content-Type','HTTPS Server','HTTPS HSTS','TLS Transport Verified','SSL Vendor','SSL Subject','SSL Issuer','SSL Valid From','SSL Expiry','SSL Days','Hostname Match','TLS Version','Cipher','SAN','Resolved IPv4','Primary IP','ASN','Network','Organization','IP Provider','DNS Provider','Nameservers','DNSSEC','IPv4 Count','IPv6 Count','NS Count','MX Count','DNS Record Types','DNS Record Count','Mail Provider','SPF','DMARC','DKIM','MTA-STS','TLS-RPT','CDN','WAF','Hosting Provider','Services Checked','Services Online','Services DNS Only','Services Not Found','Service Summary','Error'];
+ const groupCells=groups.map(g=>`<th colspan="${g[1]}" class="${g[2]}">${esc(g[0])}</th>`).join('');
+ const rows=results.map(bulkResultRow).join('');
+ target.innerHTML=`<div class="card"><h3 class="it-bulk-section-title">Bulk Result</h3><div class="it-bulk-meta"><span class="it-bulk-pill"><strong>${results.length}</strong>&nbsp;/&nbsp;${total} completed</span><span class="it-bulk-pill">Progress: ${progress}%</span><span class="it-bulk-pill">DNS: summary only</span></div><div class="it-bulk-progress"><div style="width:${progress}%"></div></div><div class="it-bulk-table-wrap"><table class="it-bulk-table"><thead><tr class="group-row">${groupCells}</tr><tr class="header-row">${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p class="muted" style="margin-top:10px">Bulk Summary contains the same audit categories as Single Domain Audit. Individual DNS records are intentionally omitted; DNS counts, provider, nameservers, DNSSEC and record types are summarized.</p></div>`;
+}
+
+async function runBulk(items){
+ const target=document.getElementById('bulk-result');const button=document.getElementById('bulk-run');
+ if(!items.length){target.innerHTML='<div class="card">Please enter at least one domain.</div>';return;}
+ button.disabled=true;button.textContent='Running…';const results=[];
+ target.innerHTML=`<div class="card"><h3>Bulk Audit</h3><p>0 / ${items.length} completed</p><div class="it-bulk-progress"><div></div></div><p id="bulk-current" class="muted">Preparing…</p></div>`;
+ try{
+  for(let index=0;index<items.length;index++){
+   const item=items[index],current=document.getElementById('bulk-current');
+   if(current)current.textContent=`[${index+1}/${items.length}] Checking ${item.domain}…`;
+   try{const audit=await requestAudit(item);results.push({status:'ok',domain:item.domain,wan_ip:item.wan_ip||null,audit});}
+   catch(error){results.push({status:'error',domain:item.domain,wan_ip:item.wan_ip||null,error:error.message});}
+   renderBulkResults(target,results,items.length,Math.round(((index+1)/items.length)*100));
+  }
+  const title=target.querySelector('.it-bulk-section-title');if(title)title.insertAdjacentHTML('beforebegin','<p><strong>Bulk audit completed.</strong></p>');
+ }finally{button.disabled=false;button.textContent='Run Bulk Audit';}
+}
+
+async function runBulkFromTextarea(){
+ const lines=document.getElementById('bulk-items').value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean).slice(0,100);
+ const items=lines.map(line=>{try{if(line.startsWith('{'))return JSON.parse(line);}catch(_){}const p=line.split(',').map(v=>v.trim());return{domain:p[0],wan_ip:p[1]||null};});
+ await runBulk(items);
+}
 
 document.getElementById('audit-form').addEventListener('submit',async e=>{e.preventDefault();const result=document.getElementById('result');result.innerHTML='<div class="card">Checking…</div>';try{const data=await requestAudit({domain:document.getElementById('domain').value,wan_ip:document.getElementById('wan_ip').value||null,dkim_selectors:document.getElementById('dkim_selectors').value||null});renderAudit(result,data);}catch(error){result.innerHTML='<div class="card">Audit failed: '+esc(error.message)+'</div>';}});
 document.getElementById('bulk-run').addEventListener('click',runBulkFromTextarea);
