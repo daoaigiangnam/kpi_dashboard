@@ -35,15 +35,14 @@ class DomainAuditService
         $tld = strtolower(substr(strrchr($domain, '.'), 1));
 
         if ($tld === 'vn') {
-            // VNNIC does not expose a public HTTPS RDAP endpoint and the current
-            // public lookup is web-based. Try the registry WHOIS socket first,
-            // then use read-only public WHOIS aggregators as a fallback so the
-            // audit still returns registration dates when the server cannot reach
-            // the VNNIC socket directly.
+            // VNNIC does not expose a public HTTPS RDAP endpoint. Try the
+            // registry WHOIS socket first, then a public VN WHOIS API fallback,
+            // followed by generic read-only WHOIS aggregators.
             $whois = $this->whoisVn($domain);
             if ($whois !== null) return $whois;
 
             foreach ([
+                fn () => $this->whoisNetVn($domain),
                 fn () => $this->whoisLs($domain),
                 fn () => $this->whoisHtmlFallback($domain),
             ] as $fallback) {
@@ -116,6 +115,29 @@ class DomainAuditService
         return $this->parseWhoisText($domain, $raw, 'VNNIC WHOIS');
     }
 
+    private function whoisNetVn(string $domain): ?array
+    {
+        $response = Http::timeout(10)->get('https://www.whois.net.vn/whois.php', [
+            'domain' => $domain,
+            'act' => 'getwhois',
+        ]);
+
+        if (!$response->successful()) {
+            // The provider documents the same endpoint over HTTP as well.
+            $response = Http::timeout(10)->get('http://www.whois.net.vn/whois.php', [
+                'domain' => $domain,
+                'act' => 'getwhois',
+            ]);
+        }
+
+        if (!$response->successful()) return null;
+
+        $raw = trim($response->body());
+        if ($raw === '' || strcasecmp($raw, 'Domain Name not found') === 0) return null;
+
+        return $this->parseWhoisText($domain, $raw, 'WHOIS.NET.VN');
+    }
+
     private function whoisLs(string $domain): ?array
     {
         $response = Http::timeout(10)->acceptJson()->get('https://whois.ls/json/' . rawurlencode($domain));
@@ -124,6 +146,7 @@ class DomainAuditService
         $data = $response->json();
         if (!is_array($data)) return null;
         $data = $data['data'] ?? $data;
+        if (is_string($data)) return $this->parseWhoisText($domain, $data, 'WHOIS.LS');
         if (!is_array($data)) return null;
 
         $result = $this->emptyResult($domain, 'WHOIS.LS');
@@ -160,8 +183,8 @@ class DomainAuditService
 
         $result = $this->emptyResult($domain, $source);
         $result['registrar'] = $this->whoisField($raw, ['Registrar', 'Sponsoring Registrar', 'Registrant Organization']);
-        $result['created_at'] = $this->whoisField($raw, ['Creation Date', 'Created Date', 'Registered Date', 'Registration Time']);
-        $result['expires_at'] = $this->whoisField($raw, ['Expiration Date', 'Expiry Date', 'Registry Expiry Date', 'Expiration Time']);
+        $result['created_at'] = $this->whoisField($raw, ['Creation Date', 'Created Date', 'Registered Date', 'Registration Time', 'Creation Time']);
+        $result['expires_at'] = $this->whoisField($raw, ['Expiration Date', 'Expiry Date', 'Registry Expiry Date', 'Expiration Time', 'Expiry Time']);
         $result['statuses'] = $this->whoisFields($raw, ['Domain Status', 'Status']);
         $result['nameservers'] = $this->whoisNameservers($raw);
 
