@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ServiceAlertPolicy extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = ['service_type_id', 'name', 'alert_1_percent', 'alert_2_percent', 'alert_3_percent', 'is_active'];
 
     protected $casts = [
