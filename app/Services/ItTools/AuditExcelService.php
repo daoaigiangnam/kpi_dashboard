@@ -43,11 +43,15 @@ class AuditExcelService
         ];
 
         foreach ($groups as [$title, $start, $end]) {
-            $sheet->mergeCellsByColumnAndRow($start, 1, $end, 1);
-            $sheet->setCellValueByColumnAndRow($start, 1, $title);
+            $startLetter = $this->columnLetter($start);
+            $endLetter = $this->columnLetter($end);
+            if ($start !== $end) {
+                $sheet->mergeCells($startLetter . '1:' . $endLetter . '1');
+            }
+            $sheet->setCellValue($startLetter . '1', $title);
         }
         foreach ($headers as $index => $header) {
-            $sheet->setCellValueByColumnAndRow($index + 1, 2, $header);
+            $sheet->setCellValue($this->columnLetter($index + 1) . '2', $header);
         }
 
         $row = 3;
@@ -72,7 +76,6 @@ class AuditExcelService
             $resolvedIpv4 = collect($r['resolved_ipv4'] ?? [])->filter()->implode(', ');
             $san = collect($s['san'] ?? [])->filter()->implode(', ');
             $dkim = collect($e['dkim'] ?? [])->map(fn ($value, $selector) => $selector . ': ' . (!empty($value['present']) ? 'PASS' : 'MISSING'))->implode('; ');
-
             $serviceOnline = $serviceRows->where('status', 'online')->count();
             $serviceDnsOnly = $serviceRows->where('status', 'dns_only')->count();
             $serviceNotFound = $serviceRows->where('status', 'not_found')->count();
@@ -97,42 +100,40 @@ class AuditExcelService
             ];
 
             foreach ($values as $col => $value) {
-                $sheet->setCellValueByColumnAndRow($col + 1, $row, $value);
+                $sheet->setCellValue($this->columnLetter($col + 1) . $row, $value);
             }
             $row++;
         }
 
         $lastColumn = count($headers);
         $lastRow = max(2, $row - 1);
+        $lastColumnLetter = $this->columnLetter($lastColumn);
         $sheet->freezePane('A3');
-        $sheet->setAutoFilterByColumnAndRow(1, 2, $lastColumn, $lastRow);
+        $sheet->setAutoFilter('A2:' . $lastColumnLetter . $lastRow);
         $sheet->getRowDimension(1)->setRowHeight(25);
         $sheet->getRowDimension(2)->setRowHeight(42);
+        $sheet->getStyle('A1:' . $lastColumnLetter . '1')->getFont()->setBold(true)->getColor()->setARGB('FFFFFF');
+        $sheet->getStyle('A1:' . $lastColumnLetter . '1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('17365D');
+        $sheet->getStyle('A1:' . $lastColumnLetter . '1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('A2:' . $lastColumnLetter . '2')->getFont()->setBold(true);
+        $sheet->getStyle('A2:' . $lastColumnLetter . '2')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('D9EAF7');
+        $sheet->getStyle('A2:' . $lastColumnLetter . '2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+        $sheet->getStyle('A1:' . $lastColumnLetter . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('D9E1E8');
+        $sheet->getStyle('A3:' . $lastColumnLetter . $lastRow)->getAlignment()->setVertical(Alignment::VERTICAL_TOP)->setWrapText(true);
 
-        $sheet->getStyleByColumnAndRow(1, 1, $lastColumn, 1)->getFont()->setBold(true)->getColor()->setARGB('FFFFFF');
-        $sheet->getStyleByColumnAndRow(1, 1, $lastColumn, 1)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('17365D');
-        $sheet->getStyleByColumnAndRow(1, 1, $lastColumn, 1)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
-        $sheet->getStyleByColumnAndRow(1, 2, $lastColumn, 2)->getFont()->setBold(true);
-        $sheet->getStyleByColumnAndRow(1, 2, $lastColumn, 2)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('D9EAF7');
-        $sheet->getStyleByColumnAndRow(1, 2, $lastColumn, 2)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
-        $sheet->getStyleByColumnAndRow(1, 1, $lastColumn, $lastRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('D9E1E8');
-        $sheet->getStyleByColumnAndRow(1, 3, $lastColumn, $lastRow)->getAlignment()->setVertical(Alignment::VERTICAL_TOP)->setWrapText(true);
-
-        // Fixed widths are intentional: PhpSpreadsheet auto-size across thousands of audit rows
-        // can be very expensive and can make a web download fail at the proxy/PHP-FPM layer.
         foreach (range(1, $lastColumn) as $col) {
-            $sheet->getColumnDimensionByColumn($col)->setWidth(16);
+            $sheet->getColumnDimension($this->columnLetter($col))->setWidth(16);
         }
         foreach ([2, 6, 8, 24, 25, 26, 28, 35, 36, 37, 38, 39, 48, 54, 55, 56, 57, 58] as $col) {
-            $sheet->getColumnDimensionByColumn($col)->setWidth(20);
+            $sheet->getColumnDimension($this->columnLetter($col))->setWidth(20);
         }
         foreach ([11, 18, 33, 40, 41, 47, 50, 51, 52, 60, 61, 62] as $col) {
-            $sheet->getColumnDimensionByColumn($col)->setWidth(30);
+            $sheet->getColumnDimension($this->columnLetter($col))->setWidth(30);
         }
-        $sheet->getColumnDimensionByColumn(1)->setWidth(23);
-        $sheet->getColumnDimensionByColumn(2)->setWidth(28);
-        $sheet->getColumnDimensionByColumn(5)->setWidth(15);
-        $sheet->getColumnDimensionByColumn(62)->setWidth(40);
+        $sheet->getColumnDimension('A')->setWidth(23);
+        $sheet->getColumnDimension('B')->setWidth(28);
+        $sheet->getColumnDimension('E')->setWidth(15);
+        $sheet->getColumnDimension($this->columnLetter(62))->setWidth(40);
 
         return $spreadsheet;
     }
@@ -140,5 +141,16 @@ class AuditExcelService
     public function output(?string $domain = null): Xlsx
     {
         return new Xlsx($this->export($domain));
+    }
+
+    private function columnLetter(int $column): string
+    {
+        $letter = '';
+        while ($column > 0) {
+            $remainder = ($column - 1) % 26;
+            $letter = chr(65 + $remainder) . $letter;
+            $column = intdiv($column - 1, 26);
+        }
+        return $letter;
     }
 }
