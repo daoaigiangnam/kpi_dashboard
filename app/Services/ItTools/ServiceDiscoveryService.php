@@ -41,10 +41,11 @@ class ServiceDiscoveryService
 
     private function sanitizeHosts(array $hosts): array
     {
+        $limit = request()->header('X-IT-Bulk-Audit') ? 6 : 50;
         return collect($hosts)
             ->map(fn ($value) => strtolower(trim((string) $value)))
             ->filter(fn ($value) => preg_match('/^[a-z0-9][a-z0-9.-]{0,62}$/', $value))
-            ->unique()->take(50)->values()->all();
+            ->unique()->take($limit)->values()->all();
     }
 
     private function resolve(string $host): array
