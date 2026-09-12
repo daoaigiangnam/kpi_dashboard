@@ -18,7 +18,7 @@ class ItToolsController extends Controller
 {
     public function index()
     {
-        return view('admin.it-tools.index');
+        return view('admin.it-tools.workbench');
     }
 
     public function audit(Request $request, InternetAssetAuditService $audit)
@@ -97,15 +97,15 @@ class ItToolsController extends Controller
     {
         $domain = $request->input('domain');
         $filename = 'it-tool-audits-' . now()->format('Ymd-His') . '.xlsx';
-        $directory = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'it-tools-exports';
+        $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'it-tools-exports';
         $path = $directory . DIRECTORY_SEPARATOR . $filename;
 
         try {
             if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
-                throw new \RuntimeException('Unable to create IT Tools export directory.');
+                throw new \RuntimeException('Unable to create IT Tools temporary export directory.');
             }
             if (! is_writable($directory)) {
-                throw new \RuntimeException('IT Tools export directory is not writable.');
+                throw new \RuntimeException('IT Tools temporary export directory is not writable.');
             }
 
             $limit = min(max((int) $request->input('limit', 1000), 1), 1000);
@@ -135,7 +135,6 @@ class ItToolsController extends Controller
                 'memory' => memory_get_usage(true),
                 'peak_memory' => memory_get_peak_usage(true),
             ]);
-
             abort(500, 'IT Tools Excel export failed: ' . $e->getMessage());
         }
     }
