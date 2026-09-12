@@ -28,43 +28,29 @@
     <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleAdminNav()">☰</button>
     <div class="nav-links">
         @if(auth()->user()->hasPermission('admin.view'))<a href="{{ route('admin.dashboard') }}">Dashboard</a>@endif
-
         @if(auth()->user()->hasPermission('users.view') || auth()->user()->hasPermission('groups.view') || auth()->user()->hasPermission('job_titles.view') || auth()->user()->hasPermission('departments.view') || auth()->user()->hasPermission('units.view') || auth()->user()->hasPermission('system.settings'))
-            <details class="nav-group" open>
-                <summary>⚙ Administration</summary>
-                <div class="nav-sub">
-                    @if(auth()->user()->hasPermission('users.view'))<a href="{{ route('admin.users.index') }}">Users</a>@endif
-                    @if(auth()->user()->hasPermission('users.view') && auth()->user()->isSuperAdmin())<a href="{{ route('admin.users.pending') }}">Pending Registrations</a>@endif
-                    @if(auth()->user()->hasPermission('groups.view'))<a href="{{ route('admin.groups.index') }}">User Groups</a>@endif
-                    @if(auth()->user()->hasPermission('job_titles.view'))<a href="{{ route('admin.job_titles.index') }}">Job Titles</a>@endif
-                    @if(auth()->user()->hasPermission('departments.view'))<a href="{{ route('admin.departments.index') }}">Departments</a>@endif
-                    @if(auth()->user()->hasPermission('units.view'))<a href="{{ route('admin.units.index') }}">Units</a>@endif
-                    @if(auth()->user()->hasPermission('system.settings'))<a href="{{ route('admin.settings.index') }}">System Settings</a>@endif
-                </div>
-            </details>
+            <details class="nav-group" open><summary>⚙ Administration</summary><div class="nav-sub">
+                @if(auth()->user()->hasPermission('users.view'))<a href="{{ route('admin.users.index') }}">Users</a>@endif
+                @if(auth()->user()->hasPermission('users.view') && auth()->user()->isSuperAdmin())<a href="{{ route('admin.users.pending') }}">Pending Registrations</a>@endif
+                @if(auth()->user()->hasPermission('groups.view'))<a href="{{ route('admin.groups.index') }}">User Groups</a>@endif
+                @if(auth()->user()->hasPermission('job_titles.view'))<a href="{{ route('admin.job_titles.index') }}">Job Titles</a>@endif
+                @if(auth()->user()->hasPermission('departments.view'))<a href="{{ route('admin.departments.index') }}">Departments</a>@endif
+                @if(auth()->user()->hasPermission('units.view'))<a href="{{ route('admin.units.index') }}">Units</a>@endif
+                @if(auth()->user()->hasPermission('system.settings'))<a href="{{ route('admin.settings.index') }}">System Settings</a>@endif
+            </div></details>
         @endif
-
         @if(auth()->user()->hasPermission('kpi.parameters') || auth()->user()->hasPermission('kpi.tickets'))
-            <details class="nav-group" open>
-                <summary>📊 KPI Management</summary>
-                <div class="nav-sub">
-                    @if(auth()->user()->hasPermission('kpi.parameters'))<a href="{{ route('admin.kpi_parameters.index') }}">KPI Parameters</a>@endif
-                    @if(auth()->user()->hasPermission('kpi.tickets'))<a href="{{ route('admin.tickets.index') }}">Ticket Data</a>@endif
-                </div>
-            </details>
+            <details class="nav-group" open><summary>📊 KPI Management</summary><div class="nav-sub">
+                @if(auth()->user()->hasPermission('kpi.parameters'))<a href="{{ route('admin.kpi_parameters.index') }}">KPI Parameters</a>@endif
+                @if(auth()->user()->hasPermission('kpi.tickets'))<a href="{{ route('admin.tickets.index') }}">Ticket Data</a>@endif
+            </div></details>
         @endif
-
         @if(auth()->user()->hasPermission('it_tools.view'))
-            <details class="nav-group" open>
-                <summary>🛠 IT Tools</summary>
-                <div class="nav-sub">
-                    <a href="{{ route('admin.it_tools.dashboard') }}">IT Tools Dashboard</a>
-                    <a href="{{ route('admin.it_tools.index') }}">Check Domain</a>
-                    <a href="{{ route('admin.it_tools.history') }}">Audit History</a>
-                </div>
-            </details>
+            <details class="nav-group" open><summary>🛠 IT Tools</summary><div class="nav-sub">
+                <a href="{{ route('admin.it_tools.dashboard') }}">IT Tools Dashboard</a>
+                <a href="{{ route('admin.it_tools.index') }}">Check Domain</a>
+            </div></details>
         @endif
-
         <a href="{{ route('account.index') }}">👤 Account Information</a>
         <form method="post" action="{{ route('logout') }}" style="margin-top:18px">@csrf<button class="btn gray" type="submit">Logout</button></form>
     </div>
