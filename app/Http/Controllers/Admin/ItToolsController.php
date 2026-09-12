@@ -8,6 +8,7 @@ use App\Services\ItTools\AuditExcelService;
 use App\Services\ItTools\BulkAuditService;
 use App\Services\ItTools\InternetAssetAuditService;
 use App\Services\ItTools\IpScannerService;
+use App\Services\ItTools\NetworkDiagnosticService;
 use App\Services\ItTools\PortCheckService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -20,6 +21,7 @@ class ItToolsController extends Controller
     public function portCheckPage() { return view('admin.it-tools.port-check'); }
     public function apiTesterPage() { return view('admin.it-tools.api-tester'); }
     public function ipScannerPage() { return view('admin.it-tools.ip-scanner'); }
+    public function networkDiagnosticPage() { return view('admin.it-tools.network-diagnostic'); }
 
     public function portCheck(Request $request, PortCheckService $ports)
     {
@@ -30,27 +32,21 @@ class ItToolsController extends Controller
 
     public function apiTester(Request $request, ApiTesterService $api)
     {
-        $data = $request->validate([
-            'url'=>['required','url','max:2048'],'method'=>['required','in:GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS'],
-            'query'=>['nullable','array','max:50'],'headers'=>['nullable','array','max:50'],'headers.*'=>['nullable','string','max:2000'],
-            'auth'=>['nullable','array'],'body_type'=>['nullable','in:none,json,form,raw'],'body'=>['nullable','string','max:1000000'],
-            'timeout'=>['nullable','integer','between:1,60'],'verify_ssl'=>['nullable','boolean'],'follow_redirects'=>['nullable','boolean'],
-        ]);
+        $data = $request->validate(['url'=>['required','url','max:2048'],'method'=>['required','in:GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS'],'query'=>['nullable','array','max:50'],'headers'=>['nullable','array','max:50'],'headers.*'=>['nullable','string','max:2000'],'auth'=>['nullable','array'],'body_type'=>['nullable','in:none,json,form,raw'],'body'=>['nullable','string','max:1000000'],'timeout'=>['nullable','integer','between:1,60'],'verify_ssl'=>['nullable','boolean'],'follow_redirects'=>['nullable','boolean']]);
         return response()->json($api->send($data));
     }
 
     public function ipScanner(Request $request, IpScannerService $scanner)
     {
-        $data = $request->validate([
-            'range'=>['required','string','max:64'],
-            'ports'=>['nullable','array','max:50'],'ports.*'=>['integer','between:1,65535'],
-            'all_ports'=>['nullable','boolean'],
-        ]);
-        try {
-            return response()->json($scanner->scan($data['range'], $data['ports'] ?? [], (bool)($data['all_ports'] ?? false)));
-        } catch (\InvalidArgumentException $e) {
-            return response()->json(['message'=>$e->getMessage()], 422);
-        }
+        $data = $request->validate(['range'=>['required','string','max:64'],'ports'=>['nullable','array','max:50'],'ports.*'=>['integer','between:1,65535'],'all_ports'=>['nullable','boolean']]);
+        try { return response()->json($scanner->scan($data['range'], $data['ports'] ?? [], (bool)($data['all_ports'] ?? false))); }
+        catch (\InvalidArgumentException $e) { return response()->json(['message'=>$e->getMessage()], 422); }
+    }
+
+    public function networkDiagnostic(Request $request, NetworkDiagnosticService $network)
+    {
+        $data = $request->validate(['mode'=>['required','in:ping,trace'],'host'=>['required','string','max:253'],'count'=>['nullable','integer','between:1,64']]);
+        return response()->json($data['mode'] === 'trace' ? $network->traceroute($data['host'], $data['count'] ?? 30) : $network->ping($data['host'], $data['count'] ?? 4));
     }
 
     public function audit(Request $request, InternetAssetAuditService $audit)
