@@ -41,12 +41,7 @@ Route::middleware('auth')->group(function(){
 });
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
- Route::get('/',function(){
-     if (auth()->user()->hasPermission('admin.view')) {
-         return redirect()->route('admin.dashboard');
-     }
-     return redirect()->route('account.index');
- })->name('home');
+ Route::get('/',function(){if(auth()->user()->hasPermission('admin.view'))return redirect()->route('admin.dashboard');return redirect()->route('account.index');})->name('home');
  Route::get('dashboard',[DashboardController::class,'index'])->middleware('permission:admin.view')->name('dashboard');
  Route::get('users',[UserController::class,'index'])->middleware('permission:users.view')->name('users.index');
  Route::get('users/pending',[UserController::class,'pending'])->middleware('permission:users.view')->name('users.pending');
@@ -113,17 +108,14 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
  Route::put('settings',[SystemSettingController::class,'update'])->middleware('permission:system.settings')->name('settings.update');
  Route::post('settings/test-mail',[SystemSettingController::class,'testMail'])->middleware('permission:system.settings')->name('settings.test-mail');
 
- // IT Outsourcing Tools
+ // IT Tools
  Route::get('it-tools',[ItToolsController::class,'index'])->middleware('permission:it_tools.view')->name('it_tools.index');
  Route::get('it-tools/dashboard',[ItToolsDashboardController::class,'index'])->middleware('permission:it_tools.view')->name('it_tools.dashboard');
+ Route::get('it-tools/port-check',[ItToolsController::class,'portCheckPage'])->middleware('permission:it_tools.view')->name('it_tools.port_check_page');
+ Route::post('it-tools/port-check',[ItToolsController::class,'portCheck'])->middleware('permission:it_tools.audit')->name('it_tools.port_check');
  Route::post('it-tools/audit',[ItToolsController::class,'audit'])->middleware('permission:it_tools.audit')->name('it_tools.audit');
  Route::post('it-tools/bulk-audit',[ItToolsController::class,'bulkAudit'])->middleware('permission:it_tools.audit')->name('it_tools.bulk_audit');
  Route::post('it-tools/export',[ItToolsController::class,'export'])->middleware('permission:it_tools.view')->name('it_tools.export');
 });
 
-Route::get('/', function () {
-    if (!auth()->check()) return redirect()->route('login');
-    return auth()->user()->hasPermission('admin.view')
-        ? redirect()->route('admin.dashboard')
-        : redirect()->route('account.index');
-});
+Route::get('/', function () { if (!auth()->check()) return redirect()->route('login'); return auth()->user()->hasPermission('admin.view') ? redirect()->route('admin.dashboard') : redirect()->route('account.index'); });
