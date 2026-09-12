@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\ItTools\AuditExcelService;
 use App\Services\ItTools\BulkAuditService;
 use App\Services\ItTools\InternetAssetAuditService;
-use App\Services\ItTools\AuditExcelService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -14,7 +14,7 @@ class ItToolsController extends Controller
 {
     public function index()
     {
-        return view('admin.it-tools.workbench');
+        return view('admin.it-tools.check-domain');
     }
 
     public function audit(Request $request, InternetAssetAuditService $audit)
