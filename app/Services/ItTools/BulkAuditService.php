@@ -2,8 +2,6 @@
 
 namespace App\Services\ItTools;
 
-use App\Models\ItToolAudit;
-
 class BulkAuditService
 {
     public function __construct(private InternetAssetAuditService $audit)
@@ -21,7 +19,6 @@ class BulkAuditService
             $dkimSelectors = is_array($item) && isset($item['dkim_selectors']) && is_array($item['dkim_selectors'])
                 ? array_values(array_unique(array_slice($item['dkim_selectors'], 0, 20)))
                 : [];
-            $started = microtime(true);
 
             if ($domain === '') {
                 $results[] = ['status' => 'error', 'domain' => null, 'wan_ip' => $wanIp, 'error' => 'Domain is required.'];
@@ -35,28 +32,27 @@ class BulkAuditService
 
             try {
                 $auditResult = $this->audit->audit($domain, $wanIp ?: null, $dkimSelectors);
-                ItToolAudit::create([
-                    'user_id' => auth()->id(),
+                $results[] = [
+                    'status' => 'ok',
                     'domain' => $domain,
                     'wan_ip' => $wanIp ?: null,
-                    'status' => 'completed',
-                    'duration_ms' => (int) round((microtime(true) - $started) * 1000),
-                    'result' => $auditResult,
-                ]);
-                $results[] = ['status' => 'ok', 'domain' => $domain, 'wan_ip' => $wanIp ?: null, 'audit' => $auditResult];
+                    'audit' => $auditResult,
+                ];
             } catch (\Throwable $e) {
-                ItToolAudit::create([
-                    'user_id' => auth()->id(),
+                $results[] = [
+                    'status' => 'error',
                     'domain' => $domain,
                     'wan_ip' => $wanIp ?: null,
-                    'status' => 'error',
-                    'duration_ms' => (int) round((microtime(true) - $started) * 1000),
                     'error' => $e->getMessage(),
-                ]);
-                $results[] = ['status' => 'error', 'domain' => $domain, 'wan_ip' => $wanIp ?: null, 'error' => $e->getMessage()];
+                ];
             }
         }
 
-        return ['requested' => count($items), 'processed' => count($results), 'max_items' => $maxItems, 'results' => $results];
+        return [
+            'requested' => count($items),
+            'processed' => count($results),
+            'max_items' => $maxItems,
+            'results' => $results,
+        ];
     }
 }
