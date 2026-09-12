@@ -30,8 +30,8 @@ class IpAuditService
         $ptr = @gethostbyaddr($ip);
         $result['ptr'] = $ptr && $ptr !== $ip ? $ptr : null;
 
-        // First try RDAP. A public IP can belong to APNIC/ARIN/RIPE/LACNIC/AFRINIC,
-        // so do not assume that rdap.org can resolve every address directly.
+        // Try the regional RIR RDAP services. The IP registry handle is not an ASN,
+        // so only use it for network identification here; ASN enrichment is done below.
         foreach ([
             'https://rdap.apnic.net/ip/',
             'https://rdap.arin.net/registry/ip/',
@@ -46,27 +46,26 @@ class IpAuditService
                 $result['network'] = $data['name'] ?? ($data['handle'] ?? null);
                 $result['country'] = $data['country'] ?? null;
                 $result['organization'] = $this->entityName($data['entities'] ?? []);
-                $result['asn'] = $data['handle'] ?? null;
                 $result['provider'] = $result['organization'];
                 $result['source'] = 'RDAP';
-                return $result;
+                break;
             } catch (\Throwable) {
                 // Try the next registry/fallback source.
             }
         }
 
-        // Lightweight public fallback. This is intentionally only used when RDAP
-        // cannot answer; it supplies ASN/org/ISP data without requiring an API key.
+        // Public enrichment supplies the BGP ASN and ISP/org name without requiring
+        // a paid API key. It also fills provider data when RDAP has only registry data.
         try {
             $response = Http::timeout(5)->acceptJson()->get('https://ipapi.co/' . rawurlencode($ip) . '/json/');
             if ($response->successful()) {
                 $data = $response->json();
-                $result['asn'] = $data['asn'] ?? null;
-                $result['network'] = $data['network'] ?? null;
-                $result['organization'] = $data['org'] ?? null;
-                $result['provider'] = $data['org'] ?? ($data['asn'] ?? null);
-                $result['country'] = $data['country_code'] ?? null;
-                $result['source'] = 'ipapi.co';
+                $result['asn'] = $data['asn'] ?? $result['asn'];
+                $result['network'] = $result['network'] ?: ($data['network'] ?? null);
+                $result['organization'] = $result['organization'] ?: ($data['org'] ?? null);
+                $result['provider'] = $data['org'] ?? $result['provider'];
+                $result['country'] = $result['country'] ?: ($data['country_code'] ?? null);
+                $result['source'] = $result['source'] ? $result['source'] . ' + ipapi.co' : 'ipapi.co';
                 return $result;
             }
         } catch (\Throwable $e) {
