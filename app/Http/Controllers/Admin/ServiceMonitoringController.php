@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Service;
 use App\Models\ServiceAlertEvent;
+use App\Services\ItTools\ServiceAlertEmailService;
 use App\Services\ItTools\ServiceAlertEngine;
 use Illuminate\Http\Request;
 
@@ -45,7 +46,7 @@ class ServiceMonitoringController extends Controller
         return view('admin.service-monitoring.dashboard', compact('stats', 'upcoming', 'openAlerts'));
     }
 
-    public function run(Request $request, ServiceAlertEngine $engine)
+    public function run(Request $request, ServiceAlertEngine $engine, ServiceAlertEmailService $emailService)
     {
         $limit = max(1, min((int) $request->input('limit', 500), 5000));
         $evaluated = 0;
@@ -59,10 +60,11 @@ class ServiceMonitoringController extends Controller
             ->orderBy('id')
             ->limit($limit)
             ->get()
-            ->each(function (Service $service) use ($engine, &$evaluated, &$created) {
+            ->each(function (Service $service) use ($engine, $emailService, &$evaluated, &$created) {
                 $event = $engine->evaluate($service);
                 $evaluated++;
                 if ($event) {
+                    $emailService->notifyNewAlert($event);
                     $created++;
                 }
             });
