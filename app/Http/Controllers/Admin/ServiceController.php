@@ -9,6 +9,7 @@ use App\Models\ServiceCustomer;
 use App\Models\ServiceProvider;
 use App\Models\ServiceType;
 use App\Models\User;
+use App\Services\ItTools\ServiceAlertEngine;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -43,9 +44,10 @@ class ServiceController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, ServiceAlertEngine $engine)
     {
-        Service::create($this->validated($request));
+        $service = Service::create($this->validated($request));
+        $engine->evaluate($service->load('alertPolicy'));
         return redirect()->route('admin.services.index')->with('success', 'Service created.');
     }
 
@@ -57,9 +59,12 @@ class ServiceController extends Controller
         ]);
     }
 
-    public function update(Request $request, Service $service)
+    public function update(Request $request, Service $service, ServiceAlertEngine $engine)
     {
         $service->update($this->validated($request, $service));
+        $service->refresh()->load('alertPolicy');
+        $engine->evaluate($service);
+
         return redirect()->route('admin.services.index')->with('success', 'Service updated.');
     }
 
