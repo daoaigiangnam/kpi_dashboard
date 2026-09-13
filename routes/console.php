@@ -13,6 +13,11 @@ Schedule::command('services:monitor')
     ->withoutOverlapping()
     ->onOneServer();
 
+Schedule::command('services:alert-emails')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
+
 Schedule::command('it-tools:expiry-alert --days=30')
     ->dailyAt('08:15')
     ->withoutOverlapping()
