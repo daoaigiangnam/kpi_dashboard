@@ -11,8 +11,8 @@ return new class extends Migration {
             $t->id();
             $t->foreignId('customer_id')->constrained('service_customers')->cascadeOnDelete();
             $t->unsignedTinyInteger('level');
-            $t->string('recipient_name', 150);
-            $t->string('recipient_email', 190);
+            $t->string('recipient_name', 150)->nullable();
+            $t->string('recipient_email', 190)->nullable();
             $t->string('recipient_phone', 50)->nullable();
             $t->boolean('is_active')->default(true);
             $t->timestamps();
