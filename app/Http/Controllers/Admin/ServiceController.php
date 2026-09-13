@@ -9,6 +9,7 @@ use App\Models\ServiceCustomer;
 use App\Models\ServiceProvider;
 use App\Models\ServiceType;
 use App\Models\User;
+use App\Services\ItTools\ServiceAlertEmailService;
 use App\Services\ItTools\ServiceAlertEngine;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -23,10 +24,7 @@ class ServiceController extends Controller
 
         $services = ($showDeleted ? Service::withTrashed() : Service::query())
             ->with(['customer', 'serviceType', 'provider', 'alertPolicy', 'responsibleIt'])
-            ->when($search !== '', fn ($q) => $q->where(fn ($x) =>
-                $x->where('service_name', 'like', "%{$search}%")
-                    ->orWhere('value', 'like', "%{$search}%")
-            ))
+            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x->where('service_name', 'like', "%{$search}%")->orWhere('value', 'like', "%{$search}%")))
             ->when($status !== '', fn ($q) => $q->where('status', $status))
             ->when($showDeleted, fn ($q) => $q->whereNotNull('deleted_at'))
             ->orderByRaw('expiry_date IS NULL, expiry_date')
@@ -44,10 +42,13 @@ class ServiceController extends Controller
         ]);
     }
 
-    public function store(Request $request, ServiceAlertEngine $engine)
+    public function store(Request $request, ServiceAlertEngine $engine, ServiceAlertEmailService $emailService)
     {
         $service = Service::create($this->validated($request));
-        $engine->evaluate($service->load('alertPolicy'));
+        $event = $engine->evaluate($service->load('alertPolicy'));
+        if ($event) {
+            $emailService->notifyNewAlert($event);
+        }
         return redirect()->route('admin.services.index')->with('success', 'Service created.');
     }
 
@@ -59,11 +60,14 @@ class ServiceController extends Controller
         ]);
     }
 
-    public function update(Request $request, Service $service, ServiceAlertEngine $engine)
+    public function update(Request $request, Service $service, ServiceAlertEngine $engine, ServiceAlertEmailService $emailService)
     {
         $service->update($this->validated($request, $service));
         $service->refresh()->load('alertPolicy');
-        $engine->evaluate($service);
+        $event = $engine->evaluate($service);
+        if ($event) {
+            $emailService->notifyNewAlert($event);
+        }
 
         return redirect()->route('admin.services.index')->with('success', 'Service updated.');
     }
@@ -101,23 +105,15 @@ class ServiceController extends Controller
         ]);
 
         $hasExpiry = !empty($data['expiry_date']);
-        if ($hasExpiry && empty($data['service_term_months'])) {
-            abort(422, 'Service Term is required when Expiry Date is set.');
-        }
-        if ($hasExpiry && empty($data['alert_policy_id'])) {
-            abort(422, 'Alert Policy is required when Expiry Date is set.');
-        }
+        if ($hasExpiry && empty($data['service_term_months'])) abort(422, 'Service Term is required when Expiry Date is set.');
+        if ($hasExpiry && empty($data['alert_policy_id'])) abort(422, 'Alert Policy is required when Expiry Date is set.');
 
         $type = ServiceType::with('terms')->findOrFail($data['service_type_id']);
-        if (!empty($data['service_term_months']) && !$type->terms->pluck('months')->contains((int) $data['service_term_months'])) {
-            abort(422, 'Selected service term is not allowed for this Service Type.');
-        }
+        if (!empty($data['service_term_months']) && !$type->terms->pluck('months')->contains((int) $data['service_term_months'])) abort(422, 'Selected service term is not allowed for this Service Type.');
 
         if (!empty($data['alert_policy_id'])) {
             $policy = ServiceAlertPolicy::findOrFail($data['alert_policy_id']);
-            if ((int) $policy->service_type_id !== (int) $data['service_type_id']) {
-                abort(422, 'Selected Alert Policy does not belong to the selected Service Type.');
-            }
+            if ((int) $policy->service_type_id !== (int) $data['service_type_id']) abort(422, 'Selected Alert Policy does not belong to the selected Service Type.');
         }
 
         return $data;
