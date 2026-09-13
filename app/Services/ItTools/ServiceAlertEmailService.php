@@ -16,7 +16,7 @@ class ServiceAlertEmailService
             return;
         }
 
-        $event->loadMissing(['service.customer.alertRecipients', 'service.serviceType', 'service.provider', 'alertPolicy']);
+        $event->loadMissing(['service.customer', 'service.responsibleIt', 'service.serviceType', 'service.provider', 'alertPolicy']);
         $this->sendLevel($event, 1, 'alert');
     }
 
@@ -29,7 +29,7 @@ class ServiceAlertEmailService
         $sent = 0;
         ServiceAlertEvent::query()
             ->whereIn('status', ['open', 'acknowledged'])
-            ->with(['service.customer.alertRecipients', 'service.serviceType', 'service.provider', 'alertPolicy'])
+            ->with(['service.customer', 'service.responsibleIt', 'service.serviceType', 'service.provider', 'alertPolicy'])
             ->orderBy('id')
             ->limit(1000)
             ->get()
@@ -59,7 +59,7 @@ class ServiceAlertEmailService
             return 0;
         }
 
-        $event->loadMissing(['service.customer.alertRecipients', 'service.serviceType', 'service.provider', 'alertPolicy', 'resolvedBy']);
+        $event->loadMissing(['service.customer', 'service.responsibleIt', 'service.serviceType', 'service.provider', 'alertPolicy', 'resolvedBy']);
         $sent = 0;
         foreach ([1, 2, 3, 4] as $level) {
             if (!$this->levelEnabled($level)) {
@@ -142,15 +142,15 @@ class ServiceAlertEmailService
         $customer = $service?->customer;
 
         if ($level === 1) {
-            $recipient = $customer?->alertRecipients?->firstWhere('level', 1);
-            if (!$recipient || !$recipient->is_active || !$recipient->recipient_email) {
+            $user = $service?->responsibleIt;
+            if (!$user?->email) {
                 return null;
             }
 
             return [
-                'type' => 'customer_operations',
-                'email' => $recipient->recipient_email,
-                'name' => $recipient->recipient_name ?: $customer->name,
+                'type' => 'responsible_it',
+                'email' => $user->email,
+                'name' => $user->name ?: 'Operations Staff',
             ];
         }
 
