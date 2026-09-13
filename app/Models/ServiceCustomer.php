@@ -35,8 +35,8 @@ class ServiceCustomer extends Model
                 $customer->alertRecipients()->updateOrCreate(
                     ['level' => $level],
                     [
-                        'recipient_name' => $name !== '' ? $name : $customer->name,
-                        'recipient_email' => $email !== '' ? $email : 'disabled-'.$level.'@invalid.local',
+                        'recipient_name' => $name !== '' ? $name : null,
+                        'recipient_email' => $email !== '' ? $email : null,
                         'recipient_phone' => $phone !== '' ? $phone : null,
                         'is_active' => $active,
                     ]
