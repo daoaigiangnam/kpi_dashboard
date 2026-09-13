@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('title','IT Monitoring Dashboard')
+@section('title','IT Service Monitoring Dashboard')
 @section('content')
 <div class="grid">
     <div class="card"><div class="muted">Total Services</div><h2>{{ $stats['total'] }}</h2></div>
@@ -10,7 +10,7 @@
 
 <div class="card" style="margin-top:16px">
     <div class="actions" style="justify-content:space-between">
-        <div><h3 style="margin:0">Monitoring</h3><div class="muted">Evaluate active services against their configured Alert Policy.</div></div>
+        <div><h3 style="margin:0">Service Monitoring</h3><div class="muted">Monitor active IT services against their configured Alert Policy.</div></div>
         <form method="post" action="{{ route('admin.service_monitoring.run') }}">@csrf<button class="btn" type="submit">Run Monitoring Now</button></form>
     </div>
 </div>
