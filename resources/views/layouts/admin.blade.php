@@ -3,8 +3,9 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>KPI Dashboard Admin</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f9f7;color:#17231c}
-.nav{width:250px;position:fixed;inset:0 auto 0 0;background:#123b2a;color:#fff;padding:18px 14px;overflow-y:auto;z-index:100}
+html,body{margin:0;min-height:100%;font-family:Inter,Arial,sans-serif;background:#f6f9f7;color:#17231c}
+body{overflow-x:hidden}
+.nav{width:250px;position:fixed;inset:0 auto 0 0;background:#123b2a;color:#fff;padding:18px 14px;overflow-y:auto;z-index:100;-webkit-overflow-scrolling:touch}
 .brand{font-size:20px;font-weight:700;margin:4px 8px 22px}.nav-toggle{display:none}
 .nav-links>a{display:block;color:#dcebe2;text-decoration:none;padding:10px 12px;border-radius:7px;margin:3px 0}.nav-links>a:hover,.nav-links>a.active{background:#2f8f5b;color:#fff}
 .nav-group{margin:6px 0;border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden}.nav-group summary{list-style:none;cursor:pointer;padding:10px 12px;color:#fff;font-weight:700;background:rgba(255,255,255,.045)}.nav-group summary::-webkit-details-marker{display:none}.nav-group summary:before{content:'›';display:inline-block;width:18px;font-size:18px;transition:transform .15s}.nav-group[open] summary:before{transform:rotate(90deg)}.nav-group summary:hover{background:#1b5139}
@@ -14,7 +15,10 @@ body{margin:0;font-family:Inter,Arial,sans-serif;background:#f6f9f7;color:#17231
 .actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.btn{display:inline-block;border:0;border-radius:7px;padding:9px 14px;text-decoration:none;cursor:pointer;background:#2e8b57;color:#fff;font-size:14px}.btn.gray{background:#64748b}.btn.red{background:#d9534f}
 .form{max-width:720px;width:100%}.input{width:100%;padding:10px;border:1px solid #cfdad3;border-radius:7px;margin-top:5px;background:#fff}.field{margin-bottom:15px}.alert{padding:12px;background:#e8f6ed;color:#24613f;border:1px solid #cce9d6;border-radius:7px;margin-bottom:15px}.warning{padding:12px;background:#fff7cc;color:#735b00;border:1px solid #ead27a;border-radius:7px;margin-bottom:15px}.info{padding:12px;background:#eef6ff;color:#24527a;border:1px solid #c9dff5;border-radius:7px;margin-bottom:15px}.error{padding:12px;background:#fcebea;color:#8f2f2c;border:1px solid #f4c9c7;border-radius:7px;margin-bottom:15px}.muted{color:#66736b;font-size:13px}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:700px){.nav{position:fixed;left:0;top:0;bottom:auto;width:100%;height:auto;padding:14px 16px;overflow:visible}.brand{margin:0;display:inline-block;line-height:40px}.nav-toggle{display:block;position:absolute;right:16px;top:14px;width:40px;height:40px;border:0;border-radius:7px;background:#1d5b40;color:#fff;font-size:22px;cursor:pointer}.nav-links{display:none;padding-top:10px}.nav.open .nav-links{display:block}.main{margin-left:0;padding:78px 16px 24px}.grid{grid-template-columns:1fr;gap:12px}}
+@media(max-width:700px){
+  .nav{position:fixed;left:0;top:0;right:0;bottom:0;width:100%;height:100dvh;max-height:100dvh;padding:14px 16px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .brand{margin:0;display:inline-block;line-height:40px}.nav-toggle{display:block;position:absolute;right:16px;top:14px;width:40px;height:40px;border:0;border-radius:7px;background:#1d5b40;color:#fff;font-size:22px;cursor:pointer}.nav-links{display:none;padding-top:10px;padding-bottom:24px}.nav.open .nav-links{display:block}.main{margin-left:0;padding:78px 16px 24px}.grid{grid-template-columns:1fr;gap:12px}
+}
 body::before,body::after,.main::before,.main::after,.main *::before,.main *::after,.nav::before,.nav::after,.nav-group::before,.nav-group::after{content:none!important;display:none!important;background:none!important;box-shadow:none!important;transform:none!important;}
 .card nav[role="navigation"] svg{width:20px!important;height:20px!important;display:inline-block;vertical-align:middle;}
 .card nav[role="navigation"]{margin-top:16px;}
