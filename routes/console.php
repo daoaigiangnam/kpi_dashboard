@@ -13,10 +13,12 @@ Schedule::command('services:monitor')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Alert escalation must run every minute so configured delays (for example 1/2/3 minutes)
+// are honored closely. This command only sends levels whose delay has elapsed and
+// ServiceAlertEmailService prevents duplicate sends.
 Schedule::command('services:alert-emails')
-    ->everyFiveMinutes()
-    ->withoutOverlapping()
-    ->onOneServer();
+    ->everyMinute()
+    ->withoutOverlapping();
 
 Schedule::command('it-tools:expiry-alert --days=30')
     ->dailyAt('08:15')
