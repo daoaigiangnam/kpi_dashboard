@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ServiceAlertEvent;
+use App\Services\ItTools\ServiceAlertEmailService;
 use Illuminate\Http\Request;
 
 class ServiceAlertEventController extends Controller
@@ -36,7 +37,7 @@ class ServiceAlertEventController extends Controller
         return back()->with('success', 'Alert acknowledged.');
     }
 
-    public function resolve(ServiceAlertEvent $serviceAlertEvent)
+    public function resolve(ServiceAlertEvent $serviceAlertEvent, ServiceAlertEmailService $emailService)
     {
         if ($serviceAlertEvent->status === 'resolved') {
             return back()->with('info', 'Alert is already resolved.');
@@ -48,6 +49,8 @@ class ServiceAlertEventController extends Controller
             'resolved_by' => auth()->id(),
         ]);
 
-        return back()->with('success', 'Alert resolved.');
+        $emailService->notifyResolved($serviceAlertEvent);
+
+        return back()->with('success', 'Alert resolved and resolution report sent.');
     }
 }
