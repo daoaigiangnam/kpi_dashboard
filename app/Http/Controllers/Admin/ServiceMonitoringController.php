@@ -28,10 +28,14 @@ class ServiceMonitoringController extends Controller
             'expired' => (clone $base)->where('status', 'expired')->orWhere('alert_stage', 4)->count(),
         ];
 
+        // "Upcoming Expiry" is an action list, not a list of all services.
+        // Only services that have entered an active alert stage (1-3) are shown.
+        // Normal services (alert_stage = 0) must not appear here.
         $upcoming = Service::query()
             ->with(['customer', 'serviceType', 'provider', 'alertPolicy'])
             ->where('status', 'active')
             ->whereNotNull('expiry_date')
+            ->whereBetween('alert_stage', [1, 3])
             ->orderBy('expiry_date')
             ->limit(20)
             ->get();
