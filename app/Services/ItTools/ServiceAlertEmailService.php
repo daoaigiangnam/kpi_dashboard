@@ -16,7 +16,7 @@ class ServiceAlertEmailService
             return;
         }
 
-        $event->loadMissing(['service.customer.alertRecipients', 'service.responsibleIt', 'service.serviceType', 'service.provider', 'alertPolicy']);
+        $event->loadMissing(['service.customer.alertRecipients', 'service.serviceType', 'service.provider', 'alertPolicy']);
         $this->sendLevel($event, 1, 'alert');
     }
 
@@ -29,7 +29,7 @@ class ServiceAlertEmailService
         $sent = 0;
         ServiceAlertEvent::query()
             ->whereIn('status', ['open', 'acknowledged'])
-            ->with(['service.customer.alertRecipients', 'service.responsibleIt', 'service.serviceType', 'service.provider', 'alertPolicy'])
+            ->with(['service.customer.alertRecipients', 'service.serviceType', 'service.provider', 'alertPolicy'])
             ->orderBy('id')
             ->limit(1000)
             ->get()
@@ -59,7 +59,7 @@ class ServiceAlertEmailService
             return 0;
         }
 
-        $event->loadMissing(['service.customer.alertRecipients', 'service.responsibleIt', 'service.serviceType', 'service.provider', 'alertPolicy', 'resolvedBy']);
+        $event->loadMissing(['service.customer.alertRecipients', 'service.serviceType', 'service.provider', 'alertPolicy', 'resolvedBy']);
         $sent = 0;
         foreach ([1, 2, 3, 4] as $level) {
             if (!$this->levelEnabled($level)) {
@@ -138,18 +138,45 @@ class ServiceAlertEmailService
 
     private function recipientForLevel(ServiceAlertEvent $event, int $level): ?array
     {
-        $customer = $event->service?->customer;
-        $recipient = $customer?->alertRecipients?->firstWhere('level', $level);
+        $service = $event->service;
+        $customer = $service?->customer;
 
-        if (!$recipient || !$recipient->is_active || !$recipient->recipient_email) {
+        if ($level === 1) {
+            $recipient = $customer?->alertRecipients?->firstWhere('level', 1);
+            if (!$recipient || !$recipient->is_active || !$recipient->recipient_email) {
+                return null;
+            }
+
+            return [
+                'type' => 'customer_operations',
+                'email' => $recipient->recipient_email,
+                'name' => $recipient->recipient_name ?: $customer->name,
+            ];
+        }
+
+        if ($level === 2) {
+            return $this->configuredRecipient('alert_email.it_lead_email', 'it_lead', 'IT Lead');
+        }
+
+        if ($level === 3) {
+            return $this->configuredRecipient('alert_email.bod_email', 'bod_outsourcing', 'BOD Outsourcing');
+        }
+
+        if (!$customer?->email) {
             return null;
         }
 
         return [
-            'type' => 'customer_level_'.$level,
-            'email' => $recipient->recipient_email,
-            'name' => $recipient->recipient_name ?: $customer->name,
+            'type' => 'customer',
+            'email' => $customer->email,
+            'name' => $customer->contact_name ?: $customer->name,
         ];
+    }
+
+    private function configuredRecipient(string $key, string $type, string $name): ?array
+    {
+        $email = trim((string) SystemSetting::value($key, ''));
+        return $email !== '' ? ['type' => $type, 'email' => $email, 'name' => $name] : null;
     }
 
     private function levelEnabled(int $level): bool
