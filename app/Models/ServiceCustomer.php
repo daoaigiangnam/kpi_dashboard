@@ -11,4 +11,9 @@ class ServiceCustomer extends Model
 
     protected $fillable = ['code','name','contact_name','email','phone','is_active'];
     protected $casts = ['is_active' => 'boolean'];
+
+    public function alertRecipients()
+    {
+        return $this->hasMany(ServiceCustomerAlertRecipient::class, 'customer_id')->orderBy('level');
+    }
 }
