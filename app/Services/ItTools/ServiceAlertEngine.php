@@ -41,7 +41,31 @@ class ServiceAlertEngine
             default => 0,
         };
 
-        if ($stage === 0 || $stage <= (int) $service->alert_stage) {
+        $currentStage = (int) $service->alert_stage;
+
+        // If the service expiry/term/policy was changed so the current risk is lower,
+        // reset the persisted monitoring stage and close obsolete open alerts.
+        if ($stage < $currentStage) {
+            return DB::transaction(function () use ($service, $stage) {
+                ServiceAlertEvent::query()
+                    ->where('service_id', $service->id)
+                    ->whereIn('status', ['open', 'acknowledged'])
+                    ->update([
+                        'status' => 'resolved',
+                        'resolved_at' => now(),
+                        'note' => 'Alert closed automatically because the service monitoring state was recalculated.',
+                    ]);
+
+                $service->update([
+                    'alert_stage' => $stage,
+                    'last_alert_at' => null,
+                ]);
+
+                return null;
+            });
+        }
+
+        if ($stage === 0 || $stage <= $currentStage) {
             return null;
         }
 
