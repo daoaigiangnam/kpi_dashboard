@@ -12,20 +12,22 @@
         <div class="field"><label>Value</label><input class="input" name="value" value="{{ old('value',$service->value) }}" placeholder="Domain / IP / license / contract number..."></div>
         <div class="field"><label>Provider</label><select class="input" name="provider_id"><option value="">Select provider</option>@foreach($providers as $x)<option value="{{ $x->id }}" @selected((int)old('provider_id',$service->provider_id)===$x->id)>{{ $x->name }}</option>@endforeach</select></div>
 
-        <div class="field" id="monitoring-fields" style="display:none">
-            <label>Check Method</label>
-            <select class="input" id="monitor_check_method" name="monitor_check_method">
-                <option value="">Disabled</option>
-                <option value="ping" @selected(old('monitor_check_method',$service->monitor_check_method)==='ping')>PING</option>
-                <option value="port" @selected(old('monitor_check_method',$service->monitor_check_method)==='port')>Check Port</option>
-            </select>
-            <small class="muted">For FTTH/Internet monitoring. PING checks ICMP reachability; Check Port checks TCP connectivity.</small>
-        </div>
+        <div id="monitoring-fields" style="display:none">
+            <div class="field"><label>WAN IP / Monitor Target *</label><input class="input" id="monitor_target" name="monitor_target" value="{{ old('monitor_target',$service->monitor_target) }}" placeholder="118.69.xxx.xxx"><small class="muted">IP WAN của đường FTTH cần giám sát.</small></div>
 
-        <div class="field" id="monitor-port-field" style="display:none">
-            <label>Check Port</label>
-            <input class="input" id="monitor_port" type="number" min="1" max="65535" name="monitor_port" value="{{ old('monitor_port',$service->monitor_port) }}" placeholder="443">
-            <small class="muted">Example: 443 for HTTPS, 3389 for RDP, 22 for SSH.</small>
+            <div class="field"><label>Check Method</label>
+                <select class="input" id="monitor_check_method" name="monitor_check_method">
+                    <option value="">Disabled</option>
+                    <option value="ping" @selected(old('monitor_check_method',$service->monitor_check_method)==='ping')>PING</option>
+                    <option value="port" @selected(old('monitor_check_method',$service->monitor_check_method)==='port')>Check Port</option>
+                </select>
+                <small class="muted">PING = ICMP. Check Port = TCP tới WAN IP.</small>
+            </div>
+
+            <div class="field" id="monitor-port-field" style="display:none"><label>Check Port *</label><input class="input" id="monitor_port" type="number" min="1" max="65535" name="monitor_port" value="{{ old('monitor_port',$service->monitor_port) }}" placeholder="443"><small class="muted">Ví dụ: 443, 3389, 22.</small></div>
+
+            <div class="field"><label>Check Interval</label><select class="input" name="monitor_interval_seconds"><option value="30" @selected((int)old('monitor_interval_seconds',$service->monitor_interval_seconds ?: 60)===30)>30 seconds</option><option value="60" @selected((int)old('monitor_interval_seconds',$service->monitor_interval_seconds ?: 60)===60)>1 minute</option><option value="300" @selected((int)old('monitor_interval_seconds',$service->monitor_interval_seconds ?: 60)===300)>5 minutes</option><option value="600" @selected((int)old('monitor_interval_seconds',$service->monitor_interval_seconds ?: 60)===600)>10 minutes</option></select></div>
+            <div class="field"><label>Timeout</label><select class="input" name="monitor_timeout_seconds"><option value="3" @selected((int)old('monitor_timeout_seconds',$service->monitor_timeout_seconds ?: 5)===3)>3 seconds</option><option value="5" @selected((int)old('monitor_timeout_seconds',$service->monitor_timeout_seconds ?: 5)===5)>5 seconds</option><option value="10" @selected((int)old('monitor_timeout_seconds',$service->monitor_timeout_seconds ?: 5)===10)>10 seconds</option></select></div>
         </div>
 
         <div class="field"><label>Service Term</label><select class="input" id="service_term_months" name="service_term_months"></select></div>
@@ -40,73 +42,26 @@
 </div>
 <script>
 (function(){
- const type=document.getElementById('service_type_id');
- const term=document.getElementById('service_term_months');
- const expiry=document.getElementById('expiry_date');
- const policy=document.getElementById('alert_policy_id');
- const method=document.getElementById('monitor_check_method');
- const port=document.getElementById('monitor_port');
- const monitoring=document.getElementById('monitoring-fields');
- const portField=document.getElementById('monitor-port-field');
-
- let currentTerm='{{ old('service_term_months',$service->service_term_months) }}';
- let currentPolicy='{{ old('alert_policy_id',$service->alert_policy_id) }}';
- let currentMethod='{{ old('monitor_check_method',$service->monitor_check_method) }}';
-
+ const type=document.getElementById('service_type_id'), term=document.getElementById('service_term_months'), expiry=document.getElementById('expiry_date'), policy=document.getElementById('alert_policy_id');
+ const method=document.getElementById('monitor_check_method'), target=document.getElementById('monitor_target'), port=document.getElementById('monitor_port');
+ const monitoring=document.getElementById('monitoring-fields'), portField=document.getElementById('monitor-port-field');
+ let currentTerm='{{ old('service_term_months',$service->service_term_months) }}', currentPolicy='{{ old('alert_policy_id',$service->alert_policy_id) }}', currentMethod='{{ old('monitor_check_method',$service->monitor_check_method) }}';
  function refresh(){
-   const opt=type.options[type.selectedIndex];
-   let terms=[];
+   const opt=type.options[type.selectedIndex]; let terms=[];
    try{terms=JSON.parse(opt?.dataset.terms||'[]')}catch(e){}
    term.innerHTML='<option value="">No term</option>'+terms.map(m=>'<option value="'+m+'" '+(String(m)===String(currentTerm)?'selected':'')+'>'+m+' tháng</option>').join('');
-
-   [...policy.options].forEach(o=>{
-     if(!o.value) return;
-     const ok=o.dataset.type===type.value;
-     o.hidden=!ok;
-     if(!ok && o.selected) o.selected=false;
-   });
-   if([...policy.options].some(o=>o.value===String(currentPolicy)&&!o.hidden)) policy.value=currentPolicy;
-
+   [...policy.options].forEach(o=>{if(!o.value)return;const ok=o.dataset.type===type.value;o.hidden=!ok;if(!ok&&o.selected)o.selected=false;});
+   if([...policy.options].some(o=>o.value===String(currentPolicy)&&!o.hidden))policy.value=currentPolicy;
    const isInternet=String(opt?.dataset.code||'').toUpperCase()==='INTERNET';
    monitoring.style.display=isInternet?'block':'none';
-
-   if(!isInternet){
-     method.value='';
-     port.value='';
-     portField.style.display='none';
-   } else {
-     method.value=currentMethod||method.value||'';
-     portField.style.display=method.value==='port'?'block':'none';
-     port.required=method.value==='port';
-   }
-
+   if(isInternet){method.value=currentMethod||method.value||'';portField.style.display=method.value==='port'?'block':'none';port.required=method.value==='port';}
+   else {method.value='';target.value='';port.value='';portField.style.display='none';port.required=false;}
    syncExpiryFields();
  }
-
- function syncExpiryFields(){
-   const hasExpiry=!!expiry.value;
-   term.required=hasExpiry;
-   policy.required=hasExpiry;
-   term.disabled=!hasExpiry;
-   policy.disabled=!hasExpiry;
-   if(!hasExpiry){ term.value=''; policy.value=''; }
- }
-
- type.addEventListener('change',()=>{
-   currentTerm='';
-   currentPolicy='';
-   currentMethod='';
-   refresh();
- });
- method.addEventListener('change',()=>{
-   currentMethod=method.value;
-   portField.style.display=method.value==='port'?'block':'none';
-   port.required=method.value==='port';
-   if(method.value!=='port') port.value='';
- });
- expiry.addEventListener('change',syncExpiryFields);
-
- refresh();
+ function syncExpiryFields(){const hasExpiry=!!expiry.value;term.required=hasExpiry;policy.required=hasExpiry;term.disabled=!hasExpiry;policy.disabled=!hasExpiry;if(!hasExpiry){term.value='';policy.value='';}}
+ type.addEventListener('change',()=>{currentTerm='';currentPolicy='';currentMethod='';refresh();});
+ method.addEventListener('change',()=>{currentMethod=method.value;portField.style.display=method.value==='port'?'block':'none';port.required=method.value==='port';if(method.value!=='port')port.value='';});
+ expiry.addEventListener('change',syncExpiryFields); refresh();
 })();
 </script>
 @endsection
