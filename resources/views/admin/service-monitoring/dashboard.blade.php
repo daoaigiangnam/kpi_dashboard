@@ -48,6 +48,29 @@
 </div>
 
 <div class="card" style="margin-top:16px">
+    <h3>Open FTTH Incidents</h3>
+    <div class="table-wrap"><table class="table">
+        <thead><tr><th>Down Since</th><th>Customer</th><th>Service</th><th>Provider</th><th>Target</th><th>Method</th><th>Port</th><th>Reason</th></tr></thead>
+        <tbody>
+        @forelse($networkIncidents as $incident)
+            <tr>
+                <td>{{ optional($incident->started_at)->format('d/m/Y H:i:s') }}</td>
+                <td>{{ $incident->service?->customer?->name }}</td>
+                <td>{{ $incident->service?->service_name }}</td>
+                <td>{{ $incident->service?->provider?->name ?? '-' }}</td>
+                <td>{{ $incident->target }}</td>
+                <td>{{ strtoupper($incident->check_method) }}</td>
+                <td>{{ $incident->port ?: '-' }}</td>
+                <td>{{ $incident->error ?: 'Connectivity check failed.' }}</td>
+            </tr>
+        @empty
+            <tr><td colspan="8" class="muted">No open FTTH incidents.</td></tr>
+        @endforelse
+        </tbody>
+    </table></div>
+</div>
+
+<div class="card" style="margin-top:16px">
     <h3>Upcoming Expiry</h3>
     <div class="table-wrap"><table class="table">
         <thead><tr><th>Customer</th><th>Service</th><th>Type</th><th>Provider</th><th>Expiry</th><th>Alert Stage</th></tr></thead>
