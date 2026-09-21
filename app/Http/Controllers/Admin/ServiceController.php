@@ -42,6 +42,8 @@ class ServiceController extends Controller
                 'auto_renew' => false,
                 'monitor_interval_seconds' => 60,
                 'monitor_timeout_seconds' => 5,
+                'cost_currency' => 'VND',
+                'cost_billing_cycle' => 'monthly',
             ]),
             ...$this->formData(),
         ]);
@@ -51,9 +53,7 @@ class ServiceController extends Controller
     {
         $service = Service::create($this->validated($request));
         $event = $engine->evaluate($service->load('alertPolicy'));
-        if ($event) {
-            $emailService->notifyNewAlert($event);
-        }
+        if ($event) $emailService->notifyNewAlert($event);
         return redirect()->route('admin.services.index')->with('success', 'Service created.');
     }
 
@@ -70,10 +70,7 @@ class ServiceController extends Controller
         $service->update($this->validated($request, $service));
         $service->refresh()->load('alertPolicy');
         $event = $engine->evaluate($service);
-        if ($event) {
-            $emailService->notifyNewAlert($event);
-        }
-
+        if ($event) $emailService->notifyNewAlert($event);
         return redirect()->route('admin.services.index')->with('success', 'Service updated.');
     }
 
@@ -100,6 +97,9 @@ class ServiceController extends Controller
             'provider_id' => ['nullable', 'integer', Rule::exists('service_providers', 'id')->where(fn ($q) => $q->whereNull('deleted_at')->where('is_active', true))],
             'service_name' => ['required', 'string', 'max:190'],
             'value' => ['nullable', 'string', 'max:500'],
+            'cost_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'cost_currency' => ['required', 'string', 'size:3'],
+            'cost_billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'yearly', 'one_time'])],
             'service_term_months' => ['nullable', 'integer', Rule::in([1,3,6,9,12,24])],
             'expiry_date' => ['nullable', 'date'],
             'alert_policy_id' => ['nullable', 'integer', Rule::exists('service_alert_policies', 'id')->where(fn ($q) => $q->whereNull('deleted_at')->where('is_active', true))],
