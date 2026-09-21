@@ -9,8 +9,10 @@ use App\Models\ServiceCustomer;
 use App\Models\ServiceProvider;
 use App\Models\ServiceType;
 use App\Models\User;
+use App\Services\ItTools\DomainAuditService;
 use App\Services\ItTools\ServiceAlertEmailService;
 use App\Services\ItTools\ServiceAlertEngine;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +26,11 @@ class ServiceController extends Controller
 
         $services = ($showDeleted ? Service::withTrashed() : Service::query())
             ->with(['customer', 'serviceType', 'provider', 'alertPolicy', 'responsibleIt'])
-            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x->where('service_name', 'like', "%{$search}%")->orWhere('value', 'like', "%{$search}%")))
+            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
+                ->where('service_name', 'like', "%{$search}%")
+                ->orWhere('value', 'like', "%{$search}%")
+                ->orWhere('monitor_target', 'like', "%{$search}%")
+            ))
             ->when($status !== '', fn ($q) => $q->where('status', $status))
             ->when($showDeleted, fn ($q) => $q->whereNotNull('deleted_at'))
             ->orderByRaw('expiry_date IS NULL, expiry_date')
@@ -32,6 +38,102 @@ class ServiceController extends Controller
             ->withQueryString();
 
         return view('admin.services.index', compact('services', 'search', 'status', 'showDeleted'));
+    }
+
+    public function exportDetails(Request $request)
+    {
+        $search = trim((string) $request->query('search', ''));
+        $status = trim((string) $request->query('status', ''));
+
+        $services = Service::query()
+            ->with(['customer', 'serviceType', 'provider', 'alertPolicy', 'responsibleIt'])
+            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
+                ->where('service_name', 'like', "%{$search}%")
+                ->orWhere('value', 'like', "%{$search}%")
+                ->orWhere('monitor_target', 'like', "%{$search}%")
+            ))
+            ->when($status !== '', fn ($q) => $q->where('status', $status))
+            ->orderBy('customer_id')
+            ->orderBy('service_name')
+            ->get();
+
+        $filename = 'services_' . now()->format('Ymd_His') . '.csv';
+
+        return response()->streamDownload(function () use ($services) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, [
+                'Customer', 'Service Name', 'Service Type', 'Value', 'Provider',
+                'Cost', 'Currency', 'Billing Cycle', 'Term Months', 'Expiry Date',
+                'Alert Policy', 'Responsible IT', 'Status', 'Auto Renew',
+                'Monitor Target', 'Check Method', 'Check Port', 'Interval Seconds',
+                'Timeout Seconds', 'Monitor Status', 'Latency ms', 'Packet Loss %',
+                'Failure Count', 'Last Checked At', 'Down Since', 'Note',
+            ]);
+
+            foreach ($services as $service) {
+                fputcsv($out, [
+                    $service->customer?->name,
+                    $service->service_name,
+                    $service->serviceType?->name,
+                    $service->value,
+                    $service->provider?->name,
+                    $service->cost_amount,
+                    $service->cost_currency,
+                    $service->cost_billing_cycle,
+                    $service->service_term_months,
+                    optional($service->expiry_date)->format('Y-m-d'),
+                    $service->alertPolicy?->name,
+                    $service->responsibleIt?->name,
+                    $service->status,
+                    $service->auto_renew ? 'Yes' : 'No',
+                    $service->monitor_target,
+                    $service->monitor_check_method,
+                    $service->monitor_port,
+                    $service->monitor_interval_seconds,
+                    $service->monitor_timeout_seconds,
+                    $service->monitor_status,
+                    $service->monitor_last_latency_ms,
+                    $service->monitor_packet_loss_percent,
+                    $service->monitor_failure_count,
+                    optional($service->monitor_last_checked_at)?->format('Y-m-d H:i:s'),
+                    optional($service->monitor_down_since)?->format('Y-m-d H:i:s'),
+                    $service->note,
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function detectExpiry(Service $service, DomainAuditService $domainAudit)
+    {
+        $service->load('serviceType');
+        if (strtoupper((string) $service->serviceType?->code) !== 'DOMAIN') {
+            return response()->json(['ok' => false, 'message' => 'Detect Expiry is available only for Domain services.'], 422);
+        }
+
+        $domain = trim((string) $service->value);
+        if ($domain === '') {
+            return response()->json(['ok' => false, 'message' => 'Domain value is empty.'], 422);
+        }
+
+        $result = $domainAudit->check($domain);
+        if (empty($result['expires_at'])) {
+            return response()->json(['ok' => false, 'result' => $result], 422);
+        }
+
+        try {
+            $expiry = Carbon::parse($result['expires_at']);
+        } catch (\Throwable) {
+            return response()->json(['ok' => false, 'message' => 'Detected expiry date could not be parsed.'], 422);
+        }
+
+        $service->update(['expiry_date' => $expiry->toDateString()]);
+        $result['saved_expiry_date'] = $expiry->toDateString();
+
+        return response()->json(['ok' => true, 'result' => $result]);
     }
 
     public function create()
