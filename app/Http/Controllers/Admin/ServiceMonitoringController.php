@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Service;
 use App\Models\ServiceAlertEvent;
+use App\Services\ItTools\NetworkMonitoringService;
 use App\Services\ItTools\ServiceAlertEmailService;
 use App\Services\ItTools\ServiceAlertEngine;
 use Illuminate\Http\Request;
@@ -28,9 +29,27 @@ class ServiceMonitoringController extends Controller
             'expired' => (clone $base)->where('status', 'expired')->orWhere('alert_stage', 4)->count(),
         ];
 
-        // "Upcoming Expiry" is an action list, not a list of all services.
-        // Only services that have entered an active alert stage (1-3) are shown.
-        // Normal services (alert_stage = 0) must not appear here.
+        $networkBase = Service::query()
+            ->where('status', 'active')
+            ->whereIn('monitor_check_method', ['ping', 'port'])
+            ->whereNotNull('monitor_target');
+
+        $networkStats = [
+            'total' => (clone $networkBase)->count(),
+            'online' => (clone $networkBase)->where('monitor_status', 'online')->count(),
+            'offline' => (clone $networkBase)->where('monitor_status', 'offline')->count(),
+            'unknown' => (clone $networkBase)->where(function ($q) {
+                $q->whereNull('monitor_status')->orWhere('monitor_status', '');
+            })->count(),
+        ];
+
+        $monitoredServices = (clone $networkBase)
+            ->with(['customer', 'provider', 'serviceType'])
+            ->orderByRaw("CASE monitor_status WHEN 'offline' THEN 0 WHEN 'online' THEN 1 ELSE 2 END")
+            ->orderBy('service_name')
+            ->limit(100)
+            ->get();
+
         $upcoming = Service::query()
             ->with(['customer', 'serviceType', 'provider', 'alertPolicy'])
             ->where('status', 'active')
@@ -47,14 +66,16 @@ class ServiceMonitoringController extends Controller
             ->limit(20)
             ->get();
 
-        return view('admin.service-monitoring.dashboard', compact('stats', 'upcoming', 'openAlerts'));
+        return view('admin.service-monitoring.dashboard', compact('stats', 'networkStats', 'monitoredServices', 'upcoming', 'openAlerts'));
     }
 
-    public function run(Request $request, ServiceAlertEngine $engine, ServiceAlertEmailService $emailService)
+    public function run(Request $request, ServiceAlertEngine $engine, ServiceAlertEmailService $emailService, NetworkMonitoringService $networkMonitor)
     {
         $limit = max(1, min((int) $request->input('limit', 500), 5000));
         $evaluated = 0;
         $created = 0;
+        $networkChecked = 0;
+        $networkOffline = 0;
 
         Service::query()
             ->where('status', 'active')
@@ -73,6 +94,20 @@ class ServiceMonitoringController extends Controller
                 }
             });
 
-        return back()->with('success', "Monitoring completed. Evaluated {$evaluated} service(s), created {$created} new alert(s).");
+        Service::query()
+            ->where('status', 'active')
+            ->whereIn('monitor_check_method', ['ping', 'port'])
+            ->whereNotNull('monitor_target')
+            ->orderBy('id')
+            ->limit($limit)
+            ->get()
+            ->each(function (Service $service) use ($networkMonitor, &$networkChecked, &$networkOffline) {
+                $result = $networkMonitor->monitor($service);
+                if (!$result['checked']) return;
+                $networkChecked++;
+                if (!$result['online']) $networkOffline++;
+            });
+
+        return back()->with('success', "Monitoring completed. Expiry: {$evaluated} service(s), {$created} alert(s). Network: {$networkChecked} check(s), {$networkOffline} offline.");
     }
 }
