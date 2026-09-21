@@ -14,7 +14,8 @@ class Service extends Model
         'customer_id', 'service_type_id', 'provider_id', 'service_name', 'value',
         'service_term_months', 'expiry_date', 'alert_policy_id', 'responsible_it_id',
         'status', 'auto_renew', 'note', 'alert_stage', 'last_alert_at',
-        'monitor_check_method', 'monitor_port',
+        'monitor_check_method', 'monitor_target', 'monitor_port',
+        'monitor_interval_seconds', 'monitor_timeout_seconds',
     ];
 
     protected $casts = [
@@ -24,6 +25,8 @@ class Service extends Model
         'service_term_months' => 'integer',
         'alert_stage' => 'integer',
         'monitor_port' => 'integer',
+        'monitor_interval_seconds' => 'integer',
+        'monitor_timeout_seconds' => 'integer',
     ];
 
     public function customer(): BelongsTo { return $this->belongsTo(ServiceCustomer::class); }
