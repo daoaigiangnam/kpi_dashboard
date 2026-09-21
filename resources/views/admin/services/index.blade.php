@@ -32,7 +32,7 @@
                     <td>{{ $service->serviceType?->name }}</td>
                     <td>{{ $service->provider?->name }}</td>
                     <td style="white-space:nowrap">{{ $service->cost_amount !== null ? number_format((float)$service->cost_amount, 2, ',', '.') : '—' }} {{ $service->cost_currency }}</td>
-                    <td>{{ match($service->cost_billing_cycle){'monthly'=>'Monthly','quarterly'=>'Quarterly','yearly'=>'Yearly','one_time'=>'One-time',default:'—'} }}</td>
+                    <td>{{ match($service->cost_billing_cycle) { 'monthly' => 'Monthly', 'quarterly' => 'Quarterly', 'yearly' => 'Yearly', 'one_time' => 'One-time', default => '—' } }}</td>
                     <td>{{ $service->service_term_months ? $service->service_term_months.' tháng' : '—' }}</td>
                     <td>{{ optional($service->expiry_date)->format('d/m/Y') ?: '—' }}</td>
                     <td>{{ $service->alertPolicy?->name ?: '—' }}</td>
