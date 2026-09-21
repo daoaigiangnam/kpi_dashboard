@@ -5,11 +5,29 @@
     <form method="post" action="{{ $service->exists ? route('admin.services.update',$service) : route('admin.services.store') }}">
         @csrf
         @if($service->exists) @method('PUT') @endif
+
         <div class="field"><label>Customer *</label><select class="input" name="customer_id" required><option value="">Select customer</option>@foreach($customers as $x)<option value="{{ $x->id }}" @selected((int)old('customer_id',$service->customer_id)===$x->id)>{{ $x->name }}</option>@endforeach</select></div>
-        <div class="field"><label>Service Type *</label><select class="input" id="service_type_id" name="service_type_id" required><option value="">Select service type</option>@foreach($serviceTypes as $x)<option value="{{ $x->id }}" @selected((int)old('service_type_id',$service->service_type_id)===$x->id) data-terms='@json($x->terms->pluck("months")->values())'>{{ $x->name }}</option>@endforeach</select></div>
+        <div class="field"><label>Service Type *</label><select class="input" id="service_type_id" name="service_type_id" required>@foreach($serviceTypes as $x)<option value="{{ $x->id }}" data-code="{{ $x->code }}" @selected((int)old('service_type_id',$service->service_type_id)===$x->id) data-terms='@json($x->terms->pluck("months")->values())'>{{ $x->name }}</option>@endforeach</select></div>
         <div class="field"><label>Service Name *</label><input class="input" name="service_name" value="{{ old('service_name',$service->service_name) }}" required></div>
         <div class="field"><label>Value</label><input class="input" name="value" value="{{ old('value',$service->value) }}" placeholder="Domain / IP / license / contract number..."></div>
         <div class="field"><label>Provider</label><select class="input" name="provider_id"><option value="">Select provider</option>@foreach($providers as $x)<option value="{{ $x->id }}" @selected((int)old('provider_id',$service->provider_id)===$x->id)>{{ $x->name }}</option>@endforeach</select></div>
+
+        <div class="field" id="monitoring-fields" style="display:none">
+            <label>Check Method</label>
+            <select class="input" id="monitor_check_method" name="monitor_check_method">
+                <option value="">Disabled</option>
+                <option value="ping" @selected(old('monitor_check_method',$service->monitor_check_method)==='ping')>PING</option>
+                <option value="port" @selected(old('monitor_check_method',$service->monitor_check_method)==='port')>Check Port</option>
+            </select>
+            <small class="muted">For FTTH/Internet monitoring. PING checks ICMP reachability; Check Port checks TCP connectivity.</small>
+        </div>
+
+        <div class="field" id="monitor-port-field" style="display:none">
+            <label>Check Port</label>
+            <input class="input" id="monitor_port" type="number" min="1" max="65535" name="monitor_port" value="{{ old('monitor_port',$service->monitor_port) }}" placeholder="443">
+            <small class="muted">Example: 443 for HTTPS, 3389 for RDP, 22 for SSH.</small>
+        </div>
+
         <div class="field"><label>Service Term</label><select class="input" id="service_term_months" name="service_term_months"></select></div>
         <div class="field"><label>Expiry Date</label><input class="input" id="expiry_date" type="date" name="expiry_date" value="{{ old('expiry_date', optional($service->expiry_date)->format('Y-m-d')) }}"><small class="muted">Leave blank for services without an expiry date.</small></div>
         <div class="field"><label>Alert Policy</label><select class="input" id="alert_policy_id" name="alert_policy_id"><option value="">Select policy</option>@foreach($policies as $x)<option value="{{ $x->id }}" data-type="{{ $x->service_type_id }}" @selected((int)old('alert_policy_id',$service->alert_policy_id)===$x->id)>{{ $x->name }}</option>@endforeach</select></div>
@@ -22,27 +40,72 @@
 </div>
 <script>
 (function(){
- const type=document.getElementById('service_type_id'), term=document.getElementById('service_term_months'), expiry=document.getElementById('expiry_date'), policy=document.getElementById('alert_policy_id');
- let currentTerm='{{ old('service_term_months',$service->service_term_months) }}', currentPolicy='{{ old('alert_policy_id',$service->alert_policy_id) }}';
+ const type=document.getElementById('service_type_id');
+ const term=document.getElementById('service_term_months');
+ const expiry=document.getElementById('expiry_date');
+ const policy=document.getElementById('alert_policy_id');
+ const method=document.getElementById('monitor_check_method');
+ const port=document.getElementById('monitor_port');
+ const monitoring=document.getElementById('monitoring-fields');
+ const portField=document.getElementById('monitor-port-field');
+
+ let currentTerm='{{ old('service_term_months',$service->service_term_months) }}';
+ let currentPolicy='{{ old('alert_policy_id',$service->alert_policy_id) }}';
+ let currentMethod='{{ old('monitor_check_method',$service->monitor_check_method) }}';
+
  function refresh(){
-   const opt=type.options[type.selectedIndex]; let terms=[];
+   const opt=type.options[type.selectedIndex];
+   let terms=[];
    try{terms=JSON.parse(opt?.dataset.terms||'[]')}catch(e){}
-   term.innerHTML='<option value="">No term</option>'+terms.map(m=>`<option value="${m}" ${String(m)===String(currentTerm)?'selected':''}>${m} tháng</option>`).join('');
-   [...policy.options].forEach(o=>{ if(!o.value) return; const ok=o.dataset.type===type.value; o.hidden=!ok; if(!ok && o.selected) o.selected=false; });
+   term.innerHTML='<option value="">No term</option>'+terms.map(m=>'<option value="'+m+'" '+(String(m)===String(currentTerm)?'selected':'')+'>'+m+' tháng</option>').join('');
+
+   [...policy.options].forEach(o=>{
+     if(!o.value) return;
+     const ok=o.dataset.type===type.value;
+     o.hidden=!ok;
+     if(!ok && o.selected) o.selected=false;
+   });
    if([...policy.options].some(o=>o.value===String(currentPolicy)&&!o.hidden)) policy.value=currentPolicy;
+
+   const isInternet=String(opt?.dataset.code||'').toUpperCase()==='INTERNET';
+   monitoring.style.display=isInternet?'block':'none';
+
+   if(!isInternet){
+     method.value='';
+     port.value='';
+     portField.style.display='none';
+   } else {
+     method.value=currentMethod||method.value||'';
+     portField.style.display=method.value==='port'?'block':'none';
+     port.required=method.value==='port';
+   }
+
    syncExpiryFields();
  }
+
  function syncExpiryFields(){
    const hasExpiry=!!expiry.value;
    term.required=hasExpiry;
-   expiry.required=false;
    policy.required=hasExpiry;
    term.disabled=!hasExpiry;
    policy.disabled=!hasExpiry;
    if(!hasExpiry){ term.value=''; policy.value=''; }
  }
- type.addEventListener('change',()=>{ currentTerm=''; currentPolicy=''; refresh(); });
+
+ type.addEventListener('change',()=>{
+   currentTerm='';
+   currentPolicy='';
+   currentMethod='';
+   refresh();
+ });
+ method.addEventListener('change',()=>{
+   currentMethod=method.value;
+   portField.style.display=method.value==='port'?'block':'none';
+   port.required=method.value==='port';
+   if(method.value!=='port') port.value='';
+ });
  expiry.addEventListener('change',syncExpiryFields);
+
  refresh();
 })();
 </script>
