@@ -37,7 +37,7 @@ class ServiceController extends Controller
     public function create()
     {
         return view('admin.services.form', [
-            'service' => new Service(['status' => 'active', 'auto_renew' => false]),
+            'service' => new Service(['status' => 'active', 'auto_renew' => false, 'monitor_check_method' => null]),
             ...$this->formData(),
         ]);
     }
@@ -102,6 +102,8 @@ class ServiceController extends Controller
             'status' => ['required', 'in:active,suspended,expired'],
             'auto_renew' => ['nullable', 'boolean'],
             'note' => ['nullable', 'string', 'max:2000'],
+            'monitor_check_method' => ['nullable', Rule::in(['ping', 'port'])],
+            'monitor_port' => ['nullable', 'integer', 'between:1,65535'],
         ]);
 
         $hasExpiry = !empty($data['expiry_date']);
@@ -114,6 +116,17 @@ class ServiceController extends Controller
         if (!empty($data['alert_policy_id'])) {
             $policy = ServiceAlertPolicy::findOrFail($data['alert_policy_id']);
             if ((int) $policy->service_type_id !== (int) $data['service_type_id']) abort(422, 'Selected Alert Policy does not belong to the selected Service Type.');
+        }
+
+        // Monitoring method is meaningful for connectivity-monitored services.
+        $isInternet = strtoupper((string) $type->code) === 'INTERNET';
+        if (!$isInternet) {
+            $data['monitor_check_method'] = null;
+            $data['monitor_port'] = null;
+        } elseif (($data['monitor_check_method'] ?? null) === 'port' && empty($data['monitor_port'])) {
+            abort(422, 'Monitor Port is required when Check Method is Port.');
+        } elseif (($data['monitor_check_method'] ?? null) !== 'port') {
+            $data['monitor_port'] = null;
         }
 
         return $data;
