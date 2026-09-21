@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        // monitor_target, monitor_interval_seconds and monitor_timeout_seconds
+        // are already created by 2026_09_21_000002_add_network_monitor_config_to_services.php.
+        // This migration only adds the runtime monitoring state/metrics.
         Schema::table('services', function (Blueprint $t) {
-            $t->string('monitor_target', 255)->nullable()->after('monitor_check_method');
-            $t->unsignedInteger('monitor_interval_seconds')->nullable()->default(60)->after('monitor_port');
-            $t->unsignedTinyInteger('monitor_timeout_seconds')->nullable()->default(5)->after('monitor_interval_seconds');
             $t->string('monitor_status', 20)->nullable()->after('monitor_timeout_seconds');
             $t->decimal('monitor_last_latency_ms', 10, 1)->nullable()->after('monitor_status');
             $t->decimal('monitor_packet_loss_percent', 5, 2)->nullable()->after('monitor_last_latency_ms');
@@ -28,7 +28,6 @@ return new class extends Migration {
             $t->dropIndex(['monitor_check_method', 'monitor_status']);
             $t->dropIndex(['monitor_last_checked_at']);
             $t->dropColumn([
-                'monitor_target', 'monitor_interval_seconds', 'monitor_timeout_seconds',
                 'monitor_status', 'monitor_last_latency_ms', 'monitor_packet_loss_percent',
                 'monitor_failure_count', 'monitor_last_checked_at', 'monitor_down_since',
             ]);
