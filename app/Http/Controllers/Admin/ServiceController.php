@@ -37,7 +37,12 @@ class ServiceController extends Controller
     public function create()
     {
         return view('admin.services.form', [
-            'service' => new Service(['status' => 'active', 'auto_renew' => false, 'monitor_check_method' => null]),
+            'service' => new Service([
+                'status' => 'active',
+                'auto_renew' => false,
+                'monitor_interval_seconds' => 60,
+                'monitor_timeout_seconds' => 5,
+            ]),
             ...$this->formData(),
         ]);
     }
@@ -103,7 +108,10 @@ class ServiceController extends Controller
             'auto_renew' => ['nullable', 'boolean'],
             'note' => ['nullable', 'string', 'max:2000'],
             'monitor_check_method' => ['nullable', Rule::in(['ping', 'port'])],
+            'monitor_target' => ['nullable', 'string', 'max:255'],
             'monitor_port' => ['nullable', 'integer', 'between:1,65535'],
+            'monitor_interval_seconds' => ['nullable', 'integer', 'between:30,86400'],
+            'monitor_timeout_seconds' => ['nullable', 'integer', 'between:1,60'],
         ]);
 
         $hasExpiry = !empty($data['expiry_date']);
@@ -118,15 +126,23 @@ class ServiceController extends Controller
             if ((int) $policy->service_type_id !== (int) $data['service_type_id']) abort(422, 'Selected Alert Policy does not belong to the selected Service Type.');
         }
 
-        // Monitoring method is meaningful for connectivity-monitored services.
         $isInternet = strtoupper((string) $type->code) === 'INTERNET';
         if (!$isInternet) {
             $data['monitor_check_method'] = null;
+            $data['monitor_target'] = null;
             $data['monitor_port'] = null;
-        } elseif (($data['monitor_check_method'] ?? null) === 'port' && empty($data['monitor_port'])) {
-            abort(422, 'Monitor Port is required when Check Method is Port.');
-        } elseif (($data['monitor_check_method'] ?? null) !== 'port') {
-            $data['monitor_port'] = null;
+        } else {
+            $method = $data['monitor_check_method'] ?? null;
+            if ($method && empty($data['monitor_target'])) abort(422, 'WAN IP / Monitor Target is required when monitoring is enabled.');
+            if ($method === 'port' && empty($data['monitor_port'])) abort(422, 'Monitor Port is required when Check Method is Port.');
+            if (!$method) {
+                $data['monitor_target'] = null;
+                $data['monitor_port'] = null;
+            } elseif ($method !== 'port') {
+                $data['monitor_port'] = null;
+            }
+            $data['monitor_interval_seconds'] = $data['monitor_interval_seconds'] ?? 60;
+            $data['monitor_timeout_seconds'] = $data['monitor_timeout_seconds'] ?? 5;
         }
 
         return $data;
