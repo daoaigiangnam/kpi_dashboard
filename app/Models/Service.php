@@ -16,6 +16,8 @@ class Service extends Model
         'status', 'auto_renew', 'note', 'alert_stage', 'last_alert_at',
         'monitor_check_method', 'monitor_target', 'monitor_port',
         'monitor_interval_seconds', 'monitor_timeout_seconds',
+        'monitor_status', 'monitor_last_latency_ms', 'monitor_packet_loss_percent',
+        'monitor_failure_count', 'monitor_last_checked_at', 'monitor_down_since',
     ];
 
     protected $casts = [
@@ -27,6 +29,11 @@ class Service extends Model
         'monitor_port' => 'integer',
         'monitor_interval_seconds' => 'integer',
         'monitor_timeout_seconds' => 'integer',
+        'monitor_last_latency_ms' => 'decimal:1',
+        'monitor_packet_loss_percent' => 'decimal:2',
+        'monitor_failure_count' => 'integer',
+        'monitor_last_checked_at' => 'datetime',
+        'monitor_down_since' => 'datetime',
     ];
 
     public function customer(): BelongsTo { return $this->belongsTo(ServiceCustomer::class); }
