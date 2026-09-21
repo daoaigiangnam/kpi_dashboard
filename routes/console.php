@@ -6,16 +6,21 @@ use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+})->purpose('Display the inspiring quote');
 
 Schedule::command('services:monitor')
     ->dailyAt('08:00')
     ->withoutOverlapping()
     ->onOneServer();
 
-// Alert escalation must run every minute so configured delays (for example 1/2/3 minutes)
-// are honored closely. This command only sends levels whose delay has elapsed and
-// ServiceAlertEmailService prevents duplicate sends.
+// Network/FTTH checks run every minute. Each service has its own monitor interval,
+// so the command skips services that are not due yet.
+Schedule::command('services:monitor-network')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
+
+// Alert escalation must run every minute so configured delays are honored closely.
 Schedule::command('services:alert-emails')
     ->everyMinute()
     ->withoutOverlapping();
