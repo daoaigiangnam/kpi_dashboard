@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Service;
 use App\Models\ServiceAlertEvent;
+use App\Models\ServiceMonitorEvent;
 use App\Services\ItTools\NetworkMonitoringService;
 use App\Services\ItTools\ServiceAlertEmailService;
 use App\Services\ItTools\ServiceAlertEngine;
@@ -50,6 +51,13 @@ class ServiceMonitoringController extends Controller
             ->limit(100)
             ->get();
 
+        $networkIncidents = ServiceMonitorEvent::query()
+            ->with(['service.customer', 'service.provider'])
+            ->where('status', 'open')
+            ->latest('started_at')
+            ->limit(20)
+            ->get();
+
         $upcoming = Service::query()
             ->with(['customer', 'serviceType', 'provider', 'alertPolicy'])
             ->where('status', 'active')
@@ -66,7 +74,7 @@ class ServiceMonitoringController extends Controller
             ->limit(20)
             ->get();
 
-        return view('admin.service-monitoring.dashboard', compact('stats', 'networkStats', 'monitoredServices', 'upcoming', 'openAlerts'));
+        return view('admin.service-monitoring.dashboard', compact('stats', 'networkStats', 'monitoredServices', 'networkIncidents', 'upcoming', 'openAlerts'));
     }
 
     public function run(Request $request, ServiceAlertEngine $engine, ServiceAlertEmailService $emailService, NetworkMonitoringService $networkMonitor)
