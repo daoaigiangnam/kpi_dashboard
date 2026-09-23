@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\PcAuditSetting;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -25,7 +26,18 @@ class SystemSettingController extends Controller
     public function index(): mixed
     {
         $settings = collect(self::DEFAULTS)->mapWithKeys(fn ($default, $key) => [$key => SystemSetting::value($key, $default)]);
-        return view('admin.settings.index', ['settings' => $settings, 'mailPasswordConfigured' => filled(SystemSetting::value('mail.password'))]);
+        $pcAudit = PcAuditSetting::query()->first() ?? new PcAuditSetting([
+            'api_base_url' => config('app.url') . '/api',
+            'tool_version' => '1.0.0',
+            'minimum_tool_version' => '1.0.0',
+            'enabled' => true,
+        ]);
+
+        return view('admin.settings.index', [
+            'settings' => $settings,
+            'pcAudit' => $pcAudit,
+            'mailPasswordConfigured' => filled(SystemSetting::value('mail.password')),
+        ]);
     }
 
     public function update(Request $request): mixed
@@ -48,6 +60,12 @@ class SystemSettingController extends Controller
             'alert_it_lead_delay_minutes' => ['required', 'integer', 'min:1', 'max:10080'],
             'alert_bod_delay_minutes' => ['required', 'integer', 'min:1', 'max:10080'],
             'alert_customer_delay_minutes' => ['required', 'integer', 'min:1', 'max:10080'],
+            'pc_audit_api_base_url' => ['required', 'url:http,https', 'max:500'],
+            'pc_audit_tool_version' => ['required', 'string', 'max:50'],
+            'pc_audit_minimum_tool_version' => ['required', 'string', 'max:50'],
+            'pc_audit_enabled' => ['required', 'boolean'],
+            'pc_audit_download_url' => ['nullable', 'url:http,https', 'max:1000'],
+            'pc_audit_disabled_message' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $values = [
@@ -80,7 +98,19 @@ class SystemSettingController extends Controller
             SystemSetting::updateOrCreate(['key' => $key], ['value' => $value, 'group' => $group, 'label' => ucwords(str_replace(['.', '_'], [' / ', ' '], $shortKey))]);
         }
 
-        return back()->with('success', 'System settings saved. Mail credentials and alert email settings are stored encrypted in the database.');
+        PcAuditSetting::query()->updateOrCreate(
+            ['id' => 1],
+            [
+                'api_base_url' => rtrim($data['pc_audit_api_base_url'], '/'),
+                'tool_version' => $data['pc_audit_tool_version'],
+                'minimum_tool_version' => $data['pc_audit_minimum_tool_version'],
+                'enabled' => $data['pc_audit_enabled'],
+                'download_url' => $data['pc_audit_download_url'] ?? null,
+                'disabled_message' => $data['pc_audit_disabled_message'] ?? null,
+            ]
+        );
+
+        return back()->with('success', 'System settings and PC Audit configuration saved successfully.');
     }
 
     public function testMail(Request $request): mixed
