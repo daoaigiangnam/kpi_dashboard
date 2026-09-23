@@ -6,12 +6,26 @@
 <div class="card form" style="max-width:900px">
     <div style="margin-bottom:22px">
         <h2 style="margin:0 0 6px">System Settings</h2>
-        <div class="muted">Central configuration for email delivery, registration notifications, password recovery, login security and IT Monitoring alert emails.</div>
+        <div class="muted">Central configuration for email delivery, registration notifications, password recovery, login security, IT Monitoring alert emails and PC Audit.</div>
     </div>
 
     <form method="post" action="{{ route('admin.settings.update') }}">
         @csrf
         @method('PUT')
+
+        <h3 style="margin:0 0 14px">PC Audit Tool</h3>
+        <div style="padding:15px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:24px">
+            <div class="muted" style="margin-bottom:14px">Cấu hình tập trung cho Tool chạy trên máy User. Tool lấy cấu hình từ API trước khi Audit, vì vậy đổi API không cần phát lại Tool.</div>
+            <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:14px">
+                <div class="field"><label>API Base URL</label><input name="pc_audit_api_base_url" type="url" class="input" required value="{{ old('pc_audit_api_base_url', $pcAudit->api_base_url) }}" placeholder="https://kpi.review360.id.vn/api"></div>
+                <div class="field"><label>Tool Version</label><input name="pc_audit_tool_version" class="input" required value="{{ old('pc_audit_tool_version', $pcAudit->tool_version) }}" placeholder="1.0.0"></div>
+                <div class="field"><label>Minimum Tool Version</label><input name="pc_audit_minimum_tool_version" class="input" required value="{{ old('pc_audit_minimum_tool_version', $pcAudit->minimum_tool_version) }}" placeholder="1.0.0"></div>
+                <div class="field"><label>Download URL</label><input name="pc_audit_download_url" type="url" class="input" value="{{ old('pc_audit_download_url', $pcAudit->download_url) }}" placeholder="https://.../AuditTool.exe"></div>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;cursor:pointer"><input type="hidden" name="pc_audit_enabled" value="0"><input type="checkbox" name="pc_audit_enabled" value="1" @checked(old('pc_audit_enabled', $pcAudit->enabled))> <strong>Cho phép Audit</strong></label>
+            <div class="field"><label>Thông báo khi Tool bị khóa</label><textarea name="pc_audit_disabled_message" class="input" rows="3" placeholder="Hệ thống Audit hiện đang tạm ngưng. Vui lòng thử lại sau.">{{ old('pc_audit_disabled_message', $pcAudit->disabled_message) }}</textarea></div>
+        </div>
+
         <h3 style="margin:0 0 14px">Email / SMTP</h3>
         <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:24px">
             <div class="field"><label>Mail Driver</label><select name="mail_mailer" class="input"><option value="log" @selected($settings['mail.mailer'] === 'log')>Log (development)</option><option value="smtp" @selected($settings['mail.mailer'] === 'smtp')>SMTP</option></select></div>
