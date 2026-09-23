@@ -11,7 +11,7 @@ return new class extends Migration {
     {
         Schema::create('pc_audit_codes', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('branch_id')->constrained('customer_branches')->restrictOnDelete();
             $table->string('code', 100)->unique();
             $table->string('name')->nullable();
             $table->boolean('is_active')->default(true)->index();
