@@ -11,6 +11,15 @@ Write-Host '========================================='
 Write-Host '        MSTAR PC AUDIT TOOL' -ForegroundColor Cyan
 Write-Host '========================================='
 
+Write-Host 'Đang lấy cấu hình hệ thống...' -ForegroundColor Yellow
+Initialize-PcAuditConfig
+
+$serverVersion = [string]$script:PcAuditServerConfig.tool_version
+$minimumVersion = [string]$script:PcAuditServerConfig.minimum_tool_version
+if (-not [string]::IsNullOrWhiteSpace($serverVersion)) {
+    Write-Host "Tool phiên bản máy chủ: $serverVersion" -ForegroundColor DarkGray
+}
+
 $code = Read-Host 'Audit Code'
 $department = Read-Host 'Phòng ban'
 $employeeName = Read-Host 'Họ và tên'
