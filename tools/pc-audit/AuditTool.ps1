@@ -15,7 +15,6 @@ Write-Host 'Đang lấy cấu hình hệ thống...' -ForegroundColor Yellow
 Initialize-PcAuditConfig
 
 $serverVersion = [string]$script:PcAuditServerConfig.tool_version
-$minimumVersion = [string]$script:PcAuditServerConfig.minimum_tool_version
 if (-not [string]::IsNullOrWhiteSpace($serverVersion)) {
     Write-Host "Tool phiên bản máy chủ: $serverVersion" -ForegroundColor DarkGray
 }
@@ -39,8 +38,14 @@ $customerName = $validation.data.customer.name
 $branchName = $validation.data.branch.name
 Write-Host "Khách hàng : $customerName" -ForegroundColor Green
 Write-Host "Chi nhánh  : $branchName" -ForegroundColor Green
-Write-Host ''
 
+Write-Host 'Đang kiểm tra cấu hình Email...' -ForegroundColor Yellow
+$mailConfig = Invoke-PcAuditGetMailConfig -Code $code
+if ($mailConfig.ok -eq $true) {
+    Write-Host "Email nhận : $([string]$mailConfig.data.to_email)" -ForegroundColor DarkGray
+}
+
+Write-Host ''
 $answer = Read-Host 'Tiếp tục Audit máy này? (Y/N)'
 if ($answer -notmatch '^(Y|y)$') { exit 0 }
 
@@ -61,6 +66,24 @@ if ($response.ok -ne $true) {
     throw ('Server từ chối dữ liệu: ' + [string]$response.message)
 }
 
+# Send the same collected payload through the server-side SMTP configuration.
+# SMTP credentials never leave the server.
+try {
+    $computerName = [string]$collector.computer_name
+    if ([string]::IsNullOrWhiteSpace($computerName)) { $computerName = $env:COMPUTERNAME }
+    $subject = "PC Audit - $computerName - $customerName - $branchName"
+    $mailBody = ($payload | ConvertTo-Json -Depth 30)
+
+    Write-Host 'Đang gửi Email báo cáo...' -ForegroundColor Yellow
+    $mailResponse = Invoke-PcAuditSendMail -Code $code -Subject $subject -Body $mailBody
+    if ($mailResponse.ok -eq $true) {
+        Write-Host "Email đã gửi: $([string]$mailResponse.to)" -ForegroundColor Green
+    }
+}
+catch {
+    Write-Warning "Audit đã lưu thành công nhưng Email chưa gửi được: $($_.Exception.Message)"
+}
+
 Write-Host ''
-Write-Host 'AUDIT HOÀN TẤT - DỮ LIỆU ĐÃ ĐƯỢC GỬI VỀ HỆ THỐNG.' -ForegroundColor Green
+Write-Host 'AUDIT HOÀN TẤT - DỮ LIỆU ĐÃ ĐƯỢC LƯU VÀO HỆ THỐNG.' -ForegroundColor Green
 Read-Host 'Nhấn Enter để kết thúc'
