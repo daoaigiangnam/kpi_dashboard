@@ -7,31 +7,27 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\PcAuditCode;
 use App\Models\SystemSetting;
-use App\Http\Requests\PcAuditMailConfigRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PcAuditMailConfigController extends Controller
 {
-    public function show(PcAuditMailConfigRequest $request): JsonResponse
+    public function show(Request $request): JsonResponse
     {
+        $data = $request->validate(['code' => ['required', 'string', 'max:120']]);
+
         $code = PcAuditCode::query()
             ->with(['branch.customer.alertRecipients'])
-            ->where('code', $request->string('code')->toString())
+            ->where('code', $data['code'])
             ->where('is_active', true)
             ->first();
 
         if (!$code) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Audit Code không hợp lệ hoặc đã bị khóa.',
-            ], 404);
+            return response()->json(['ok' => false, 'message' => 'Audit Code không hợp lệ hoặc đã bị khóa.'], 404);
         }
 
         if (SystemSetting::value('mail.mailer', 'log') !== 'smtp') {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Hệ thống KPI chưa được cấu hình SMTP.',
-            ], 409);
+            return response()->json(['ok' => false, 'message' => 'Hệ thống KPI chưa được cấu hình SMTP.'], 409);
         }
 
         $customer = $code->branch?->customer;
