@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\PcAudit;
 use App\Models\PcAuditCode;
+use App\Models\PcAuditDetail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,17 +18,12 @@ class PcAuditApiController extends Controller
     {
         $data = $request->validate(['code' => ['required', 'string', 'max:120']]);
         $code = PcAuditCode::with('branch.customer')->where('code', $data['code'])->where('is_active', true)->first();
-
         if (!$code) return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ hoặc đã bị khóa.'], 404);
-
-        return response()->json([
-            'ok' => true,
-            'data' => [
-                'code' => $code->code,
-                'customer' => ['id' => $code->branch->customer->id, 'code' => $code->branch->customer->code, 'name' => $code->branch->customer->name],
-                'branch' => ['id' => $code->branch->id, 'code' => $code->branch->code, 'name' => $code->branch->name],
-            ],
-        ]);
+        return response()->json(['ok' => true, 'data' => [
+            'code' => $code->code,
+            'customer' => ['id' => $code->branch->customer->id, 'code' => $code->branch->customer->code, 'name' => $code->branch->customer->name],
+            'branch' => ['id' => $code->branch->id, 'code' => $code->branch->code, 'name' => $code->branch->name],
+        ]]);
     }
 
     public function submit(Request $request): JsonResponse
@@ -38,35 +34,29 @@ class PcAuditApiController extends Controller
             'employee_name' => ['required', 'string', 'max:200'],
             'data' => ['required', 'array'],
         ]);
-
         $code = PcAuditCode::where('code', $payload['code'])->where('is_active', true)->first();
         if (!$code) return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ hoặc đã bị khóa.'], 404);
 
         $data = $payload['data'];
         $value = static fn(array $keys, $default = null) => self::firstValue($data, $keys, $default);
-
         $audit = DB::transaction(function () use ($code, $payload, $data, $value) {
             $audit = PcAudit::create([
-                'pc_audit_code_id' => $code->id,
-                'department' => $payload['department'],
-                'employee_name' => $payload['employee_name'],
-                'employee_username' => $value(['username', 'employee_username']),
-                'domain' => $value(['domain']),
-                'computer_name' => $value(['computer_name', 'computerName']),
-                'manufacturer' => $value(['manufacturer']),
-                'model' => $value(['model']),
-                'serial_number' => $value(['serial_number', 'serialNumber']),
-                'asset_tag' => $value(['asset_tag', 'assetTag']),
-                'mainboard' => $value(['mainboard']),
-                'bios' => $value(['bios']),
-                'operating_system' => $value(['operating_system', 'windows']),
-                'windows_update' => $value(['windows_update']),
-                'last_boot' => $value(['last_boot']),
-                'uptime' => $value(['uptime']),
-                'tpm' => $value(['tpm']),
-                'secure_boot' => $value(['secure_boot']),
-                'collected_at' => now(),
-                'raw_payload' => $data,
+                'pc_audit_code_id' => $code->id, 'department' => $payload['department'], 'employee_name' => $payload['employee_name'],
+                'employee_username' => $value(['username', 'employee_username']), 'domain' => $value(['domain']),
+                'computer_name' => $value(['computer_name', 'computerName']), 'manufacturer' => $value(['manufacturer']),
+                'model' => $value(['model']), 'serial_number' => $value(['serial_number', 'serialNumber']), 'asset_tag' => $value(['asset_tag', 'assetTag']),
+                'mainboard' => $value(['mainboard']), 'bios' => $value(['bios']), 'operating_system' => $value(['operating_system', 'windows']),
+                'windows_update' => $value(['windows_update']), 'last_boot' => $value(['last_boot']), 'uptime' => $value(['uptime']),
+                'tpm' => $value(['tpm']), 'secure_boot' => $value(['secure_boot']), 'collected_at' => $value(['collected_at'], now()), 'raw_payload' => $data,
+            ]);
+
+            PcAuditDetail::create([
+                'pc_audit_id' => $audit->id,
+                'hardware' => $data['hardware'] ?? null, 'cpu' => $data['cpu'] ?? null, 'memory' => $data['memory'] ?? null,
+                'storage' => $data['storage'] ?? null, 'monitors' => $data['monitors'] ?? null, 'gpu' => $data['gpu'] ?? null,
+                'battery' => $data['battery'] ?? null, 'windows' => $data['windows'] ?? null, 'network' => $data['network'] ?? null,
+                'security' => $data['security'] ?? null, 'licenses' => $data['licenses'] ?? null, 'software' => $data['software'] ?? null,
+                'other' => $data['other'] ?? null,
             ]);
 
             self::insertRows($audit->id, $data['memory'] ?? [], 'pc_audit_memory', ['capacity','speed','slot','manufacturer','part_number','serial_number']);
@@ -82,28 +72,13 @@ class PcAuditApiController extends Controller
             self::insertRows($audit->id, $data['software'] ?? [], 'pc_audit_software', ['name','version','publisher','install_date','estimated_size']);
             return $audit;
         });
-
         return response()->json(['ok' => true, 'id' => $audit->id, 'message' => 'Audit đã được ghi nhận.'], 201);
     }
 
-    private static function firstValue(array $data, array $keys, mixed $default = null): mixed
-    {
-        foreach ($keys as $key) if (array_key_exists($key, $data)) return $data[$key];
-        return $default;
-    }
-
-    private static function insertRows(int $auditId, mixed $rows, string $table, array $columns): void
-    {
-        if (!is_array($rows)) return;
-        if ($rows === [] || !array_is_list($rows)) $rows = [$rows];
-        $now = now();
-        $insert = [];
-        foreach ($rows as $row) {
-            if (!is_array($row)) continue;
-            $item = ['pc_audit_id' => $auditId, 'created_at' => $now, 'updated_at' => $now];
-            foreach ($columns as $column) $item[$column] = $row[$column] ?? null;
-            $insert[] = $item;
-        }
+    private static function firstValue(array $data, array $keys, mixed $default = null): mixed { foreach ($keys as $key) if (array_key_exists($key, $data)) return $data[$key]; return $default; }
+    private static function insertRows(int $auditId, mixed $rows, string $table, array $columns): void {
+        if (!is_array($rows)) return; if ($rows === [] || !array_is_list($rows)) $rows = [$rows]; $now = now(); $insert = [];
+        foreach ($rows as $row) { if (!is_array($row)) continue; $item = ['pc_audit_id'=>$auditId,'created_at'=>$now,'updated_at'=>$now]; foreach ($columns as $column) $item[$column] = $row[$column] ?? null; $insert[] = $item; }
         if ($insert) DB::table($table)->insert($insert);
     }
 }
