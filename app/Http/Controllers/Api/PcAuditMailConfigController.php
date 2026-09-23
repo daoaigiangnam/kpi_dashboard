@@ -5,27 +5,26 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\PcAuditMailSetting;
+use App\Models\PcAuditCode;
+use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PcAuditMailConfigController extends Controller
 {
-    public function show(): JsonResponse
+    public function show(Request $request): JsonResponse
     {
-        $setting = PcAuditMailSetting::query()->first();
-
-        if (!$setting) {
-            return response()->json(['enabled' => false], 404);
+        $data = $request->validate(['code' => ['required', 'string', 'max:120']]);
+        $code = PcAuditCode::where('code', $data['code'])->where('is_active', true)->first();
+        if (!$code) return response()->json(['ok' => false, 'message' => 'Audit Code không hợp lệ hoặc đã bị khóa.'], 404);
+        if (SystemSetting::value('mail.mailer', 'log') !== 'smtp') {
+            return response()->json(['ok' => false, 'message' => 'SMTP chưa được cấu hình trên Admin.'], 409);
         }
 
-        return response()->json([
-            'enabled' => $setting->enabled,
-            'smtp_host' => $setting->smtp_host,
-            'smtp_port' => $setting->smtp_port,
-            'smtp_encryption' => $setting->smtp_encryption,
-            'smtp_username' => $setting->smtp_username,
-            'from_email' => $setting->from_email,
-            'from_name' => $setting->from_name,
-        ]);
+        return response()->json(['ok' => true, 'data' => [
+            'from_email' => SystemSetting::value('mail.from_address', ''),
+            'from_name' => SystemSetting::value('mail.from_name', 'KPI Dashboard System'),
+            'to_email' => SystemSetting::value('system.notification_email', ''),
+        ]]);
     }
 }
