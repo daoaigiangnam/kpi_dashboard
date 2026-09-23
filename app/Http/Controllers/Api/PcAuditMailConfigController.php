@@ -34,9 +34,10 @@ class PcAuditMailConfigController extends Controller
         $recipients = $customer?->alertRecipients
             ->where('is_active', true)
             ->pluck('recipient_email')
-            ->filter()
+            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
             ->unique()
-            ->values() ?? collect();
+            ->values()
+            ->all() ?? [];
 
         return response()->json([
             'ok' => true,
