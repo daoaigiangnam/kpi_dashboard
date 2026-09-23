@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PcAudit extends Model
 {
@@ -26,6 +27,7 @@ class PcAudit extends Model
     }
 
     public function auditCode(): BelongsTo { return $this->belongsTo(PcAuditCode::class, 'pc_audit_code_id'); }
+    public function details(): HasOne { return $this->hasOne(PcAuditDetail::class, 'pc_audit_id'); }
     public function memory(): HasMany { return $this->hasMany(PcAuditMemory::class); }
     public function storage(): HasMany { return $this->hasMany(PcAuditStorage::class); }
     public function monitors(): HasMany { return $this->hasMany(PcAuditMonitor::class); }
