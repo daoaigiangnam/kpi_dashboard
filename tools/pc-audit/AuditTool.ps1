@@ -7,7 +7,8 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'Collector.ps1')
 
 Write-Host ''
-Write-Host '========================================='nWrite-Host '        MSTAR PC AUDIT TOOL' -ForegroundColor Cyan
+Write-Host '========================================='
+Write-Host '        MSTAR PC AUDIT TOOL' -ForegroundColor Cyan
 Write-Host '========================================='
 
 $code = Read-Host 'Audit Code'
@@ -21,7 +22,7 @@ if ([string]::IsNullOrWhiteSpace($code) -or [string]::IsNullOrWhiteSpace($depart
 Write-Host 'Đang xác thực Audit Code...' -ForegroundColor Yellow
 $validation = Invoke-PcAuditValidateCode -Code $code
 
-if ($validation.success -eq $false) {
+if ($validation.ok -ne $true) {
     throw ('Audit Code không hợp lệ: ' + [string]$validation.message)
 }
 
@@ -41,14 +42,13 @@ $payload = @{
     code = $code
     department = $department
     employee_name = $employeeName
-    collector_version = '1.0.0'
-    payload = $collector
+    data = $collector
 }
 
 Write-Host 'Đang gửi dữ liệu về hệ thống...' -ForegroundColor Yellow
 $response = Invoke-PcAuditSubmit -Payload $payload
 
-if ($response.success -eq $false) {
+if ($response.ok -ne $true) {
     throw ('Server từ chối dữ liệu: ' + [string]$response.message)
 }
 
