@@ -21,19 +21,42 @@ class PcAuditMailController extends Controller
             'body' => ['required', 'string', 'max:1000000'],
         ]);
 
-        $code = PcAuditCode::where('code', $payload['code'])->where('is_active', true)->first();
-        if (!$code) return response()->json(['ok' => false, 'message' => 'Audit Code không hợp lệ hoặc đã bị khóa.'], 404);
+        $code = PcAuditCode::query()
+            ->with(['branch.customer.alertRecipients'])
+            ->where('code', $payload['code'])
+            ->where('is_active', true)
+            ->first();
 
-        $mailer = SystemSetting::value('mail.mailer', 'log');
-        $to = SystemSetting::value('system.notification_email', '');
-        if ($mailer !== 'smtp' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
-            return response()->json(['ok' => false, 'message' => 'SMTP hoặc Email nhận chưa được cấu hình trên Admin.'], 409);
+        if (!$code) {
+            return response()->json(['ok' => false, 'message' => 'Audit Code không hợp lệ hoặc đã bị khóa.'], 404);
         }
 
-        Mail::raw($payload['body'], function ($message) use ($payload, $to) {
-            $message->to($to)->subject($payload['subject']);
+        if (SystemSetting::value('mail.mailer', 'log') !== 'smtp') {
+            return response()->json(['ok' => false, 'message' => 'SMTP chưa được cấu hình trên Admin.'], 409);
+        }
+
+        $customer = $code->branch?->customer;
+        $recipients = $customer?->alertRecipients
+            ->where('is_active', true)
+            ->pluck('recipient_email')
+            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values()
+            ->all() ?? [];
+
+        if (!$recipients) {
+            return response()->json(['ok' => false, 'message' => 'Customer chưa có Email nhận Audit đang hoạt động.'], 409);
+        }
+
+        Mail::raw($payload['body'], function ($message) use ($payload, $recipients) {
+            $message->to($recipients)->subject($payload['subject']);
         });
 
-        return response()->json(['ok' => true, 'message' => 'Email đã được gửi.', 'to' => $to]);
+        return response()->json([
+            'ok' => true,
+            'message' => 'Email đã được gửi.',
+            'to' => $recipients,
+            'recipient_count' => count($recipients),
+        ]);
     }
 }
