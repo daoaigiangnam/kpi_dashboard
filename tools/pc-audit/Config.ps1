@@ -4,6 +4,8 @@ $script:PcAuditConfigEndpoint = 'https://kpi.review360.id.vn/api/pc-audit/config
 $script:PcAuditApiBaseUrl = $null
 $script:PcAuditValidateEndpoint = $null
 $script:PcAuditSubmitEndpoint = $null
+$script:PcAuditMailConfigEndpoint = $null
+$script:PcAuditSendMailEndpoint = $null
 $script:PcAuditTimeoutSec = 120
 $script:PcAuditServerConfig = $null
 
@@ -29,5 +31,7 @@ function Initialize-PcAuditConfig {
     $script:PcAuditApiBaseUrl = $baseUrl
     $script:PcAuditValidateEndpoint = "$baseUrl/pc-audit/validate-code"
     $script:PcAuditSubmitEndpoint = "$baseUrl/pc-audit/submit"
+    $script:PcAuditMailConfigEndpoint = "$baseUrl/pc-audit/mail-config"
+    $script:PcAuditSendMailEndpoint = "$baseUrl/pc-audit/send-mail"
     $script:PcAuditServerConfig = $config
 }
