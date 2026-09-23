@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\KpiCalculationController;
 use App\Http\Controllers\Admin\TicketKpiPageController;
 use App\Http\Controllers\Admin\ItToolsController;
 use App\Http\Controllers\Admin\ItToolsDashboardController;
+use App\Http\Controllers\Admin\PcAuditController;
 use App\Http\Controllers\Admin\ServiceTypeController;
 use App\Http\Controllers\Admin\ServiceCustomerController;
 use App\Http\Controllers\Admin\ServiceProviderController;
@@ -55,7 +56,6 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     })->name('home');
 
     Route::get('dashboard',[DashboardController::class,'index'])->middleware('permission:admin.view')->name('dashboard');
-
     Route::get('users',[UserController::class,'index'])->middleware('permission:users.view')->name('users.index');
     Route::get('users/pending',[UserController::class,'pending'])->middleware('permission:users.view')->name('users.pending');
     Route::post('users/{user}/approve',[UserController::class,'approve'])->middleware('permission:users.view')->name('users.approve');
@@ -188,6 +188,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::post('it-tools/audit',[ItToolsController::class,'audit'])->middleware('permission:it_tools.audit')->name('it_tools.audit');
     Route::post('it-tools/bulk-audit',[ItToolsController::class,'bulkAudit'])->middleware('permission:it_tools.audit')->name('it_tools.bulk_audit');
     Route::post('it-tools/export',[ItToolsController::class,'export'])->middleware('permission:it_tools.view')->name('it_tools.export');
+
+    Route::get('pc-audit',[PcAuditController::class,'index'])->middleware('permission:it_tools.view')->name('pc_audit.index');
+    Route::get('pc-audit/export',[PcAuditController::class,'export'])->middleware('permission:it_tools.view')->name('pc_audit.export');
+    Route::get('pc-audit/{pcAudit}',[PcAuditController::class,'show'])->middleware('permission:it_tools.view')->name('pc_audit.show');
 });
 
 Route::get('/',function(){
