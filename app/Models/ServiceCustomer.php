@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ServiceCustomer extends Model
@@ -15,5 +18,10 @@ class ServiceCustomer extends Model
     public function alertRecipients()
     {
         return $this->hasMany(ServiceCustomerAlertRecipient::class, 'customer_id')->orderBy('level');
+    }
+
+    public function branches(): HasMany
+    {
+        return $this->hasMany(CustomerBranch::class, 'customer_id');
     }
 }
