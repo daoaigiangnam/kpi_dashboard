@@ -23,7 +23,7 @@ class NetworkMonitoringService
 
     /**
      * Run an immediate connectivity test, ignoring the configured interval.
-     * The result is persisted so the dashboard reflects the test immediately.
+     * For VPS + Check Port, every configured port is tested.
      */
     public function test(Service $service): array
     {
@@ -36,9 +36,25 @@ class NetworkMonitoringService
 
     private function executeCheck(Service $service, bool $persist): array
     {
-        $result = $service->monitor_check_method === 'port'
-            ? $this->checkPort($service->monitor_target, (int) $service->monitor_port, (int) ($service->monitor_timeout_seconds ?: 5))
-            : $this->ping($service->monitor_target, (int) ($service->monitor_timeout_seconds ?: 5));
+        $service->loadMissing('serviceType');
+        $timeout = (int) ($service->monitor_timeout_seconds ?: 5);
+
+        if ($service->monitor_check_method === 'port') {
+            $ports = $this->portsFor($service);
+            if (!$ports) {
+                $result = [
+                    'online' => false,
+                    'latency_ms' => null,
+                    'packet_loss_percent' => 100.0,
+                    'error' => 'No monitor port configured.',
+                    'port_results' => [],
+                ];
+            } else {
+                $result = $this->checkPorts($service->monitor_target, $ports, $timeout);
+            }
+        } else {
+            $result = $this->ping($service->monitor_target, $timeout);
+        }
 
         if ($persist) {
             $this->persist($service, $result);
@@ -80,11 +96,38 @@ class NetworkMonitoringService
         ];
     }
 
-    private function checkPort(string $target, int $port, int $timeout): array
+    private function checkPorts(string $target, array $ports, int $timeout): array
     {
         if (!$this->validTarget($target)) {
-            return ['online' => false, 'latency_ms' => null, 'packet_loss_percent' => 100.0, 'error' => 'Invalid monitor target.'];
+            return ['online' => false, 'latency_ms' => null, 'packet_loss_percent' => 100.0, 'error' => 'Invalid monitor target.', 'port_results' => []];
         }
+
+        $started = microtime(true);
+        $results = [];
+
+        foreach ($ports as $port) {
+            $results[] = $this->checkPort($target, (int) $port, $timeout) + ['port' => (int) $port];
+        }
+
+        $failed = array_values(array_filter($results, fn (array $r) => !$r['online']));
+        $latencies = array_values(array_filter(array_map(fn (array $r) => $r['latency_ms'], $results), fn ($v) => $v !== null));
+        $allOnline = !$failed;
+
+        $failedText = implode(', ', array_map(fn (array $r) => (string) $r['port'], $failed));
+        $error = $allOnline ? null : 'TCP port(s) offline: ' . $failedText;
+
+        return [
+            'online' => $allOnline,
+            'latency_ms' => $latencies ? max($latencies) : null,
+            'packet_loss_percent' => $allOnline ? 0.0 : round((count($failed) / max(1, count($results))) * 100, 2),
+            'error' => $error,
+            'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
+            'port_results' => $results,
+        ];
+    }
+
+    private function checkPort(string $target, int $port, int $timeout): array
+    {
         if ($port < 1 || $port > 65535) {
             return ['online' => false, 'latency_ms' => null, 'packet_loss_percent' => 100.0, 'error' => 'Invalid monitor port.'];
         }
@@ -98,10 +141,25 @@ class NetworkMonitoringService
 
         if (is_resource($stream)) {
             fclose($stream);
-            return ['online' => true, 'latency_ms' => $latency, 'packet_loss_percent' => 0.0, 'error' => null, 'elapsed_ms' => $latency];
+            return ['online' => true, 'latency_ms' => $latency, 'packet_loss_percent' => 0.0, 'error' => null];
         }
 
-        return ['online' => false, 'latency_ms' => $latency, 'packet_loss_percent' => 100.0, 'error' => mb_substr($error ?: 'TCP connection failed.', 0, 1000), 'elapsed_ms' => $latency];
+        return ['online' => false, 'latency_ms' => $latency, 'packet_loss_percent' => 100.0, 'error' => mb_substr($error ?: 'TCP connection failed.', 0, 1000)];
+    }
+
+    private function portsFor(Service $service): array
+    {
+        $ports = is_array($service->monitor_ports) ? $service->monitor_ports : [];
+
+        if (!$ports && $service->monitor_port) {
+            $ports = [(int) $service->monitor_port];
+        }
+
+        $ports = array_map('intval', $ports);
+        $ports = array_values(array_unique(array_filter($ports, fn (int $port) => $port >= 1 && $port <= 65535)));
+
+        // Keep monitoring bounded so one bad VPS configuration cannot create a long scheduler run.
+        return array_slice($ports, 0, 20);
     }
 
     private function persist(Service $service, array $result): void
@@ -146,12 +204,14 @@ class NetworkMonitoringService
                 ->exists();
 
             if (!$open) {
+                $failedPort = collect($result['port_results'] ?? [])->firstWhere('online', false);
+
                 ServiceMonitorEvent::create([
                     'service_id' => $service->id,
                     'event_type' => 'down',
                     'check_method' => $service->monitor_check_method,
                     'target' => $service->monitor_target,
-                    'port' => $service->monitor_port,
+                    'port' => $failedPort['port'] ?? $service->monitor_port,
                     'status' => 'open',
                     'latency_ms' => $result['latency_ms'],
                     'packet_loss_percent' => $result['packet_loss_percent'],
