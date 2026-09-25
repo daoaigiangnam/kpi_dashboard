@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 class NetworkMonitoringCommand extends Command
 {
     protected $signature = 'services:monitor-network {--limit=500 : Maximum monitored services per run}';
-    protected $description = 'Check configured Internet/FTTH services by PING or TCP port.';
+    protected $description = 'Check configured Internet/FTTH/VPS services by PING or TCP port(s).';
 
     public function handle(NetworkMonitoringService $monitor): int
     {
