@@ -11,13 +11,22 @@ class ServiceCustomerController extends Controller
 {
     public function index(Request $request)
     {
+        $user = auth()->user();
         $search = trim((string) $request->query('search', ''));
         $showDeleted = $request->boolean('deleted');
-        $customers = ($showDeleted ? ServiceCustomer::withTrashed() : ServiceCustomer::query())
+
+        $query = $showDeleted ? ServiceCustomer::withTrashed() : ServiceCustomer::query();
+        $customers = $query
+            ->when(!$user->isSuperAdmin(), fn ($q) => $q->whereHas('services', fn ($sq) => $sq->visibleTo($user)))
             ->with('alertRecipients')
-            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x->where('code', 'like', "%{$search}%")->orWhere('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")))
+            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
+                ->where('code', 'like', "%{$search}%")
+                ->orWhere('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")
+            ))
             ->when($showDeleted, fn ($q) => $q->whereNotNull('deleted_at'))
             ->orderBy('name')->paginate(20)->withQueryString();
+
         return view('admin.service-customers.index', compact('customers', 'search', 'showDeleted'));
     }
 
@@ -35,19 +44,41 @@ class ServiceCustomerController extends Controller
 
     public function edit(ServiceCustomer $serviceCustomer)
     {
+        abort_unless($this->canAccess($serviceCustomer), 403);
         $serviceCustomer->load('alertRecipients');
         return view('admin.service-customers.form', ['customer' => $serviceCustomer]);
     }
 
     public function update(Request $request, ServiceCustomer $serviceCustomer)
     {
+        abort_unless($this->canAccess($serviceCustomer), 403);
         $serviceCustomer->update($this->validated($request, $serviceCustomer));
         $this->saveAlertRecipient($request, $serviceCustomer);
         return redirect()->route('admin.service_customers.index')->with('success', 'Customer updated.');
     }
 
-    public function destroy(ServiceCustomer $serviceCustomer) { $serviceCustomer->delete(); return back()->with('success', 'Customer deleted.'); }
-    public function restore(int $serviceCustomer) { ServiceCustomer::withTrashed()->findOrFail($serviceCustomer)->restore(); return back()->with('success', 'Customer restored.'); }
+    public function destroy(ServiceCustomer $serviceCustomer)
+    {
+        abort_unless($this->canAccess($serviceCustomer), 403);
+        $serviceCustomer->delete();
+        return back()->with('success', 'Customer deleted.');
+    }
+
+    public function restore(int $serviceCustomer)
+    {
+        $customer = ServiceCustomer::withTrashed()->findOrFail($serviceCustomer);
+        abort_unless($this->canAccess($customer), 403);
+        $customer->restore();
+        return back()->with('success', 'Customer restored.');
+    }
+
+    private function canAccess(ServiceCustomer $customer): bool
+    {
+        $user = auth()->user();
+
+        return $user->isSuperAdmin()
+            || $customer->services()->visibleTo($user)->exists();
+    }
 
     private function saveAlertRecipient(Request $request, ServiceCustomer $customer): void
     {
