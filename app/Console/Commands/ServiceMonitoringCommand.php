@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 class ServiceMonitoringCommand extends Command
 {
     protected $signature = 'services:monitor {--limit=500 : Maximum services to evaluate per run}';
-    protected $description = 'Evaluate IT services for expiry alerts using their configured Alert Policy.';
+    protected $description = 'Evaluate IT services and Website SSL certificates for expiry alerts using their configured Alert Policy.';
 
     public function handle(ServiceAlertEngine $engine, ServiceAlertEmailService $emailService): int
     {
@@ -20,8 +20,13 @@ class ServiceMonitoringCommand extends Command
 
         Service::query()
             ->where('status', 'active')
-            ->whereNotNull('expiry_date')
-            ->whereNotNull('alert_policy_id')
+            ->where(function ($q) {
+                $q->where(function ($x) {
+                    $x->whereNotNull('expiry_date')->whereNotNull('alert_policy_id');
+                })->orWhere(function ($x) {
+                    $x->where('ssl_detected', true)->whereNotNull('ssl_expiry_date')->whereNotNull('alert_policy_id');
+                });
+            })
             ->with('alertPolicy')
             ->orderBy('id')
             ->limit($limit)
@@ -32,6 +37,13 @@ class ServiceMonitoringCommand extends Command
                     $emailService->notifyNewAlert($event);
                     $created++;
                 }
+
+                $sslEvent = $engine->evaluateSsl($service);
+                if ($sslEvent) {
+                    $emailService->notifyNewAlert($sslEvent);
+                    $created++;
+                }
+
                 $count++;
             });
 
