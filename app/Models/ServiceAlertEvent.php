@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ServiceAlertEvent extends Model
 {
     protected $fillable = [
-        'service_id', 'alert_policy_id', 'alert_stage', 'remaining_percent', 'expiry_date',
+        'service_id', 'alert_type', 'alert_policy_id', 'alert_stage', 'remaining_percent', 'expiry_date',
         'status', 'triggered_at', 'acknowledged_at', 'acknowledged_by',
         'resolved_at', 'resolved_by', 'note',
     ];
