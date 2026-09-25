@@ -4,6 +4,7 @@ namespace App\Services\ItTools;
 
 use App\Models\Service;
 use App\Models\ServiceMonitorEvent;
+use Carbon\Carbon;
 use Symfony\Component\Process\Process;
 
 class NetworkMonitoringService
@@ -23,7 +24,7 @@ class NetworkMonitoringService
 
     /**
      * Run an immediate connectivity test, ignoring the configured interval.
-     * For VPS + Check Port, every configured port is tested.
+     * For VPS/Website + Check Port, every configured port is tested.
      */
     public function test(Service $service): array
     {
@@ -32,6 +33,111 @@ class NetworkMonitoringService
         }
 
         return $this->executeCheck($service, true);
+    }
+
+    /**
+     * Detect the current HTTPS certificate for a Website service and persist
+     * the certificate state and expiry date. SNI is enabled so virtual-hosted
+     * websites receive the certificate for the requested hostname.
+     */
+    public function detectSsl(Service $service): array
+    {
+        $service->loadMissing('serviceType');
+        if (strtoupper((string) $service->serviceType?->code) !== 'WEBSITE') {
+            return ['ssl_detected' => false, 'error' => 'SSL detection is available only for Website services.'];
+        }
+
+        $host = $this->normalizeHost((string) ($service->monitor_target ?: $service->value));
+        if (!$host || filter_var($host, FILTER_VALIDATE_IP)) {
+            $this->saveSslState($service, false, null, null, 'error');
+            return ['ssl_detected' => false, 'error' => 'A valid website hostname is required for SSL detection.'];
+        }
+
+        $timeout = max(2, min((int) ($service->monitor_timeout_seconds ?: 5), 30));
+        $context = stream_context_create([
+            'ssl' => [
+                'capture_peer_cert' => true,
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'SNI_enabled' => true,
+                'peer_name' => $host,
+            ],
+        ]);
+
+        $errno = 0;
+        $error = '';
+        $socket = @stream_socket_client(
+            'ssl://' . $host . ':443',
+            $errno,
+            $error,
+            $timeout,
+            STREAM_CLIENT_CONNECT,
+            $context
+        );
+
+        if (!is_resource($socket)) {
+            $this->saveSslState($service, false, null, null, 'error');
+            return [
+                'ssl_detected' => false,
+                'error' => mb_substr($error ?: 'Unable to connect to HTTPS/443.', 0, 1000),
+            ];
+        }
+
+        $params = stream_context_get_params($socket);
+        fclose($socket);
+        $certificate = $params['options']['ssl']['peer_certificate'] ?? null;
+        if (!$certificate) {
+            $this->saveSslState($service, false, null, null, 'error');
+            return ['ssl_detected' => false, 'error' => 'HTTPS connection succeeded but no peer certificate was returned.'];
+        }
+
+        $info = @openssl_x509_parse($certificate);
+        if (!$info || empty($info['validTo_time_t'])) {
+            $this->saveSslState($service, false, null, null, 'error');
+            return ['ssl_detected' => false, 'error' => 'The peer certificate could not be parsed.'];
+        }
+
+        $expiry = Carbon::createFromTimestamp((int) $info['validTo_time_t']);
+        $issuer = (string) ($info['issuer']['CN'] ?? $info['issuer']['O'] ?? '');
+        $status = $expiry->isPast() ? 'expired' : 'valid';
+
+        $this->saveSslState($service, true, $expiry, $issuer ?: null, $status);
+
+        return [
+            'ssl_detected' => true,
+            'ssl_status' => $status,
+            'issuer' => $issuer ?: null,
+            'valid_from' => !empty($info['validFrom_time_t']) ? Carbon::createFromTimestamp((int) $info['validFrom_time_t'])->toDateString() : null,
+            'expires_at' => $expiry->toIso8601String(),
+            'saved_ssl_expiry_date' => $expiry->toDateString(),
+            'days_remaining' => now()->startOfDay()->diffInDays($expiry->copy()->startOfDay(), false),
+        ];
+    }
+
+    private function saveSslState(Service $service, bool $detected, ?Carbon $expiry, ?string $issuer, string $status): void
+    {
+        $service->ssl_detected = $detected;
+        $service->ssl_expiry_date = $expiry?->toDateString();
+        $service->ssl_issuer = $issuer;
+        $service->ssl_status = $status;
+        $service->ssl_last_checked_at = now();
+        if (!$detected || !$expiry) {
+            $service->ssl_alert_stage = 0;
+            $service->ssl_last_alert_at = null;
+        }
+        $service->save();
+    }
+
+    private function normalizeHost(string $target): ?string
+    {
+        $target = trim($target);
+        if ($target === '') return null;
+
+        $candidate = preg_match('/^https?:\/\//i', $target) ? $target : 'https://' . $target;
+        $host = parse_url($candidate, PHP_URL_HOST);
+        $host = strtolower(trim((string) $host));
+        if ($host === '') return null;
+        return rtrim($host, '.');
     }
 
     private function executeCheck(Service $service, bool $persist): array
@@ -158,7 +264,6 @@ class NetworkMonitoringService
         $ports = array_map('intval', $ports);
         $ports = array_values(array_unique(array_filter($ports, fn (int $port) => $port >= 1 && $port <= 65535)));
 
-        // Keep monitoring bounded so one bad VPS configuration cannot create a long scheduler run.
         return array_slice($ports, 0, 20);
     }
 
@@ -222,9 +327,6 @@ class NetworkMonitoringService
         }
 
         $service->save();
-
-        // Send a network alert/recovery immediately after a state transition.
-        // The email log prevents duplicates when the scheduled email command runs again.
         app(NetworkAlertEmailService::class)->process();
     }
 
