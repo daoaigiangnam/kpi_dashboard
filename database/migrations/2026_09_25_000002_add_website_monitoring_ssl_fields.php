@@ -9,7 +9,8 @@ return new class extends Migration {
     {
         Schema::table('services', function (Blueprint $t) {
             $t->boolean('ssl_detected')->default(false)->after('monitor_down_since');
-            $t->date('ssl_expiry_date')->nullable()->after('ssl_detected');
+            $t->date('ssl_valid_from_date')->nullable()->after('ssl_detected');
+            $t->date('ssl_expiry_date')->nullable()->after('ssl_valid_from_date');
             $t->string('ssl_issuer', 255)->nullable()->after('ssl_expiry_date');
             $t->string('ssl_status', 20)->nullable()->after('ssl_issuer');
             $t->timestamp('ssl_last_checked_at')->nullable()->after('ssl_status');
@@ -34,7 +35,7 @@ return new class extends Migration {
         Schema::table('services', function (Blueprint $t) {
             $t->dropIndex(['ssl_detected', 'ssl_expiry_date']);
             $t->dropColumn([
-                'ssl_detected', 'ssl_expiry_date', 'ssl_issuer', 'ssl_status',
+                'ssl_detected', 'ssl_valid_from_date', 'ssl_expiry_date', 'ssl_issuer', 'ssl_status',
                 'ssl_last_checked_at', 'ssl_alert_stage', 'ssl_last_alert_at',
             ]);
         });
