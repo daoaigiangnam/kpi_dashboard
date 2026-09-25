@@ -21,6 +21,8 @@ class Service extends Model
         'monitor_interval_seconds', 'monitor_timeout_seconds',
         'monitor_status', 'monitor_last_latency_ms', 'monitor_packet_loss_percent',
         'monitor_failure_count', 'monitor_last_checked_at', 'monitor_down_since',
+        'ssl_detected', 'ssl_expiry_date', 'ssl_issuer', 'ssl_status',
+        'ssl_last_checked_at', 'ssl_alert_stage', 'ssl_last_alert_at',
     ];
 
     protected $casts = [
@@ -41,6 +43,11 @@ class Service extends Model
         'monitor_failure_count' => 'integer',
         'monitor_last_checked_at' => 'datetime',
         'monitor_down_since' => 'datetime',
+        'ssl_detected' => 'boolean',
+        'ssl_expiry_date' => 'date',
+        'ssl_last_checked_at' => 'datetime',
+        'ssl_alert_stage' => 'integer',
+        'ssl_last_alert_at' => 'datetime',
     ];
 
     /**
