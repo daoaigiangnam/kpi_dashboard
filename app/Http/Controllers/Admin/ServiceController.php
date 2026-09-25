@@ -21,11 +21,14 @@ class ServiceController extends Controller
 {
     public function index(Request $request)
     {
+        $user = auth()->user();
         $search = trim((string) $request->query('search', ''));
         $status = trim((string) $request->query('status', ''));
         $showDeleted = $request->boolean('deleted');
 
-        $services = ($showDeleted ? Service::withTrashed() : Service::query())
+        $query = $showDeleted ? Service::withTrashed() : Service::query();
+        $services = $query
+            ->visibleTo($user)
             ->with(['customer', 'serviceType', 'provider', 'alertPolicy', 'responsibleIt'])
             ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
                 ->where('service_name', 'like', "%{$search}%")
@@ -43,10 +46,12 @@ class ServiceController extends Controller
 
     public function exportDetails(Request $request)
     {
+        $user = auth()->user();
         $search = trim((string) $request->query('search', ''));
         $status = trim((string) $request->query('status', ''));
 
         $services = Service::query()
+            ->visibleTo($user)
             ->with(['customer', 'serviceType', 'provider', 'alertPolicy', 'responsibleIt'])
             ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
                 ->where('service_name', 'like', "%{$search}%")
@@ -112,6 +117,8 @@ class ServiceController extends Controller
 
     public function detectExpiry(Service $service, DomainAuditService $domainAudit)
     {
+        abort_unless($service->isVisibleTo(auth()->user()), 403);
+
         $service->load('serviceType');
         if (strtoupper((string) $service->serviceType?->code) !== 'DOMAIN') {
             return response()->json(['ok' => false, 'message' => 'Detect Expiry is available only for Domain services.'], 422);
@@ -166,6 +173,8 @@ class ServiceController extends Controller
 
     public function edit(Request $request, Service $service, NetworkMonitoringService $networkMonitor)
     {
+        abort_unless($service->isVisibleTo(auth()->user()), 403);
+
         if ($request->boolean('network_test')) {
             if (!in_array($service->monitor_check_method, ['ping', 'port'], true) || !$service->monitor_target) {
                 return response()->json([
@@ -193,6 +202,8 @@ class ServiceController extends Controller
 
     public function update(Request $request, Service $service, ServiceAlertEngine $engine, ServiceAlertEmailService $emailService)
     {
+        abort_unless($service->isVisibleTo(auth()->user()), 403);
+
         $service->update($this->validated($request, $service));
         $service->refresh()->load('alertPolicy');
         $event = $engine->evaluate($service);
@@ -200,18 +211,42 @@ class ServiceController extends Controller
         return redirect()->route('admin.services.index')->with('success', 'Service updated.');
     }
 
-    public function destroy(Service $service) { $service->delete(); return back()->with('success', 'Service deleted.'); }
-    public function restore(int $service) { Service::withTrashed()->findOrFail($service)->restore(); return back()->with('success', 'Service restored.'); }
+    public function destroy(Service $service)
+    {
+        abort_unless($service->isVisibleTo(auth()->user()), 403);
+        $service->delete();
+        return back()->with('success', 'Service deleted.');
+    }
+
+    public function restore(int $service)
+    {
+        $row = Service::withTrashed()->findOrFail($service);
+        abort_unless($row->isVisibleTo(auth()->user()), 403);
+        $row->restore();
+        return back()->with('success', 'Service restored.');
+    }
 
     private function formData(?Service $service = null): array
     {
+        $user = auth()->user();
         $serviceTypes = ServiceType::query()->where('is_active', true)->with('terms')->orderBy('name')->get();
+
+        $customers = ServiceCustomer::query()
+            ->where('is_active', true)
+            ->when(!$user->isSuperAdmin(), fn ($q) => $q->whereHas('services', fn ($sq) => $sq->visibleTo($user)))
+            ->orderBy('name')
+            ->get();
+
+        $responsibleUsers = $user->isSuperAdmin()
+            ? User::query()->where('is_active', true)->orderBy('name')->get()
+            : User::query()->whereKey($user->id)->get();
+
         return [
-            'customers' => ServiceCustomer::query()->where('is_active', true)->orderBy('name')->get(),
+            'customers' => $customers,
             'providers' => ServiceProvider::query()->where('is_active', true)->orderBy('name')->get(),
             'serviceTypes' => $serviceTypes,
             'policies' => ServiceAlertPolicy::query()->where('is_active', true)->orderBy('name')->get(),
-            'responsibleUsers' => User::query()->where('is_active', true)->orderBy('name')->get(),
+            'responsibleUsers' => $responsibleUsers,
         ];
     }
 
@@ -241,6 +276,21 @@ class ServiceController extends Controller
             'monitor_interval_seconds' => ['nullable', 'integer', 'between:30,86400'],
             'monitor_timeout_seconds' => ['nullable', 'integer', 'between:1,60'],
         ]);
+
+        $user = auth()->user();
+
+        if (!$user->isSuperAdmin()) {
+            $allowedCustomer = ServiceCustomer::query()
+                ->whereKey($data['customer_id'])
+                ->whereHas('services', fn ($q) => $q->visibleTo($user))
+                ->exists();
+
+            if (!$allowedCustomer && (!$service || (int) $service->customer_id !== (int) $data['customer_id'])) {
+                abort(403, 'You can only manage services for customers assigned to you.');
+            }
+
+            $data['responsible_it_id'] = $user->id;
+        }
 
         $type = ServiceType::with('terms')->findOrFail($data['service_type_id']);
         $isInternet = strtoupper((string) $type->code) === 'INTERNET';
