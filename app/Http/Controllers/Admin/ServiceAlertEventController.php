@@ -13,6 +13,7 @@ class ServiceAlertEventController extends Controller
     {
         $status = trim((string) $request->query('status', ''));
         $events = ServiceAlertEvent::query()
+            ->whereHas('service', fn ($q) => $q->visibleTo(auth()->user()))
             ->with(['service', 'alertPolicy'])
             ->when($status !== '', fn ($q) => $q->where('status', $status))
             ->latest('triggered_at')
@@ -24,6 +25,8 @@ class ServiceAlertEventController extends Controller
 
     public function acknowledge(ServiceAlertEvent $serviceAlertEvent)
     {
+        abort_unless($serviceAlertEvent->service()->first()?->isVisibleTo(auth()->user()), 403);
+
         if ($serviceAlertEvent->status !== 'open') {
             return back()->with('info', 'Alert is already acknowledged or resolved.');
         }
@@ -39,6 +42,8 @@ class ServiceAlertEventController extends Controller
 
     public function resolve(ServiceAlertEvent $serviceAlertEvent, ServiceAlertEmailService $emailService)
     {
+        abort_unless($serviceAlertEvent->service()->first()?->isVisibleTo(auth()->user()), 403);
+
         if ($serviceAlertEvent->status === 'resolved') {
             return back()->with('info', 'Alert is already resolved.');
         }
