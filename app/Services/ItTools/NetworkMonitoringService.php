@@ -18,11 +18,31 @@ class NetworkMonitoringService
             return ['checked' => false, 'reason' => 'Not due yet.'];
         }
 
+        return $this->executeCheck($service, true);
+    }
+
+    /**
+     * Run an immediate connectivity test, ignoring the configured interval.
+     * The result is persisted so the dashboard reflects the test immediately.
+     */
+    public function test(Service $service): array
+    {
+        if ($service->status !== 'active' || !in_array($service->monitor_check_method, ['ping', 'port'], true) || !$service->monitor_target) {
+            return ['checked' => false, 'online' => false, 'reason' => 'Monitoring is not configured.'];
+        }
+
+        return $this->executeCheck($service, true);
+    }
+
+    private function executeCheck(Service $service, bool $persist): array
+    {
         $result = $service->monitor_check_method === 'port'
             ? $this->checkPort($service->monitor_target, (int) $service->monitor_port, (int) ($service->monitor_timeout_seconds ?: 5))
             : $this->ping($service->monitor_target, (int) ($service->monitor_timeout_seconds ?: 5));
 
-        $this->persist($service, $result);
+        if ($persist) {
+            $this->persist($service, $result);
+        }
 
         return ['checked' => true, 'service_id' => $service->id] + $result;
     }
@@ -86,7 +106,6 @@ class NetworkMonitoringService
 
     private function persist(Service $service, array $result): void
     {
-        $wasOnline = $service->monitor_status === 'online';
         $isOnline = (bool) $result['online'];
         $now = now();
 
@@ -99,7 +118,12 @@ class NetworkMonitoringService
             $service->monitor_failure_count = 0;
             $service->monitor_down_since = null;
 
-            $open = ServiceMonitorEvent::query()->where('service_id', $service->id)->where('status', 'open')->latest('id')->first();
+            $open = ServiceMonitorEvent::query()
+                ->where('service_id', $service->id)
+                ->where('status', 'open')
+                ->latest('id')
+                ->first();
+
             if ($open) {
                 $open->update([
                     'status' => 'resolved',
@@ -116,7 +140,11 @@ class NetworkMonitoringService
             $service->monitor_failure_count = ((int) $service->monitor_failure_count) + 1;
             if (!$service->monitor_down_since) $service->monitor_down_since = $now;
 
-            $open = ServiceMonitorEvent::query()->where('service_id', $service->id)->where('status', 'open')->exists();
+            $open = ServiceMonitorEvent::query()
+                ->where('service_id', $service->id)
+                ->where('status', 'open')
+                ->exists();
+
             if (!$open) {
                 ServiceMonitorEvent::create([
                     'service_id' => $service->id,
