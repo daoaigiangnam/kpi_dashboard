@@ -11,6 +11,8 @@ class ServiceToolsController extends Controller
 {
     public function detectDomainExpiry(Service $service, DomainAuditService $domainAudit)
     {
+        abort_unless($service->isVisibleTo(auth()->user()), 403);
+
         $service->loadMissing('serviceType');
         if (strtoupper((string) $service->serviceType?->code) !== 'DOMAIN') {
             return response()->json(['ok' => false, 'message' => 'Detect Expiry is available only for Domain services.'], 422);
@@ -34,10 +36,12 @@ class ServiceToolsController extends Controller
 
     public function export(Request $request)
     {
+        $user = auth()->user();
         $search = trim((string) $request->query('search', ''));
         $status = trim((string) $request->query('status', ''));
 
         $services = Service::query()
+            ->visibleTo($user)
             ->with(['customer', 'serviceType', 'provider', 'alertPolicy', 'responsibleIt'])
             ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
                 ->where('service_name', 'like', "%{$search}%")
