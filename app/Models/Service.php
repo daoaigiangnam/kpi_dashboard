@@ -21,7 +21,7 @@ class Service extends Model
         'monitor_interval_seconds', 'monitor_timeout_seconds',
         'monitor_status', 'monitor_last_latency_ms', 'monitor_packet_loss_percent',
         'monitor_failure_count', 'monitor_last_checked_at', 'monitor_down_since',
-        'ssl_detected', 'ssl_expiry_date', 'ssl_issuer', 'ssl_status',
+        'ssl_detected', 'ssl_valid_from_date', 'ssl_expiry_date', 'ssl_issuer', 'ssl_status',
         'ssl_last_checked_at', 'ssl_alert_stage', 'ssl_last_alert_at',
     ];
 
@@ -44,16 +44,13 @@ class Service extends Model
         'monitor_last_checked_at' => 'datetime',
         'monitor_down_since' => 'datetime',
         'ssl_detected' => 'boolean',
+        'ssl_valid_from_date' => 'date',
         'ssl_expiry_date' => 'date',
         'ssl_last_checked_at' => 'datetime',
         'ssl_alert_stage' => 'integer',
         'ssl_last_alert_at' => 'datetime',
     ];
 
-    /**
-     * Limit service data to the services managed by the current user.
-     * Super Admin is intentionally unrestricted.
-     */
     public function scopeVisibleTo(Builder $query, ?User $user = null): Builder
     {
         $user ??= auth()->user();
@@ -68,7 +65,6 @@ class Service extends Model
     public function isVisibleTo(?User $user = null): bool
     {
         $user ??= auth()->user();
-
         return !$user || $user->isSuperAdmin() || (int) $this->responsible_it_id === (int) $user->id;
     }
 
