@@ -72,7 +72,8 @@ class ServiceController extends Controller
             fputcsv($out, [
                 'Customer', 'Service Name', 'Service Type', 'Value', 'Provider',
                 'Cost', 'Currency', 'Billing Cycle', 'Payment Due Day', 'Payment Alert %',
-                'Term Months', 'Expiry Date', 'Alert Policy', 'Responsible IT', 'Status', 'Auto Renew',
+                'Term Months', 'Expiry Date', 'SSL Detected', 'SSL Expiry Date', 'SSL Issuer',
+                'Alert Policy', 'Responsible IT', 'Status', 'Auto Renew',
                 'Monitor Target', 'Check Method', 'Check Port', 'Monitor Ports', 'Interval Seconds',
                 'Timeout Seconds', 'Monitor Status', 'Latency ms', 'Packet Loss %',
                 'Failure Count', 'Last Checked At', 'Down Since', 'Note',
@@ -92,6 +93,9 @@ class ServiceController extends Controller
                     $service->payment_alert_percent,
                     $service->service_term_months,
                     optional($service->expiry_date)->format('Y-m-d'),
+                    $service->ssl_detected ? 'Yes' : 'No',
+                    optional($service->ssl_expiry_date)->format('Y-m-d'),
+                    $service->ssl_issuer,
                     $service->alertPolicy?->name,
                     $service->responsibleIt?->name,
                     $service->status,
@@ -116,12 +120,26 @@ class ServiceController extends Controller
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    public function detectExpiry(Service $service, DomainAuditService $domainAudit)
+    public function detectExpiry(Request $request, Service $service, DomainAuditService $domainAudit, NetworkMonitoringService $networkMonitor)
     {
         abort_unless($service->isVisibleTo(auth()->user()), 403);
-
         $service->load('serviceType');
-        if (strtoupper((string) $service->serviceType?->code) !== 'DOMAIN') {
+        $code = strtoupper((string) $service->serviceType?->code);
+
+        if ($request->boolean('ssl')) {
+            if ($code !== 'WEBSITE') {
+                return response()->json(['ok' => false, 'message' => 'Detect SSL is available only for Website services.'], 422);
+            }
+
+            $result = $networkMonitor->detectSsl($service->refresh());
+            return response()->json([
+                'ok' => !empty($result['ssl_detected']),
+                'result' => $result,
+                'message' => !empty($result['ssl_detected']) ? 'SSL certificate detected.' : 'SSL certificate not detected.',
+            ], !empty($result['ssl_detected']) ? 200 : 422);
+        }
+
+        if ($code !== 'DOMAIN') {
             return response()->json(['ok' => false, 'message' => 'Detect Expiry is available only for Domain services.'], 422);
         }
 
@@ -156,7 +174,7 @@ class ServiceController extends Controller
                 'monitor_interval_seconds' => 60,
                 'monitor_timeout_seconds' => 5,
                 'cost_currency' => 'VND',
-                'cost_billing_cycle' => 'monthly',
+                'cost_billing_cycle' => null,
                 'payment_due_day' => null,
                 'payment_alert_percent' => 20,
             ]),
@@ -261,7 +279,7 @@ class ServiceController extends Controller
             'value' => ['nullable', 'string', 'max:500'],
             'cost_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'cost_currency' => ['required', 'string', 'size:3'],
-            'cost_billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'yearly', 'one_time'])],
+            'cost_billing_cycle' => ['nullable', Rule::in(['monthly', 'quarterly', 'yearly', 'one_time'])],
             'payment_due_day' => ['nullable', 'integer', 'between:1,31'],
             'payment_alert_percent' => ['nullable', 'integer', 'between:1,100'],
             'service_term_months' => ['nullable', 'integer', Rule::in([1,3,6,9,12,24])],
@@ -298,7 +316,8 @@ class ServiceController extends Controller
         $typeCode = strtoupper((string) $type->code);
         $isInternet = $typeCode === 'INTERNET';
         $isVps = $typeCode === 'VPS';
-        $isNetworkService = $isInternet || $isVps;
+        $isWebsite = $typeCode === 'WEBSITE';
+        $isNetworkService = $isInternet || $isVps || $isWebsite;
 
         if ($isInternet) {
             if (($data['cost_billing_cycle'] ?? null) === 'monthly') {
@@ -319,6 +338,15 @@ class ServiceController extends Controller
 
         if (!empty($data['service_term_months']) && !$type->terms->pluck('months')->contains((int) $data['service_term_months'])) abort(422, 'Selected service term is not allowed for this Service Type.');
 
+        if ($isWebsite && empty($data['alert_policy_id'])) {
+            $defaultPolicy = ServiceAlertPolicy::query()
+                ->where('service_type_id', $type->id)
+                ->where('is_active', true)
+                ->orderBy('id')
+                ->first();
+            if ($defaultPolicy) $data['alert_policy_id'] = $defaultPolicy->id;
+        }
+
         if (!empty($data['alert_policy_id'])) {
             $policy = ServiceAlertPolicy::findOrFail($data['alert_policy_id']);
             if ((int) $policy->service_type_id !== (int) $data['service_type_id']) abort(422, 'Selected Alert Policy does not belong to the selected Service Type.');
@@ -331,23 +359,14 @@ class ServiceController extends Controller
             $data['monitor_ports'] = null;
         } else {
             $method = $data['monitor_check_method'] ?? null;
+            if ($isWebsite && $method && $method !== 'port') abort(422, 'Website monitoring uses TCP Port(s): HTTP 80 and HTTPS 443.');
+            if ($method && empty($data['monitor_target'])) {
+                $data['monitor_target'] = $isWebsite ? ($data['value'] ?? null) : null;
+            }
             if ($method && empty($data['monitor_target'])) abort(422, 'Monitor Target is required when monitoring is enabled.');
-
-            $rawPorts = trim((string) ($data['monitor_ports'] ?? ''));
-            $ports = $rawPorts === '' ? [] : preg_split('/[\s,;]+/', $rawPorts, -1, PREG_SPLIT_NO_EMPTY);
-            $ports = array_values(array_unique(array_map('intval', $ports)));
-            $invalidPorts = array_filter($ports, fn ($port) => $port < 1 || $port > 65535);
-            if ($invalidPorts) abort(422, 'Monitor Ports must contain TCP ports between 1 and 65535.');
-            if (count($ports) > 20) abort(422, 'Maximum 20 monitor ports are allowed.');
-
-            if ($isVps && $method === 'port' && !$ports && empty($data['monitor_port'])) {
-                abort(422, 'At least one Monitor Port is required for VPS port monitoring.');
-            }
-
-            if ($method === 'port' && !$ports && !empty($data['monitor_port'])) {
-                $ports = [(int) $data['monitor_port']];
-            }
-
+            if ($method === 'port' && $isWebsite && empty($data['monitor_ports'])) $data['monitor_ports'] = '80,443';
+            if ($method === 'port' && $isVps && empty($data['monitor_ports'])) abort(422, 'Monitor Port(s) are required for VPS port monitoring.');
+            if ($method === 'port' && empty($data['monitor_ports']) && !empty($data['monitor_port'])) $data['monitor_ports'] = (string) $data['monitor_port'];
             if (!$method) {
                 $data['monitor_target'] = null;
                 $data['monitor_port'] = null;
@@ -356,10 +375,15 @@ class ServiceController extends Controller
                 $data['monitor_port'] = null;
                 $data['monitor_ports'] = null;
             } else {
-                $data['monitor_ports'] = $ports ?: null;
-                $data['monitor_port'] = $ports[0] ?? null;
+                $ports = collect(preg_split('/[\s,;]+/', (string) ($data['monitor_ports'] ?? ''), -1, PREG_SPLIT_NO_EMPTY))
+                    ->map(fn ($port) => (int) $port)
+                    ->filter(fn ($port) => $port >= 1 && $port <= 65535)
+                    ->unique()->values()->all();
+                if (!$ports) abort(422, 'At least one valid TCP port is required.');
+                if (count($ports) > 20) abort(422, 'A maximum of 20 TCP ports can be monitored.');
+                $data['monitor_ports'] = $ports;
+                $data['monitor_port'] = $ports[0];
             }
-
             $data['monitor_interval_seconds'] = $data['monitor_interval_seconds'] ?? 60;
             $data['monitor_timeout_seconds'] = $data['monitor_timeout_seconds'] ?? 5;
         }
