@@ -20,17 +20,20 @@ class ServiceMonitoringController extends Controller
 
     public function dashboard()
     {
-        $base = Service::query();
+        $visible = Service::visibleTo(auth()->user());
+
         $stats = [
-            'total' => (clone $base)->count(),
-            'active' => (clone $base)->where('status', 'active')->count(),
-            'warning' => (clone $base)->where('alert_stage', 1)->count(),
-            'critical' => (clone $base)->where('alert_stage', 2)->count(),
-            'alert3' => (clone $base)->where('alert_stage', 3)->count(),
-            'expired' => (clone $base)->where('status', 'expired')->orWhere('alert_stage', 4)->count(),
+            'total' => (clone $visible)->count(),
+            'active' => (clone $visible)->where('status', 'active')->count(),
+            'warning' => (clone $visible)->where('alert_stage', 1)->count(),
+            'critical' => (clone $visible)->where('alert_stage', 2)->count(),
+            'alert3' => (clone $visible)->where('alert_stage', 3)->count(),
+            'expired' => (clone $visible)->where(function ($q) {
+                $q->where('status', 'expired')->orWhere('alert_stage', 4);
+            })->count(),
         ];
 
-        $networkBase = Service::query()
+        $networkBase = Service::visibleTo(auth()->user())
             ->where('status', 'active')
             ->whereIn('monitor_check_method', ['ping', 'port'])
             ->whereNotNull('monitor_target');
@@ -45,21 +48,22 @@ class ServiceMonitoringController extends Controller
         ];
 
         $monitoredServices = (clone $networkBase)
-            ->with(['customer', 'provider', 'serviceType'])
+            ->with(['customer', 'provider', 'serviceType', 'responsibleIt'])
             ->orderByRaw("CASE monitor_status WHEN 'offline' THEN 0 WHEN 'online' THEN 1 ELSE 2 END")
             ->orderBy('service_name')
             ->limit(100)
             ->get();
 
         $networkIncidents = ServiceMonitorEvent::query()
-            ->with(['service.customer', 'service.provider'])
+            ->whereHas('service', fn ($q) => $q->visibleTo(auth()->user()))
+            ->with(['service.customer', 'service.provider', 'service.responsibleIt'])
             ->where('status', 'open')
             ->latest('started_at')
             ->limit(20)
             ->get();
 
-        $upcoming = Service::query()
-            ->with(['customer', 'serviceType', 'provider', 'alertPolicy'])
+        $upcoming = Service::visibleTo(auth()->user())
+            ->with(['customer', 'serviceType', 'provider', 'alertPolicy', 'responsibleIt'])
             ->where('status', 'active')
             ->whereNotNull('expiry_date')
             ->whereBetween('alert_stage', [1, 3])
@@ -68,7 +72,8 @@ class ServiceMonitoringController extends Controller
             ->get();
 
         $openAlerts = ServiceAlertEvent::query()
-            ->with(['service.customer', 'service.serviceType', 'alertPolicy'])
+            ->whereHas('service', fn ($q) => $q->visibleTo(auth()->user()))
+            ->with(['service.customer', 'service.serviceType', 'service.responsibleIt', 'alertPolicy'])
             ->whereIn('status', ['open', 'acknowledged'])
             ->latest('triggered_at')
             ->limit(20)
@@ -79,6 +84,8 @@ class ServiceMonitoringController extends Controller
 
     public function test(Service $service, NetworkMonitoringService $networkMonitor)
     {
+        abort_unless($service->isVisibleTo(auth()->user()), 403);
+
         if ($service->status !== 'active' || !in_array($service->monitor_check_method, ['ping', 'port'], true) || !$service->monitor_target) {
             return response()->json([
                 'ok' => false,
