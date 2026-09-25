@@ -13,6 +13,7 @@ class Service extends Model
     protected $fillable = [
         'customer_id', 'service_type_id', 'provider_id', 'service_name', 'value',
         'cost_amount', 'cost_currency', 'cost_billing_cycle',
+        'payment_due_day', 'payment_alert_percent',
         'service_term_months', 'expiry_date', 'alert_policy_id', 'responsible_it_id',
         'status', 'auto_renew', 'note', 'alert_stage', 'last_alert_at',
         'monitor_check_method', 'monitor_target', 'monitor_port',
@@ -27,6 +28,8 @@ class Service extends Model
         'auto_renew' => 'boolean',
         'service_term_months' => 'integer',
         'cost_amount' => 'decimal:2',
+        'payment_due_day' => 'integer',
+        'payment_alert_percent' => 'integer',
         'alert_stage' => 'integer',
         'monitor_port' => 'integer',
         'monitor_interval_seconds' => 'integer',
