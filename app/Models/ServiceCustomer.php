@@ -20,6 +20,11 @@ class ServiceCustomer extends Model
         return $this->hasMany(ServiceCustomerAlertRecipient::class, 'customer_id')->orderBy('level');
     }
 
+    public function services(): HasMany
+    {
+        return $this->hasMany(Service::class, 'customer_id');
+    }
+
     public function branches(): HasMany
     {
         return $this->hasMany(CustomerBranch::class, 'customer_id');
