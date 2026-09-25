@@ -19,19 +19,21 @@
             <div class="field"><label>Payment Alert Threshold (%) *</label><input class="input" type="number" min="1" max="100" name="payment_alert_percent" value="{{ old('payment_alert_percent',$service->payment_alert_percent ?: 20) }}" placeholder="20"><small class="muted">Mặc định 20%. Đây là tỷ lệ thời gian của kỳ thanh toán dùng để bắt đầu cảnh báo trước hạn, không phải % số tiền.</small></div>
         </div>
 
-        <div id="monitoring-fields" style="display:none">
-            <div class="field"><label>WAN IP / Monitor Target *</label><input class="input" id="monitor_target" name="monitor_target" value="{{ old('monitor_target',$service->monitor_target) }}" placeholder="118.69.xxx.xxx"><small class="muted">IP WAN của đường FTTH cần giám sát.</small></div>
-            <div class="field"><label>Check Method</label><select class="input" id="monitor_check_method" name="monitor_check_method"><option value="">Disabled</option><option value="ping" @selected(old('monitor_check_method',$service->monitor_check_method)==='ping')>PING</option><option value="port" @selected(old('monitor_check_method',$service->monitor_check_method)==='port')>Check Port</option></select></div>
-            <div class="field" id="monitor-port-field" style="display:none"><label>Check Port *</label><input class="input" id="monitor_port" type="number" min="1" max="65535" name="monitor_port" value="{{ old('monitor_port',$service->monitor_port) }}" placeholder="443"></div>
+        <div id="monitoring-fields" style="display:none;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin:10px 0 14px">
+            <div style="font-weight:600;margin-bottom:10px">📡 Network / VPS Monitoring</div>
+            <div class="field"><label id="monitor-target-label">WAN IP / Monitor Target *</label><input class="input" id="monitor_target" name="monitor_target" value="{{ old('monitor_target',$service->monitor_target) }}" placeholder="118.69.xxx.xxx"><small class="muted" id="monitor-target-help">IP WAN / hostname cần giám sát.</small></div>
+            <div class="field"><label>Check Method</label><select class="input" id="monitor_check_method" name="monitor_check_method"><option value="">Disabled</option><option value="ping" @selected(old('monitor_check_method',$service->monitor_check_method)==='ping')>PING</option><option value="port" @selected(old('monitor_check_method',$service->monitor_check_method)==='port')>Check TCP Port(s)</option></select></div>
+            <div class="field" id="monitor-port-field" style="display:none"><label id="monitor-port-label">Check Port(s) *</label><input class="input" id="monitor_ports" type="text" name="monitor_ports" value="{{ old('monitor_ports', is_array($service->monitor_ports) ? implode(',', $service->monitor_ports) : ($service->monitor_port ?: '')) }}" placeholder="22,80,443,3306"><small class="muted" id="monitor-port-help">VPS: nhập nhiều TCP port, phân cách bằng dấu phẩy. Ví dụ: 22,80,443,3306. Tối đa 20 port.</small></div>
             <div class="field"><label>Check Interval</label><select class="input" name="monitor_interval_seconds"><option value="30" @selected((int)old('monitor_interval_seconds',$service->monitor_interval_seconds ?: 60)===30)>30 seconds</option><option value="60" @selected((int)old('monitor_interval_seconds',$service->monitor_interval_seconds ?: 60)===60)>1 minute</option><option value="300" @selected((int)old('monitor_interval_seconds',$service->monitor_interval_seconds ?: 60)===300)>5 minutes</option><option value="600" @selected((int)old('monitor_interval_seconds',$service->monitor_interval_seconds ?: 60)===600)>10 minutes</option></select></div>
             <div class="field"><label>Timeout</label><select class="input" name="monitor_timeout_seconds"><option value="3" @selected((int)old('monitor_timeout_seconds',$service->monitor_timeout_seconds ?: 5)===3)>3 seconds</option><option value="5" @selected((int)old('monitor_timeout_seconds',$service->monitor_timeout_seconds ?: 5)===5)>5 seconds</option><option value="10" @selected((int)old('monitor_timeout_seconds',$service->monitor_timeout_seconds ?: 5)===10)>10 seconds</option></select></div>
             @if($service->exists)
             <div class="field"><button type="button" class="btn gray" id="test-network">🔌 Test Connection</button><div id="network-test-result" class="muted" style="margin-top:8px"></div></div>
             @endif
         </div>
+
         <div id="expiry-fields">
             <div class="field"><label>Service Term</label><select class="input" id="service_term_months" name="service_term_months"></select></div>
-            <div class="field"><label>Expiry Date</label><div style="display:flex;gap:8px;align-items:center"><input class="input" style="flex:1" id="expiry_date" type="date" name="expiry_date" value="{{ old('expiry_date', optional($service->expiry_date)->format('Y-m-d')) }}"><button type="button" class="btn gray" id="detect-expiry" style="display:none;white-space:nowrap">🔎 Detect Expiry</button></div><small class="muted" id="expiry-help">For Domain / SSL / License / fixed-term services.</small><div id="detect-result" class="muted" style="margin-top:6px"></div></div>
+            <div class="field"><label>Expiry Date</label><div style="display:flex;gap:8px;align-items:center"><input class="input" style="flex:1" id="expiry_date" type="date" name="expiry_date" value="{{ old('expiry_date', optional($service->expiry_date)->format('Y-m-d')) }}"><button type="button" class="btn gray" id="detect-expiry" style="display:none;white-space:nowrap">🔎 Detect Expiry</button></div><small class="muted" id="expiry-help">For Domain / SSL / License / VPS / fixed-term services.</small><div id="detect-result" class="muted" style="margin-top:6px"></div></div>
             <div class="field"><label>Alert Policy</label><select class="input" id="alert_policy_id" name="alert_policy_id"><option value="">Select policy</option>@foreach($policies as $x)<option value="{{ $x->id }}" data-type="{{ $x->service_type_id }}" @selected((int)old('alert_policy_id',$service->alert_policy_id)===$x->id)>{{ $x->name }}</option>@endforeach</select></div>
         </div>
         <div class="field"><label>Responsible IT</label><select class="input" name="responsible_it_id"><option value="">Select user</option>@foreach($responsibleUsers as $x)<option value="{{ $x->id }}" @selected((int)old('responsible_it_id',$service->responsible_it_id)===$x->id)>{{ $x->name }}</option>@endforeach</select></div>
@@ -44,18 +46,59 @@
 <script>
 (function(){
  const type=document.getElementById('service_type_id'),term=document.getElementById('service_term_months'),expiry=document.getElementById('expiry_date'),policy=document.getElementById('alert_policy_id'),billing=document.getElementById('cost_billing_cycle');
- const method=document.getElementById('monitor_check_method'),target=document.getElementById('monitor_target'),port=document.getElementById('monitor_port'),monitoring=document.getElementById('monitoring-fields'),portField=document.getElementById('monitor-port-field'),ftthPayment=document.getElementById('ftth-payment-fields'),expiryFields=document.getElementById('expiry-fields');
+ const method=document.getElementById('monitor_check_method'),target=document.getElementById('monitor_target'),ports=document.getElementById('monitor_ports'),monitoring=document.getElementById('monitoring-fields'),portField=document.getElementById('monitor-port-field'),ftthPayment=document.getElementById('ftth-payment-fields'),expiryFields=document.getElementById('expiry-fields');
+ const targetLabel=document.getElementById('monitor-target-label'),targetHelp=document.getElementById('monitor-target-help'),portLabel=document.getElementById('monitor-port-label'),portHelp=document.getElementById('monitor-port-help');
  const detect=document.getElementById('detect-expiry'),result=document.getElementById('detect-result');
  const testButton=document.getElementById('test-network'),testResult=document.getElementById('network-test-result');
  let currentTerm='{{ old('service_term_months',$service->service_term_months) }}',currentPolicy='{{ old('alert_policy_id',$service->alert_policy_id) }}',currentMethod='{{ old('monitor_check_method',$service->monitor_check_method) }}';
- function refresh(){const opt=type.options[type.selectedIndex];let terms=[];try{terms=JSON.parse(opt?.dataset.terms||'[]')}catch(e){}term.innerHTML='<option value="">No term</option>'+terms.map(m=>'<option value="'+m+'" '+(String(m)===String(currentTerm)?'selected':'')+'>'+m+' tháng</option>').join('');[...policy.options].forEach(o=>{if(!o.value)return;const ok=o.dataset.type===type.value;o.hidden=!ok;if(!ok&&o.selected)o.selected=false;});if([...policy.options].some(o=>o.value===String(currentPolicy)&&!o.hidden))policy.value=currentPolicy;const code=String(opt?.dataset.code||'').toUpperCase();const isInternet=code==='INTERNET';const isDomain=code==='DOMAIN';const isMonthly=isInternet && billing.value==='monthly';monitoring.style.display=isInternet?'block':'none';ftthPayment.style.display=isMonthly?'block':'none';expiryFields.style.display=isMonthly?'none':'block';detect.style.display=isDomain?'inline-block':'none';if(isInternet){method.value=currentMethod||method.value||'';portField.style.display=method.value==='port'?'block':'none';port.required=method.value==='port';}else{method.value='';target.value='';port.value='';portField.style.display='none';port.required=false;}syncExpiryFields();}
- function syncExpiryFields(){const code=String(type.options[type.selectedIndex]?.dataset.code||'').toUpperCase();const isMonthlyFtth=code==='INTERNET' && billing.value==='monthly';if(isMonthlyFtth){term.value='';policy.value='';term.disabled=true;policy.disabled=true;expiry.value='';expiry.disabled=true;}else{term.disabled=false;policy.disabled=false;expiry.disabled=false;term.required=!!expiry.value;policy.required=!!expiry.value;}}
+ function refresh(){
+   const opt=type.options[type.selectedIndex];
+   let terms=[];try{terms=JSON.parse(opt?.dataset.terms||'[]')}catch(e){}
+   term.innerHTML='<option value="">No term</option>'+terms.map(m=>'<option value="'+m+'" '+(String(m)===String(currentTerm)?'selected':'')+'>'+m+' tháng</option>').join('');
+   [...policy.options].forEach(o=>{if(!o.value)return;const ok=o.dataset.type===type.value;o.hidden=!ok;if(!ok&&o.selected)o.selected=false;});
+   if([...policy.options].some(o=>o.value===String(currentPolicy)&&!o.hidden))policy.value=currentPolicy;
+   const code=String(opt?.dataset.code||'').toUpperCase();
+   const isInternet=code==='INTERNET';
+   const isVps=code==='VPS';
+   const isNetworkService=isInternet||isVps;
+   const isMonthlyFtth=isInternet && billing.value==='monthly';
+   monitoring.style.display=isNetworkService?'block':'none';
+   ftthPayment.style.display=isMonthlyFtth?'block':'none';
+   expiryFields.style.display='block';
+   if(isMonthlyFtth) expiryFields.style.display='none';
+   detect.style.display=code==='DOMAIN'?'inline-block':'none';
+   if(isVps){
+      targetLabel.textContent='VPS IP / Hostname *';
+      targetHelp.textContent='IP hoặc hostname của VPS cần giám sát.';
+      portLabel.textContent='TCP Port(s) *';
+      portHelp.textContent='Có thể kiểm tra nhiều dịch vụ cùng lúc. Ví dụ: 22,80,443,3306. Tối đa 20 port.';
+   } else {
+      targetLabel.textContent='WAN IP / Monitor Target *';
+      targetHelp.textContent='IP WAN / hostname của đường Internet cần giám sát.';
+      portLabel.textContent='Check Port';
+      portHelp.textContent='Internet có thể kiểm tra một TCP port, ví dụ 443.';
+   }
+   if(isNetworkService){
+      method.value=currentMethod||method.value||'';
+      portField.style.display=method.value==='port'?'block':'none';
+      ports.required=isVps && method.value==='port';
+   } else {
+      method.value='';target.value='';ports.value='';portField.style.display='none';ports.required=false;
+   }
+   syncExpiryFields();
+ }
+ function syncExpiryFields(){
+   const code=String(type.options[type.selectedIndex]?.dataset.code||'').toUpperCase();
+   const isMonthlyFtth=code==='INTERNET' && billing.value==='monthly';
+   if(isMonthlyFtth){term.value='';policy.value='';term.disabled=true;policy.disabled=true;expiry.value='';expiry.disabled=true;}
+   else{term.disabled=false;policy.disabled=false;expiry.disabled=false;term.required=!!expiry.value;policy.required=!!expiry.value;}
+ }
  type.addEventListener('change',()=>{currentTerm='';currentPolicy='';currentMethod='';result.textContent='';if(testResult)testResult.textContent='';refresh();});
  billing.addEventListener('change',()=>{refresh();});
- method?.addEventListener('change',()=>{currentMethod=method.value;portField.style.display=method.value==='port'?'block':'none';port.required=method.value==='port';if(method.value!=='port')port.value='';if(testResult)testResult.textContent='';});
+ method?.addEventListener('change',()=>{currentMethod=method.value;portField.style.display=method.value==='port'?'block':'none';const code=String(type.options[type.selectedIndex]?.dataset.code||'').toUpperCase();ports.required=code==='VPS'&&method.value==='port';if(method.value!=='port')ports.value='';if(testResult)testResult.textContent='';});
  expiry.addEventListener('change',syncExpiryFields);
  detect?.addEventListener('click',async()=>{if(!{{ $service->exists?'true':'false' }}){result.textContent='Save the service first, then Detect Expiry.';return;}detect.disabled=true;detect.textContent='Detecting...';result.textContent='';try{const r=await fetch('{{ $service->exists ? route('admin.services.detect_expiry',$service) : '#' }}',{method:'POST',headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}});const d=await r.json();if(d.ok&&d.result?.saved_expiry_date){expiry.value=d.result.saved_expiry_date;result.textContent='Detected: '+d.result.saved_expiry_date+(d.result.days_remaining!=null?' ('+d.result.days_remaining+' days remaining)':'');syncExpiryFields();}else{result.textContent=d.result?.error||d.message||'Could not detect domain expiry.';}}catch(e){result.textContent='Detect failed: '+e.message;}finally{detect.disabled=false;detect.textContent='🔎 Detect Expiry';}});
- testButton?.addEventListener('click',async()=>{testButton.disabled=true;testButton.textContent='Testing...';testResult.textContent='Checking '+(target?.value||'target')+' via '+(method?.value||'method')+'...';try{const url='{{ $service->exists ? route('admin.services.edit',$service) : '#' }}'+('{{ $service->exists ? "?network_test=1" : "" }}');const r=await fetch(url,{headers:{'Accept':'application/json'}});const d=await r.json();const x=d.result||{};if(d.ok){testResult.textContent='✅ ONLINE — latency '+(x.latency_ms!=null?x.latency_ms+' ms':'-')+' — packet loss '+(x.packet_loss_percent??0)+'%';}else{testResult.textContent='🔴 OFFLINE — '+(x.error||d.message||'Connection failed.')+' — failure count '+(x.failure_count??'updated');}}catch(e){testResult.textContent='❌ Test failed: '+e.message;}finally{testButton.disabled=false;testButton.textContent='🔌 Test Connection';}});
+ testButton?.addEventListener('click',async()=>{testButton.disabled=true;testButton.textContent='Testing...';testResult.textContent='Checking '+(target?.value||'target')+' via '+(method?.value||'method')+'...';try{const url='{{ $service->exists ? route('admin.services.edit',$service) : '#' }}'+('{{ $service->exists ? "?network_test=1" : "" }}');const r=await fetch(url,{headers:{'Accept':'application/json'}});const d=await r.json();const x=d.result||{};if(d.ok){let detail='';if(Array.isArray(x.port_results)){detail=' — '+x.port_results.map(p=>'Port '+p.port+': '+(p.online?'OK':'DOWN')+(p.latency_ms!=null?' ('+p.latency_ms+' ms)':'')).join(', ');}testResult.textContent='✅ ONLINE — latency '+(x.latency_ms!=null?x.latency_ms+' ms':'-')+' — packet loss '+(x.packet_loss_percent??0)+'%'+detail;}else{let detail='';if(Array.isArray(x.port_results)){detail=' — '+x.port_results.map(p=>'Port '+p.port+': '+(p.online?'OK':'DOWN')).join(', ');}testResult.textContent='🔴 OFFLINE — '+(x.error||d.message||'Connection failed.')+detail+' — failure count '+(x.failure_count??'updated');}}catch(e){testResult.textContent='❌ Test failed: '+e.message;}finally{testButton.disabled=false;testButton.textContent='🔌 Test Connection';}});
  refresh();
 })();
 </script>
