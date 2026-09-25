@@ -52,7 +52,8 @@ class ServiceAlertEmailService
         if ($alreadySent) return false;
         try {
             Mail::html($this->renderHtml($event, $level, $emailType), function ($message) use ($recipient, $event, $emailType) {
-                $subject = $emailType === 'resolution' ? '[RESOLVED] IT Monitoring - '.$event->service->service_name : '[ALERT '.$event->alert_stage.'] IT Monitoring - '.$event->service->service_name;
+                $kind = $event->alert_type === 'ssl_expiry' ? 'SSL' : 'IT Monitoring';
+                $subject = $emailType === 'resolution' ? '[RESOLVED] '.$kind.' - '.$event->service->service_name : '[ALERT '.$event->alert_stage.'] '.$kind.' - '.$event->service->service_name;
                 $message->to($recipient['email'], $recipient['name'])->subject($subject);
             });
             ServiceAlertEmailLog::updateOrCreate(['service_alert_event_id' => $event->id, 'level' => $level, 'recipient_email' => $recipient['email'], 'email_type' => $emailType], ['recipient_type' => $recipient['type'], 'sent_at' => now(), 'status' => 'sent', 'error' => null]);
@@ -104,7 +105,7 @@ class ServiceAlertEmailService
     {
         $service = $event->service;
         $customer = $service->customer;
-        $days = $event->expiry_date ? max(0, now()->startOfDay()->diffInDays($event->expiry_date->copy()->startOfDay(), false)) : null;
+        $days = $event->expiry_date ? now()->startOfDay()->diffInDays($event->expiry_date->copy()->startOfDay(), false) : null;
         $remaining = number_format((float) $event->remaining_percent, 2).'%';
         $expiry = optional($event->expiry_date)->format('d/m/Y') ?: '-';
         $triggered = optional($event->triggered_at)->format('d/m/Y H:i') ?: '-';
@@ -112,24 +113,30 @@ class ServiceAlertEmailService
         $resolvedAt = optional($event->resolved_at)->format('d/m/Y H:i') ?: '-';
         $status = $emailType === 'resolution' ? 'RESOLVED' : strtoupper($event->status);
         $daysText = $days === null ? '-' : ($days === 0 ? 'HÔM NAY' : ($days < 0 ? 'ĐÃ HẾT HẠN' : $days.' ngày'));
-        $alertTitle = $emailType === 'resolution' ? 'Service Alert đã được xử lý' : 'CẢNH BÁO DỊCH VỤ IT';
-        $alertMessage = $emailType === 'resolution' ? 'Dịch vụ đã được xử lý/Resolve. Vui lòng xem thông tin hoàn tất bên dưới.' : 'Hệ thống phát hiện dịch vụ đang tiến gần ngày hết hạn. Vui lòng kiểm tra và xử lý theo SLA.';
+        $isSsl = $event->alert_type === 'ssl_expiry';
+        $alertTitle = $emailType === 'resolution'
+            ? ($isSsl ? 'SSL Alert đã được xử lý' : 'Service Alert đã được xử lý')
+            : ($isSsl ? 'CẢNH BÁO SSL SẮP HẾT HẠN' : 'CẢNH BÁO DỊCH VỤ IT');
+        $alertMessage = $emailType === 'resolution'
+            ? 'Dịch vụ/certificate đã được xử lý hoặc trạng thái cảnh báo đã được giải quyết.'
+            : ($isSsl ? 'Hệ thống phát hiện chứng chỉ SSL của website đang tiến gần ngày hết hạn.' : 'Hệ thống phát hiện dịch vụ đang tiến gần ngày hết hạn. Vui lòng kiểm tra và xử lý theo SLA.');
+
         return '<!doctype html><html><body style="margin:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#172033">'
             .'<div style="max-width:760px;margin:0 auto;padding:28px 16px"><div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">'
-            .'<div style="padding:24px 28px;border-bottom:1px solid #e5e7eb"><div style="font-size:12px;font-weight:700;letter-spacing:1px;color:#64748b">KPI DASHBOARD · IT MONITORING</div><h1 style="margin:8px 0 6px;font-size:24px">'.e($alertTitle).'</h1><div style="font-size:14px;color:#64748b">'.$alertMessage.'</div></div>'
+            .'<div style="padding:24px 28px;border-bottom:1px solid #e5e7eb"><div style="font-size:12px;font-weight:700;letter-spacing:1px;color:#64748b">KPI DASHBOARD · IT MONITORING</div><h1 style="margin:8px 0 6px;font-size:24px">'.e($alertTitle).'</h1><div style="font-size:14px;color:#64748b">'.e($alertMessage).'</div></div>'
             .'<div style="padding:24px 28px"><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:18px;margin-bottom:20px"><div style="font-size:12px;color:#64748b;text-transform:uppercase">SERVICE</div><div style="font-size:22px;font-weight:700;margin-top:4px">'.e($service->service_name).'</div><div style="font-size:14px;color:#475569;margin-top:3px">'.e($service->value ?: '-').'</div></div>'
             .'<table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-size:14px">'
             .'<tr><td style="width:35%;border-bottom:1px solid #e5e7eb;color:#64748b">Customer</td><td style="border-bottom:1px solid #e5e7eb;font-weight:600">'.e($customer?->name ?: '-').'</td></tr>'
             .'<tr><td style="border-bottom:1px solid #e5e7eb;color:#64748b">Service Type</td><td style="border-bottom:1px solid #e5e7eb">'.e($service->serviceType?->name ?: '-').'</td></tr>'
             .'<tr><td style="border-bottom:1px solid #e5e7eb;color:#64748b">Provider</td><td style="border-bottom:1px solid #e5e7eb">'.e($service->provider?->name ?: '-').'</td></tr>'
-            .'<tr><td style="border-bottom:1px solid #e5e7eb;color:#64748b">Service Term</td><td style="border-bottom:1px solid #e5e7eb">'.e($service->service_term_months ? $service->service_term_months.' tháng' : '-').'</td></tr>'
+            .($isSsl ? '<tr><td style="border-bottom:1px solid #e5e7eb;color:#64748b">SSL Issuer</td><td style="border-bottom:1px solid #e5e7eb">'.e($service->ssl_issuer ?: '-').'</td></tr>' : '<tr><td style="border-bottom:1px solid #e5e7eb;color:#64748b">Service Term</td><td style="border-bottom:1px solid #e5e7eb">'.e($service->service_term_months ? $service->service_term_months.' tháng' : '-').'</td></tr>')
             .'<tr><td style="border-bottom:1px solid #e5e7eb;color:#64748b">Expiry Date</td><td style="border-bottom:1px solid #e5e7eb;font-weight:700">'.e($expiry).'</td></tr>'
             .'<tr><td style="border-bottom:1px solid #e5e7eb;color:#64748b">Còn lại</td><td style="border-bottom:1px solid #e5e7eb;font-weight:700">'.e($daysText).' ('.e($remaining).')</td></tr>'
             .'<tr><td style="border-bottom:1px solid #e5e7eb;color:#64748b">Alert Level</td><td style="border-bottom:1px solid #e5e7eb;font-weight:700">Alert '.e((string) $event->alert_stage).'</td></tr>'
             .'<tr><td style="border-bottom:1px solid #e5e7eb;color:#64748b">Status</td><td style="border-bottom:1px solid #e5e7eb">'.e($status).'</td></tr>'
             .'<tr><td style="color:#64748b">Triggered At</td><td>'.e($triggered).'</td></tr>'
             .($emailType === 'resolution' ? '<tr><td style="color:#64748b">Resolved By</td><td>'.e($resolvedBy).'</td></tr><tr><td style="color:#64748b">Resolved At</td><td>'.e($resolvedAt).'</td></tr>' : '')
-            .'</table><div style="margin-top:22px;padding:14px 16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:13px"><strong>Hành động đề nghị:</strong> kiểm tra dịch vụ và thực hiện gia hạn/xử lý trước ngày <strong>'.e($expiry).'</strong>.</div></div>'
+            .'</table><div style="margin-top:22px;padding:14px 16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:13px"><strong>Hành động đề nghị:</strong> kiểm tra và xử lý trước ngày <strong>'.e($expiry).'</strong>.</div></div>'
             .'<div style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e5e7eb;font-size:12px;color:#64748b">Email tự động từ KPI Dashboard · IT Monitoring. Vui lòng không reply email này.</div></div></div></body></html>';
     }
 }
