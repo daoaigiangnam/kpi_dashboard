@@ -162,6 +162,10 @@ class NetworkMonitoringService
         }
 
         $service->save();
+
+        // Send a network alert/recovery immediately after a state transition.
+        // The email log prevents duplicates when the scheduled email command runs again.
+        app(NetworkAlertEmailService::class)->process();
     }
 
     private function validTarget(string $target): bool
