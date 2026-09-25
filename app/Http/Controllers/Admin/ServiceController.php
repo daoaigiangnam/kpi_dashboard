@@ -66,8 +66,8 @@ class ServiceController extends Controller
 
             fputcsv($out, [
                 'Customer', 'Service Name', 'Service Type', 'Value', 'Provider',
-                'Cost', 'Currency', 'Billing Cycle', 'Term Months', 'Expiry Date',
-                'Alert Policy', 'Responsible IT', 'Status', 'Auto Renew',
+                'Cost', 'Currency', 'Billing Cycle', 'Payment Due Day', 'Payment Alert %',
+                'Term Months', 'Expiry Date', 'Alert Policy', 'Responsible IT', 'Status', 'Auto Renew',
                 'Monitor Target', 'Check Method', 'Check Port', 'Interval Seconds',
                 'Timeout Seconds', 'Monitor Status', 'Latency ms', 'Packet Loss %',
                 'Failure Count', 'Last Checked At', 'Down Since', 'Note',
@@ -83,6 +83,8 @@ class ServiceController extends Controller
                     $service->cost_amount,
                     $service->cost_currency,
                     $service->cost_billing_cycle,
+                    $service->payment_due_day,
+                    $service->payment_alert_percent,
                     $service->service_term_months,
                     optional($service->expiry_date)->format('Y-m-d'),
                     $service->alertPolicy?->name,
@@ -147,6 +149,8 @@ class ServiceController extends Controller
                 'monitor_timeout_seconds' => 5,
                 'cost_currency' => 'VND',
                 'cost_billing_cycle' => 'monthly',
+                'payment_due_day' => null,
+                'payment_alert_percent' => 20,
             ]),
             ...$this->formData(),
         ]);
@@ -163,7 +167,7 @@ class ServiceController extends Controller
     public function edit(Request $request, Service $service, NetworkMonitoringService $networkMonitor)
     {
         if ($request->boolean('network_test')) {
-            if ($service->status !== 'active' || !in_array($service->monitor_check_method, ['ping', 'port'], true) || !$service->monitor_target) {
+            if (!in_array($service->monitor_check_method, ['ping', 'port'], true) || !$service->monitor_target) {
                 return response()->json([
                     'ok' => false,
                     'message' => 'Monitoring is not configured. Please set WAN IP / Monitor Target and Check Method first.',
@@ -222,6 +226,8 @@ class ServiceController extends Controller
             'cost_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'cost_currency' => ['required', 'string', 'size:3'],
             'cost_billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'yearly', 'one_time'])],
+            'payment_due_day' => ['nullable', 'integer', 'between:1,31'],
+            'payment_alert_percent' => ['nullable', 'integer', 'between:1,100'],
             'service_term_months' => ['nullable', 'integer', Rule::in([1,3,6,9,12,24])],
             'expiry_date' => ['nullable', 'date'],
             'alert_policy_id' => ['nullable', 'integer', Rule::exists('service_alert_policies', 'id')->where(fn ($q) => $q->whereNull('deleted_at')->where('is_active', true))],
@@ -236,11 +242,26 @@ class ServiceController extends Controller
             'monitor_timeout_seconds' => ['nullable', 'integer', 'between:1,60'],
         ]);
 
+        $type = ServiceType::with('terms')->findOrFail($data['service_type_id']);
+        $isInternet = strtoupper((string) $type->code) === 'INTERNET';
+
+        if ($isInternet) {
+            if (($data['cost_billing_cycle'] ?? null) === 'monthly') {
+                $data['payment_due_day'] = $data['payment_due_day'] ?? 15;
+                $data['payment_alert_percent'] = $data['payment_alert_percent'] ?? 20;
+            } else {
+                $data['payment_due_day'] = null;
+                $data['payment_alert_percent'] = null;
+            }
+        } else {
+            $data['payment_due_day'] = null;
+            $data['payment_alert_percent'] = null;
+        }
+
         $hasExpiry = !empty($data['expiry_date']);
         if ($hasExpiry && empty($data['service_term_months'])) abort(422, 'Service Term is required when Expiry Date is set.');
         if ($hasExpiry && empty($data['alert_policy_id'])) abort(422, 'Alert Policy is required when Expiry Date is set.');
 
-        $type = ServiceType::with('terms')->findOrFail($data['service_type_id']);
         if (!empty($data['service_term_months']) && !$type->terms->pluck('months')->contains((int) $data['service_term_months'])) abort(422, 'Selected service term is not allowed for this Service Type.');
 
         if (!empty($data['alert_policy_id'])) {
@@ -248,7 +269,6 @@ class ServiceController extends Controller
             if ((int) $policy->service_type_id !== (int) $data['service_type_id']) abort(422, 'Selected Alert Policy does not belong to the selected Service Type.');
         }
 
-        $isInternet = strtoupper((string) $type->code) === 'INTERNET';
         if (!$isInternet) {
             $data['monitor_check_method'] = null;
             $data['monitor_target'] = null;
