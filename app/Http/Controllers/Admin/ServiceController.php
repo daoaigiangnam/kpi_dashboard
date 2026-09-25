@@ -73,7 +73,7 @@ class ServiceController extends Controller
                 'Customer', 'Service Name', 'Service Type', 'Value', 'Provider',
                 'Cost', 'Currency', 'Billing Cycle', 'Payment Due Day', 'Payment Alert %',
                 'Term Months', 'Expiry Date', 'Alert Policy', 'Responsible IT', 'Status', 'Auto Renew',
-                'Monitor Target', 'Check Method', 'Check Port', 'Interval Seconds',
+                'Monitor Target', 'Check Method', 'Check Port', 'Monitor Ports', 'Interval Seconds',
                 'Timeout Seconds', 'Monitor Status', 'Latency ms', 'Packet Loss %',
                 'Failure Count', 'Last Checked At', 'Down Since', 'Note',
             ]);
@@ -99,6 +99,7 @@ class ServiceController extends Controller
                     $service->monitor_target,
                     $service->monitor_check_method,
                     $service->monitor_port,
+                    is_array($service->monitor_ports) ? implode(',', $service->monitor_ports) : '',
                     $service->monitor_interval_seconds,
                     $service->monitor_timeout_seconds,
                     $service->monitor_status,
@@ -179,7 +180,7 @@ class ServiceController extends Controller
             if (!in_array($service->monitor_check_method, ['ping', 'port'], true) || !$service->monitor_target) {
                 return response()->json([
                     'ok' => false,
-                    'message' => 'Monitoring is not configured. Please set WAN IP / Monitor Target and Check Method first.',
+                    'message' => 'Monitoring is not configured. Please set Monitor Target and Check Method first.',
                 ], 422);
             }
 
@@ -273,6 +274,7 @@ class ServiceController extends Controller
             'monitor_check_method' => ['nullable', Rule::in(['ping', 'port'])],
             'monitor_target' => ['nullable', 'string', 'max:255'],
             'monitor_port' => ['nullable', 'integer', 'between:1,65535'],
+            'monitor_ports' => ['nullable', 'string', 'max:200'],
             'monitor_interval_seconds' => ['nullable', 'integer', 'between:30,86400'],
             'monitor_timeout_seconds' => ['nullable', 'integer', 'between:1,60'],
         ]);
@@ -293,7 +295,10 @@ class ServiceController extends Controller
         }
 
         $type = ServiceType::with('terms')->findOrFail($data['service_type_id']);
-        $isInternet = strtoupper((string) $type->code) === 'INTERNET';
+        $typeCode = strtoupper((string) $type->code);
+        $isInternet = $typeCode === 'INTERNET';
+        $isVps = $typeCode === 'VPS';
+        $isNetworkService = $isInternet || $isVps;
 
         if ($isInternet) {
             if (($data['cost_billing_cycle'] ?? null) === 'monthly') {
@@ -319,20 +324,42 @@ class ServiceController extends Controller
             if ((int) $policy->service_type_id !== (int) $data['service_type_id']) abort(422, 'Selected Alert Policy does not belong to the selected Service Type.');
         }
 
-        if (!$isInternet) {
+        if (!$isNetworkService) {
             $data['monitor_check_method'] = null;
             $data['monitor_target'] = null;
             $data['monitor_port'] = null;
+            $data['monitor_ports'] = null;
         } else {
             $method = $data['monitor_check_method'] ?? null;
-            if ($method && empty($data['monitor_target'])) abort(422, 'WAN IP / Monitor Target is required when monitoring is enabled.');
-            if ($method === 'port' && empty($data['monitor_port'])) abort(422, 'Monitor Port is required when Check Method is Port.');
+            if ($method && empty($data['monitor_target'])) abort(422, 'Monitor Target is required when monitoring is enabled.');
+
+            $rawPorts = trim((string) ($data['monitor_ports'] ?? ''));
+            $ports = $rawPorts === '' ? [] : preg_split('/[\s,;]+/', $rawPorts, -1, PREG_SPLIT_NO_EMPTY);
+            $ports = array_values(array_unique(array_map('intval', $ports)));
+            $invalidPorts = array_filter($ports, fn ($port) => $port < 1 || $port > 65535);
+            if ($invalidPorts) abort(422, 'Monitor Ports must contain TCP ports between 1 and 65535.');
+            if (count($ports) > 20) abort(422, 'Maximum 20 monitor ports are allowed.');
+
+            if ($isVps && $method === 'port' && !$ports && empty($data['monitor_port'])) {
+                abort(422, 'At least one Monitor Port is required for VPS port monitoring.');
+            }
+
+            if ($method === 'port' && !$ports && !empty($data['monitor_port'])) {
+                $ports = [(int) $data['monitor_port']];
+            }
+
             if (!$method) {
                 $data['monitor_target'] = null;
                 $data['monitor_port'] = null;
+                $data['monitor_ports'] = null;
             } elseif ($method !== 'port') {
                 $data['monitor_port'] = null;
+                $data['monitor_ports'] = null;
+            } else {
+                $data['monitor_ports'] = $ports ?: null;
+                $data['monitor_port'] = $ports[0] ?? null;
             }
+
             $data['monitor_interval_seconds'] = $data['monitor_interval_seconds'] ?? 60;
             $data['monitor_timeout_seconds'] = $data['monitor_timeout_seconds'] ?? 5;
         }
