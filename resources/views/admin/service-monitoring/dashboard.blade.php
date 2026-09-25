@@ -39,13 +39,14 @@
 <div class="card" style="margin-top:16px">
     <h3>FTTH / Network Status</h3>
     <div class="table-wrap"><table class="table">
-        <thead><tr><th>Status</th><th>Customer</th><th>Service</th><th>Provider</th><th>Target</th><th>Method</th><th>Port</th><th>Latency</th><th>Loss</th><th>Failures</th><th>Last Check</th></tr></thead>
+        <thead><tr><th>Status</th><th>Customer</th><th>Service</th><th>Responsible IT</th><th>Provider</th><th>Target</th><th>Method</th><th>Port</th><th>Latency</th><th>Loss</th><th>Failures</th><th>Last Check</th></tr></thead>
         <tbody>
         @forelse($monitoredServices as $service)
             <tr style="{{ $service->monitor_status === 'offline' ? 'background:#fef2f2' : '' }}">
                 <td><strong>{{ $service->monitor_status === 'offline' ? '🔴 OFFLINE' : ($service->monitor_status === 'online' ? '🟢 ONLINE' : '🟡 UNKNOWN') }}</strong></td>
                 <td>{{ $service->customer?->name }}</td>
                 <td>{{ $service->service_name }}</td>
+                <td><strong>{{ $service->responsibleIt?->name ?? '-' }}</strong></td>
                 <td>{{ $service->provider?->name ?? '-' }}</td>
                 <td>{{ $service->monitor_target }}</td>
                 <td>{{ strtoupper($service->monitor_check_method) }}</td>
@@ -56,7 +57,7 @@
                 <td>{{ optional($service->monitor_last_checked_at)->format('d/m/Y H:i:s') ?: '-' }}</td>
             </tr>
         @empty
-            <tr><td colspan="11" class="muted">No network monitors configured.</td></tr>
+            <tr><td colspan="12" class="muted">No network monitors configured.</td></tr>
         @endforelse
         </tbody>
     </table></div>
@@ -65,13 +66,14 @@
 <div class="card" style="margin-top:16px">
     <h3>Open FTTH Incidents</h3>
     <div class="table-wrap"><table class="table">
-        <thead><tr><th>Down Since</th><th>Customer</th><th>Service</th><th>Provider</th><th>Target</th><th>Method</th><th>Port</th><th>Reason</th></tr></thead>
+        <thead><tr><th>Down Since</th><th>Customer</th><th>Service</th><th>Responsible IT</th><th>Provider</th><th>Target</th><th>Method</th><th>Port</th><th>Reason</th></tr></thead>
         <tbody>
         @forelse($networkIncidents as $incident)
             <tr style="background:#fef2f2">
                 <td><strong>{{ optional($incident->started_at)->format('d/m/Y H:i:s') }}</strong></td>
                 <td>{{ $incident->service?->customer?->name }}</td>
                 <td>{{ $incident->service?->service_name }}</td>
+                <td><strong>{{ $incident->service?->responsibleIt?->name ?? '-' }}</strong></td>
                 <td>{{ $incident->service?->provider?->name ?? '-' }}</td>
                 <td>{{ $incident->target }}</td>
                 <td>{{ strtoupper($incident->check_method) }}</td>
@@ -79,7 +81,7 @@
                 <td>{{ $incident->error ?: 'Connectivity check failed.' }}</td>
             </tr>
         @empty
-            <tr><td colspan="8" class="muted">No open FTTH incidents.</td></tr>
+            <tr><td colspan="9" class="muted">No open FTTH incidents.</td></tr>
         @endforelse
         </tbody>
     </table></div>
@@ -88,19 +90,20 @@
 <div class="card" style="margin-top:16px">
     <h3>Upcoming Expiry</h3>
     <div class="table-wrap"><table class="table">
-        <thead><tr><th>Customer</th><th>Service</th><th>Type</th><th>Provider</th><th>Expiry</th><th>Alert Stage</th></tr></thead>
+        <thead><tr><th>Customer</th><th>Service</th><th>Responsible IT</th><th>Type</th><th>Provider</th><th>Expiry</th><th>Alert Stage</th></tr></thead>
         <tbody>
         @forelse($upcoming as $service)
             <tr>
                 <td>{{ $service->customer?->name }}</td>
                 <td>{{ $service->service_name }}</td>
+                <td><strong>{{ $service->responsibleIt?->name ?? '-' }}</strong></td>
                 <td>{{ $service->serviceType?->name }}</td>
                 <td>{{ $service->provider?->name ?? '-' }}</td>
                 <td>{{ optional($service->expiry_date)->format('d/m/Y') }}</td>
                 <td>{{ $service->alert_stage ?: 'Normal' }}</td>
             </tr>
         @empty
-            <tr><td colspan="6" class="muted">No services found.</td></tr>
+            <tr><td colspan="7" class="muted">No services found.</td></tr>
         @endforelse
         </tbody>
     </table></div>
@@ -109,19 +112,20 @@
 <div class="card" style="margin-top:16px">
     <h3>Open Expiry Alerts</h3>
     <div class="table-wrap"><table class="table">
-        <thead><tr><th>Triggered</th><th>Service</th><th>Customer</th><th>Stage</th><th>Remaining</th><th>Status</th></tr></thead>
+        <thead><tr><th>Triggered</th><th>Service</th><th>Responsible IT</th><th>Customer</th><th>Stage</th><th>Remaining</th><th>Status</th></tr></thead>
         <tbody>
         @forelse($openAlerts as $event)
             <tr>
                 <td>{{ optional($event->triggered_at)->format('d/m/Y H:i') }}</td>
                 <td>{{ $event->service?->service_name }}</td>
+                <td><strong>{{ $event->service?->responsibleIt?->name ?? '-' }}</strong></td>
                 <td>{{ $event->service?->customer?->name }}</td>
                 <td>{{ $event->alert_stage == 4 ? 'Expired' : 'Alert '.$event->alert_stage }}</td>
                 <td>{{ $event->remaining_percent }}%</td>
                 <td>{{ ucfirst($event->status) }}</td>
             </tr>
         @empty
-            <tr><td colspan="6" class="muted">No open expiry alerts.</td></tr>
+            <tr><td colspan="7" class="muted">No open expiry alerts.</td></tr>
         @endforelse
         </tbody>
     </table></div>
