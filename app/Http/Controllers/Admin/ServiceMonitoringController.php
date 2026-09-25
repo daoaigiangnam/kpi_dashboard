@@ -77,6 +77,26 @@ class ServiceMonitoringController extends Controller
         return view('admin.service-monitoring.dashboard', compact('stats', 'networkStats', 'monitoredServices', 'networkIncidents', 'upcoming', 'openAlerts'));
     }
 
+    public function test(Service $service, NetworkMonitoringService $networkMonitor)
+    {
+        if ($service->status !== 'active' || !in_array($service->monitor_check_method, ['ping', 'port'], true) || !$service->monitor_target) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Monitoring is not configured. Please set WAN IP / Monitor Target and Check Method first.',
+            ], 422);
+        }
+
+        $result = $networkMonitor->test($service->refresh());
+
+        return response()->json([
+            'ok' => (bool) ($result['online'] ?? false),
+            'result' => $result,
+            'message' => $result['online']
+                ? 'Connection test successful.'
+                : 'Connection test failed. The service is currently OFFLINE.',
+        ], $result['online'] ? 200 : 503);
+    }
+
     public function run(Request $request, ServiceAlertEngine $engine, ServiceAlertEmailService $emailService, NetworkMonitoringService $networkMonitor)
     {
         $limit = max(1, min((int) $request->input('limit', 500), 5000));
