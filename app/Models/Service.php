@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -40,6 +41,28 @@ class Service extends Model
         'monitor_last_checked_at' => 'datetime',
         'monitor_down_since' => 'datetime',
     ];
+
+    /**
+     * Limit service data to the services managed by the current user.
+     * Super Admin is intentionally unrestricted.
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user = null): Builder
+    {
+        $user ??= auth()->user();
+
+        if (!$user || $user->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->where('responsible_it_id', $user->id);
+    }
+
+    public function isVisibleTo(?User $user = null): bool
+    {
+        $user ??= auth()->user();
+
+        return !$user || $user->isSuperAdmin() || (int) $this->responsible_it_id === (int) $user->id;
+    }
 
     public function customer(): BelongsTo { return $this->belongsTo(ServiceCustomer::class); }
     public function serviceType(): BelongsTo { return $this->belongsTo(ServiceType::class); }
