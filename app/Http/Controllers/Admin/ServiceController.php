@@ -10,6 +10,7 @@ use App\Models\ServiceProvider;
 use App\Models\ServiceType;
 use App\Models\User;
 use App\Services\ItTools\DomainAuditService;
+use App\Services\ItTools\NetworkMonitoringService;
 use App\Services\ItTools\ServiceAlertEmailService;
 use App\Services\ItTools\ServiceAlertEngine;
 use Carbon\Carbon;
@@ -159,8 +160,27 @@ class ServiceController extends Controller
         return redirect()->route('admin.services.index')->with('success', 'Service created.');
     }
 
-    public function edit(Service $service)
+    public function edit(Request $request, Service $service, NetworkMonitoringService $networkMonitor)
     {
+        if ($request->boolean('network_test')) {
+            if ($service->status !== 'active' || !in_array($service->monitor_check_method, ['ping', 'port'], true) || !$service->monitor_target) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Monitoring is not configured. Please set WAN IP / Monitor Target and Check Method first.',
+                ], 422);
+            }
+
+            $result = $networkMonitor->test($service->refresh());
+
+            return response()->json([
+                'ok' => (bool) ($result['online'] ?? false),
+                'result' => $result,
+                'message' => $result['online']
+                    ? 'Connection test successful.'
+                    : 'Connection test failed. The service is currently OFFLINE.',
+            ], $result['online'] ? 200 : 503);
+        }
+
         return view('admin.services.form', [
             'service' => $service->load(['customer', 'serviceType', 'provider', 'alertPolicy', 'responsibleIt']),
             ...$this->formData($service),
