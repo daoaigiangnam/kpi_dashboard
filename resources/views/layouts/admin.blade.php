@@ -1,6 +1,7 @@
+@php($siteTitle = \App\Models\SystemSetting::value('site.title', 'KPI Dashboard System'))
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>KPI Dashboard Admin</title>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ $siteTitle }} - @yield('title', 'Admin')</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;font-family:Inter,Arial,sans-serif;background:#f6f9f7;color:#17231c}
@@ -24,7 +25,7 @@ body::before,body::after,.main::before,.main::after,.main *::before,.main *::aft
 .card nav[role="navigation"] svg{width:20px!important;height:20px!important;display:inline-block;vertical-align:middle;}
 .card nav[role="navigation"]{margin-top:16px;}
 </style></head>
-<body><aside class="nav" id="adminNav"><div class="brand">KPI Dashboard System</div><button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleAdminNav()">☰</button><div class="nav-links">
+<body><aside class="nav" id="adminNav"><div class="brand">{{ $siteTitle }}</div><button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleAdminNav()">☰</button><div class="nav-links">
 @if(auth()->user()->hasPermission('admin.view'))<a href="{{ route('admin.dashboard') }}">Dashboard</a>@endif
 @if(auth()->user()->hasPermission('users.view')||auth()->user()->hasPermission('groups.view')||auth()->user()->hasPermission('job_titles.view')||auth()->user()->hasPermission('departments.view')||auth()->user()->hasPermission('units.view')||auth()->user()->hasPermission('system.settings'))<details class="nav-group" open><summary>⚙ Administration</summary><div class="nav-sub">@if(auth()->user()->hasPermission('users.view'))<a href="{{ route('admin.users.index') }}">Users</a>@endif @if(auth()->user()->hasPermission('users.view')&&auth()->user()->isSuperAdmin())<a href="{{ route('admin.users.pending') }}">Pending Registrations</a>@endif @if(auth()->user()->hasPermission('groups.view'))<a href="{{ route('admin.groups.index') }}">User Groups</a>@endif @if(auth()->user()->hasPermission('job_titles.view'))<a href="{{ route('admin.job_titles.index') }}">Job Titles</a>@endif @if(auth()->user()->hasPermission('departments.view'))<a href="{{ route('admin.departments.index') }}">Departments</a>@endif @if(auth()->user()->hasPermission('units.view'))<a href="{{ route('admin.units.index') }}">Units</a>@endif @if(auth()->user()->hasPermission('system.settings'))<a href="{{ route('admin.settings.index') }}">System Settings</a>@endif</div></details>@endif
 @if(auth()->user()->hasPermission('kpi.parameters')||auth()->user()->hasPermission('kpi.tickets'))<details class="nav-group" open><summary>📊 KPI Management</summary><div class="nav-sub">@if(auth()->user()->hasPermission('kpi.parameters'))<a href="{{ route('admin.kpi_parameters.index') }}">KPI Parameters</a>@endif @if(auth()->user()->hasPermission('kpi.tickets'))<a href="{{ route('admin.tickets.index') }}">Ticket Data</a>@endif</div></details>@endif
