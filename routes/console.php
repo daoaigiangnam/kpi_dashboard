@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
-})->purpose('Display the inspiring quote');
+})->purpose('Display an inspiring quote');
 
 Schedule::command('services:monitor')
     ->dailyAt('08:00')
@@ -20,17 +20,17 @@ Schedule::command('services:monitor-network')
     ->withoutOverlapping()
     ->onOneServer();
 
+// SSL checks run every five minutes. The command only checks websites whose
+// certificate is pending or older than 24 hours, so Save/Edit never waits for TLS.
+Schedule::command('services:monitor-ssl')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Alert escalation must run every minute so configured delays are honored closely.
 Schedule::command('services:alert-emails')
     ->everyMinute()
     ->withoutOverlapping();
-
-// Website SSL certificates are re-read from the live HTTPS endpoint every day.
-// This keeps the stored expiry date current after automatic certificate renewal.
-Schedule::command('services:monitor-ssl')
-    ->dailyAt('08:05')
-    ->withoutOverlapping()
-    ->onOneServer();
 
 Schedule::command('it-tools:expiry-alert --days=30')
     ->dailyAt('08:15')
