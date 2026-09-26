@@ -32,6 +32,7 @@ class ServiceController extends Controller
             ->with(['customer', 'serviceType', 'provider', 'alertPolicy', 'responsibleIt'])
             ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
                 ->where('service_name', 'like', "%{$search}%")
+                ->orWhere('website_title', 'like', "%{$search}%")
                 ->orWhere('value', 'like', "%{$search}%")
                 ->orWhere('monitor_target', 'like', "%{$search}%")
             ))
@@ -55,6 +56,7 @@ class ServiceController extends Controller
             ->with(['customer', 'serviceType', 'provider', 'alertPolicy', 'responsibleIt'])
             ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
                 ->where('service_name', 'like', "%{$search}%")
+                ->orWhere('website_title', 'like', "%{$search}%")
                 ->orWhere('value', 'like', "%{$search}%")
                 ->orWhere('monitor_target', 'like', "%{$search}%")
             ))
@@ -70,7 +72,7 @@ class ServiceController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
 
             fputcsv($out, [
-                'Customer', 'Service Name', 'Service Type', 'Value', 'Provider',
+                'Customer', 'Service Name', 'Website Title', 'Service Type', 'Value', 'Provider',
                 'Cost', 'Currency', 'Billing Cycle', 'Payment Due Day', 'Payment Alert %',
                 'Term Months', 'Expiry Date', 'SSL Detected', 'SSL Expiry Date', 'SSL Issuer',
                 'Alert Policy', 'Responsible IT', 'Status', 'Auto Renew',
@@ -83,6 +85,7 @@ class ServiceController extends Controller
                 fputcsv($out, [
                     $service->customer?->name,
                     $service->service_name,
+                    $service->website_title,
                     $service->serviceType?->name,
                     $service->value,
                     $service->provider?->name,
@@ -276,6 +279,7 @@ class ServiceController extends Controller
             'service_type_id' => ['required', 'integer', Rule::exists('service_types', 'id')->where(fn ($q) => $q->whereNull('deleted_at')->where('is_active', true))],
             'provider_id' => ['nullable', 'integer', Rule::exists('service_providers', 'id')->where(fn ($q) => $q->whereNull('deleted_at')->where('is_active', true))],
             'service_name' => ['required', 'string', 'max:190'],
+            'website_title' => ['nullable', 'string', 'max:255'],
             'value' => ['nullable', 'string', 'max:500'],
             'cost_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'cost_currency' => ['required', 'string', 'size:3'],
@@ -318,6 +322,10 @@ class ServiceController extends Controller
         $isVps = $typeCode === 'VPS';
         $isWebsite = $typeCode === 'WEBSITE';
         $isNetworkService = $isInternet || $isVps || $isWebsite;
+
+        if (!$isWebsite) {
+            $data['website_title'] = null;
+        }
 
         if ($isInternet) {
             if (($data['cost_billing_cycle'] ?? null) === 'monthly') {
