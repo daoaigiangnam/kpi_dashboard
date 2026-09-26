@@ -71,13 +71,19 @@ class NetworkMonitoringService
 
         $timeout = max(2, min((int) ($service->monitor_timeout_seconds ?: 5), 30));
 
+        /*
+         * SSL detection is certificate inspection, not certificate trust validation.
+         * We must be able to read the certificate even when the server CA bundle is
+         * incomplete or the certificate chain is not trusted by this monitoring host.
+         * SNI + peer_name are still sent so the correct virtual-host certificate is returned.
+         */
         $context = stream_context_create([
             'ssl' => [
                 'capture_peer_cert' => true,
                 'capture_peer_cert_chain' => true,
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-                'allow_self_signed' => false,
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true,
                 'SNI_enabled' => true,
                 'peer_name' => $host,
                 'crypto_method' => STREAM_CRYPTO_METHOD_TLS_CLIENT,
@@ -152,7 +158,7 @@ class NetworkMonitoringService
         $message = trim($error);
 
         if ($message === '') {
-            $message = 'Unable to establish a trusted HTTPS/TLS connection to ' . $host . ':443.';
+            $message = 'Unable to establish HTTPS/TLS connection to ' . $host . ':443.';
         }
 
         if ($errno !== 0) {
