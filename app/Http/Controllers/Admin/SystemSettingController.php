@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Mail;
 class SystemSettingController extends Controller
 {
     private const DEFAULTS = [
+        'site.title' => 'KPI Dashboard System',
         'mail.mailer' => 'log', 'mail.host' => '', 'mail.port' => '587', 'mail.encryption' => 'tls',
         'mail.username' => '', 'mail.password' => '', 'mail.from_address' => '', 'mail.from_name' => 'KPI Dashboard System',
         'system.notification_email' => '',
@@ -43,6 +44,7 @@ class SystemSettingController extends Controller
     public function update(Request $request): mixed
     {
         $data = $request->validate([
+            'site_title' => ['required', 'string', 'max:150'],
             'mail_mailer' => ['required', 'in:log,smtp'], 'mail_host' => ['nullable', 'string', 'max:255'],
             'mail_port' => ['required', 'integer', 'min:1', 'max:65535'], 'mail_encryption' => ['required', 'in:none,tls,ssl'],
             'mail_username' => ['nullable', 'string', 'max:255'], 'mail_password' => ['nullable', 'string', 'max:1000'],
@@ -69,6 +71,7 @@ class SystemSettingController extends Controller
         ]);
 
         $values = [
+            'site.title' => $data['site_title'],
             'mail.mailer' => $data['mail_mailer'], 'mail.host' => $data['mail_host'] ?? '', 'mail.port' => (string) $data['mail_port'],
             'mail.encryption' => $data['mail_encryption'], 'mail.username' => $data['mail_username'] ?? '',
             'mail.from_address' => $data['mail_from_address'] ?? '', 'mail.from_name' => $data['mail_from_name'],
