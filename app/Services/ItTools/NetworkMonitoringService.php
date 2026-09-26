@@ -22,9 +22,6 @@ class NetworkMonitoringService
         return $this->executeCheck($service, true);
     }
 
-    /**
-     * REAL connection test only. Does not persist monitoring state, incidents, or alerts.
-     */
     public function test(Service $service, array $config = []): array
     {
         $target = (string) ($config['monitor_target'] ?? $service->monitor_target ?? '');
@@ -54,6 +51,11 @@ class NetworkMonitoringService
         return ['checked' => true, 'service_id' => $service->id] + $this->ping($target, $timeout);
     }
 
+    /**
+     * REAL certificate inspection for Website services.
+     * Uses openssl CLI with a hard process timeout so a DNS/TLS/network problem
+     * can never leave the Detect SSL request hanging indefinitely.
+     */
     public function detectSsl(Service $service, ?string $target = null): array
     {
         $service->loadMissing('serviceType');
@@ -69,103 +71,91 @@ class NetworkMonitoringService
             return ['ssl_detected' => false, 'error' => 'A valid website hostname is required for SSL detection.'];
         }
 
-        $timeout = max(2, min((int) ($service->monitor_timeout_seconds ?: 5), 30));
+        $timeout = max(2, min((int) ($service->monitor_timeout_seconds ?: 5), 15));
+        $started = microtime(true);
 
-        /*
-         * SSL detection is certificate inspection, not certificate trust validation.
-         * We must be able to read the certificate even when the server CA bundle is
-         * incomplete or the certificate chain is not trusted by this monitoring host.
-         * SNI + peer_name are still sent so the correct virtual-host certificate is returned.
-         */
-        $context = stream_context_create([
-            'ssl' => [
-                'capture_peer_cert' => true,
-                'capture_peer_cert_chain' => true,
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true,
-                'SNI_enabled' => true,
-                'peer_name' => $host,
-                'crypto_method' => STREAM_CRYPTO_METHOD_TLS_CLIENT,
-            ],
-        ]);
+        try {
+            $process = new Process([
+                'openssl',
+                's_client',
+                '-connect', $host . ':443',
+                '-servername', $host,
+                '-showcerts',
+            ]);
 
-        $errno = 0;
-        $error = '';
-        $socket = @stream_socket_client(
-            'ssl://' . $host . ':443',
-            $errno,
-            $error,
-            $timeout,
-            STREAM_CLIENT_CONNECT,
-            $context
-        );
+            $process->setInput('');
+            $process->setTimeout($timeout);
+            $process->run();
 
-        if (!is_resource($socket)) {
+            $output = $process->getOutput() . "\n" . $process->getErrorOutput();
+            $certificate = $this->extractFirstCertificate($output);
+
+            if (!$certificate) {
+                $message = trim($process->getErrorOutput());
+                if ($process->isTimedOut()) {
+                    $message = 'SSL/TLS connection timed out after ' . $timeout . ' seconds.';
+                } elseif ($message === '') {
+                    $message = 'HTTPS is reachable on port 443, but no SSL certificate was returned.';
+                }
+
+                $this->saveSslState($service, false, null, null, null, 'error');
+                return [
+                    'ssl_detected' => false,
+                    'error' => mb_substr($message, 0, 1000),
+                    'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
+                ];
+            }
+
+            $info = @openssl_x509_parse($certificate);
+            if (!$info || empty($info['validTo_time_t'])) {
+                $this->saveSslState($service, false, null, null, null, 'error');
+                return [
+                    'ssl_detected' => false,
+                    'error' => 'The HTTPS certificate was returned but could not be parsed.',
+                    'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
+                ];
+            }
+
+            $validFrom = !empty($info['validFrom_time_t'])
+                ? Carbon::createFromTimestamp((int) $info['validFrom_time_t'])
+                : null;
+
+            $expiry = Carbon::createFromTimestamp((int) $info['validTo_time_t']);
+            $subjectCn = (string) ($info['subject']['CN'] ?? '');
+            $issuer = (string) ($info['issuer']['CN'] ?? $info['issuer']['O'] ?? '');
+            $status = $expiry->isPast() ? 'expired' : 'valid';
+            $daysRemaining = now()->startOfDay()->diffInDays($expiry->copy()->startOfDay(), false);
+
+            $this->saveSslState($service, true, $validFrom, $expiry, $issuer ?: null, $status);
+
+            return [
+                'ssl_detected' => true,
+                'ssl_status' => $status,
+                'issuer' => $issuer ?: null,
+                'subject_cn' => $subjectCn ?: null,
+                'valid_from' => $validFrom?->toDateString(),
+                'expires_at' => $expiry->toIso8601String(),
+                'saved_ssl_expiry_date' => $expiry->toDateString(),
+                'days_remaining' => $daysRemaining,
+                'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
+            ];
+        } catch (\Throwable $e) {
             $this->saveSslState($service, false, null, null, null, 'error');
             return [
                 'ssl_detected' => false,
-                'error' => $this->sslConnectionError($error, $errno, $host),
+                'error' => mb_substr($e->getMessage(), 0, 1000),
+                'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
             ];
         }
-
-        $params = stream_context_get_params($socket);
-        fclose($socket);
-
-        $certificate = $params['options']['ssl']['peer_certificate'] ?? null;
-        if (!$certificate) {
-            $this->saveSslState($service, false, null, null, null, 'error');
-            return ['ssl_detected' => false, 'error' => 'HTTPS connection succeeded but no peer certificate was returned.'];
-        }
-
-        $info = @openssl_x509_parse($certificate);
-        if (!$info || empty($info['validTo_time_t'])) {
-            $this->saveSslState($service, false, null, null, null, 'error');
-            return ['ssl_detected' => false, 'error' => 'The peer certificate could not be parsed.'];
-        }
-
-        $validFrom = !empty($info['validFrom_time_t'])
-            ? Carbon::createFromTimestamp((int) $info['validFrom_time_t'])
-            : null;
-
-        $expiry = Carbon::createFromTimestamp((int) $info['validTo_time_t']);
-        $subjectCn = (string) ($info['subject']['CN'] ?? '');
-        $issuer = (string) (
-            $info['issuer']['CN']
-            ?? $info['issuer']['O']
-            ?? ''
-        );
-
-        $status = $expiry->isPast() ? 'expired' : 'valid';
-        $daysRemaining = now()->startOfDay()->diffInDays($expiry->copy()->startOfDay(), false);
-
-        $this->saveSslState($service, true, $validFrom, $expiry, $issuer ?: null, $status);
-
-        return [
-            'ssl_detected' => true,
-            'ssl_status' => $status,
-            'issuer' => $issuer ?: null,
-            'subject_cn' => $subjectCn ?: null,
-            'valid_from' => $validFrom?->toDateString(),
-            'expires_at' => $expiry->toIso8601String(),
-            'saved_ssl_expiry_date' => $expiry->toDateString(),
-            'days_remaining' => $daysRemaining,
-        ];
     }
 
-    private function sslConnectionError(string $error, int $errno, string $host): string
+    private function extractFirstCertificate(string $output): ?string
     {
-        $message = trim($error);
-
-        if ($message === '') {
-            $message = 'Unable to establish HTTPS/TLS connection to ' . $host . ':443.';
+        if (preg_match('/-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----/s', $output, $match)) {
+            return trim($match[0]);
         }
 
-        if ($errno !== 0) {
-            $message .= ' (errno ' . $errno . ')';
-        }
-
-        return mb_substr($message, 0, 1000);
+        return null;
     }
 
     private function saveSslState(Service $service, bool $detected, ?Carbon $validFrom, ?Carbon $expiry, ?string $issuer, string $status): void
@@ -188,15 +178,9 @@ class NetworkMonitoringService
     private function normalizeHost(string $target): ?string
     {
         $target = trim($target);
+        if ($target === '') return null;
 
-        if ($target === '') {
-            return null;
-        }
-
-        $candidate = preg_match('/^https?:\/\//i', $target)
-            ? $target
-            : 'https://' . $target;
-
+        $candidate = preg_match('/^https?:\/\//i', $target) ? $target : 'https://' . $target;
         $host = strtolower(trim((string) parse_url($candidate, PHP_URL_HOST)));
 
         return $host !== '' ? rtrim($host, '.') : null;
@@ -205,38 +189,19 @@ class NetworkMonitoringService
     private function normalizeHostOrIp(string $target): ?string
     {
         $target = trim($target);
-
-        if ($target === '') {
-            return null;
-        }
-
-        if (filter_var($target, FILTER_VALIDATE_IP)) {
-            return $target;
-        }
-
+        if ($target === '') return null;
+        if (filter_var($target, FILTER_VALIDATE_IP)) return $target;
         return $this->normalizeHost($target);
     }
 
     private function normalizePorts($ports, $fallbackPort = null): array
     {
-        if (is_string($ports)) {
-            $ports = preg_split('/[\s,;]+/', $ports, -1, PREG_SPLIT_NO_EMPTY);
-        }
-
-        if (!is_array($ports)) {
-            $ports = [];
-        }
-
-        if (!$ports && $fallbackPort) {
-            $ports = [(int) $fallbackPort];
-        }
+        if (is_string($ports)) $ports = preg_split('/[\s,;]+/', $ports, -1, PREG_SPLIT_NO_EMPTY);
+        if (!is_array($ports)) $ports = [];
+        if (!$ports && $fallbackPort) $ports = [(int) $fallbackPort];
 
         $ports = array_map('intval', $ports);
-        $ports = array_values(array_unique(array_filter(
-            $ports,
-            fn (int $port) => $port >= 1 && $port <= 65535
-        )));
-
+        $ports = array_values(array_unique(array_filter($ports, fn (int $port) => $port >= 1 && $port <= 65535)));
         return array_slice($ports, 0, 20);
     }
 
@@ -247,7 +212,6 @@ class NetworkMonitoringService
 
         if ($service->monitor_check_method === 'port') {
             $ports = $this->portsFor($service);
-
             $result = $ports
                 ? $this->checkPorts($this->normalizeHostOrIp((string) $service->monitor_target), $ports, $timeout)
                 : [
@@ -269,64 +233,37 @@ class NetworkMonitoringService
                 ];
         }
 
-        if ($persist) {
-            $this->persist($service, $result);
-        }
-
+        if ($persist) $this->persist($service, $result);
         return ['checked' => true, 'service_id' => $service->id] + $result;
     }
 
     private function isDue(Service $service): bool
     {
-        if (!$service->monitor_last_checked_at) {
-            return true;
-        }
-
+        if (!$service->monitor_last_checked_at) return true;
         $interval = max(30, (int) ($service->monitor_interval_seconds ?: 60));
-
-        return now()->greaterThanOrEqualTo(
-            $service->monitor_last_checked_at->copy()->addSeconds($interval)
-        );
+        return now()->greaterThanOrEqualTo($service->monitor_last_checked_at->copy()->addSeconds($interval));
     }
 
     private function ping(string $target, int $timeout): array
     {
         if (!$this->validTarget($target)) {
-            return [
-                'online' => false,
-                'latency_ms' => null,
-                'packet_loss_percent' => 100.0,
-                'error' => 'Invalid monitor target.',
-            ];
+            return ['online' => false, 'latency_ms' => null, 'packet_loss_percent' => 100.0, 'error' => 'Invalid monitor target.'];
         }
 
         $started = microtime(true);
-        $process = new Process([
-            'ping',
-            '-c',
-            '1',
-            '-W',
-            (string) max(1, min($timeout, 60)),
-            $target,
-        ]);
-
+        $process = new Process(['ping', '-c', '1', '-W', (string) max(1, min($timeout, 60)), $target]);
         $process->setTimeout(max(2, min($timeout + 2, 65)));
         $process->run();
 
         $output = $process->getOutput() . "\n" . $process->getErrorOutput();
         $latency = null;
-
-        if (preg_match('/time[=<]([\d.]+)\s*ms/i', $output, $m)) {
-            $latency = (float) $m[1];
-        }
+        if (preg_match('/time[=<]([\d.]+)\s*ms/i', $output, $m)) $latency = (float) $m[1];
 
         return [
             'online' => $process->isSuccessful(),
             'latency_ms' => $latency,
             'packet_loss_percent' => $process->isSuccessful() ? 0.0 : 100.0,
-            'error' => $process->isSuccessful()
-                ? null
-                : trim(mb_substr($process->getErrorOutput() ?: 'PING failed.', 0, 1000)),
+            'error' => $process->isSuccessful() ? null : trim(mb_substr($process->getErrorOutput() ?: 'PING failed.', 0, 1000)),
             'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
         ];
     }
@@ -334,46 +271,22 @@ class NetworkMonitoringService
     private function checkPorts(string $target, array $ports, int $timeout): array
     {
         if (!$this->validTarget($target)) {
-            return [
-                'online' => false,
-                'latency_ms' => null,
-                'packet_loss_percent' => 100.0,
-                'error' => 'Invalid monitor target.',
-                'port_results' => [],
-            ];
+            return ['online' => false, 'latency_ms' => null, 'packet_loss_percent' => 100.0, 'error' => 'Invalid monitor target.', 'port_results' => []];
         }
 
         $started = microtime(true);
         $results = [];
+        foreach ($ports as $port) $results[] = $this->checkPort($target, (int) $port, $timeout) + ['port' => (int) $port];
 
-        foreach ($ports as $port) {
-            $results[] = $this->checkPort($target, (int) $port, $timeout) + [
-                'port' => (int) $port,
-            ];
-        }
-
-        $failed = array_values(array_filter(
-            $results,
-            fn (array $r) => !$r['online']
-        ));
-
-        $latencies = array_values(array_filter(
-            array_map(fn (array $r) => $r['latency_ms'], $results),
-            fn ($v) => $v !== null
-        ));
-
+        $failed = array_values(array_filter($results, fn (array $r) => !$r['online']));
+        $latencies = array_values(array_filter(array_map(fn (array $r) => $r['latency_ms'], $results), fn ($v) => $v !== null));
         $allOnline = !$failed;
-        $failedText = implode(', ', array_map(
-            fn (array $r) => (string) $r['port'],
-            $failed
-        ));
+        $failedText = implode(', ', array_map(fn (array $r) => (string) $r['port'], $failed));
 
         return [
             'online' => $allOnline,
             'latency_ms' => $latencies ? max($latencies) : null,
-            'packet_loss_percent' => $allOnline
-                ? 0.0
-                : round((count($failed) / max(1, count($results))) * 100, 2),
+            'packet_loss_percent' => $allOnline ? 0.0 : round((count($failed) / max(1, count($results))) * 100, 2),
             'error' => $allOnline ? null : 'TCP port(s) offline: ' . $failedText,
             'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
             'port_results' => $results,
@@ -382,50 +295,21 @@ class NetworkMonitoringService
 
     private function checkPort(string $target, int $port, int $timeout): array
     {
-        if ($port < 1 || $port > 65535) {
-            return [
-                'online' => false,
-                'latency_ms' => null,
-                'packet_loss_percent' => 100.0,
-                'error' => 'Invalid monitor port.',
-            ];
-        }
+        if ($port < 1 || $port > 65535) return ['online' => false, 'latency_ms' => null, 'packet_loss_percent' => 100.0, 'error' => 'Invalid monitor port.'];
 
         $started = microtime(true);
         $errno = 0;
         $error = '';
-
-        $socketHost = filter_var($target, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)
-            ? '[' . $target . ']'
-            : $target;
-
-        $stream = @stream_socket_client(
-            'tcp://' . $socketHost . ':' . $port,
-            $errno,
-            $error,
-            max(1, min($timeout, 60)),
-            STREAM_CLIENT_CONNECT
-        );
-
+        $socketHost = filter_var($target, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $target . ']' : $target;
+        $stream = @stream_socket_client('tcp://' . $socketHost . ':' . $port, $errno, $error, max(1, min($timeout, 60)), STREAM_CLIENT_CONNECT);
         $latency = round((microtime(true) - $started) * 1000, 1);
 
         if (is_resource($stream)) {
             fclose($stream);
-
-            return [
-                'online' => true,
-                'latency_ms' => $latency,
-                'packet_loss_percent' => 0.0,
-                'error' => null,
-            ];
+            return ['online' => true, 'latency_ms' => $latency, 'packet_loss_percent' => 0.0, 'error' => null];
         }
 
-        return [
-            'online' => false,
-            'latency_ms' => $latency,
-            'packet_loss_percent' => 100.0,
-            'error' => mb_substr($error ?: 'TCP connection failed.', 0, 1000),
-        ];
+        return ['online' => false, 'latency_ms' => $latency, 'packet_loss_percent' => 100.0, 'error' => mb_substr($error ?: 'TCP connection failed.', 0, 1000)];
     }
 
     private function portsFor(Service $service): array
@@ -437,7 +321,6 @@ class NetworkMonitoringService
     {
         $isOnline = (bool) $result['online'];
         $now = now();
-
         $service->monitor_last_checked_at = $now;
         $service->monitor_last_latency_ms = $result['latency_ms'];
         $service->monitor_packet_loss_percent = $result['packet_loss_percent'];
@@ -447,12 +330,7 @@ class NetworkMonitoringService
             $service->monitor_failure_count = 0;
             $service->monitor_down_since = null;
 
-            $open = ServiceMonitorEvent::query()
-                ->where('service_id', $service->id)
-                ->where('status', 'open')
-                ->latest('id')
-                ->first();
-
+            $open = ServiceMonitorEvent::query()->where('service_id', $service->id)->where('status', 'open')->latest('id')->first();
             if ($open) {
                 $open->update([
                     'status' => 'resolved',
@@ -467,19 +345,11 @@ class NetworkMonitoringService
         } else {
             $service->monitor_status = 'offline';
             $service->monitor_failure_count = ((int) $service->monitor_failure_count) + 1;
+            if (!$service->monitor_down_since) $service->monitor_down_since = $now;
 
-            if (!$service->monitor_down_since) {
-                $service->monitor_down_since = $now;
-            }
-
-            $open = ServiceMonitorEvent::query()
-                ->where('service_id', $service->id)
-                ->where('status', 'open')
-                ->exists();
-
+            $open = ServiceMonitorEvent::query()->where('service_id', $service->id)->where('status', 'open')->exists();
             if (!$open) {
                 $failedPort = collect($result['port_results'] ?? [])->firstWhere('online', false);
-
                 ServiceMonitorEvent::create([
                     'service_id' => $service->id,
                     'event_type' => 'down',
@@ -502,14 +372,8 @@ class NetworkMonitoringService
     private function validTarget(string $target): bool
     {
         $target = trim($target);
+        if (filter_var($target, FILTER_VALIDATE_IP)) return true;
 
-        if (filter_var($target, FILTER_VALIDATE_IP)) {
-            return true;
-        }
-
-        return (bool) preg_match(
-            '/^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/',
-            $target
-        );
+        return (bool) preg_match('/^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/', $target);
     }
 }
