@@ -79,11 +79,15 @@ class ServiceAlertEngine
         $remainingDays = $today->lt($expiry) ? $today->diffInDays($expiry) : -$today->diffInDays($expiry);
         $remainingPercent = $today->gte($expiry) ? 0.0 : round(($remainingDays / $totalDays) * 100, 2);
         $policy = $service->alertPolicy;
+        $daysRemaining = $today->lt($expiry)
+            ? $today->diffInDays($expiry)
+            : -$today->diffInDays($expiry);
+
         $stage = match (true) {
-            $today->gte($expiry) => 4,
-            $remainingPercent <= (float) $policy->alert_3_percent => 3,
-            $remainingPercent <= (float) $policy->alert_2_percent => 2,
-            $remainingPercent <= (float) $policy->alert_1_percent => 1,
+            $daysRemaining <= 0 => 4,
+            $daysRemaining <= 7 => 3,
+            $daysRemaining <= 20 => 2,
+            $daysRemaining <= 30 => 1,
             default => 0,
         };
         $currentStage = (int) $service->ssl_alert_stage;
