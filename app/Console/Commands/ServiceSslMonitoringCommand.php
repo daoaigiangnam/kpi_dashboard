@@ -19,6 +19,7 @@ class ServiceSslMonitoringCommand extends Command
         $checked = 0;
         $failed = 0;
         $alerts = 0;
+        $dueBefore = now()->subDay();
 
         Service::query()
             ->where('status', 'active')
@@ -26,6 +27,10 @@ class ServiceSslMonitoringCommand extends Command
             ->where(function ($q) {
                 $q->where('monitor_ports', 'like', '%443%')
                     ->orWhere('monitor_port', 443);
+            })
+            ->where(function ($q) use ($dueBefore) {
+                $q->whereNull('ssl_last_checked_at')
+                    ->orWhere('ssl_last_checked_at', '<=', $dueBefore);
             })
             ->with('alertPolicy')
             ->orderBy('id')
