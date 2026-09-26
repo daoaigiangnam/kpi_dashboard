@@ -7,6 +7,7 @@ use App\Services\ItTools\ApiTesterService;
 use App\Services\ItTools\AuditExcelService;
 use App\Services\ItTools\BulkAuditService;
 use App\Services\ItTools\InternetAssetAuditService;
+use App\Services\ItTools\IpLocationService;
 use App\Services\ItTools\IpScannerService;
 use App\Services\ItTools\NetworkDiagnosticService;
 use App\Services\ItTools\PortCheckService;
@@ -21,6 +22,7 @@ class ItToolsController extends Controller
     public function portCheckPage() { return view('admin.it-tools.port-check'); }
     public function apiTesterPage() { return view('admin.it-tools.api-tester'); }
     public function ipScannerPage() { return view('admin.it-tools.ip-scanner'); }
+    public function ipLocationPage() { return view('admin.it-tools.ip-location'); }
     public function networkDiagnosticPage() { return view('admin.it-tools.network-diagnostic'); }
 
     public function portCheck(Request $request, PortCheckService $ports)
@@ -41,6 +43,14 @@ class ItToolsController extends Controller
         $data = $request->validate(['range'=>['required','string','max:64'],'ports'=>['nullable','array','max:50'],'ports.*'=>['integer','between:1,65535'],'all_ports'=>['nullable','boolean']]);
         try { return response()->json($scanner->scan($data['range'], $data['ports'] ?? [], (bool)($data['all_ports'] ?? false))); }
         catch (\InvalidArgumentException $e) { return response()->json(['message'=>$e->getMessage()], 422); }
+    }
+
+    public function ipLocation(Request $request, IpLocationService $location)
+    {
+        $data = $request->validate(['ip'=>['nullable','string','max:45']]);
+        try { return response()->json($location->lookup($data['ip'] ?? null)); }
+        catch (\InvalidArgumentException $e) { return response()->json(['message'=>$e->getMessage()], 422); }
+        catch (\Throwable $e) { return response()->json(['message'=>$e->getMessage()], 502); }
     }
 
     public function networkDiagnostic(Request $request, NetworkDiagnosticService $network)
