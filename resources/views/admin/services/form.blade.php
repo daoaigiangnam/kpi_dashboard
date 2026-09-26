@@ -8,6 +8,7 @@
         <div class="field"><label>Customer *</label><select class="input" name="customer_id" required><option value="">Select customer</option>@foreach($customers as $x)<option value="{{ $x->id }}" @selected((int)old('customer_id',$service->customer_id)===$x->id)>{{ $x->name }}</option>@endforeach</select></div>
         <div class="field"><label>Service Type *</label><select class="input" id="service_type_id" name="service_type_id" required>@foreach($serviceTypes as $x)<option value="{{ $x->id }}" data-code="{{ $x->code }}" @selected((int)old('service_type_id',$service->service_type_id)===$x->id) data-terms='@json($x->terms->pluck("months")->values())'>{{ $x->name }}</option>@endforeach</select></div>
         <div class="field"><label>Service Name *</label><input class="input" name="service_name" value="{{ old('service_name',$service->service_name) }}" required></div>
+        <div class="field" id="website-title-field" style="display:none"><label>Website Title</label><input class="input" name="website_title" id="website_title" value="{{ old('website_title',$service->website_title) }}" maxlength="255" placeholder="Ví dụ: Review360 - IT Service Management"><small class="muted">Tiêu đề website dùng để nhận diện dịch vụ trên Dashboard, Monitoring và báo cáo. Không bắt buộc.</small></div>
         <div class="field"><label>Value</label><input class="input" name="value" id="service_value" value="{{ old('value',$service->value) }}" placeholder="Domain / Website URL / IP / license / contract number..."></div>
         <div class="field"><label>Provider</label><select class="input" name="provider_id"><option value="">Select provider</option>@foreach($providers as $x)<option value="{{ $x->id }}" @selected((int)old('provider_id',$service->provider_id)===$x->id)>{{ $x->name }}</option>@endforeach</select><small class="muted">Website: không bắt buộc. Chỉ khai báo khi có nhà cung cấp/đơn vị hosting.</small></div>
         <div class="field"><label>Service Cost</label><div style="display:flex;gap:8px"><input class="input" style="flex:1" type="number" min="0" step="0.01" name="cost_amount" value="{{ old('cost_amount',$service->cost_amount) }}" placeholder="Không bắt buộc"><select class="input" style="width:110px" name="cost_currency"><option value="VND" @selected(old('cost_currency',$service->cost_currency ?: 'VND')==='VND')>VND</option><option value="USD" @selected(old('cost_currency',$service->cost_currency)==='USD')>USD</option><option value="EUR" @selected(old('cost_currency',$service->cost_currency)==='EUR')>EUR</option></select></div><small class="muted">Website: chỉ nhập khi dịch vụ có chi phí.</small></div>
@@ -52,6 +53,7 @@
 <script>
 (function(){
  const type=document.getElementById('service_type_id'),term=document.getElementById('service_term_months'),expiry=document.getElementById('expiry_date'),policy=document.getElementById('alert_policy_id'),billing=document.getElementById('cost_billing_cycle');
+ const websiteTitleField=document.getElementById('website-title-field'),websiteTitle=document.getElementById('website_title');
  const method=document.getElementById('monitor_check_method'),target=document.getElementById('monitor_target'),ports=document.getElementById('monitor_ports'),monitoring=document.getElementById('monitoring-fields'),portField=document.getElementById('monitor-port-field'),ftthPayment=document.getElementById('ftth-payment-fields'),expiryFields=document.getElementById('expiry-fields'),sslFields=document.getElementById('website-ssl-fields');
  const targetLabel=document.getElementById('monitor-target-label'),targetHelp=document.getElementById('monitor-target-help'),portLabel=document.getElementById('monitor-port-label'),portHelp=document.getElementById('monitor-port-help'),monitorTitle=document.getElementById('monitoring-title');
  const detect=document.getElementById('detect-expiry'),result=document.getElementById('detect-result');
@@ -73,6 +75,7 @@
    const isMonthlyFtth=isInternet && billing.value==='monthly';
    monitoring.style.display=isNetworkService?'block':'none';
    sslFields.style.display=isWebsite?'block':'none';
+   websiteTitleField.style.display=isWebsite?'block':'none';
    ftthPayment.style.display=isMonthlyFtth?'block':'none';
    expiryFields.style.display=isMonthlyFtth?'none':'block';
    detect.style.display=code==='DOMAIN'?'inline-block':'none';
@@ -82,7 +85,7 @@
       targetHelp.textContent='Nhập hostname/domain của website, ví dụ review360.id.vn. Không cần https://.';
       portLabel.textContent='HTTP / HTTPS Ports *';
       portHelp.textContent='Mặc định: 80 (HTTP) và 443 (HTTPS). Hệ thống báo UP/DOWN từng port.';
-      if(!target.value && document.getElementById('service_value')?.value) target.value=document.getElementById('service_value').value.replace(/^https?:\\/\\//,'').split('/')[0];
+      if(!target.value && document.getElementById('service_value')?.value) target.value=document.getElementById('service_value').value.replace(/^https?:\/\//,'').split('/')[0];
       if(!ports.value) ports.value='80,443';
       if(!currentMethod) currentMethod='port';
    } else if(isVps){
