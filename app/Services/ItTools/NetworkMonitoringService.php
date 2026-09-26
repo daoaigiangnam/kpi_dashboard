@@ -4,7 +4,6 @@ namespace App\Services\ItTools;
 
 use App\Models\Service;
 use App\Models\ServiceMonitorEvent;
-use Carbon\Carbon;
 use Symfony\Component\Process\Process;
 
 class NetworkMonitoringService
@@ -52,138 +51,98 @@ class NetworkMonitoringService
     }
 
     /**
-     * REAL certificate inspection for Website services.
-     * Uses openssl CLI with a hard process timeout so a DNS/TLS/network problem
-     * can never leave the Detect SSL request hanging indefinitely.
+     * REAL SSL certificate detection for Website services.
+     *
+     * This intentionally uses the same SNI-aware TLS certificate inspection
+     * service used by the SSL audit functionality instead of parsing the
+     * output of the openssl CLI. This avoids false "SSL not detected" results
+     * on virtual-hosted HTTPS sites such as Cloudflare/fronted websites.
      */
     public function detectSsl(Service $service, ?string $target = null): array
     {
-        $service->loadMissing('serviceType');
+        $service->loadMissing(['serviceType', 'alertPolicy']);
 
         if (strtoupper((string) $service->serviceType?->code) !== 'WEBSITE') {
-            return ['ssl_detected' => false, 'error' => 'SSL detection is available only for Website services.'];
+            return [
+                'ssl_detected' => false,
+                'error' => 'SSL detection is available only for Website services.',
+            ];
         }
 
-        $host = $this->normalizeHost((string) ($target ?? $service->monitor_target ?: $service->value));
+        $host = trim((string) ($target ?? $service->monitor_target ?: $service->value));
+        $host = preg_replace('/^https?:\/\//i', '', $host);
+        $host = trim(explode('/', $host, 2)[0]);
 
-        if (!$host || filter_var($host, FILTER_VALIDATE_IP)) {
-            $this->saveSslState($service, false, null, null, null, 'error');
-            return ['ssl_detected' => false, 'error' => 'A valid website hostname is required for SSL detection.'];
+        if ($host === '' || filter_var($host, FILTER_VALIDATE_IP)) {
+            return [
+                'ssl_detected' => false,
+                'error' => 'A valid website hostname is required for SSL detection.',
+            ];
         }
-
-        $timeout = max(2, min((int) ($service->monitor_timeout_seconds ?: 5), 15));
-        $started = microtime(true);
 
         try {
-            $process = new Process([
-                'openssl',
-                's_client',
-                '-connect', $host . ':443',
-                '-servername', $host,
-                '-showcerts',
-            ]);
+            $result = app(SslAuditService::class)->check($host, 443);
 
-            $process->setInput('');
-            $process->setTimeout($timeout);
-            $process->run();
+            if (($result['status'] ?? null) !== 'ok' || empty($result['valid_to'])) {
+                $service->ssl_last_checked_at = now();
+                $service->ssl_status = 'error';
+                $service->save();
 
-            $output = $process->getOutput() . "\n" . $process->getErrorOutput();
-            $certificate = $this->extractFirstCertificate($output);
-
-            if (!$certificate) {
-                $message = trim($process->getErrorOutput());
-                if ($process->isTimedOut()) {
-                    $message = 'SSL/TLS connection timed out after ' . $timeout . ' seconds.';
-                } elseif ($message === '') {
-                    $message = 'HTTPS is reachable on port 443, but no SSL certificate was returned.';
-                }
-
-                $this->saveSslState($service, false, null, null, null, 'error');
                 return [
                     'ssl_detected' => false,
-                    'error' => mb_substr($message, 0, 1000),
-                    'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
+                    'ssl_status' => 'error',
+                    'error' => $result['error'] ?? 'HTTPS certificate was not returned by the server.',
                 ];
             }
 
-            $info = @openssl_x509_parse($certificate);
-            if (!$info || empty($info['validTo_time_t'])) {
-                $this->saveSslState($service, false, null, null, null, 'error');
-                return [
-                    'ssl_detected' => false,
-                    'error' => 'The HTTPS certificate was returned but could not be parsed.',
-                    'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
-                ];
-            }
-
-            $validFrom = !empty($info['validFrom_time_t'])
-                ? Carbon::createFromTimestamp((int) $info['validFrom_time_t'])
-                : null;
-
-            $expiry = Carbon::createFromTimestamp((int) $info['validTo_time_t']);
-            $subjectCn = (string) ($info['subject']['CN'] ?? '');
-            $issuer = (string) ($info['issuer']['CN'] ?? $info['issuer']['O'] ?? '');
+            $validFrom = !empty($result['valid_from']) ? \Carbon\Carbon::parse($result['valid_from']) : null;
+            $expiry = \Carbon\Carbon::parse($result['valid_to']);
             $status = $expiry->isPast() ? 'expired' : 'valid';
             $daysRemaining = now()->startOfDay()->diffInDays($expiry->copy()->startOfDay(), false);
 
-            $this->saveSslState($service, true, $validFrom, $expiry, $issuer ?: null, $status);
+            $service->ssl_detected = true;
+            $service->ssl_valid_from_date = $validFrom?->toDateString();
+            $service->ssl_expiry_date = $expiry->toDateString();
+            $service->ssl_issuer = $result['issuer'] ?? null;
+            $service->ssl_status = $status;
+            $service->ssl_last_checked_at = now();
+            $service->save();
+
+            // Recalculate SSL expiry alert immediately after a real certificate
+            // detection. The engine handles alert stages, duplicate prevention,
+            // recovery and the configured notification recipients.
+            $event = app(ServiceAlertEngine::class)->evaluateSsl($service->fresh(['alertPolicy']));
+            if ($event) {
+                app(ServiceAlertEmailService::class)->notifyNewAlert($event);
+            }
 
             return [
                 'ssl_detected' => true,
                 'ssl_status' => $status,
-                'issuer' => $issuer ?: null,
-                'subject_cn' => $subjectCn ?: null,
+                'issuer' => $result['issuer'] ?? null,
+                'subject_cn' => $result['subject'] ?? null,
+                'san' => $result['san'] ?? [],
                 'valid_from' => $validFrom?->toDateString(),
                 'expires_at' => $expiry->toIso8601String(),
                 'saved_ssl_expiry_date' => $expiry->toDateString(),
                 'days_remaining' => $daysRemaining,
-                'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
+                'tls_version' => $result['tls_version'] ?? null,
+                'cipher' => $result['cipher'] ?? null,
+                'hostname_verified' => (bool) ($result['verify'] ?? false),
             ];
         } catch (\Throwable $e) {
-            $this->saveSslState($service, false, null, null, null, 'error');
+            report($e);
+
+            $service->ssl_last_checked_at = now();
+            $service->ssl_status = 'error';
+            $service->save();
+
             return [
                 'ssl_detected' => false,
+                'ssl_status' => 'error',
                 'error' => mb_substr($e->getMessage(), 0, 1000),
-                'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
             ];
         }
-    }
-
-    private function extractFirstCertificate(string $output): ?string
-    {
-        if (preg_match('/-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----/s', $output, $match)) {
-            return trim($match[0]);
-        }
-
-        return null;
-    }
-
-    private function saveSslState(Service $service, bool $detected, ?Carbon $validFrom, ?Carbon $expiry, ?string $issuer, string $status): void
-    {
-        $service->ssl_detected = $detected;
-        $service->ssl_valid_from_date = $validFrom?->toDateString();
-        $service->ssl_expiry_date = $expiry?->toDateString();
-        $service->ssl_issuer = $issuer;
-        $service->ssl_status = $status;
-        $service->ssl_last_checked_at = now();
-
-        if (!$detected || !$expiry) {
-            $service->ssl_alert_stage = 0;
-            $service->ssl_last_alert_at = null;
-        }
-
-        $service->save();
-    }
-
-    private function normalizeHost(string $target): ?string
-    {
-        $target = trim($target);
-        if ($target === '') return null;
-
-        $candidate = preg_match('/^https?:\/\//i', $target) ? $target : 'https://' . $target;
-        $host = strtolower(trim((string) parse_url($candidate, PHP_URL_HOST)));
-
-        return $host !== '' ? rtrim($host, '.') : null;
     }
 
     private function normalizeHostOrIp(string $target): ?string
@@ -191,34 +150,44 @@ class NetworkMonitoringService
         $target = trim($target);
         if ($target === '') return null;
         if (filter_var($target, FILTER_VALIDATE_IP)) return $target;
-        return $this->normalizeHost($target);
+
+        $candidate = preg_match('/^https?:\/\//i', $target) ? $target : 'https://' . $target;
+        $host = strtolower(trim((string) parse_url($candidate, PHP_URL_HOST)));
+
+        return $host !== '' ? rtrim($host, '.') : null;
     }
 
     private function normalizePorts($ports, $fallbackPort = null): array
     {
-        if (is_string($ports)) $ports = preg_split('/[\s,;]+/', $ports, -1, PREG_SPLIT_NO_EMPTY);
+        if (is_string($ports)) {
+            $ports = preg_split('/[\s,;]+/', $ports, -1, PREG_SPLIT_NO_EMPTY);
+        }
         if (!is_array($ports)) $ports = [];
         if (!$ports && $fallbackPort) $ports = [(int) $fallbackPort];
 
         $ports = array_map('intval', $ports);
-        $ports = array_values(array_unique(array_filter($ports, fn (int $port) => $port >= 1 && $port <= 65535)));
+        $ports = array_values(array_unique(array_filter(
+            $ports,
+            fn (int $port) => $port >= 1 && $port <= 65535
+        )));
+
         return array_slice($ports, 0, 20);
     }
 
     private function executeCheck(Service $service, bool $persist): array
     {
-        $service->loadMissing('serviceType');
         $timeout = (int) ($service->monitor_timeout_seconds ?: 5);
 
         if ($service->monitor_check_method === 'port') {
             $ports = $this->portsFor($service);
-            $result = $ports
-                ? $this->checkPorts($this->normalizeHostOrIp((string) $service->monitor_target), $ports, $timeout)
+            $target = $this->normalizeHostOrIp((string) $service->monitor_target);
+            $result = $ports && $target
+                ? $this->checkPorts($target, $ports, $timeout)
                 : [
                     'online' => false,
                     'latency_ms' => null,
                     'packet_loss_percent' => 100.0,
-                    'error' => 'No monitor port configured.',
+                    'error' => !$target ? 'Invalid monitor target.' : 'No monitor port configured.',
                     'port_results' => [],
                 ];
         } else {
@@ -241,29 +210,47 @@ class NetworkMonitoringService
     {
         if (!$service->monitor_last_checked_at) return true;
         $interval = max(30, (int) ($service->monitor_interval_seconds ?: 60));
-        return now()->greaterThanOrEqualTo($service->monitor_last_checked_at->copy()->addSeconds($interval));
+        return now()->greaterThanOrEqualTo(
+            $service->monitor_last_checked_at->copy()->addSeconds($interval)
+        );
     }
 
     private function ping(string $target, int $timeout): array
     {
         if (!$this->validTarget($target)) {
-            return ['online' => false, 'latency_ms' => null, 'packet_loss_percent' => 100.0, 'error' => 'Invalid monitor target.'];
+            return [
+                'online' => false,
+                'latency_ms' => null,
+                'packet_loss_percent' => 100.0,
+                'error' => 'Invalid monitor target.',
+            ];
         }
 
         $started = microtime(true);
-        $process = new Process(['ping', '-c', '1', '-W', (string) max(1, min($timeout, 60)), $target]);
+        $process = new Process([
+            'ping',
+            '-c',
+            '1',
+            '-W',
+            (string) max(1, min($timeout, 60)),
+            $target,
+        ]);
         $process->setTimeout(max(2, min($timeout + 2, 65)));
         $process->run();
 
         $output = $process->getOutput() . "\n" . $process->getErrorOutput();
         $latency = null;
-        if (preg_match('/time[=<]([\d.]+)\s*ms/i', $output, $m)) $latency = (float) $m[1];
+        if (preg_match('/time[=<]([\d.]+)\s*ms/i', $output, $m)) {
+            $latency = (float) $m[1];
+        }
 
         return [
             'online' => $process->isSuccessful(),
             'latency_ms' => $latency,
             'packet_loss_percent' => $process->isSuccessful() ? 0.0 : 100.0,
-            'error' => $process->isSuccessful() ? null : trim(mb_substr($process->getErrorOutput() ?: 'PING failed.', 0, 1000)),
+            'error' => $process->isSuccessful()
+                ? null
+                : trim(mb_substr($process->getErrorOutput() ?: 'PING failed.', 0, 1000)),
             'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
         ];
     }
@@ -271,22 +258,35 @@ class NetworkMonitoringService
     private function checkPorts(string $target, array $ports, int $timeout): array
     {
         if (!$this->validTarget($target)) {
-            return ['online' => false, 'latency_ms' => null, 'packet_loss_percent' => 100.0, 'error' => 'Invalid monitor target.', 'port_results' => []];
+            return [
+                'online' => false,
+                'latency_ms' => null,
+                'packet_loss_percent' => 100.0,
+                'error' => 'Invalid monitor target.',
+                'port_results' => [],
+            ];
         }
 
         $started = microtime(true);
         $results = [];
-        foreach ($ports as $port) $results[] = $this->checkPort($target, (int) $port, $timeout) + ['port' => (int) $port];
+        foreach ($ports as $port) {
+            $results[] = $this->checkPort($target, (int) $port, $timeout) + ['port' => (int) $port];
+        }
 
         $failed = array_values(array_filter($results, fn (array $r) => !$r['online']));
-        $latencies = array_values(array_filter(array_map(fn (array $r) => $r['latency_ms'], $results), fn ($v) => $v !== null));
+        $latencies = array_values(array_filter(
+            array_map(fn (array $r) => $r['latency_ms'], $results),
+            fn ($v) => $v !== null
+        ));
         $allOnline = !$failed;
         $failedText = implode(', ', array_map(fn (array $r) => (string) $r['port'], $failed));
 
         return [
             'online' => $allOnline,
             'latency_ms' => $latencies ? max($latencies) : null,
-            'packet_loss_percent' => $allOnline ? 0.0 : round((count($failed) / max(1, count($results))) * 100, 2),
+            'packet_loss_percent' => $allOnline
+                ? 0.0
+                : round((count($failed) / max(1, count($results))) * 100, 2),
             'error' => $allOnline ? null : 'TCP port(s) offline: ' . $failedText,
             'elapsed_ms' => round((microtime(true) - $started) * 1000, 1),
             'port_results' => $results,
@@ -295,21 +295,46 @@ class NetworkMonitoringService
 
     private function checkPort(string $target, int $port, int $timeout): array
     {
-        if ($port < 1 || $port > 65535) return ['online' => false, 'latency_ms' => null, 'packet_loss_percent' => 100.0, 'error' => 'Invalid monitor port.'];
+        if ($port < 1 || $port > 65535) {
+            return [
+                'online' => false,
+                'latency_ms' => null,
+                'packet_loss_percent' => 100.0,
+                'error' => 'Invalid monitor port.',
+            ];
+        }
 
         $started = microtime(true);
         $errno = 0;
         $error = '';
-        $socketHost = filter_var($target, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $target . ']' : $target;
-        $stream = @stream_socket_client('tcp://' . $socketHost . ':' . $port, $errno, $error, max(1, min($timeout, 60)), STREAM_CLIENT_CONNECT);
+        $socketHost = filter_var($target, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)
+            ? '[' . $target . ']'
+            : $target;
+        $stream = @stream_socket_client(
+            'tcp://' . $socketHost . ':' . $port,
+            $errno,
+            $error,
+            max(1, min($timeout, 60)),
+            STREAM_CLIENT_CONNECT
+        );
         $latency = round((microtime(true) - $started) * 1000, 1);
 
         if (is_resource($stream)) {
             fclose($stream);
-            return ['online' => true, 'latency_ms' => $latency, 'packet_loss_percent' => 0.0, 'error' => null];
+            return [
+                'online' => true,
+                'latency_ms' => $latency,
+                'packet_loss_percent' => 0.0,
+                'error' => null,
+            ];
         }
 
-        return ['online' => false, 'latency_ms' => $latency, 'packet_loss_percent' => 100.0, 'error' => mb_substr($error ?: 'TCP connection failed.', 0, 1000)];
+        return [
+            'online' => false,
+            'latency_ms' => $latency,
+            'packet_loss_percent' => 100.0,
+            'error' => mb_substr($error ?: 'TCP connection failed.', 0, 1000),
+        ];
     }
 
     private function portsFor(Service $service): array
@@ -330,7 +355,12 @@ class NetworkMonitoringService
             $service->monitor_failure_count = 0;
             $service->monitor_down_since = null;
 
-            $open = ServiceMonitorEvent::query()->where('service_id', $service->id)->where('status', 'open')->latest('id')->first();
+            $open = ServiceMonitorEvent::query()
+                ->where('service_id', $service->id)
+                ->where('status', 'open')
+                ->latest('id')
+                ->first();
+
             if ($open) {
                 $open->update([
                     'status' => 'resolved',
@@ -347,7 +377,11 @@ class NetworkMonitoringService
             $service->monitor_failure_count = ((int) $service->monitor_failure_count) + 1;
             if (!$service->monitor_down_since) $service->monitor_down_since = $now;
 
-            $open = ServiceMonitorEvent::query()->where('service_id', $service->id)->where('status', 'open')->exists();
+            $open = ServiceMonitorEvent::query()
+                ->where('service_id', $service->id)
+                ->where('status', 'open')
+                ->exists();
+
             if (!$open) {
                 $failedPort = collect($result['port_results'] ?? [])->firstWhere('online', false);
                 ServiceMonitorEvent::create([
@@ -374,6 +408,9 @@ class NetworkMonitoringService
         $target = trim($target);
         if (filter_var($target, FILTER_VALIDATE_IP)) return true;
 
-        return (bool) preg_match('/^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/', $target);
+        return (bool) preg_match(
+            '/^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/',
+            $target
+        );
     }
 }
