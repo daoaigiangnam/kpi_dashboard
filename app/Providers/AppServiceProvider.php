@@ -2,15 +2,27 @@
 
 namespace App\Providers;
 
+use App\Http\Controllers\Admin\ServiceController;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\ItTools\NetworkMonitoringService;
+use App\Services\ItTools\WebsiteNetworkMonitoringService;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        // ServiceController keeps the existing NetworkMonitoringService API,
+        // but Website SSL detection is handled by the implementation that
+        // reuses SslAuditService (the same engine used by Check Domain).
+        $this->app->when(ServiceController::class)
+            ->needs(NetworkMonitoringService::class)
+            ->give(fn () => app(WebsiteNetworkMonitoringService::class));
+    }
+
     public function boot(): void
     {
         Gate::before(fn (User $user) => $user->isSuperAdmin() ? true : null);
