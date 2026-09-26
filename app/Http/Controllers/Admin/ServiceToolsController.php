@@ -7,8 +7,8 @@ use App\Models\Service;
 use App\Services\ItTools\DomainAuditService;
 use App\Services\ItTools\ServiceAlertEmailService;
 use App\Services\ItTools\ServiceAlertEngine;
+use App\Services\ItTools\SslAuditService;
 use Illuminate\Http\Request;
-use Symfony\Component\Process\Process;
 
 class ServiceToolsController extends Controller
 {
@@ -17,12 +17,14 @@ class ServiceToolsController extends Controller
         Service $service,
         DomainAuditService $domainAudit,
         ServiceAlertEngine $alertEngine,
-        ServiceAlertEmailService $emailService
+        ServiceAlertEmailService $emailService,
+        SslAuditService $sslAudit
     ) {
         abort_unless($service->isVisibleTo(auth()->user()), 403);
         $service->loadMissing(['serviceType', 'alertPolicy']);
         $code = strtoupper((string) $service->serviceType?->code);
 
+        // Website SSL detection is intentionally independent from Domain expiry.
         if ($request->boolean('ssl')) {
             if ($code !== 'WEBSITE') {
                 return response()->json([
@@ -36,14 +38,14 @@ class ServiceToolsController extends Controller
                 $service->monitor_target ?: $service->value
             ));
 
-            $result = $this->detectWebsiteSsl($target);
+            $result = $this->detectWebsiteSsl($target, $sslAudit);
 
             if (!empty($result['ssl_detected'])) {
                 $service->ssl_detected = true;
-                $service->ssl_valid_from_date = $result['valid_from'];
-                $service->ssl_expiry_date = $result['saved_ssl_expiry_date'];
-                $service->ssl_issuer = $result['issuer'];
-                $service->ssl_status = $result['ssl_status'];
+                $service->ssl_valid_from_date = $result['valid_from'] ?? null;
+                $service->ssl_expiry_date = $result['saved_ssl_expiry_date'] ?? null;
+                $service->ssl_issuer = $result['issuer'] ?? null;
+                $service->ssl_status = $result['ssl_status'] ?? 'valid';
                 $service->ssl_last_checked_at = now();
                 $service->save();
 
@@ -89,64 +91,45 @@ class ServiceToolsController extends Controller
         return response()->json(['ok' => !empty($result['expires_at']), 'result' => $result]);
     }
 
-    private function detectWebsiteSsl(string $target): array
+    /**
+     * Detect the real HTTPS certificate using a TLS connection with SNI.
+     * Certificate-chain verification is deliberately disabled for discovery:
+     * an incomplete server chain must not prevent us from reading the actual
+     * certificate and expiry date. The result still exposes hostname matching.
+     */
+    private function detectWebsiteSsl(string $target, SslAuditService $sslAudit): array
     {
-        $host = trim($target);
-        $host = preg_replace('/^https?:\/\//i', '', $host);
-        $host = trim(explode('/', $host, 2)[0]);
-        $host = strtolower(rtrim($host, '.'));
+        $result = $sslAudit->check($target, 443);
 
-        if ($host === '' || filter_var($host, FILTER_VALIDATE_IP)) {
-            return ['ssl_detected' => false, 'error' => 'A valid website hostname is required.'];
-        }
-
-        $process = new Process([
-            'openssl', 's_client',
-            '-connect', $host . ':443',
-            '-servername', $host,
-            '-showcerts',
-            '-brief',
-        ]);
-        $process->setTimeout(20);
-        $process->run();
-        $output = $process->getOutput() . "\n" . $process->getErrorOutput();
-
-        if (!preg_match('/-----BEGIN CERTIFICATE-----(.*?)-----END CERTIFICATE-----/s', $output, $m)) {
-            $lines = array_values(array_filter(preg_split('/\R+/', trim($output)), fn ($line) => preg_match('/(error|fail|verify|connect|handshake|certificate)/i', $line)));
+        if (($result['status'] ?? null) !== 'ok' || empty($result['valid_to'])) {
             return [
                 'ssl_detected' => false,
-                'error' => 'Không lấy được certificate HTTPS.' . ($lines ? ' ' . implode(' | ', array_slice($lines, 0, 3)) : ''),
+                'error' => $result['error'] ?? 'Không lấy được certificate HTTPS.',
+                'tls_details' => [
+                    'host' => $result['host'] ?? $target,
+                    'verify' => $result['verify'] ?? false,
+                    'tls_version' => $result['tls_version'] ?? null,
+                    'cipher' => $result['cipher'] ?? null,
+                    'elapsed_ms' => $result['elapsed_ms'] ?? null,
+                ],
             ];
         }
 
-        $pem = "-----BEGIN CERTIFICATE-----" . $m[1] . "-----END CERTIFICATE-----";
-        $parsed = @openssl_x509_parse($pem);
-        if (!$parsed) {
-            return ['ssl_detected' => false, 'error' => 'Certificate HTTPS nhận được nhưng không thể phân tích.'];
-        }
-
-        $validFrom = isset($parsed['validFrom_time_t']) ? \Carbon\Carbon::createFromTimestamp((int) $parsed['validFrom_time_t']) : null;
-        $expiry = isset($parsed['validTo_time_t']) ? \Carbon\Carbon::createFromTimestamp((int) $parsed['validTo_time_t']) : null;
-        if (!$expiry) {
-            return ['ssl_detected' => false, 'error' => 'Certificate không có ngày hết hạn hợp lệ.'];
-        }
-
-        $issuer = $parsed['issuer']['O'] ?? ($parsed['issuer']['CN'] ?? null);
-        $subject = $parsed['subject']['CN'] ?? null;
-        $days = now()->startOfDay()->diffInDays($expiry->copy()->startOfDay(), false);
-
         return [
             'ssl_detected' => true,
-            'ssl_status' => $expiry->isPast() ? 'expired' : 'valid',
-            'issuer' => $issuer,
-            'subject_cn' => $subject,
-            'valid_from' => $validFrom?->toDateString(),
-            'saved_ssl_expiry_date' => $expiry->toDateString(),
-            'expires_at' => $expiry->toIso8601String(),
-            'days_remaining' => $days,
-            'san' => isset($parsed['extensions']['subjectAltName'])
-                ? array_map('trim', preg_split('/\s*,\s*/', $parsed['extensions']['subjectAltName']))
-                : [],
+            'ssl_status' => ($result['days_remaining'] ?? 1) < 0 ? 'expired' : 'valid',
+            'issuer' => $result['issuer'] ?? null,
+            'subject_cn' => $result['subject'] ?? null,
+            'valid_from' => !empty($result['valid_from'])
+                ? \Carbon\Carbon::parse($result['valid_from'])->toDateString()
+                : null,
+            'saved_ssl_expiry_date' => \Carbon\Carbon::parse($result['valid_to'])->toDateString(),
+            'expires_at' => $result['valid_to'],
+            'days_remaining' => $result['days_remaining'] ?? null,
+            'san' => $result['san'] ?? [],
+            'tls_version' => $result['tls_version'] ?? null,
+            'cipher' => $result['cipher'] ?? null,
+            'hostname_verified' => (bool) ($result['verify'] ?? false),
         ];
     }
 
