@@ -6,12 +6,17 @@
 <div class="card form" style="max-width:900px">
     <div style="margin-bottom:22px">
         <h2 style="margin:0 0 6px">System Settings</h2>
-        <div class="muted">Central configuration for email delivery, registration notifications, password recovery, login security, IT Monitoring alert emails and PC Audit.</div>
+        <div class="muted">Central configuration for website identity, email delivery, registration notifications, password recovery, login security, IT Monitoring alert emails and PC Audit.</div>
     </div>
 
     <form method="post" action="{{ route('admin.settings.update') }}">
         @csrf
         @method('PUT')
+
+        <h3 style="margin:0 0 14px">Website / System</h3>
+        <div style="padding:15px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:24px">
+            <div class="field" style="margin-bottom:0"><label>Tiêu đề Web</label><input name="site_title" class="input" required maxlength="150" value="{{ old('site_title', $settings['site.title']) }}" placeholder="KPI Dashboard System"><div class="muted" style="margin-top:5px">Tên hệ thống hiển thị trên thanh menu và tiêu đề trang của trình duyệt.</div></div>
+        </div>
 
         <h3 style="margin:0 0 14px">PC Audit Tool</h3>
         <div style="padding:15px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:24px">
