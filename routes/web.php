@@ -73,7 +73,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::patch('users/{user}/restore',[UserController::class,'restore'])->middleware('permission:users.delete')->name('users.restore');
 
     Route::get('groups',[GroupController::class,'index'])->middleware('permission:groups.view')->name('groups.index');
-    Route::get('groups/export',[GroupController::class,'export'])->middleware('permission:groups.view')->name('groups.export');
+    Route::get('groups/export',[GroupController::class,'export'])->middleware('permission:groups.export')->name('groups.export');
     Route::get('groups/create',[GroupController::class,'create'])->middleware('permission:groups.create')->name('groups.create');
     Route::post('groups',[GroupController::class,'store'])->middleware('permission:groups.create')->name('groups.store');
     Route::get('groups/{group}/edit',[GroupController::class,'edit'])->middleware('permission:groups.edit')->name('groups.edit');
@@ -186,6 +186,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::post('it-tools/ip-scanner',[ItToolsController::class,'ipScanner'])->middleware('permission:it_tools.audit')->name('it_tools.ip_scanner');
     Route::get('it-tools/ip-location',[ItToolsController::class,'ipLocationPage'])->middleware('permission:it_tools.view')->name('it_tools.ip_location_page');
     Route::post('it-tools/ip-location',[ItToolsController::class,'ipLocation'])->middleware('permission:it_tools.audit')->name('it_tools.ip_location');
+    Route::get('it-tools/ip-blacklist',[ItToolsController::class,'ipBlacklistPage'])->middleware('permission:it_tools.view')->name('it_tools.ip_blacklist_page');
+    Route::post('it-tools/ip-blacklist',[ItToolsController::class,'ipBlacklist'])->middleware('permission:it_tools.audit')->name('it_tools.ip_blacklist');
     Route::get('it-tools/network-diagnostic',[ItToolsController::class,'networkDiagnosticPage'])->middleware('permission:it_tools.view')->name('it_tools.network_diagnostic_page');
     Route::post('it-tools/network-diagnostic',[ItToolsController::class,'networkDiagnostic'])->middleware('permission:it_tools.audit')->name('it_tools.network_diagnostic');
     Route::post('it-tools/audit',[ItToolsController::class,'audit'])->middleware('permission:it_tools.audit')->name('it_tools.audit');
