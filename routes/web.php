@@ -105,7 +105,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::delete('departments/{department}',[DepartmentController::class,'destroy'])->middleware('permission:departments.delete')->name('departments.destroy');
     Route::patch('departments/{department}/restore',[DepartmentController::class,'restore'])->middleware('permission:departments.delete')->name('departments.restore');
 
-    Route::get('units',[UnitController::class,'index'])->middleware('permission:units.view')->name('units.index');
+    Route::get('units',[UnitController::class,'index'])->middleware('permission:units.import')->name('units.index');
     Route::get('units/template',[UnitController::class,'template'])->middleware('permission:units.import')->name('units.template');
     Route::get('units/export',[UnitController::class,'export'])->middleware('permission:units.export')->name('units.export');
     Route::post('units/import',[UnitController::class,'import'])->middleware('permission:units.import')->name('units.import');
@@ -147,7 +147,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::get('service-providers/create',[ServiceProviderController::class,'create'])->middleware('permission:service_providers.view')->name('service_providers.create');
     Route::post('service-providers',[ServiceProviderController::class,'store'])->middleware('permission:service_providers.view')->name('service_providers.store');
     Route::get('service-providers/{serviceProvider}/edit',[ServiceProviderController::class,'edit'])->middleware('permission:service_providers.edit')->name('service_providers.edit');
-    Route::put('service-providers/{serviceProvider}',[ServiceProviderController::class,'update'])->middleware('permission:services.view')->name('service_providers.destroy');
+    Route::put('service-providers/{serviceProvider}',[ServiceProviderController::class,'update'])->middleware('permission:service_providers.edit')->name('service_providers.update');
     Route::delete('service-providers/{serviceProvider}',[ServiceProviderController::class,'destroy'])->middleware('permission:service_providers.view')->name('service_providers.destroy');
     Route::patch('service-providers/{serviceProvider}/restore',[ServiceProviderController::class,'restore'])->middleware('permission:service_providers.view')->name('service_providers.restore');
 
@@ -190,3 +190,4 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::post('it-tools/network-diagnostic',[ItToolsController::class,'networkDiagnostic'])->middleware('permission:it_tools.audit')->name('it_tools.network_diagnostic');
     Route::post('it-tools/audit',[ItToolsController::class,'audit'])->middleware('permission:it_tools.audit')->name('it_tools.audit');
     Route::post('it-tools/bulk-audit',[ItToolsController::class,'bulkAudit'])->middleware('permission:it_tools.audit')->name('it_tools.bulk_audit');
+});
