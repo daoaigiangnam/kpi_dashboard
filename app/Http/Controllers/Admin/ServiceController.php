@@ -134,7 +134,8 @@ class ServiceController extends Controller
                 return response()->json(['ok' => false, 'message' => 'Detect SSL is available only for Website services.'], 422);
             }
 
-            $result = $networkMonitor->detectSsl($service->refresh());
+            $target = trim((string) $request->input('monitor_target', $service->monitor_target ?: $service->value));
+            $result = $networkMonitor->detectSsl($service, $target);
             return response()->json([
                 'ok' => !empty($result['ssl_detected']),
                 'result' => $result,
