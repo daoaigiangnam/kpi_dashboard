@@ -5,17 +5,53 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Service;
 use App\Services\ItTools\DomainAuditService;
+use App\Services\ItTools\NetworkMonitoringService;
 use Illuminate\Http\Request;
 
 class ServiceToolsController extends Controller
 {
-    public function detectDomainExpiry(Service $service, DomainAuditService $domainAudit)
-    {
+    public function detectDomainExpiry(
+        Request $request,
+        Service $service,
+        DomainAuditService $domainAudit,
+        NetworkMonitoringService $networkMonitor
+    ) {
         abort_unless($service->isVisibleTo(auth()->user()), 403);
-
         $service->loadMissing('serviceType');
-        if (strtoupper((string) $service->serviceType?->code) !== 'DOMAIN') {
-            return response()->json(['ok' => false, 'message' => 'Detect Expiry is available only for Domain services.'], 422);
+        $code = strtoupper((string) $service->serviceType?->code);
+
+        // The Website form uses this same endpoint with ?ssl=1.
+        // Keep Domain expiry and Website SSL detection separate so a Website
+        // can never fall through to the Domain-only expiry check.
+        if ($request->boolean('ssl')) {
+            if ($code !== 'WEBSITE') {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Detect SSL is available only for Website services.',
+                ], 422);
+            }
+
+            $target = trim((string) $request->input(
+                'monitor_target',
+                $service->monitor_target ?: $service->value
+            ));
+
+            $result = $networkMonitor->detectSsl($service, $target);
+
+            return response()->json([
+                'ok' => !empty($result['ssl_detected']),
+                'result' => $result,
+                'message' => !empty($result['ssl_detected'])
+                    ? 'SSL certificate detected and saved.'
+                    : ($result['error'] ?? 'SSL certificate not detected.'),
+            ], !empty($result['ssl_detected']) ? 200 : 422);
+        }
+
+        if ($code !== 'DOMAIN') {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Detect Expiry is available only for Domain services.',
+            ], 422);
         }
 
         $domain = trim((string) ($service->value ?: $service->service_name));
