@@ -7,6 +7,7 @@ use App\Services\ItTools\ApiTesterService;
 use App\Services\ItTools\AuditExcelService;
 use App\Services\ItTools\BulkAuditService;
 use App\Services\ItTools\InternetAssetAuditService;
+use App\Services\ItTools\IpBlacklistService;
 use App\Services\ItTools\IpLocationService;
 use App\Services\ItTools\IpScannerService;
 use App\Services\ItTools\NetworkDiagnosticService;
@@ -23,6 +24,7 @@ class ItToolsController extends Controller
     public function apiTesterPage() { return view('admin.it-tools.api-tester'); }
     public function ipScannerPage() { return view('admin.it-tools.ip-scanner'); }
     public function ipLocationPage() { return view('admin.it-tools.ip-location'); }
+    public function ipBlacklistPage() { return view('admin.it-tools.ip-blacklist'); }
     public function networkDiagnosticPage() { return view('admin.it-tools.network-diagnostic'); }
 
     public function portCheck(Request $request, PortCheckService $ports)
@@ -49,6 +51,14 @@ class ItToolsController extends Controller
     {
         $data = $request->validate(['ip'=>['nullable','string','max:45']]);
         try { return response()->json($location->lookup($data['ip'] ?? null)); }
+        catch (\InvalidArgumentException $e) { return response()->json(['message'=>$e->getMessage()], 422); }
+        catch (\Throwable $e) { return response()->json(['message'=>$e->getMessage()], 502); }
+    }
+
+    public function ipBlacklist(Request $request, IpBlacklistService $blacklist)
+    {
+        $data = $request->validate(['ip'=>['required','ip']]);
+        try { return response()->json($blacklist->check($data['ip'])); }
         catch (\InvalidArgumentException $e) { return response()->json(['message'=>$e->getMessage()], 422); }
         catch (\Throwable $e) { return response()->json(['message'=>$e->getMessage()], 502); }
     }
