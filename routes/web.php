@@ -147,7 +147,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::get('service-providers/create',[ServiceProviderController::class,'create'])->middleware('permission:service_providers.view')->name('service_providers.create');
     Route::post('service-providers',[ServiceProviderController::class,'store'])->middleware('permission:service_providers.view')->name('service_providers.store');
     Route::get('service-providers/{serviceProvider}/edit',[ServiceProviderController::class,'edit'])->middleware('permission:service_providers.edit')->name('service_providers.edit');
-    Route::put('service-providers/{serviceProvider}',[ServiceProviderController::class,'update'])->middleware('permission:service_providers.edit')->name('service_providers.update');
+    Route::put('service-providers/{serviceProvider}',[ServiceProviderController::class,'update'])->middleware('permission:services.view')->name('service_providers.destroy');
     Route::delete('service-providers/{serviceProvider}',[ServiceProviderController::class,'destroy'])->middleware('permission:service_providers.view')->name('service_providers.destroy');
     Route::patch('service-providers/{serviceProvider}/restore',[ServiceProviderController::class,'restore'])->middleware('permission:service_providers.view')->name('service_providers.restore');
 
@@ -184,27 +184,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::post('it-tools/api-tester',[ItToolsController::class,'apiTester'])->middleware('permission:it_tools.audit')->name('it_tools.api_tester');
     Route::get('it-tools/ip-scanner',[ItToolsController::class,'ipScannerPage'])->middleware('permission:it_tools.view')->name('it_tools.ip_scanner_page');
     Route::post('it-tools/ip-scanner',[ItToolsController::class,'ipScanner'])->middleware('permission:it_tools.audit')->name('it_tools.ip_scanner');
+    Route::get('it-tools/ip-location',[ItToolsController::class,'ipLocationPage'])->middleware('permission:it_tools.view')->name('it_tools.ip_location_page');
+    Route::post('it-tools/ip-location',[ItToolsController::class,'ipLocation'])->middleware('permission:it_tools.audit')->name('it_tools.ip_location');
     Route::get('it-tools/network-diagnostic',[ItToolsController::class,'networkDiagnosticPage'])->middleware('permission:it_tools.view')->name('it_tools.network_diagnostic_page');
     Route::post('it-tools/network-diagnostic',[ItToolsController::class,'networkDiagnostic'])->middleware('permission:it_tools.audit')->name('it_tools.network_diagnostic');
     Route::post('it-tools/audit',[ItToolsController::class,'audit'])->middleware('permission:it_tools.audit')->name('it_tools.audit');
     Route::post('it-tools/bulk-audit',[ItToolsController::class,'bulkAudit'])->middleware('permission:it_tools.audit')->name('it_tools.bulk_audit');
-    Route::post('it-tools/export',[ItToolsController::class,'export'])->middleware('permission:it_tools.view')->name('it_tools.export');
-
-    Route::get('pc-audit',[PcAuditController::class,'index'])->middleware('permission:it_tools.view')->name('pc_audit.index');
-    Route::get('pc-audit/export',[PcAuditController::class,'export'])->middleware('permission:it_tools.view')->name('pc_audit.export');
-    Route::get('pc-audit/config',[PcAuditAdminController::class,'settings'])->middleware('permission:it_tools.view')->name('pc_audit.settings');
-    Route::put('pc-audit/config',[PcAuditAdminController::class,'saveSettings'])->middleware('permission:it_tools.view')->name('pc_audit.settings.update');
-    Route::get('pc-audit/codes',[PcAuditAdminController::class,'codes'])->middleware('permission:it_tools.view')->name('pc_audit.codes');
-    Route::post('pc-audit/codes',[PcAuditAdminController::class,'storeCode'])->middleware('permission:it_tools.view')->name('pc_audit.codes.store');
-    Route::patch('pc-audit/codes/{pcAuditCode}/toggle',[PcAuditAdminController::class,'toggleCode'])->middleware('permission:it_tools.view')->name('pc_audit.codes.toggle');
-    Route::get('pc-audit/recipients',[PcAuditAdminController::class,'recipients'])->middleware('permission:it_tools.view')->name('pc_audit.recipients');
-    Route::post('pc-audit/recipients',[PcAuditAdminController::class,'storeRecipient'])->middleware('permission:it_tools.view')->name('pc_audit.recipients.store');
-    Route::patch('pc-audit/recipients/{recipient}/toggle',[PcAuditAdminController::class,'toggleRecipient'])->middleware('permission:it_tools.view')->name('pc_audit.recipients.toggle');
-    Route::delete('pc-audit/recipients/{recipient}',[PcAuditAdminController::class,'deleteRecipient'])->middleware('permission:it_tools.view')->name('pc_audit.recipients.delete');
-    Route::get('pc-audit/{pcAudit}',[PcAuditController::class,'show'])->middleware('permission:it_tools.view')->name('pc_audit.show');
-});
-
-Route::get('/',function(){
-    if(!auth()->check()) return redirect()->route('login');
-    return auth()->user()->hasPermission('admin.view') ? redirect()->route('admin.dashboard') : redirect()->route('account.index');
-});
