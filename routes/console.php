@@ -25,6 +25,13 @@ Schedule::command('services:alert-emails')
     ->everyMinute()
     ->withoutOverlapping();
 
+// Website SSL certificates are re-read from the live HTTPS endpoint every day.
+// This keeps the stored expiry date current after automatic certificate renewal.
+Schedule::command('services:monitor-ssl')
+    ->dailyAt('08:05')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 Schedule::command('it-tools:expiry-alert --days=30')
     ->dailyAt('08:15')
     ->withoutOverlapping()
