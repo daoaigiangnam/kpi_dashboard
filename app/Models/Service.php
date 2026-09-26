@@ -51,6 +51,41 @@ class Service extends Model
         'ssl_last_alert_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Service $service) {
+            // Saving a service must stay fast. Do not perform DNS/TCP/TLS checks here.
+            // Mark network/SSL monitoring as pending so the scheduler performs the
+            // real checks after the transaction/request has completed.
+            if ($service->isDirty([
+                'service_type_id',
+                'value',
+                'monitor_check_method',
+                'monitor_target',
+                'monitor_port',
+                'monitor_ports',
+                'monitor_interval_seconds',
+                'monitor_timeout_seconds',
+            ])) {
+                $service->monitor_last_checked_at = null;
+                $service->monitor_status = 'pending';
+                $service->monitor_failure_count = 0;
+                $service->monitor_down_since = null;
+            }
+
+            if ($service->isDirty([
+                'service_type_id',
+                'value',
+                'monitor_target',
+                'monitor_port',
+                'monitor_ports',
+            ])) {
+                $service->ssl_last_checked_at = null;
+                $service->ssl_status = 'pending';
+            }
+        });
+    }
+
     public function scopeVisibleTo(Builder $query, ?User $user = null): Builder
     {
         $user ??= auth()->user();
