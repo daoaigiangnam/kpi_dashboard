@@ -161,21 +161,15 @@ class PcAuditAdminController extends Controller
             ]);
         }
 
-        // Audit Code chỉ phụ thuộc Customer + Chi nhánh. Không phụ thuộc Phòng ban.
-        $customerCode = strtoupper((string) ($branch->customer?->code ?: Str::slug($branch->customer?->name ?? 'CUSTOMER', '-')));
-        $branchCode = strtoupper((string) ($branch->code ?: Str::slug($branch->name, '-')));
-        $baseCode = Str::limit(implode('-', array_filter([$customerCode, $branchCode])), 92, '');
-
-        if ($baseCode === '') {
-            $baseCode = 'PC-AUDIT';
-        }
-
-        $code = $baseCode;
-        $suffix = 2;
-        while (PcAuditCode::query()->where('code', $code)->exists()) {
-            $suffixText = '-' . $suffix++;
-            $code = Str::limit($baseCode, 100 - strlen($suffixText), '') . $suffixText;
-        }
+        // Audit Code là mã ngắn để User nhập nhanh trên PC. Không chứa Customer/Chi nhánh.
+        // Loại bỏ các ký tự dễ nhầm: 0/O và 1/I.
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        do {
+            $code = '';
+            for ($i = 0; $i < 6; $i++) {
+                $code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+            }
+        } while (PcAuditCode::query()->where('code', $code)->exists());
 
         PcAuditCode::create([
             'branch_id' => $branch->id,
