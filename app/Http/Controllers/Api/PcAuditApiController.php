@@ -18,8 +18,18 @@ class PcAuditApiController extends Controller
     public function validateCode(Request $request): JsonResponse
     {
         $data = $request->validate(['code' => ['required', 'string', 'max:120']]);
-        $code = PcAuditCode::with('branch.customer')->where('code', $data['code'])->where('is_active', true)->first();
-        if (!$code) return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ hoặc đã bị khóa.'], 404);
+        $code = PcAuditCode::with('branch.customer')
+            ->where('code', $data['code'])
+            ->where('is_active', true)
+            ->whereHas('branch', fn ($q) => $q
+                ->where('is_active', true)
+                ->whereHas('customer', fn ($c) => $c->where('is_active', true)))
+            ->first();
+
+        if (!$code) {
+            return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ, đã bị khóa hoặc Customer/Chi nhánh không hoạt động.'], 404);
+        }
+
         return response()->json(['ok' => true, 'data' => [
             'code' => $code->code,
             'department' => $code->department,
@@ -36,8 +46,16 @@ class PcAuditApiController extends Controller
             'employee_name' => ['required', 'string', 'max:200'],
             'data' => ['required', 'array'],
         ]);
-        $code = PcAuditCode::where('code', $payload['code'])->where('is_active', true)->first();
-        if (!$code) return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ hoặc đã bị khóa.'], 404);
+        $code = PcAuditCode::where('code', $payload['code'])
+            ->where('is_active', true)
+            ->whereHas('branch', fn ($q) => $q
+                ->where('is_active', true)
+                ->whereHas('customer', fn ($c) => $c->where('is_active', true)))
+            ->first();
+
+        if (!$code) {
+            return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ, đã bị khóa hoặc Customer/Chi nhánh không hoạt động.'], 404);
+        }
 
         $data = $payload['data'];
         $computer = is_array($data['computer'] ?? null) ? $data['computer'] : [];
