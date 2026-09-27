@@ -24,6 +24,7 @@ class PcAudit extends Model
     {
         return [
             'mainboard'=>'array','bios'=>'array','operating_system'=>'array','windows_update'=>'array','tpm'=>'array',
+            'secure_boot'=>'boolean',
             'audit_score'=>'integer','audit_results'=>'array','raw_payload'=>'array','collected_at'=>'datetime',
         ];
     }
