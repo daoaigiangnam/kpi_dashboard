@@ -22,6 +22,7 @@ class PcAuditApiController extends Controller
         if (!$code) return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ hoặc đã bị khóa.'], 404);
         return response()->json(['ok' => true, 'data' => [
             'code' => $code->code,
+            'department' => $code->department,
             'customer' => ['id' => $code->branch->customer->id, 'code' => $code->branch->customer->code, 'name' => $code->branch->customer->name],
             'branch' => ['id' => $code->branch->id, 'code' => $code->branch->code, 'name' => $code->branch->name],
         ]]);
