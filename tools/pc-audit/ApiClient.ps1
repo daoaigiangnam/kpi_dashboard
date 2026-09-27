@@ -1,4 +1,4 @@
-function Invoke-PcAuditValidateCode {
+﻿function Invoke-PcAuditValidateCode {
     param([Parameter(Mandatory)][string]$Code)
 
     $body = @{ code = $Code } | ConvertTo-Json -Depth 5
@@ -6,7 +6,7 @@ function Invoke-PcAuditValidateCode {
         return Invoke-RestMethod -Uri $script:PcAuditValidateEndpoint -Method Post -ContentType 'application/json' -Body $body -TimeoutSec $script:PcAuditTimeoutSec -ErrorAction Stop
     }
     catch {
-        throw "Không thể xác thực Audit Code: $($_.Exception.Message)"
+        throw "Khong the xac thuc Audit Code: $($_.Exception.Message)"
     }
 }
 
@@ -18,7 +18,7 @@ function Invoke-PcAuditGetMailConfig {
         return Invoke-RestMethod -Uri $script:PcAuditMailConfigEndpoint -Method Post -ContentType 'application/json' -Body $body -TimeoutSec $script:PcAuditTimeoutSec -ErrorAction Stop
     }
     catch {
-        throw "Không thể lấy cấu hình Email từ máy chủ: $($_.Exception.Message)"
+        throw "Khong the lay cau hinh Email tu may chu: $($_.Exception.Message)"
     }
 }
 
@@ -34,7 +34,7 @@ function Invoke-PcAuditSendMail {
         return Invoke-RestMethod -Uri $script:PcAuditSendMailEndpoint -Method Post -ContentType 'application/json' -Body $json -TimeoutSec $script:PcAuditTimeoutSec -ErrorAction Stop
     }
     catch {
-        throw "Không thể gửi Email Audit: $($_.Exception.Message)"
+        throw "Khong the gui Email Audit: $($_.Exception.Message)"
     }
 }
 
@@ -46,6 +46,6 @@ function Invoke-PcAuditSubmit {
         return Invoke-RestMethod -Uri $script:PcAuditSubmitEndpoint -Method Post -ContentType 'application/json' -Body $json -TimeoutSec $script:PcAuditTimeoutSec -ErrorAction Stop
     }
     catch {
-        throw "Không thể gửi dữ liệu Audit lên máy chủ: $($_.Exception.Message)"
+        throw "Khong the gui du lieu Audit len may chu: $($_.Exception.Message)"
     }
 }
