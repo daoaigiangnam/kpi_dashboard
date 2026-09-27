@@ -50,7 +50,7 @@ class PcAuditAdminController extends Controller
         $branches = CustomerBranch::query()->with('customer:id,code,name')->where('is_active', true)
             ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))->orderBy('name')->get();
         $codes = PcAuditCode::query()->with('branch.customer')
-            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x->where('code','like',"%{$search}%")->orWhere('name','like',"%{$search}%")))
+            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x->where('code','like',"%{$search}%")->orWhere('name','like',"%{$search}%")->orWhere('department','like',"%{$search}%")))
             ->when($customerId, fn ($q) => $q->whereHas('branch', fn ($b) => $b->where('customer_id', $customerId)))
             ->latest()->paginate(25)->withQueryString();
         return view('admin.pc-audit.codes', compact('codes','customers','branches','search','customerId'));
@@ -62,6 +62,7 @@ class PcAuditAdminController extends Controller
             'branch_id' => ['required','exists:customer_branches,id'],
             'code' => ['nullable','string','max:100','alpha_dash','unique:pc_audit_codes,code'],
             'name' => ['nullable','string','max:150'],
+            'department' => ['required','string','max:200'],
         ]);
         $data['code'] = strtoupper($data['code'] ?? Str::random(10));
         $data['is_active'] = true;
