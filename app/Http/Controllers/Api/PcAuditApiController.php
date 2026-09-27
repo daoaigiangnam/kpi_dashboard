@@ -21,14 +21,10 @@ class PcAuditApiController extends Controller
         $code = PcAuditCode::with('branch.customer')
             ->where('code', strtoupper(trim($data['code'])))
             ->where('is_active', true)
-            ->whereHas('branch', fn ($q) => $q
-                ->where('is_active', true)
-                ->whereHas('customer', fn ($c) => $c->where('is_active', true)))
+            ->whereHas('branch', fn ($q) => $q->where('is_active', true)->whereHas('customer', fn ($c) => $c->where('is_active', true)))
             ->first();
 
-        if (!$code) {
-            return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ, đã bị khóa hoặc Customer/Chi nhánh không hoạt động.'], 404);
-        }
+        if (!$code) return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ, đã bị khóa hoặc Customer/Chi nhánh không hoạt động.'], 404);
 
         return response()->json(['ok' => true, 'data' => [
             'code' => $code->code,
@@ -39,23 +35,19 @@ class PcAuditApiController extends Controller
 
     public function submit(Request $request, PcAuditEngine $engine): JsonResponse
     {
-        // Department is intentionally NOT required. Customer and Branch are resolved from Audit Code.
         $payload = $request->validate([
             'code' => ['required', 'string', 'max:120'],
             'employee_name' => ['required', 'string', 'max:200'],
+            'department' => ['nullable', 'string', 'max:200'],
             'data' => ['required', 'array'],
         ]);
 
         $code = PcAuditCode::where('code', strtoupper(trim($payload['code'])))
             ->where('is_active', true)
-            ->whereHas('branch', fn ($q) => $q
-                ->where('is_active', true)
-                ->whereHas('customer', fn ($c) => $c->where('is_active', true)))
+            ->whereHas('branch', fn ($q) => $q->where('is_active', true)->whereHas('customer', fn ($c) => $c->where('is_active', true)))
             ->first();
 
-        if (!$code) {
-            return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ, đã bị khóa hoặc Customer/Chi nhánh không hoạt động.'], 404);
-        }
+        if (!$code) return response()->json(['ok' => false, 'message' => 'Mã Audit không hợp lệ, đã bị khóa hoặc Customer/Chi nhánh không hoạt động.'], 404);
 
         $data = $payload['data'];
         $computer = is_array($data['computer'] ?? null) ? $data['computer'] : [];
@@ -67,7 +59,7 @@ class PcAuditApiController extends Controller
         $audit = DB::transaction(function () use ($code, $payload, $data, $computer, $windows, $security, $value, $auditResult) {
             $audit = PcAudit::create([
                 'pc_audit_code_id' => $code->id,
-                'department' => null,
+                'department' => $payload['department'] ?? null,
                 'employee_name' => $payload['employee_name'],
                 'employee_username' => $computer['username'] ?? $value(['username', 'employee_username']),
                 'domain' => $computer['domain'] ?? $value(['domain']),
@@ -124,14 +116,7 @@ class PcAuditApiController extends Controller
             return $audit;
         });
 
-        return response()->json([
-            'ok' => true,
-            'id' => $audit->id,
-            'audit_status' => $audit->audit_status,
-            'audit_score' => $audit->audit_score,
-            'audit_results' => $audit->audit_results,
-            'message' => 'Audit đã được ghi nhận và đánh giá.',
-        ], 201);
+        return response()->json(['ok' => true, 'id' => $audit->id, 'audit_status' => $audit->audit_status, 'audit_score' => $audit->audit_score, 'audit_results' => $audit->audit_results, 'message' => 'Audit đã được ghi nhận và đánh giá.'], 201);
     }
 
     private static function typedLicenseRows(mixed $rows, string $type): array
