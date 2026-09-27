@@ -13,7 +13,7 @@ class PcAuditCode extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['branch_id', 'code', 'name', 'department', 'is_active'];
+    protected $fillable = ['branch_id', 'code', 'name', 'is_active'];
 
     protected function casts(): array
     {
