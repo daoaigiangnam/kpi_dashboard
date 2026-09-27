@@ -37,11 +37,10 @@
     .pc-audit-status.pass{background:#dcfce7;color:#166534}.pc-audit-status.fail{background:#fee2e2;color:#b91c1c}.pc-audit-status.review{background:#fef3c7;color:#92400e}
     .pc-audit-score{font-weight:800;color:#0f766e}
     .pc-audit-row-actions{display:flex;align-items:center;gap:6px;white-space:nowrap}
-    .pc-audit-view,.pc-audit-delete{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border-radius:8px;text-decoration:none;font-weight:700;background:#fff;cursor:pointer}
-    .pc-audit-view{border:1px solid #cbd5e1;color:#0f766e}
-    .pc-audit-view:hover{background:#ecfdf5;border-color:#99f6e4}
-    .pc-audit-delete{border:1px solid #fecaca;color:var(--pa-danger);font:inherit}
-    .pc-audit-delete:hover{background:#fef2f2;border-color:#fca5a5;color:var(--pa-danger-dark)}
+    .pc-audit-view,.pc-audit-edit,.pc-audit-delete{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border-radius:8px;text-decoration:none;font-weight:700;background:#fff;cursor:pointer}
+    .pc-audit-view{border:1px solid #cbd5e1;color:#0f766e}.pc-audit-view:hover{background:#ecfdf5;border-color:#99f6e4}
+    .pc-audit-edit{border:1px solid #bfdbfe;color:#2563eb}.pc-audit-edit:hover{background:#eff6ff;border-color:#93c5fd}
+    .pc-audit-delete{border:1px solid #fecaca;color:var(--pa-danger);font:inherit}.pc-audit-delete:hover{background:#fef2f2;border-color:#fca5a5;color:var(--pa-danger-dark)}
     .pc-audit-export{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
     .pc-audit-export-note{font-size:12px;color:var(--pa-muted)}
     .pc-audit-empty{text-align:center!important;padding:38px!important;color:#94a3b8!important}
@@ -59,9 +58,9 @@
                 <p class="pc-audit-subtitle">Quản lý, tra cứu và xuất báo cáo kiểm tra cấu hình máy tính tập trung.</p>
             </div>
             <div class="pc-audit-actions">
-                <a href="{{ route('admin.pc_audit.codes') }}">🔑 Audit Code</a>
-                <a href="{{ route('admin.pc_audit.recipients') }}">✉ Email Customer</a>
-                <a href="{{ route('admin.pc_audit.settings') }}">⚙ Cấu hình Tool</a>
+                @if(auth()->user()->hasPermission('pc_audit.codes'))<a href="{{ route('admin.pc_audit.codes') }}">🔑 Audit Code</a>@endif
+                @if(auth()->user()->hasPermission('pc_audit.recipients'))<a href="{{ route('admin.pc_audit.recipients') }}">✉ Email Customer</a>@endif
+                @if(auth()->user()->hasPermission('pc_audit.settings'))<a href="{{ route('admin.pc_audit.settings') }}">⚙ Cấu hình Tool</a>@endif
             </div>
         </div>
     </div>
@@ -128,6 +127,9 @@
                             <td>
                                 <div class="pc-audit-row-actions">
                                     <a class="pc-audit-view" href="{{ route('admin.pc_audit.show', $audit) }}">Xem</a>
+                                    @if(auth()->user()->hasPermission('pc_audit.edit'))
+                                        <a class="pc-audit-edit" href="{{ route('admin.pc_audit.edit', $audit) }}">✏ Sửa</a>
+                                    @endif
                                     @if(auth()->user()->hasPermission('pc_audit.delete'))
                                         <button class="pc-audit-delete" type="submit" form="export-form" formaction="{{ route('admin.pc_audit.delete', $audit) }}" formmethod="POST" onclick="return confirmDeletePcAudit('{{ addslashes($audit->computer_name ?: 'máy này') }}');" title="Xóa vĩnh viễn PC Audit">🗑 Xóa</button>
                                     @endif
@@ -142,8 +144,12 @@
             </div>
 
             <div class="pc-audit-export">
-                <button class="pc-audit-btn" type="submit" id="export-button">📊 Xuất Excel các máy đã chọn</button>
-                <span class="pc-audit-export-note" id="selected-count">Chưa chọn máy nào · Tối đa 200 máy/lần · Mỗi máy một sheet đầy đủ.</span>
+                @if(auth()->user()->hasPermission('pc_audit.export'))
+                    <button class="pc-audit-btn" type="submit" id="export-button">📊 Xuất Excel các máy đã chọn</button>
+                    <span class="pc-audit-export-note" id="selected-count">Chưa chọn máy nào · Tối đa 200 máy/lần · Mỗi máy một sheet đầy đủ.</span>
+                @else
+                    <span class="pc-audit-export-note">Bạn không có quyền xuất Excel PC Audit.</span>
+                @endif
             </div>
         </form>
 
@@ -167,6 +173,7 @@ function confirmDeletePcAudit(computerName) {
     const label=document.getElementById('selected-count');
     const exportForm=document.getElementById('export-form');
     function update(){
+        if(!label) return;
         const n=checks.filter(c=>c.checked).length;
         label.textContent=n?`${n} máy đã chọn · Tối đa 200 máy/lần · Mỗi máy một sheet đầy đủ.`:'Chưa chọn máy nào · Tối đa 200 máy/lần · Mỗi máy một sheet đầy đủ.';
         if(all){all.checked=checks.length>0&&n===checks.length;all.indeterminate=n>0&&n<checks.length;}
@@ -176,6 +183,7 @@ function confirmDeletePcAudit(computerName) {
     if(exportForm) exportForm.addEventListener('submit',function(e){
         const submitter=e.submitter;
         if(submitter && submitter.hasAttribute('formaction')) return;
+        if(!label) return;
         if(checks.filter(c=>c.checked).length===0){
             e.preventDefault();
             alert('Vui lòng chọn ít nhất 1 máy để xuất Excel.');
