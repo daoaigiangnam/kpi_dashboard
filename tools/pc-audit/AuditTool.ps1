@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -11,89 +11,77 @@ Write-Host '========================================='
 Write-Host '        MSTAR PC AUDIT TOOL' -ForegroundColor Cyan
 Write-Host '========================================='
 
-Write-Host 'Đang lấy cấu hình hệ thống...' -ForegroundColor Yellow
+Write-Host 'Dang lay cau hinh he thong...' -ForegroundColor Yellow
 Initialize-PcAuditConfig
 
 $serverVersion = [string]$script:PcAuditServerConfig.tool_version
 if (-not [string]::IsNullOrWhiteSpace($serverVersion)) {
-    Write-Host "Tool phiên bản máy chủ: $serverVersion" -ForegroundColor DarkGray
+    Write-Host "Tool phien ban may chu: $serverVersion" -ForegroundColor DarkGray
 }
 
 $code = Read-Host 'Audit Code'
 if ([string]::IsNullOrWhiteSpace($code)) {
-    throw 'Audit Code không được để trống.'
+    throw 'Audit Code khong duoc de trong.'
 }
+$code = $code.Trim().ToUpperInvariant()
 
-Write-Host 'Đang xác thực Audit Code...' -ForegroundColor Yellow
+Write-Host 'Dang xac thuc Audit Code...' -ForegroundColor Yellow
 $validation = Invoke-PcAuditValidateCode -Code $code
 
 if ($validation.ok -ne $true) {
-    throw ('Audit Code không hợp lệ: ' + [string]$validation.message)
+    throw ('Audit Code khong hop le: ' + [string]$validation.message)
 }
 
-$customerName = $validation.data.customer.name
-$branchName = $validation.data.branch.name
-$department = [string]$validation.data.department
-if ([string]::IsNullOrWhiteSpace($department)) {
-    throw 'Audit Code chưa được khai báo Phòng ban trên hệ thống.'
-}
+$customerName = [string]$validation.data.customer.name
+$branchName = [string]$validation.data.branch.name
 
-Write-Host "Khách hàng : $customerName" -ForegroundColor Green
-Write-Host "Chi nhánh  : $branchName" -ForegroundColor Green
-Write-Host "Phòng ban  : $department" -ForegroundColor Green
+Write-Host "Khach hang : $customerName" -ForegroundColor Green
+Write-Host "Chi nhanh  : $branchName" -ForegroundColor Green
 
 $defaultEmployee = [string]$env:USERNAME
-$employeeInput = Read-Host "Họ tên người sử dụng (Enter = $defaultEmployee)"
+$employeeInput = Read-Host "Ho ten nguoi su dung (Enter = $defaultEmployee)"
 $employeeName = if ([string]::IsNullOrWhiteSpace($employeeInput)) { $defaultEmployee } else { $employeeInput.Trim() }
 if ([string]::IsNullOrWhiteSpace($employeeName)) {
-    throw 'Không xác định được người sử dụng máy.'
-}
-
-Write-Host 'Đang kiểm tra cấu hình Email...' -ForegroundColor Yellow
-$mailConfig = Invoke-PcAuditGetMailConfig -Code $code
-if ($mailConfig.ok -eq $true) {
-    Write-Host "Email nhận : $([string]$mailConfig.data.to_email)" -ForegroundColor DarkGray
+    throw 'Khong xac dinh duoc nguoi su dung may.'
 }
 
 Write-Host ''
-$answer = Read-Host 'Tiếp tục Audit máy này? (Y/N)'
+$answer = Read-Host 'Tiep tuc Audit may nay? (Y/N)'
 if ($answer -notmatch '^(Y|y)$') { exit 0 }
 
-Write-Host 'Đang thu thập thông tin máy...' -ForegroundColor Yellow
+Write-Host 'Dang thu thap thong tin may...' -ForegroundColor Yellow
 $collector = Get-PcAuditCollector
 
 $payload = @{
     code = $code
-    department = $department
     employee_name = $employeeName
     data = $collector
 }
 
-Write-Host 'Đang gửi dữ liệu về hệ thống...' -ForegroundColor Yellow
+Write-Host 'Dang gui du lieu ve he thong...' -ForegroundColor Yellow
 $response = Invoke-PcAuditSubmit -Payload $payload
 
 if ($response.ok -ne $true) {
-    throw ('Server từ chối dữ liệu: ' + [string]$response.message)
+    throw ('Server tu choi du lieu: ' + [string]$response.message)
 }
 
-# Send the same collected payload through the server-side SMTP configuration.
-# SMTP credentials never leave the server.
+# SMTP credentials stay on the server. The PC only sends the report payload.
 try {
-    $computerName = [string]$collector.computer_name
+    $computerName = [string]$collector.computer.computer_name
     if ([string]::IsNullOrWhiteSpace($computerName)) { $computerName = $env:COMPUTERNAME }
     $subject = "PC Audit - $computerName - $customerName - $branchName"
     $mailBody = ($payload | ConvertTo-Json -Depth 30)
 
-    Write-Host 'Đang gửi Email báo cáo...' -ForegroundColor Yellow
+    Write-Host 'Dang gui Email bao cao...' -ForegroundColor Yellow
     $mailResponse = Invoke-PcAuditSendMail -Code $code -Subject $subject -Body $mailBody
     if ($mailResponse.ok -eq $true) {
-        Write-Host "Email đã gửi: $([string]$mailResponse.to)" -ForegroundColor Green
+        Write-Host "Email da gui: $([string]$mailResponse.to)" -ForegroundColor Green
     }
 }
 catch {
-    Write-Warning "Audit đã lưu thành công nhưng Email chưa gửi được: $($_.Exception.Message)"
+    Write-Warning "Audit da luu thanh cong nhung Email chua gui duoc: $($_.Exception.Message)"
 }
 
 Write-Host ''
-Write-Host 'AUDIT HOÀN TẤT - DỮ LIỆU ĐÃ ĐƯỢC LƯU VÀO HỆ THỐNG.' -ForegroundColor Green
-Read-Host 'Nhấn Enter để kết thúc'
+Write-Host 'AUDIT HOAN TAT - DU LIEU DA DUOC LUU VAO HE THONG.' -ForegroundColor Green
+Read-Host 'Nhan Enter de ket thuc'
