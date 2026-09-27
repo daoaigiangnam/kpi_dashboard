@@ -40,25 +40,23 @@ return new class extends Migration {
             ->whereIn('code', array_column($this->permissions, 'code'))
             ->pluck('id');
 
-        // Existing Super Admin keeps full access to the newly introduced permissions.
-        $superAdminId = DB::table('user_groups')->where('name', 'Super Admin')->value('id');
-        if ($superAdminId) {
-            foreach ($permissionIds as $permissionId) {
-                DB::table('group_permissions')->updateOrInsert([
-                    'group_id' => $superAdminId,
-                    'permission_id' => $permissionId,
-                ], []);
-            }
-        }
+        // group_permissions uses user_group_id, not group_id.
+        $groupIds = DB::table('user_groups')
+            ->whereIn('name', ['Super Admin', 'KPI Admin'])
+            ->pluck('id', 'name');
 
-        // KPI Admin also receives the complete PC Audit module permissions.
-        $kpiAdminId = DB::table('user_groups')->where('name', 'KPI Admin')->value('id');
-        if ($kpiAdminId) {
+        foreach (['Super Admin', 'KPI Admin'] as $groupName) {
+            $groupId = $groupIds->get($groupName);
+
+            if (!$groupId) {
+                continue;
+            }
+
             foreach ($permissionIds as $permissionId) {
                 DB::table('group_permissions')->updateOrInsert([
-                    'group_id' => $kpiAdminId,
+                    'user_group_id' => $groupId,
                     'permission_id' => $permissionId,
-                ], []);
+                ]);
             }
         }
     }
