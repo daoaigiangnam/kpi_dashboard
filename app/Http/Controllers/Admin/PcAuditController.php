@@ -73,7 +73,7 @@ class PcAuditController extends Controller
         foreach ($audits as $audit) {
             $sheet = $spreadsheet->createSheet();
             $baseName = (string) ($audit->computer_name ?: 'PC-' . $audit->id);
-            $safeName = preg_replace('/[\\\/\?\*\[\]:]/', '_', $baseName) ?: 'PC';
+            $safeName = str_replace(['\\', '/', '?', '*', '[', ']', ':'], '_', $baseName);
             $safeName = mb_substr($safeName, 0, 25) . '-' . $audit->id;
             $sheet->setTitle(mb_substr($safeName, 0, 31));
 
