@@ -195,7 +195,6 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
 
     // PC Audit - uses Customer/Branch from the existing IT Service module.
     Route::get('pc-audit',[PcAuditController::class,'index'])->middleware('permission:admin.view')->name('pc_audit.index');
-    Route::get('pc-audit/{pcAudit}',[PcAuditController::class,'show'])->middleware('permission:admin.view')->name('pc_audit.show');
     Route::post('pc-audit/export',[PcAuditController::class,'export'])->middleware('permission:admin.view')->name('pc_audit.export');
     Route::get('pc-audit/settings',[PcAuditAdminController::class,'settings'])->middleware('permission:admin.view')->name('pc_audit.settings');
     Route::put('pc-audit/settings',[PcAuditAdminController::class,'saveSettings'])->middleware('permission:admin.view')->name('pc_audit.settings.update');
@@ -206,4 +205,5 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::post('pc-audit/recipients',[PcAuditAdminController::class,'storeRecipient'])->middleware('permission:admin.view')->name('pc_audit.recipients.store');
     Route::delete('pc-audit/recipients/{recipient}',[PcAuditAdminController::class,'deleteRecipient'])->middleware('permission:admin.view')->name('pc_audit.recipients.delete');
     Route::patch('pc-audit/recipients/{recipient}/toggle',[PcAuditAdminController::class,'toggleRecipient'])->middleware('permission:admin.view')->name('pc_audit.recipients.toggle');
+    Route::get('pc-audit/{pcAudit}',[PcAuditController::class,'show'])->whereNumber('pcAudit')->middleware('permission:admin.view')->name('pc_audit.show');
 });
