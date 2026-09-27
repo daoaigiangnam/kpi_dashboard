@@ -68,7 +68,6 @@ class PcAuditApiController extends Controller
                 'model' => self::scalarValue($computer['model'] ?? $value(['model'])),
                 'serial_number' => self::scalarValue($computer['serial_number'] ?? $value(['serial_number', 'serialNumber'])),
                 'asset_tag' => self::scalarValue($computer['asset_tag'] ?? $value(['asset_tag', 'assetTag'])),
-                // These columns are JSON-backed by the PcAudit model casts.
                 'mainboard' => $data['mainboard'] ?? null,
                 'bios' => $data['bios'] ?? null,
                 'operating_system' => $windows ?: ($data['operating_system'] ?? null),
@@ -76,7 +75,7 @@ class PcAuditApiController extends Controller
                 'last_boot' => self::scalarValue($windows['last_boot'] ?? $value(['last_boot'])),
                 'uptime' => self::scalarValue($windows['uptime_hours'] ?? $value(['uptime'])),
                 'tpm' => $security['tpm'] ?? ($data['tpm'] ?? null),
-                'secure_boot' => self::scalarValue($security['secure_boot'] ?? ($data['secure_boot'] ?? null)),
+                'secure_boot' => self::booleanValue($security['secure_boot'] ?? ($data['secure_boot'] ?? null)),
                 'collected_at' => self::scalarValue($value(['collected_at'], now())),
                 'audit_status' => self::scalarValue($auditResult['status']),
                 'audit_score' => $auditResult['score'],
@@ -125,6 +124,18 @@ class PcAuditApiController extends Controller
         if ($value === null || is_scalar($value)) return $value;
         if (is_object($value) && method_exists($value, '__toString')) return (string) $value;
         return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private static function booleanValue(mixed $value): ?bool
+    {
+        if ($value === null || $value === '') return null;
+        if (is_bool($value)) return $value;
+        if (is_int($value) || is_float($value)) return (bool) $value;
+        if (is_string($value)) {
+            $parsed = filter_var(trim($value), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($parsed !== null) return $parsed;
+        }
+        return null;
     }
 
     private static function typedLicenseRows(mixed $rows, string $type): array
