@@ -144,6 +144,11 @@ class PcAuditApiController extends Controller
                 $value = $row[$column] ?? null;
                 if ($column === 'capacity' && $value === null) $value = isset($row['capacity_gb']) ? $row['capacity_gb'].' GB' : null;
                 if ($column === 'vram' && $value === null) $value = isset($row['vram_gb']) ? $row['vram_gb'].' GB' : null;
+                if (is_array($value)) {
+                    $value = implode(', ', array_map(static fn ($v) => is_scalar($v) ? (string) $v : json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $value));
+                } elseif (is_object($value)) {
+                    $value = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                }
                 $item[$column] = $value;
             }
             $insert[] = $item;
