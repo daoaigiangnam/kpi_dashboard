@@ -31,7 +31,6 @@ function Get-PcAuditCollector {
         uptime_hours=if($os.LastBootUpTime){[math]::Round(((Get-Date)-$os.LastBootUpTime).TotalHours,2)}else{$null}
     }
 
-    # Windows Update: keep this best-effort. Older Windows versions may not expose the CIM class.
     try {
         $updates = @(Get-CimInstance -Namespace root/cimv2 -ClassName Win32_QuickFixEngineering -ErrorAction Stop | Where-Object { $_.InstalledOn } | Sort-Object InstalledOn -Descending)
         $latest = $updates | Select-Object -First 1
@@ -62,6 +61,19 @@ function Get-PcAuditCollector {
     try{$result.licenses.office=@(Get-CimInstance SoftwareLicensingProduct -ErrorAction SilentlyContinue|Where-Object{$_.PartialProductKey -and $_.Name -match 'Office|Microsoft 365'}|ForEach-Object{[ordered]@{product_name=$_.Name;status=$_.LicenseStatus;partial_product_key=$_.PartialProductKey}})}catch{}
 
     $paths=@('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*')
-    $result.software=@(foreach($path in $paths){Get-ItemProperty $path -ErrorAction SilentlyContinue|Where-Object{$_.DisplayName}|ForEach-Object{[ordered]@{name=$_.DisplayName;version=$_.DisplayVersion;publisher=$_.Publisher;install_date=$_.InstallDate;estimated_size=$_.EstimatedSize}}})|Sort-Object{$_.name},{$_.version}-Unique
+    $software = @()
+    foreach($path in $paths){
+        $software += @(Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName } | ForEach-Object {
+            [ordered]@{
+                name = [string]$_.DisplayName
+                version = if($_.PSObject.Properties['DisplayVersion']){[string]$_.DisplayVersion}else{$null}
+                publisher = if($_.PSObject.Properties['Publisher']){[string]$_.Publisher}else{$null}
+                install_date = if($_.PSObject.Properties['InstallDate']){[string]$_.InstallDate}else{$null}
+                estimated_size = if($_.PSObject.Properties['EstimatedSize']){$_.EstimatedSize}else{$null}
+            }
+        })
+    }
+    $result.software = @($software | Sort-Object { $_['name'] }, { $_['version'] } -Unique)
+
     $result
 }
