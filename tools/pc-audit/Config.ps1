@@ -1,4 +1,4 @@
-# PC Audit Tool configuration
+﻿﻿# PC Audit Tool configuration
 # The bootstrap endpoint is intentionally stable. The actual API base URL is managed by Admin on the Web.
 $script:PcAuditConfigEndpoint = 'https://kpi.review360.id.vn/api/pc-audit/config'
 $script:PcAuditApiBaseUrl = $null
@@ -14,18 +14,18 @@ function Initialize-PcAuditConfig {
         $config = Invoke-RestMethod -Uri $script:PcAuditConfigEndpoint -Method Get -TimeoutSec $script:PcAuditTimeoutSec -ErrorAction Stop
     }
     catch {
-        throw "Không thể lấy cấu hình PC Audit từ máy chủ: $($_.Exception.Message)"
+        throw "Khong the lay cau hinh PC Audit tu may chu: $($_.Exception.Message)"
     }
 
     if ($config.enabled -ne $true) {
         $message = [string]$config.disabled_message
-        if ([string]::IsNullOrWhiteSpace($message)) { $message = 'Hệ thống Audit hiện đang tạm ngưng. Vui lòng thử lại sau.' }
+        if ([string]::IsNullOrWhiteSpace($message)) { $message = 'He thong Audit hien dang tam ngung. Vui long thu lai sau.' }
         throw $message
     }
 
     $baseUrl = ([string]$config.api_base_url).TrimEnd('/')
     if ([string]::IsNullOrWhiteSpace($baseUrl) -or $baseUrl -notmatch '^https://') {
-        throw 'Cấu hình API Base URL không hợp lệ. Chỉ cho phép HTTPS.'
+        throw 'Cau hinh API Base URL khong hop le. Chi cho phep HTTPS.'
     }
 
     $script:PcAuditApiBaseUrl = $baseUrl
