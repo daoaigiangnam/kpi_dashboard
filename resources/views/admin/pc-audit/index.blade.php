@@ -129,10 +129,7 @@
                                 <div class="pc-audit-row-actions">
                                     <a class="pc-audit-view" href="{{ route('admin.pc_audit.show', $audit) }}">Xem</a>
                                     @if(auth()->user()->hasPermission('pc_audit.delete'))
-                                        <form method="POST" action="{{ route('admin.pc_audit.delete', $audit) }}" onsubmit="return confirmDeletePcAudit('{{ addslashes($audit->computer_name ?: 'máy này') }}');">
-                                            @csrf
-                                            <button class="pc-audit-delete" type="submit" title="Xóa vĩnh viễn PC Audit">🗑 Xóa</button>
-                                        </form>
+                                        <button class="pc-audit-delete" type="submit" form="export-form" formaction="{{ route('admin.pc_audit.delete', $audit) }}" formmethod="POST" onclick="return confirmDeletePcAudit('{{ addslashes($audit->computer_name ?: 'máy này') }}');" title="Xóa vĩnh viễn PC Audit">🗑 Xóa</button>
                                     @endif
                                 </div>
                             </td>
@@ -145,7 +142,7 @@
             </div>
 
             <div class="pc-audit-export">
-                <button class="pc-audit-btn" type="submit">📊 Xuất Excel các máy đã chọn</button>
+                <button class="pc-audit-btn" type="submit" id="export-button">📊 Xuất Excel các máy đã chọn</button>
                 <span class="pc-audit-export-note" id="selected-count">Chưa chọn máy nào · Tối đa 200 máy/lần · Mỗi máy một sheet đầy đủ.</span>
             </div>
         </form>
@@ -168,6 +165,7 @@ function confirmDeletePcAudit(computerName) {
     const all=document.getElementById('check-all');
     const checks=[...document.querySelectorAll('.audit-check')];
     const label=document.getElementById('selected-count');
+    const exportForm=document.getElementById('export-form');
     function update(){
         const n=checks.filter(c=>c.checked).length;
         label.textContent=n?`${n} máy đã chọn · Tối đa 200 máy/lần · Mỗi máy một sheet đầy đủ.`:'Chưa chọn máy nào · Tối đa 200 máy/lần · Mỗi máy một sheet đầy đủ.';
@@ -175,6 +173,14 @@ function confirmDeletePcAudit(computerName) {
     }
     if(all) all.addEventListener('change',()=>{checks.forEach(c=>c.checked=all.checked);update()});
     checks.forEach(c=>c.addEventListener('change',update));
+    if(exportForm) exportForm.addEventListener('submit',function(e){
+        const submitter=e.submitter;
+        if(submitter && submitter.hasAttribute('formaction')) return;
+        if(checks.filter(c=>c.checked).length===0){
+            e.preventDefault();
+            alert('Vui lòng chọn ít nhất 1 máy để xuất Excel.');
+        }
+    });
     update();
 })();
 </script>
