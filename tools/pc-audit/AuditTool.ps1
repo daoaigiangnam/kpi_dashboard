@@ -5,6 +5,14 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'ApiClient.ps1')
 . (Join-Path $here 'Collector.ps1')
 
+function Show-AuditValue {
+    param([string]$Label, [object]$Value)
+    if ($null -eq $Value) { $text = '(khong co du lieu)' }
+    elseif ($Value -is [System.Array]) { $text = if($Value.Count -eq 0){'(khong co du lieu)'}else{$Value -join ', '} }
+    else { $text = [string]$Value }
+    Write-Host ("    {0}: {1}" -f $Label, $text) -ForegroundColor Gray
+}
+
 Write-Host ''
 Write-Host '=========================================' -ForegroundColor Cyan
 Write-Host '        MSTAR PC AUDIT TOOL' -ForegroundColor Cyan
@@ -44,21 +52,21 @@ Write-Host ''
 Write-Host '=========================================' -ForegroundColor Cyan
 Write-Host '      DANG THU THAP THONG TIN PC' -ForegroundColor Cyan
 Write-Host '=========================================' -ForegroundColor Cyan
-Write-Host '[01] Computer / Domain / Serial / Asset Tag' -ForegroundColor Yellow
-Write-Host '[02] Mainboard / BIOS' -ForegroundColor Yellow
-Write-Host '[03] CPU / RAM' -ForegroundColor Yellow
-Write-Host '[04] Storage / Monitor / GPU / Battery' -ForegroundColor Yellow
-Write-Host '[05] Windows / Build / Uptime' -ForegroundColor Yellow
-Write-Host '[06] Windows Update / HotFix' -ForegroundColor Yellow
-Write-Host '[07] Network / LAN / WIFI / Modem / DNS / Gateway' -ForegroundColor Yellow
-Write-Host '[08] Security / Antivirus / BitLocker / Firewall / TPM / Secure Boot' -ForegroundColor Yellow
-Write-Host '[09] License Windows / Office' -ForegroundColor Yellow
-Write-Host '[10] Software da cai dat' -ForegroundColor Yellow
-Write-Host ''
-Write-Host 'Dang quet may, vui long khong tat cua so nay...' -ForegroundColor Cyan
+Write-Host 'Ket qua thuc te se hien thi ngay sau moi nhom.' -ForegroundColor DarkGray
 
-$collector = Get-PcAuditCollector
-Write-Host 'THU THAP THONG TIN: HOAN TAT' -ForegroundColor Green
+Write-Host ''
+Write-Host '[01] Computer / Domain / Serial / Asset Tag' -ForegroundColor Yellow
+$collector = Get-PcAuditCollector -Progress
+Show-AuditValue 'Computer Name' $collector.computer.computer_name
+Show-AuditValue 'User Windows' $collector.computer.username
+Show-AuditValue 'Domain' $collector.computer.domain
+Show-AuditValue 'Manufacturer' $collector.computer.manufacturer
+Show-AuditValue 'Model' $collector.computer.model
+Show-AuditValue 'Serial' $collector.computer.serial_number
+Show-AuditValue 'Asset Tag' $collector.computer.asset_tag
+
+Write-Host ''
+Write-Host 'Toan bo du lieu da duoc thu thap. Dang gui ve he thong...' -ForegroundColor Yellow
 
 $payload = @{
     code = $code
@@ -67,7 +75,6 @@ $payload = @{
     data = $collector
 }
 
-Write-Host 'Dang gui du lieu ve he thong...' -ForegroundColor Yellow
 $response = Invoke-PcAuditSubmit -Payload $payload
 if ($response.ok -ne $true) { throw ('Server tu choi du lieu: ' + [string]$response.message) }
 
