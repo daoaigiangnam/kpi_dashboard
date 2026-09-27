@@ -19,7 +19,7 @@ class PcAuditApiController extends Controller
     {
         $data = $request->validate(['code' => ['required', 'string', 'max:120']]);
         $code = PcAuditCode::with('branch.customer')
-            ->where('code', $data['code'])
+            ->where('code', strtoupper(trim($data['code'])))
             ->where('is_active', true)
             ->whereHas('branch', fn ($q) => $q
                 ->where('is_active', true)
@@ -32,7 +32,6 @@ class PcAuditApiController extends Controller
 
         return response()->json(['ok' => true, 'data' => [
             'code' => $code->code,
-            'department' => $code->department,
             'customer' => ['id' => $code->branch->customer->id, 'code' => $code->branch->customer->code, 'name' => $code->branch->customer->name],
             'branch' => ['id' => $code->branch->id, 'code' => $code->branch->code, 'name' => $code->branch->name],
         ]]);
@@ -40,13 +39,14 @@ class PcAuditApiController extends Controller
 
     public function submit(Request $request, PcAuditEngine $engine): JsonResponse
     {
+        // Department is intentionally NOT required. Customer and Branch are resolved from Audit Code.
         $payload = $request->validate([
             'code' => ['required', 'string', 'max:120'],
-            'department' => ['required', 'string', 'max:200'],
             'employee_name' => ['required', 'string', 'max:200'],
             'data' => ['required', 'array'],
         ]);
-        $code = PcAuditCode::where('code', $payload['code'])
+
+        $code = PcAuditCode::where('code', strtoupper(trim($payload['code'])))
             ->where('is_active', true)
             ->whereHas('branch', fn ($q) => $q
                 ->where('is_active', true)
@@ -67,7 +67,7 @@ class PcAuditApiController extends Controller
         $audit = DB::transaction(function () use ($code, $payload, $data, $computer, $windows, $security, $value, $auditResult) {
             $audit = PcAudit::create([
                 'pc_audit_code_id' => $code->id,
-                'department' => $payload['department'],
+                'department' => null,
                 'employee_name' => $payload['employee_name'],
                 'employee_username' => $computer['username'] ?? $value(['username', 'employee_username']),
                 'domain' => $computer['domain'] ?? $value(['domain']),
@@ -123,6 +123,7 @@ class PcAuditApiController extends Controller
             self::insertRows($audit->id, $data['software'] ?? [], 'pc_audit_software', ['name','version','publisher','install_date','estimated_size']);
             return $audit;
         });
+
         return response()->json([
             'ok' => true,
             'id' => $audit->id,
