@@ -90,17 +90,17 @@ class PcAuditApiController extends Controller
                 'other' => $data['other'] ?? null,
             ]);
 
-            self::insertRows($audit->id, $data['memory'] ?? [], 'pc_audit_memory', ['capacity_gb','capacity','speed','slot','manufacturer','part_number','serial_number']);
+            self::insertRows($audit->id, $data['memory'] ?? [], 'pc_audit_memory', ['capacity','speed','slot','manufacturer','part_number','serial_number']);
             self::insertRows($audit->id, $data['storage'] ?? [], 'pc_audit_storage', ['drive','used_gb','total_gb']);
             self::insertRows($audit->id, $data['monitors'] ?? [], 'pc_audit_monitors', ['manufacturer','model','serial_number']);
-            self::insertRows($audit->id, $data['gpu'] ?? [], 'pc_audit_gpu', ['name','vram','vram_gb','driver_version']);
+            self::insertRows($audit->id, $data['gpu'] ?? [], 'pc_audit_gpu', ['name','vram','driver_version']);
             self::insertRows($audit->id, $data['battery'] ?? [], 'pc_audit_battery', ['name','status','charge_percent']);
             self::insertRows($audit->id, $data['network'] ?? [], 'pc_audit_network', ['type','name','description','ipv4','gateway','mac','dns','dhcp','connection_status','link_speed']);
             self::insertRows($audit->id, $security['antivirus'] ?? [], 'pc_audit_antivirus', ['display_name','status','executable_path','signature_version']);
             self::insertRows($audit->id, $security['bitlocker'] ?? [], 'pc_audit_bitlocker', ['mount_point','protection_status','volume_status','encryption_percent']);
             self::insertRows($audit->id, $security['firewall'] ?? [], 'pc_audit_firewall', ['profile','enabled']);
-            self::insertRows($audit->id, $data['licenses']['windows'] ?? [], 'pc_audit_licenses', ['product_type','product_name','status','partial_product_key']);
-            self::insertRows($audit->id, $data['licenses']['office'] ?? [], 'pc_audit_licenses', ['product_type','product_name','status','partial_product_key']);
+            self::insertRows($audit->id, self::typedLicenseRows($data['licenses']['windows'] ?? [], 'WINDOWS'), 'pc_audit_licenses', ['product_type','product_name','status','partial_product_key']);
+            self::insertRows($audit->id, self::typedLicenseRows($data['licenses']['office'] ?? [], 'OFFICE'), 'pc_audit_licenses', ['product_type','product_name','status','partial_product_key']);
             self::insertRows($audit->id, $data['software'] ?? [], 'pc_audit_software', ['name','version','publisher','install_date','estimated_size']);
             return $audit;
         });
@@ -112,6 +112,13 @@ class PcAuditApiController extends Controller
             'audit_results' => $audit->audit_results,
             'message' => 'Audit đã được ghi nhận và đánh giá.',
         ], 201);
+    }
+
+    private static function typedLicenseRows(mixed $rows, string $type): array
+    {
+        if (!is_array($rows)) return [];
+        if (!array_is_list($rows)) $rows = [$rows];
+        return array_map(fn ($row) => is_array($row) ? array_merge($row, ['product_type' => $row['product_type'] ?? $type]) : [], $rows);
     }
 
     private static function firstValue(array $data, array $keys, mixed $default = null): mixed
@@ -128,7 +135,12 @@ class PcAuditApiController extends Controller
         foreach ($rows as $row) {
             if (!is_array($row)) continue;
             $item = ['pc_audit_id'=>$auditId,'created_at'=>$now,'updated_at'=>$now];
-            foreach ($columns as $column) $item[$column] = $row[$column] ?? null;
+            foreach ($columns as $column) {
+                $value = $row[$column] ?? null;
+                if ($column === 'capacity' && $value === null) $value = isset($row['capacity_gb']) ? $row['capacity_gb'].' GB' : null;
+                if ($column === 'vram' && $value === null) $value = isset($row['vram_gb']) ? $row['vram_gb'].' GB' : null;
+                $item[$column] = $value;
+            }
             $insert[] = $item;
         }
         if ($insert) DB::table($table)->insert($insert);
