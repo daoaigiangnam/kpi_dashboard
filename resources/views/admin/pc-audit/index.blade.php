@@ -11,7 +11,8 @@
 </div>
 
 <div class="card" style="margin-top:18px">
-<form method="GET" action="{{ route('admin.pc_audit.export') }}" id="export-form">
+<form method="POST" action="{{ route('admin.pc_audit.export') }}" id="export-form">
+@csrf
 <table style="width:100%;border-collapse:collapse">
 <thead><tr><th></th><th>Khách hàng</th><th>Chi nhánh</th><th>Code</th><th>Computer</th><th>Serial</th><th>Họ tên</th><th>Phòng ban</th><th>Kết quả</th><th>Điểm</th><th>Ngày Audit</th><th></th></tr></thead>
 <tbody>
