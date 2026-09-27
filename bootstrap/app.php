@@ -13,7 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function (): void {
-            Route::middleware(['auth', 'permission:pc_audit.delete'])
+            Route::middleware(['web', 'auth', 'permission:pc_audit.delete'])
                 ->prefix('admin')
                 ->name('admin.')
                 ->group(function (): void {
