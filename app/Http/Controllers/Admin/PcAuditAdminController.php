@@ -46,27 +46,64 @@ class PcAuditAdminController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
         $customerId = $request->query('customer_id');
-        $customers = ServiceCustomer::query()->orderBy('name')->get(['id', 'code', 'name']);
-        $branches = CustomerBranch::query()->with('customer:id,code,name')->where('is_active', true)
-            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))->orderBy('name')->get();
-        $codes = PcAuditCode::query()->with('branch.customer')
-            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x->where('code','like',"%{$search}%")->orWhere('name','like',"%{$search}%")->orWhere('department','like',"%{$search}%")))
+
+        // PC Audit dùng trực tiếp Customer của module Service, không tạo Customer riêng.
+        $customers = ServiceCustomer::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+
+        $branches = CustomerBranch::query()
+            ->with('customer:id,code,name')
+            ->where('is_active', true)
+            ->whereHas('customer', fn ($q) => $q->where('is_active', true))
+            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
+            ->orderBy('name')
+            ->get();
+
+        $codes = PcAuditCode::query()
+            ->with('branch.customer')
+            ->whereHas('branch', fn ($q) => $q
+                ->where('is_active', true)
+                ->whereHas('customer', fn ($c) => $c->where('is_active', true)))
+            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
+                ->where('code', 'like', "%{$search}%")
+                ->orWhere('name', 'like', "%{$search}%")
+                ->orWhere('department', 'like', "%{$search}%")))
             ->when($customerId, fn ($q) => $q->whereHas('branch', fn ($b) => $b->where('customer_id', $customerId)))
-            ->latest()->paginate(25)->withQueryString();
-        return view('admin.pc-audit.codes', compact('codes','customers','branches','search','customerId'));
+            ->latest()
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('admin.pc-audit.codes', compact('codes', 'customers', 'branches', 'search', 'customerId'));
     }
 
     public function storeCode(Request $request)
     {
         $data = $request->validate([
-            'branch_id' => ['required','exists:customer_branches,id'],
-            'code' => ['nullable','string','max:100','alpha_dash','unique:pc_audit_codes,code'],
-            'name' => ['nullable','string','max:150'],
-            'department' => ['required','string','max:200'],
+            'branch_id' => ['required', 'exists:customer_branches,id'],
+            'code' => ['nullable', 'string', 'max:100', 'alpha_dash', 'unique:pc_audit_codes,code'],
+            'name' => ['nullable', 'string', 'max:150'],
+            'department' => ['required', 'string', 'max:200'],
         ]);
+
+        $branch = CustomerBranch::query()
+            ->with('customer')
+            ->whereKey($data['branch_id'])
+            ->where('is_active', true)
+            ->whereHas('customer', fn ($q) => $q->where('is_active', true))
+            ->first();
+
+        if (!$branch) {
+            return back()->withInput()->withErrors([
+                'branch_id' => 'Chi nhánh không tồn tại hoặc Customer Service đang không hoạt động.',
+            ]);
+        }
+
         $data['code'] = strtoupper($data['code'] ?? Str::random(10));
         $data['is_active'] = true;
         PcAuditCode::create($data);
+
         return back()->with('success', 'Đã tạo Audit Code.');
     }
 
@@ -78,24 +115,41 @@ class PcAuditAdminController extends Controller
 
     public function recipients(Request $request)
     {
-        $customers = ServiceCustomer::query()->with('alertRecipients')->orderBy('name')->get();
+        $customers = ServiceCustomer::query()
+            ->where('is_active', true)
+            ->with('alertRecipients')
+            ->orderBy('name')
+            ->get();
         $customerId = $request->query('customer_id');
-        $customer = $customerId ? $customers->firstWhere('id', (int)$customerId) : null;
-        return view('admin.pc-audit.recipients', compact('customers','customer','customerId'));
+        $customer = $customerId ? $customers->firstWhere('id', (int) $customerId) : null;
+        return view('admin.pc-audit.recipients', compact('customers', 'customer', 'customerId'));
     }
 
     public function storeRecipient(Request $request)
     {
         $data = $request->validate([
-            'customer_id' => ['required','exists:service_customers,id'],
-            'recipient_name' => ['required','string','max:150'],
-            'recipient_email' => ['required','email','max:190'],
-            'recipient_phone' => ['nullable','string','max:50'],
-            'level' => ['nullable','integer','min:1','max:99'],
+            'customer_id' => ['required', 'exists:service_customers,id'],
+            'recipient_name' => ['required', 'string', 'max:150'],
+            'recipient_email' => ['required', 'email', 'max:190'],
+            'recipient_phone' => ['nullable', 'string', 'max:50'],
+            'level' => ['nullable', 'integer', 'min:1', 'max:99'],
         ]);
-        $data['level'] = (int)($data['level'] ?? 1);
+
+        $customer = ServiceCustomer::query()
+            ->whereKey($data['customer_id'])
+            ->where('is_active', true)
+            ->first();
+
+        if (!$customer) {
+            return back()->withInput()->withErrors([
+                'customer_id' => 'Customer Service không tồn tại hoặc đang không hoạt động.',
+            ]);
+        }
+
+        $data['level'] = (int) ($data['level'] ?? 1);
         $data['is_active'] = true;
         ServiceCustomerAlertRecipient::create($data);
+
         return back()->with('success', 'Đã thêm Email nhận Audit.');
     }
 
