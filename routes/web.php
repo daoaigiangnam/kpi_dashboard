@@ -201,6 +201,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::post('it-tools/network-diagnostic',[ItToolsController::class,'networkDiagnostic'])->middleware('permission:it_tools.audit')->name('it_tools.network_diagnostic');
     Route::post('it-tools/audit',[ItToolsController::class,'audit'])->middleware('permission:it_tools.audit')->name('it_tools.audit');
     Route::post('it-tools/bulk-audit',[ItToolsController::class,'bulkAudit'])->middleware('permission:it_tools.audit')->name('it_tools.bulk_audit');
+    Route::post('it-tools/export',[ItToolsController::class,'export'])->middleware('permission:it_tools.audit')->name('it_tools.export');
 
     // PC Audit - uses Customer/Branch from the existing IT Service module.
     Route::get('pc-audit',[PcAuditController::class,'index'])->middleware('permission:admin.view')->name('pc_audit.index');
