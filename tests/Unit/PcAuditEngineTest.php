@@ -9,9 +9,9 @@ use PHPUnit\Framework\TestCase;
 
 class PcAuditEngineTest extends TestCase
 {
-    public function test_secure_pc_is_pass_or_review_only_when_telemetry_is_missing(): void
+    public function test_secure_pc_is_pass(): void
     {
-        $data = [
+        $result = (new PcAuditEngine())->evaluate([
             'windows' => ['caption' => 'Microsoft Windows 11 Pro', 'uptime_hours' => 12],
             'licenses' => ['windows' => [['status' => 1]]],
             'security' => [
@@ -23,14 +23,13 @@ class PcAuditEngineTest extends TestCase
             ],
             'storage' => [['total_gb' => 500, 'used_gb' => 200]],
             'network' => [['ipv4' => ['192.168.1.10']]],
-        ];
+        ]);
 
-        $result = (new PcAuditEngine())->evaluate($data);
-
-        self::assertSame('REVIEW', $result['status']);
-        self::assertSame(9, $result['summary']['pass']);
-        self::assertSame(1, $result['summary']['review']);
+        self::assertSame('PASS', $result['status']);
+        self::assertSame(10, $result['summary']['pass']);
+        self::assertSame(0, $result['summary']['review']);
         self::assertSame(0, $result['summary']['fail']);
+        self::assertSame(100, $result['score']);
     }
 
     public function test_disabled_firewall_is_fail(): void
