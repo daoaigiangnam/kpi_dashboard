@@ -9,7 +9,6 @@ use App\Models\CustomerBranch;
 use App\Models\PcAuditCode;
 use App\Models\PcAuditSetting;
 use App\Models\ServiceCustomer;
-use App\Models\ServiceCustomerAlertRecipient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -23,6 +22,7 @@ class PcAuditAdminController extends Controller
             'minimum_tool_version' => '1.0.0',
             'enabled' => true,
         ]);
+
         return view('admin.pc-audit.settings', compact('setting'));
     }
 
@@ -36,9 +36,12 @@ class PcAuditAdminController extends Controller
             'download_url' => ['nullable', 'url', 'max:1000'],
             'disabled_message' => ['nullable', 'string', 'max:2000'],
         ]);
+
         $data['api_base_url'] = rtrim($data['api_base_url'], '/');
         $data['enabled'] = $request->boolean('enabled');
+
         PcAuditSetting::query()->updateOrCreate(['id' => 1], $data);
+
         return back()->with('success', 'Đã lưu cấu hình PC Audit.');
     }
 
@@ -53,11 +56,12 @@ class PcAuditAdminController extends Controller
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
 
+        // Chi nhánh chỉ khai báo bổ sung cho Customer Service; không tạo Customer mới.
         $branches = CustomerBranch::query()
             ->with('customer:id,code,name')
             ->where('is_active', true)
             ->whereHas('customer', fn ($q) => $q->where('is_active', true))
-            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
+            ->orderBy('customer_id')
             ->orderBy('name')
             ->get();
 
@@ -68,7 +72,6 @@ class PcAuditAdminController extends Controller
                 ->whereHas('customer', fn ($c) => $c->where('is_active', true)))
             ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
                 ->where('code', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%")
                 ->orWhere('department', 'like', "%{$search}%")))
             ->when($customerId, fn ($q) => $q->whereHas('branch', fn ($b) => $b->where('customer_id', $customerId)))
             ->latest()
@@ -78,12 +81,64 @@ class PcAuditAdminController extends Controller
         return view('admin.pc-audit.codes', compact('codes', 'customers', 'branches', 'search', 'customerId'));
     }
 
+    public function storeBranch(Request $request)
+    {
+        $data = $request->validate([
+            'customer_id' => ['required', 'exists:service_customers,id'],
+            'name' => ['required', 'string', 'max:150'],
+        ]);
+
+        $customer = ServiceCustomer::query()
+            ->whereKey($data['customer_id'])
+            ->where('is_active', true)
+            ->first();
+
+        if (!$customer) {
+            return back()->withInput()->withErrors([
+                'customer_id' => 'Customer Service không tồn tại hoặc đang không hoạt động.',
+            ]);
+        }
+
+        $name = trim($data['name']);
+        $baseCode = strtoupper(Str::limit(Str::slug($name, '-'), 45, ''));
+        if ($baseCode === '') {
+            $baseCode = 'BRANCH';
+        }
+
+        $branchCode = $baseCode;
+        $suffix = 2;
+        while (CustomerBranch::query()
+            ->where('customer_id', $customer->id)
+            ->where('code', $branchCode)
+            ->exists()) {
+            $branchCode = Str::limit($baseCode, 45, '') . '-' . $suffix++;
+        }
+
+        if (CustomerBranch::query()
+            ->where('customer_id', $customer->id)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->exists()) {
+            return back()->withInput()->withErrors([
+                'name' => 'Chi nhánh này đã tồn tại trong Customer.',
+            ]);
+        }
+
+        CustomerBranch::create([
+            'customer_id' => $customer->id,
+            'code' => $branchCode,
+            'name' => $name,
+            'is_active' => true,
+        ]);
+
+        return redirect()
+            ->route('admin.pc_audit.codes', ['customer_id' => $customer->id])
+            ->with('success', "Đã thêm chi nhánh {$name} cho Customer {$customer->name}.");
+    }
+
     public function storeCode(Request $request)
     {
         $data = $request->validate([
             'branch_id' => ['required', 'exists:customer_branches,id'],
-            'code' => ['nullable', 'string', 'max:100', 'alpha_dash', 'unique:pc_audit_codes,code'],
-            'name' => ['nullable', 'string', 'max:150'],
             'department' => ['required', 'string', 'max:200'],
         ]);
 
@@ -100,68 +155,37 @@ class PcAuditAdminController extends Controller
             ]);
         }
 
-        $data['code'] = strtoupper($data['code'] ?? Str::random(10));
-        $data['is_active'] = true;
-        PcAuditCode::create($data);
+        $department = trim($data['department']);
+        $baseCode = collect([
+            $branch->customer?->code,
+            $branch->code,
+            Str::slug($department, '-'),
+        ])->filter()->map(fn ($value) => strtoupper((string) $value))->implode('-');
 
-        return back()->with('success', 'Đã tạo Audit Code.');
+        $baseCode = Str::limit($baseCode, 92, '');
+        $code = $baseCode;
+        $suffix = 2;
+
+        while (PcAuditCode::query()->where('code', $code)->exists()) {
+            $suffixText = '-' . $suffix++;
+            $code = Str::limit($baseCode, 100 - strlen($suffixText), '') . $suffixText;
+        }
+
+        PcAuditCode::create([
+            'branch_id' => $branch->id,
+            'code' => $code,
+            'name' => 'PC Audit - ' . $department,
+            'department' => $department,
+            'is_active' => true,
+        ]);
+
+        return back()->with('success', "Đã tạo Audit Code: {$code}");
     }
 
     public function toggleCode(PcAuditCode $pcAuditCode)
     {
         $pcAuditCode->update(['is_active' => !$pcAuditCode->is_active]);
+
         return back()->with('success', 'Đã cập nhật trạng thái Audit Code.');
-    }
-
-    public function recipients(Request $request)
-    {
-        $customers = ServiceCustomer::query()
-            ->where('is_active', true)
-            ->with('alertRecipients')
-            ->orderBy('name')
-            ->get();
-        $customerId = $request->query('customer_id');
-        $customer = $customerId ? $customers->firstWhere('id', (int) $customerId) : null;
-        return view('admin.pc-audit.recipients', compact('customers', 'customer', 'customerId'));
-    }
-
-    public function storeRecipient(Request $request)
-    {
-        $data = $request->validate([
-            'customer_id' => ['required', 'exists:service_customers,id'],
-            'recipient_name' => ['required', 'string', 'max:150'],
-            'recipient_email' => ['required', 'email', 'max:190'],
-            'recipient_phone' => ['nullable', 'string', 'max:50'],
-            'level' => ['nullable', 'integer', 'min:1', 'max:99'],
-        ]);
-
-        $customer = ServiceCustomer::query()
-            ->whereKey($data['customer_id'])
-            ->where('is_active', true)
-            ->first();
-
-        if (!$customer) {
-            return back()->withInput()->withErrors([
-                'customer_id' => 'Customer Service không tồn tại hoặc đang không hoạt động.',
-            ]);
-        }
-
-        $data['level'] = (int) ($data['level'] ?? 1);
-        $data['is_active'] = true;
-        ServiceCustomerAlertRecipient::create($data);
-
-        return back()->with('success', 'Đã thêm Email nhận Audit.');
-    }
-
-    public function deleteRecipient(ServiceCustomerAlertRecipient $recipient)
-    {
-        $recipient->delete();
-        return back()->with('success', 'Đã xóa Email nhận Audit.');
-    }
-
-    public function toggleRecipient(ServiceCustomerAlertRecipient $recipient)
-    {
-        $recipient->update(['is_active' => !$recipient->is_active]);
-        return back()->with('success', 'Đã cập nhật trạng thái Email.');
     }
 }
