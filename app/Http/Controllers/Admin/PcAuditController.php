@@ -48,19 +48,8 @@ class PcAuditController extends Controller
     public function show(PcAudit $pcAudit)
     {
         $pcAudit->load([
-            'auditCode.branch.customer',
-            'details',
-            'memory',
-            'storage',
-            'monitors',
-            'gpu',
-            'batteries',
-            'network',
-            'antivirus',
-            'bitlocker',
-            'firewall',
-            'licenses',
-            'software',
+            'auditCode.branch.customer', 'details', 'memory', 'storage', 'monitors', 'gpu',
+            'batteries', 'network', 'antivirus', 'bitlocker', 'firewall', 'licenses', 'software',
         ]);
 
         return view('admin.pc-audit.show', ['audit' => $pcAudit]);
@@ -71,26 +60,13 @@ class PcAuditController extends Controller
         $ids = collect($request->input('ids', []))
             ->map(fn($id) => (int) $id)
             ->filter(fn($id) => $id > 0)
-            ->unique()
-            ->take(200)
-            ->values();
+            ->unique()->take(200)->values();
 
         abort_if($ids->isEmpty(), 422, 'Chưa chọn máy để xuất Excel.');
 
         $audits = PcAudit::with([
-            'auditCode.branch.customer',
-            'details',
-            'memory',
-            'storage',
-            'monitors',
-            'gpu',
-            'batteries',
-            'network',
-            'antivirus',
-            'bitlocker',
-            'firewall',
-            'licenses',
-            'software',
+            'auditCode.branch.customer', 'details', 'memory', 'storage', 'monitors', 'gpu',
+            'batteries', 'network', 'antivirus', 'bitlocker', 'firewall', 'licenses', 'software',
         ])->whereIn('id', $ids)->get();
 
         $spreadsheet = new Spreadsheet();
@@ -98,10 +74,10 @@ class PcAuditController extends Controller
 
         $headers = [
             'Họ Tên', 'Username', 'Domain', 'Tên máy tính', 'Manufacturer', 'Model', 'Serial Number', 'Asset Tag',
-            'Mainboard', 'BIOS', 'CPU', 'RAM', 'HDD', 'Monitor', 'VGA', 'Battery', 'OS', 'Windows Update', 'Last Boot',
-            'Uptime', 'LAN', 'WIFI', 'MODEM', 'IP', 'MAC', 'Gateway', 'DNS', 'DHCP', 'Connection Status', 'Link Speed',
-            'Antivirus', 'BitLocker', 'Firewall', 'TPM', 'Secure Boot', 'Windows Activation', 'Office Activation',
-            'Ngày thu thập', 'SOFTWARE',
+            'Mainboard', 'BIOS', 'CPU', 'RAM', 'HDD', 'Monitor', 'VGA', 'Battery', 'OS', 'Windows Update',
+            'Last Boot', 'Uptime', 'LAN', 'WIFI', 'MODEM', 'IP', 'MAC', 'Gateway', 'DNS', 'DHCP',
+            'Connection Status', 'Link Speed', 'Antivirus', 'BitLocker', 'Firewall', 'TPM', 'Secure Boot',
+            'Windows Activation', 'Office Activation', 'Ngày thu thập', 'SOFTWARE',
         ];
 
         foreach ($audits as $audit) {
@@ -111,56 +87,34 @@ class PcAuditController extends Controller
             $safeName = mb_substr($safeName, 0, 25) . '-' . $audit->id;
             $sheet->setTitle(mb_substr($safeName, 0, 31));
 
-            // One PC = exactly one Excel row. Multi-value inventory is combined inside each cell.
             $row = $this->inventoryRow($audit);
             $sheet->fromArray([$headers, $row], null, 'A1');
 
-            $lastRow = 2;
             $lastCol = count($headers);
             $lastColumn = $this->columnLetter($lastCol);
 
             $sheet->getStyle('A1:' . $lastColumn . '1')->applyFromArray([
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '126B6F']],
-                'alignment' => [
-                    'horizontal' => Alignment::HORIZONTAL_CENTER,
-                    'vertical' => Alignment::VERTICAL_CENTER,
-                    'wrapText' => true,
-                ],
-                'borders' => [
-                    'bottom' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '0D5255']],
-                ],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+                'borders' => ['bottom' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '0D5255']]],
             ]);
-            $sheet->getRowDimension(1)->setRowHeight(34);
+            $sheet->getRowDimension(1)->setRowHeight(36);
 
             $sheet->getStyle('A2:' . $lastColumn . '2')->applyFromArray([
                 'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
-                'borders' => [
-                    'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D9E2E3']],
-                ],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D9E2E3']]],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F5FAFA']],
             ]);
 
-            $sheet->getStyle('A2:' . $lastColumn . '2')
-                ->getFill()
-                ->setFillType(Fill::FILL_SOLID)
-                ->getStartColor()
-                ->setRGB('F5FAFA');
-
-            // Highlight Software column.
-            $sheet->getStyle($lastColumn . '2')
-                ->getFill()
-                ->setFillType(Fill::FILL_SOLID)
-                ->getStartColor()
-                ->setRGB('EAF8F4');
-
+            $sheet->getStyle($lastColumn . '2')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EAF8F4');
             $sheet->freezePane('A2');
             $sheet->setAutoFilter('A1:' . $lastColumn . '2');
-            $sheet->getPageSetup()->setOrientation('landscape');
-            $sheet->getPageSetup()->setFitToWidth(1)->setFitToHeight(0);
+            $sheet->getPageSetup()->setOrientation('landscape')->setFitToWidth(1)->setFitToHeight(0);
             $sheet->getPageMargins()->setTop(0.3)->setBottom(0.3)->setLeft(0.25)->setRight(0.25);
-            $sheet->getRowDimension(2)->setRowHeight(120);
+            $sheet->getRowDimension(2)->setRowHeight(180);
 
-            $widths = [18, 20, 20, 18, 18, 20, 18, 16, 34, 25, 38, 45, 32, 32, 42, 22, 38, 28, 22, 18, 48, 48, 30, 32, 32, 38, 42, 25, 24, 20, 38, 34, 24, 18, 18, 38, 42, 22, 65];
+            $widths = [18,20,20,18,18,20,18,16,34,25,42,58,40,40,48,28,70,38,24,18,55,55,35,40,32,45,48,25,28,24,42,40,32,28,20,70,70,22,75];
             foreach ($widths as $i => $width) {
                 $sheet->getColumnDimension($this->columnLetter($i + 1))->setWidth($width);
             }
@@ -183,10 +137,8 @@ class PcAuditController extends Controller
     private function inventoryRow(PcAudit $audit): array
     {
         $raw = is_array($audit->raw_payload) ? $audit->raw_payload : [];
-        $cpu = is_array($raw['cpu'] ?? null) ? $raw['cpu'] : [];
-        $windows = is_array($raw['windows'] ?? null)
-            ? $raw['windows']
-            : (is_array($audit->operating_system) ? $audit->operating_system : []);
+        $cpu = $this->listFrom($raw['cpu'] ?? []);
+        $windows = is_array($raw['windows'] ?? null) ? $raw['windows'] : (is_array($audit->operating_system) ? $audit->operating_system : []);
         $security = is_array($raw['security'] ?? null) ? $raw['security'] : [];
         $licenses = is_array($raw['licenses'] ?? null) ? $raw['licenses'] : [];
 
@@ -201,6 +153,9 @@ class PcAuditController extends Controller
         $bitlocker = $this->listFrom($security['bitlocker'] ?? $audit->bitlocker->toArray());
         $firewall = $this->listFrom($security['firewall'] ?? $audit->firewall->toArray());
 
+        $windowsLicenses = $this->listFrom($licenses['windows'] ?? $audit->licenses->where('product_type', 'WINDOWS')->toArray());
+        $officeLicenses = $this->listFrom($licenses['office'] ?? $audit->licenses->where('product_type', 'OFFICE')->toArray());
+
         return [
             $audit->employee_name,
             $audit->employee_username,
@@ -210,16 +165,16 @@ class PcAuditController extends Controller
             $audit->model,
             $audit->serial_number,
             $audit->asset_tag,
-            $this->fmtMainboard($audit->mainboard),
-            $this->fmtBios($audit->bios),
-            $this->fmtCpu($cpu),
+            $this->fmtValue($audit->mainboard),
+            $this->fmtValue($audit->bios),
+            $this->fmtList($cpu, fn($v) => $this->fmtCpu($v)),
             $this->fmtMemoryList($memory),
             $this->fmtStorageList($storage),
             $this->fmtMonitorList($monitors),
             $this->fmtGpuList($gpu),
             $this->fmtBatteryList($battery),
             $this->fmtWindows($windows),
-            $this->fmtWindowsUpdate($audit->windows_update, $windows),
+            $this->fmtValue($audit->windows_update),
             $audit->last_boot,
             $this->formatUptime($audit->uptime),
             $this->fmtNetworkList($network, ['ethernet', 'lan']),
@@ -232,24 +187,21 @@ class PcAuditController extends Controller
             $this->fmtNetworkFieldList($network, 'dhcp'),
             $this->fmtNetworkFieldList($network, 'connection_status'),
             $this->fmtNetworkFieldList($network, 'link_speed'),
-            $this->fmtList($antivirus, fn($v) => $this->fmtAntivirus($v)),
-            $this->fmtList($bitlocker, fn($v) => $this->fmtBitlocker($v)),
-            $this->fmtList($firewall, fn($v) => $this->fmtFirewall($v)),
+            $this->fmtList($antivirus, fn($v) => $this->fmtValue($v)),
+            $this->fmtList($bitlocker, fn($v) => $this->fmtValue($v)),
+            $this->fmtList($firewall, fn($v) => $this->fmtValue($v)),
             $this->fmtValue($security['tpm'] ?? $audit->tpm),
             $audit->secure_boot === null ? '' : ($audit->secure_boot ? 'True' : 'False'),
-            $this->fmtLicense($licenses['windows'] ?? $audit->licenses->where('product_type', 'WINDOWS')->toArray()),
-            $this->fmtLicense($licenses['office'] ?? $audit->licenses->where('product_type', 'OFFICE')->toArray()),
+            $this->fmtLicenseList($windowsLicenses),
+            $this->fmtLicenseList($officeLicenses),
             optional($audit->collected_at)->format('Y-m-d H:i:s'),
-            $this->fmtList($software, fn($v) => $this->fmtSoftware($v)),
+            $this->fmtSoftwareList($software),
         ];
     }
 
     private function listFrom(mixed $value): array
     {
-        if (!is_array($value) || $value === []) {
-            return [];
-        }
-
+        if (!is_array($value) || $value === []) return [];
         return array_is_list($value) ? $value : [$value];
     }
 
@@ -257,299 +209,188 @@ class PcAuditController extends Controller
     {
         $items = [];
         foreach ($rows as $row) {
-            if (!is_array($row)) {
-                $row = ['value' => $row];
-            }
+            if (!is_array($row)) $row = ['value' => $row];
             $text = trim((string) $formatter($row));
-            if ($text !== '' && !in_array($text, $items, true)) {
-                $items[] = $text;
-            }
+            if ($text !== '' && !in_array($text, $items, true)) $items[] = $text;
         }
-
         return implode("\n", $items);
+    }
+
+    private function fmtMemoryList(array $rows): string
+    {
+        return $this->fmtList($rows, function ($v) {
+            $parts = [];
+            $fields = [
+                'capacity_gb' => 'Capacity', 'capacity' => 'Capacity', 'speed' => 'Speed',
+                'configured_clock_speed' => 'Configured Speed', 'slot' => 'Slot', 'bank_label' => 'Bank',
+                'manufacturer' => 'Manufacturer', 'part_number' => 'Part Number', 'serial_number' => 'Serial',
+                'form_factor' => 'Form Factor', 'memory_type' => 'Memory Type', 'data_width' => 'Data Width',
+                'total_width' => 'Total Width',
+            ];
+            foreach ($fields as $key => $label) {
+                if (array_key_exists($key, $v) && $v[$key] !== null && $v[$key] !== '') {
+                    $value = $v[$key];
+                    if ($key === 'capacity_gb') $value .= ' GB';
+                    if ($key === 'speed' || $key === 'configured_clock_speed') $value .= ' MHz';
+                    if ($key === 'data_width' || $key === 'total_width') $value .= ' bit';
+                    $parts[] = $label . ': ' . $value;
+                }
+            }
+            return implode(' | ', $parts);
+        });
+    }
+
+    private function fmtStorageList(array $rows): string
+    {
+        return $this->fmtList($rows, function ($v) {
+            $parts = [];
+            foreach (['drive'=>'Drive','volume_name'=>'Volume','used_gb'=>'Used GB','free_gb'=>'Free GB','total_gb'=>'Total GB','filesystem'=>'File System'] as $key=>$label) {
+                if (array_key_exists($key,$v) && $v[$key] !== null && $v[$key] !== '') $parts[] = $label . ': ' . $v[$key];
+            }
+            return implode(' | ', $parts);
+        });
+    }
+
+    private function fmtMonitorList(array $rows): string
+    {
+        return $this->fmtList($rows, fn($v) => $this->fmtParts($v, ['manufacturer','model','serial_number']));
+    }
+
+    private function fmtGpuList(array $rows): string
+    {
+        return $this->fmtList($rows, fn($v) => $this->fmtParts($v, ['name','vram_gb','vram','driver_version']));
+    }
+
+    private function fmtBatteryList(array $rows): string
+    {
+        return $this->fmtList($rows, fn($v) => $this->fmtParts($v, ['name','status','charge_percent']));
+    }
+
+    private function fmtCpu(array $v): string
+    {
+        return $this->fmtParts($v, ['name','cores','threads','max_clock']);
+    }
+
+    private function fmtWindows(array $v): string
+    {
+        $labels = [
+            'caption'=>'Edition', 'version'=>'Version', 'build'=>'Build', 'architecture'=>'Architecture',
+            'install_date'=>'Install Date', 'registered_user'=>'Registered User', 'organization'=>'Organization',
+            'serial_number'=>'OS Serial', 'product_type'=>'Product Type', 'sku'=>'SKU', 'language'=>'Language',
+            'csd_version'=>'Service Pack', 'windows_directory'=>'Windows Dir', 'system_directory'=>'System Dir',
+            'system_drive'=>'System Drive', 'manufacturer'=>'Manufacturer', 'status'=>'Status',
+            'total_visible_memory_gb'=>'Visible RAM GB', 'last_boot'=>'Last Boot', 'uptime_hours'=>'Uptime Hours',
+        ];
+        return $this->fmtParts($v, array_keys($labels), $labels);
+    }
+
+    private function fmtLicenseList(array $rows): string
+    {
+        return $this->fmtList($rows, function ($v) {
+            $labels = [
+                'product_name'=>'Product', 'status_text'=>'Status', 'status'=>'Status Code',
+                'partial_product_key'=>'Partial Key', 'description'=>'Description', 'license_family'=>'License Family',
+                'application_id'=>'Application ID', 'product_key_channel'=>'Product Key Channel',
+                'grace_period_remaining'=>'Grace Period',
+            ];
+            return $this->fmtParts($v, array_keys($labels), $labels);
+        });
+    }
+
+    private function fmtSoftwareList(array $rows): string
+    {
+        return $this->fmtList($rows, function ($v) {
+            $name = trim((string)($v['name'] ?? ''));
+            if ($name === '') return '';
+            $parts = [$name];
+            if (!empty($v['version'])) $parts[] = 'Version: ' . $v['version'];
+            if (!empty($v['publisher'])) $parts[] = 'Publisher: ' . $v['publisher'];
+            if (!empty($v['install_date'])) $parts[] = 'Install: ' . $v['install_date'];
+            return implode(' | ', $parts);
+        });
     }
 
     private function fmtNetworkList(array $rows, array $terms): string
     {
         $items = [];
         foreach ($rows as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $text = strtolower((string) ($row['type'] ?? '') . ' ' . ($row['name'] ?? '') . ' ' . ($row['description'] ?? ''));
-            $matched = false;
+            if (!is_array($row)) continue;
+            $haystack = strtolower((string)($row['type'] ?? '') . ' ' . ($row['name'] ?? '') . ' ' . ($row['description'] ?? ''));
             foreach ($terms as $term) {
-                if (str_contains($text, strtolower($term))) {
-                    $matched = true;
+                if (str_contains($haystack, strtolower($term))) {
+                    $text = $this->fmtNetwork($row);
+                    if ($text !== '' && !in_array($text, $items, true)) $items[] = $text;
                     break;
                 }
             }
-            if (!$matched) {
-                continue;
-            }
-
-            $formatted = trim($this->fmtNetwork($row));
-            if ($formatted !== '' && !in_array($formatted, $items, true)) {
-                $items[] = $formatted;
-            }
         }
-
         return implode("\n", $items);
+    }
+
+    private function fmtNetwork(array $v): string
+    {
+        return $this->fmtParts($v, ['type','name','description','ipv4','mac','gateway','dns','dhcp','connection_status','link_speed']);
     }
 
     private function fmtNetworkFieldList(array $rows, string $key): string
     {
         $items = [];
         foreach ($rows as $row) {
-            if (!is_array($row) || !array_key_exists($key, $row)) {
-                continue;
-            }
-            $text = trim($this->scalarText($row[$key]));
-            if ($text !== '' && !in_array($text, $items, true)) {
-                $items[] = $text;
-            }
+            if (!is_array($row) || !array_key_exists($key, $row)) continue;
+            $text = $this->scalarText($row[$key]);
+            if ($text !== '' && !in_array($text, $items, true)) $items[] = $text;
         }
-
         return implode("\n", $items);
-    }
-
-    private function fmtMainboard(mixed $v): string
-    {
-        return $this->fmtValue($v);
-    }
-
-    private function fmtBios(mixed $v): string
-    {
-        return $this->fmtValue($v);
-    }
-
-    private function fmtCpu(array $v): string
-    {
-        return $this->fmtValue($v);
-    }
-
-    private function fmtValue(mixed $v): string
-    {
-        if ($v === null || $v === '') {
-            return '';
-        }
-        if (!is_array($v)) {
-            return (string) $v;
-        }
-
-        return implode(' | ', array_filter(array_map(
-            fn($k, $x) => $this->fmtPart($k, $x),
-            array_keys($v),
-            array_values($v)
-        )));
-    }
-
-    private function fmtPart(string|int $key, mixed $value): string
-    {
-        if ($value === null || $value === '') {
-            return '';
-        }
-        if (is_array($value)) {
-            $value = implode(', ', array_map(
-                fn($x) => is_scalar($x) ? (string) $x : (json_encode($x, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: ''),
-                $value
-            ));
-        } elseif (is_object($value)) {
-            $value = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
-        }
-
-        return is_string($key)
-            ? ucfirst(str_replace('_', ' ', $key)) . ': ' . $value
-            : (string) $value;
-    }
-
-    private function fmtMemoryList(array $rows): string
-    {
-        return $this->fmtList($rows, function ($v) {
-            $map = ['capacity', 'speed', 'slot', 'manufacturer', 'part_number', 'serial_number'];
-            return implode(' | ', array_filter(array_map(fn($k) => $this->fmtPart($k, $v[$k] ?? null), $map)));
-        });
-    }
-
-    private function fmtStorageList(array $rows): string
-    {
-        return $this->fmtList($rows, fn($v) => $this->fmtStorage($v));
-    }
-
-    private function fmtMonitorList(array $rows): string
-    {
-        return $this->fmtList($rows, fn($v) => $this->fmtMonitor($v));
-    }
-
-    private function fmtGpuList(array $rows): string
-    {
-        return $this->fmtList($rows, fn($v) => $this->fmtGpu($v));
-    }
-
-    private function fmtBatteryList(array $rows): string
-    {
-        return $this->fmtList($rows, fn($v) => $this->fmtBattery($v));
-    }
-
-    private function fmtStorage(array $v): string
-    {
-        return $this->fmtParts($v, ['drive', 'used_gb', 'total_gb'], ['used_gb' => 'Used GB', 'total_gb' => 'Total GB']);
-    }
-
-    private function fmtMonitor(array $v): string
-    {
-        return $this->fmtParts($v, ['manufacturer', 'model', 'serial_number']);
-    }
-
-    private function fmtGpu(array $v): string
-    {
-        return $this->fmtParts($v, ['name', 'vram', 'driver_version']);
-    }
-
-    private function fmtBattery(array $v): string
-    {
-        return $this->fmtParts($v, ['name', 'status', 'charge_percent']);
     }
 
     private function fmtParts(array $v, array $keys, array $labels = []): string
     {
-        $out = [];
-        foreach ($keys as $k) {
-            if (($v[$k] ?? null) !== null && ($v[$k] ?? '') !== '') {
-                $label = $labels[$k] ?? ucfirst(str_replace('_', ' ', $k));
-                $value = $this->scalarText($v[$k]);
-                $out[] = $label === '' ? $value : $label . ': ' . $value;
-            }
+        $parts = [];
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $v) || $v[$key] === null || $v[$key] === '') continue;
+            $value = $this->scalarText($v[$key]);
+            if ($value === '') continue;
+            $parts[] = ($labels[$key] ?? ucfirst(str_replace('_',' ',$key))) . ': ' . $value;
         }
-
-        return implode(' | ', $out);
-    }
-
-    private function fmtWindows(array $v): string
-    {
-        if (!$v) {
-            return '';
-        }
-
-        return $this->fmtParts($v, ['name', 'version', 'build', 'architecture'], [
-            'name' => '',
-            'version' => 'Version',
-            'build' => 'Build',
-            'architecture' => 'Architecture',
-        ]);
-    }
-
-    private function fmtWindowsUpdate(mixed $auditUpdate, array $windows): string
-    {
-        $v = $auditUpdate ?: ($windows['windows_update'] ?? null);
-        if (is_array($v)) {
-            return $this->fmtValue($v);
-        }
-
-        return $this->scalarText($v);
-    }
-
-    private function formatUptime(mixed $v): string
-    {
-        if ($v === null || $v === '') {
-            return '';
-        }
-
-        return is_numeric($v)
-            ? number_format((float) $v, 2, '.', '') . ' hours'
-            : (string) $v;
-    }
-
-    private function fmtNetwork(array $v): string
-    {
-        if (!$v) {
-            return '';
-        }
-
-        $type = $v['type'] ?? $v['name'] ?? '';
-        $parts = array_filter([
-            $type,
-            isset($v['name']) && $v['name'] !== $type ? $v['name'] : null,
-            isset($v['description']) ? $v['description'] : null,
-            isset($v['ipv4']) ? 'IP: ' . $this->scalarText($v['ipv4']) : null,
-            isset($v['gateway']) ? 'GW: ' . $this->scalarText($v['gateway']) : null,
-            isset($v['mac']) ? 'MAC: ' . $this->scalarText($v['mac']) : null,
-            isset($v['connection_status']) ? 'Status: ' . $this->scalarText($v['connection_status']) : null,
-        ]);
-
         return implode(' | ', $parts);
     }
 
-    private function fmtAntivirus(array $v): string
+    private function fmtValue(mixed $v): string
     {
-        return $this->fmtParts($v, ['display_name', 'status', 'executable_path', 'signature_version']);
-    }
-
-    private function fmtBitlocker(array $v): string
-    {
-        return $this->fmtParts($v, ['mount_point', 'protection_status', 'volume_status', 'encryption_percent']);
-    }
-
-    private function fmtFirewall(array $v): string
-    {
-        return $this->fmtParts($v, ['profile', 'enabled']);
-    }
-
-    private function fmtLicense(mixed $v): string
-    {
-        $rows = $this->listFrom($v);
-        if (!$rows) {
-            return '';
+        if ($v === null || $v === '') return '';
+        if (!is_array($v)) return (string)$v;
+        $parts = [];
+        foreach ($v as $key => $value) {
+            if ($value === null || $value === '') continue;
+            $text = $this->scalarText($value);
+            if ($text !== '') $parts[] = ucfirst(str_replace('_',' ',(string)$key)) . ': ' . $text;
         }
-
-        $items = [];
-        foreach ($rows as $row) {
-            $text = is_array($row)
-                ? $this->fmtParts($row, ['product_name', 'status', 'partial_product_key', 'product_type'])
-                : (string) $row;
-            if ($text !== '' && !in_array($text, $items, true)) {
-                $items[] = $text;
-            }
-        }
-
-        return implode("\n", $items);
+        return implode(' | ', $parts);
     }
 
-    private function fmtSoftware(array $v): string
+    private function scalarText(mixed $value): string
     {
-        return $this->fmtParts($v, ['name', 'version', 'publisher', 'install_date', 'estimated_size'], [
-            'name' => '',
-            'version' => 'Version',
-            'publisher' => 'Publisher',
-            'install_date' => 'Install',
-            'estimated_size' => 'Size',
-        ]);
+        if ($value === null || $value === '') return '';
+        if (is_bool($value)) return $value ? 'True' : 'False';
+        if (is_array($value)) return implode(', ', array_map(fn($v) => $this->scalarText($v), $value));
+        if (is_object($value)) return (string)json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return (string)$value;
     }
 
-    private function scalarText(mixed $v): string
+    private function formatUptime(mixed $value): string
     {
-        if ($v === null || $v === '') {
-            return '';
-        }
-        if (is_bool($v)) {
-            return $v ? 'True' : 'False';
-        }
-        if (is_scalar($v)) {
-            return (string) $v;
-        }
-
-        return json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
+        if ($value === null || $value === '') return '';
+        return is_numeric($value) ? round((float)$value, 2) . ' hours' : (string)$value;
     }
 
-    private function columnLetter(int $number): string
+    private function columnLetter(int $column): string
     {
         $letter = '';
-        while ($number > 0) {
-            $number--;
-            $letter = chr(65 + ($number % 26)) . $letter;
-            $number = intdiv($number, 26);
+        while ($column > 0) {
+            $mod = ($column - 1) % 26;
+            $letter = chr(65 + $mod) . $letter;
+            $column = intdiv($column - $mod, 26);
         }
-
         return $letter;
     }
 }
