@@ -2,7 +2,7 @@
 @section('title','PC Audit')
 @section('content')
 <style>
-    .pc-audit-page{--pa-primary:#0f766e;--pa-primary-dark:#115e59;--pa-soft:#ecfdf5;--pa-border:#e2e8f0;--pa-text:#0f172a;--pa-muted:#64748b}
+    .pc-audit-page{--pa-primary:#0f766e;--pa-primary-dark:#115e59;--pa-danger:#dc2626;--pa-danger-dark:#b91c1c;--pa-soft:#ecfdf5;--pa-border:#e2e8f0;--pa-text:#0f172a;--pa-muted:#64748b}
     .pc-audit-page *{box-sizing:border-box}
     .pc-audit-hero{background:linear-gradient(135deg,#0f766e 0%,#155e75 100%);color:#fff;border-radius:18px;padding:24px 26px;margin-bottom:18px;box-shadow:0 10px 30px rgba(15,118,110,.16)}
     .pc-audit-hero-inner{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
@@ -23,7 +23,7 @@
     .pc-audit-section-title{margin:0;font-size:16px;font-weight:750;color:var(--pa-text)}
     .pc-audit-count{font-size:12px;color:var(--pa-muted);background:#f8fafc;border:1px solid var(--pa-border);padding:6px 10px;border-radius:999px}
     .pc-audit-table-wrap{overflow-x:auto;border:1px solid var(--pa-border);border-radius:12px}
-    .pc-audit-table{width:100%;min-width:1120px;border-collapse:separate;border-spacing:0;font-size:13px}
+    .pc-audit-table{width:100%;min-width:1220px;border-collapse:separate;border-spacing:0;font-size:13px}
     .pc-audit-table th{background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.35px;font-weight:750;padding:12px 11px;border-bottom:1px solid var(--pa-border);white-space:nowrap;text-align:left}
     .pc-audit-table td{padding:13px 11px;border-bottom:1px solid #eef2f7;color:#334155;vertical-align:middle}
     .pc-audit-table tbody tr:last-child td{border-bottom:0}
@@ -36,11 +36,16 @@
     .pc-audit-status{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.25px}
     .pc-audit-status.pass{background:#dcfce7;color:#166534}.pc-audit-status.fail{background:#fee2e2;color:#b91c1c}.pc-audit-status.review{background:#fef3c7;color:#92400e}
     .pc-audit-score{font-weight:800;color:#0f766e}
-    .pc-audit-view{display:inline-flex;align-items:center;padding:7px 11px;border-radius:8px;border:1px solid #cbd5e1;color:#0f766e;text-decoration:none;font-weight:700;background:#fff}
+    .pc-audit-row-actions{display:flex;align-items:center;gap:6px;white-space:nowrap}
+    .pc-audit-view,.pc-audit-delete{display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border-radius:8px;text-decoration:none;font-weight:700;background:#fff;cursor:pointer}
+    .pc-audit-view{border:1px solid #cbd5e1;color:#0f766e}
     .pc-audit-view:hover{background:#ecfdf5;border-color:#99f6e4}
+    .pc-audit-delete{border:1px solid #fecaca;color:var(--pa-danger);font:inherit}
+    .pc-audit-delete:hover{background:#fef2f2;border-color:#fca5a5;color:var(--pa-danger-dark)}
     .pc-audit-export{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
     .pc-audit-export-note{font-size:12px;color:var(--pa-muted)}
     .pc-audit-empty{text-align:center!important;padding:38px!important;color:#94a3b8!important}
+    .pc-audit-alert{display:flex;align-items:flex-start;gap:10px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:13px}
     .pc-audit-pagination{margin-top:16px}
     @media(max-width:900px){.pc-audit-toolbar{grid-template-columns:1fr 1fr}.pc-audit-toolbar .full{grid-column:1/-1}}
     @media(max-width:600px){.pc-audit-toolbar{grid-template-columns:1fr}.pc-audit-toolbar .full{grid-column:auto}.pc-audit-card{padding:14px}.pc-audit-hero{padding:20px}}
@@ -60,6 +65,10 @@
             </div>
         </div>
     </div>
+
+    @if(session('success'))
+        <div class="pc-audit-alert">✅ <span>{{ session('success') }}</span></div>
+    @endif
 
     <div class="pc-audit-card">
         <form method="GET" action="{{ route('admin.pc_audit.index') }}" class="pc-audit-toolbar">
@@ -98,7 +107,7 @@
                         <tr>
                             <th style="width:42px"><input type="checkbox" class="pc-audit-check" id="check-all" title="Chọn tất cả"></th>
                             <th>Khách hàng</th><th>Chi nhánh</th><th>Code</th><th>Computer</th><th>Serial</th>
-                            <th>Họ tên</th><th>Phòng ban</th><th>Kết quả</th><th>Điểm</th><th>Ngày Audit</th><th></th>
+                            <th>Họ tên</th><th>Phòng ban</th><th>Kết quả</th><th>Điểm</th><th>Ngày Audit</th><th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -116,7 +125,17 @@
                             <td><span class="pc-audit-status {{ in_array($statusClass,['pass','fail','review']) ? $statusClass : 'review' }}">{{ $status }}</span></td>
                             <td><span class="pc-audit-score">{{ $audit->audit_score !== null ? $audit->audit_score.'%' : '—' }}</span></td>
                             <td>{{ optional($audit->collected_at)->format('d/m/Y H:i') ?: '—' }}</td>
-                            <td><a class="pc-audit-view" href="{{ route('admin.pc_audit.show', $audit) }}">Xem</a></td>
+                            <td>
+                                <div class="pc-audit-row-actions">
+                                    <a class="pc-audit-view" href="{{ route('admin.pc_audit.show', $audit) }}">Xem</a>
+                                    @if(auth()->user()->hasPermission('pc_audit.delete'))
+                                        <form method="POST" action="{{ route('admin.pc_audit.delete', $audit) }}" onsubmit="return confirmDeletePcAudit('{{ addslashes($audit->computer_name ?: 'máy này') }}');">
+                                            @csrf
+                                            <button class="pc-audit-delete" type="submit" title="Xóa vĩnh viễn PC Audit">🗑 Xóa</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="12" class="pc-audit-empty">Chưa có dữ liệu Audit phù hợp với điều kiện tìm kiếm.</td></tr>
@@ -136,6 +155,15 @@
 </div>
 
 <script>
+function confirmDeletePcAudit(computerName) {
+    return window.confirm(
+        'XÓA VĨNH VIỄN PC AUDIT\n\n' +
+        'Máy: ' + computerName + '\n\n' +
+        'Thao tác này sẽ xóa toàn bộ dữ liệu Audit của máy, bao gồm phần cứng, lưu trữ, màn hình, GPU, pin, network, security, license và software.\n\n' +
+        'Dữ liệu sẽ không được đánh dấu mà bị xóa hoàn toàn. Bạn có chắc chắn muốn tiếp tục?'
+    );
+}
+
 (function(){
     const all=document.getElementById('check-all');
     const checks=[...document.querySelectorAll('.audit-check')];
