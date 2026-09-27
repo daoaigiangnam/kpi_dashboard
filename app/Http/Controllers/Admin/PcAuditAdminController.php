@@ -9,6 +9,7 @@ use App\Models\CustomerBranch;
 use App\Models\PcAuditCode;
 use App\Models\PcAuditSetting;
 use App\Models\ServiceCustomer;
+use App\Models\ServiceCustomerAlertRecipient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -192,5 +193,58 @@ class PcAuditAdminController extends Controller
         $pcAuditCode->update(['is_active' => !$pcAuditCode->is_active]);
 
         return back()->with('success', 'Đã cập nhật trạng thái Audit Code.');
+    }
+
+    // Giữ các route cũ để không làm hỏng bookmark/URL hiện hữu. Giao diện PC Audit không còn dùng chúng.
+    public function recipients(Request $request)
+    {
+        $customers = ServiceCustomer::query()
+            ->where('is_active', true)
+            ->with('alertRecipients')
+            ->orderBy('name')
+            ->get();
+        $customerId = $request->query('customer_id');
+        $customer = $customerId ? $customers->firstWhere('id', (int) $customerId) : null;
+        return view('admin.pc-audit.recipients', compact('customers', 'customer', 'customerId'));
+    }
+
+    public function storeRecipient(Request $request)
+    {
+        $data = $request->validate([
+            'customer_id' => ['required', 'exists:service_customers,id'],
+            'recipient_name' => ['required', 'string', 'max:150'],
+            'recipient_email' => ['required', 'email', 'max:190'],
+            'recipient_phone' => ['nullable', 'string', 'max:50'],
+            'level' => ['nullable', 'integer', 'min:1', 'max:99'],
+        ]);
+
+        $customer = ServiceCustomer::query()
+            ->whereKey($data['customer_id'])
+            ->where('is_active', true)
+            ->first();
+
+        if (!$customer) {
+            return back()->withInput()->withErrors([
+                'customer_id' => 'Customer Service không tồn tại hoặc đang không hoạt động.',
+            ]);
+        }
+
+        $data['level'] = (int) ($data['level'] ?? 1);
+        $data['is_active'] = true;
+        ServiceCustomerAlertRecipient::create($data);
+
+        return back()->with('success', 'Đã thêm Email nhận Audit.');
+    }
+
+    public function deleteRecipient(ServiceCustomerAlertRecipient $recipient)
+    {
+        $recipient->delete();
+        return back()->with('success', 'Đã xóa Email nhận Audit.');
+    }
+
+    public function toggleRecipient(ServiceCustomerAlertRecipient $recipient)
+    {
+        $recipient->update(['is_active' => !$recipient->is_active]);
+        return back()->with('success', 'Đã cập nhật trạng thái Email.');
     }
 }
