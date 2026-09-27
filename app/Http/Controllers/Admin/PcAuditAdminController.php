@@ -100,6 +100,15 @@ class PcAuditAdminController extends Controller
         }
 
         $name = trim($data['name']);
+        if (CustomerBranch::query()
+            ->where('customer_id', $customer->id)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->exists()) {
+            return back()->withInput()->withErrors([
+                'name' => 'Chi nhánh này đã tồn tại trong Customer.',
+            ]);
+        }
+
         $baseCode = strtoupper(Str::limit(Str::slug($name, '-'), 45, ''));
         if ($baseCode === '') {
             $baseCode = 'BRANCH';
@@ -112,15 +121,6 @@ class PcAuditAdminController extends Controller
             ->where('code', $branchCode)
             ->exists()) {
             $branchCode = Str::limit($baseCode, 45, '') . '-' . $suffix++;
-        }
-
-        if (CustomerBranch::query()
-            ->where('customer_id', $customer->id)
-            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
-            ->exists()) {
-            return back()->withInput()->withErrors([
-                'name' => 'Chi nhánh này đã tồn tại trong Customer.',
-            ]);
         }
 
         CustomerBranch::create([
@@ -137,6 +137,11 @@ class PcAuditAdminController extends Controller
 
     public function storeCode(Request $request)
     {
+        // Dùng chung POST /pc-audit/codes để giao diện vẫn chỉ có một luồng cấu hình.
+        if ($request->input('action') === 'create_branch') {
+            return $this->storeBranch($request);
+        }
+
         $data = $request->validate([
             'branch_id' => ['required', 'exists:customer_branches,id'],
             'department' => ['required', 'string', 'max:200'],
