@@ -84,7 +84,7 @@ class PcAuditController extends Controller
             $lastCol = count($headers);
 
             // Header: clean, readable, filterable.
-            $sheet->getStyleByColumnAndRow(1, 1, $lastCol, 1)->applyFromArray([
+            $sheet->getStyle('A1:' . $this->columnLetter($lastCol) . '1')->applyFromArray([
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '126B6F']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
@@ -92,7 +92,7 @@ class PcAuditController extends Controller
             ]);
             $sheet->getRowDimension(1)->setRowHeight(34);
 
-            $sheet->getStyleByColumnAndRow(1, 2, $lastCol, $lastRow)->applyFromArray([
+            $sheet->getStyle('A2:' . $this->columnLetter($lastCol) . $lastRow)->applyFromArray([
                 'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D9E2E3']]],
             ]);
@@ -100,7 +100,9 @@ class PcAuditController extends Controller
             if ($lastRow > 1) {
                 for ($row = 2; $row <= $lastRow; $row++) {
                     if ($row % 2 === 0) {
-                        $sheet->getStyleByColumnAndRow(1, $row, $lastCol, $row)
+                        $sheet->getStyle(
+    'A' . $row . ':' . $this->columnLetter($lastCol) . $row
+)
                             ->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F5FAFA');
                     }
                     $sheet->getRowDimension($row)->setRowHeight(42);
@@ -108,7 +110,10 @@ class PcAuditController extends Controller
             }
 
             // Highlight the Software column so the long inventory remains easy to scan.
-            $sheet->getStyleByColumnAndRow($lastCol, 2, $lastCol, $lastRow)->getFill()
+            $sheet->getStyle(
+    $this->columnLetter($lastCol) . '2:' .
+    $this->columnLetter($lastCol) . $lastRow
+)->getFill()
                 ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EAF8F4');
 
             $sheet->freezePane('A2');
