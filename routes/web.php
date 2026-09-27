@@ -32,15 +32,6 @@ use App\Http\Controllers\Admin\ServiceMonitoringController;
 use App\Http\Controllers\Admin\ServiceToolsController;
 
 Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name('login');
-
-Route::get('/', function () {
-    if (auth()->check()) {
-        return redirect()->route('admin.home');
-    }
-
-    return redirect()->route('login');
-})->name('home');
-
 Route::post('/login',[LoginController::class,'login'])->middleware(['guest','throttle:5,1'])->name('login.attempt');
 Route::post('/logout',[LoginController::class,'logout'])->middleware('auth')->name('logout');
 Route::get('/signup',[RegisterController::class,'show'])->middleware('guest')->name('register');
