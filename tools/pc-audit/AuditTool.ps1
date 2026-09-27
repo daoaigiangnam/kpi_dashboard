@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $here 'Config.ps1')
 . (Join-Path $here 'ApiClient.ps1')
-. (Join-Path $here 'Collector.ps1')
+. (Join-Path $here 'Collector.ps1') -Progress
 
 function Show-AuditValue {
     param([string]$Label, [object]$Value)
@@ -54,16 +54,7 @@ Write-Host '      DANG THU THAP THONG TIN PC' -ForegroundColor Cyan
 Write-Host '=========================================' -ForegroundColor Cyan
 Write-Host 'Ket qua thuc te se hien thi ngay sau moi nhom.' -ForegroundColor DarkGray
 
-Write-Host ''
-Write-Host '[01] Computer / Domain / Serial / Asset Tag' -ForegroundColor Yellow
-$collector = Get-PcAuditCollector -Progress
-Show-AuditValue 'Computer Name' $collector.computer.computer_name
-Show-AuditValue 'User Windows' $collector.computer.username
-Show-AuditValue 'Domain' $collector.computer.domain
-Show-AuditValue 'Manufacturer' $collector.computer.manufacturer
-Show-AuditValue 'Model' $collector.computer.model
-Show-AuditValue 'Serial' $collector.computer.serial_number
-Show-AuditValue 'Asset Tag' $collector.computer.asset_tag
+$collector = Get-PcAuditCollector
 
 Write-Host ''
 Write-Host 'Toan bo du lieu da duoc thu thap. Dang gui ve he thong...' -ForegroundColor Yellow
