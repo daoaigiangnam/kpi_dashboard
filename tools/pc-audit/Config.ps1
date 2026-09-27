@@ -1,4 +1,4 @@
-﻿﻿# PC Audit Tool configuration
+# PC Audit Tool configuration
 # The bootstrap endpoint is intentionally stable. The actual API base URL is managed by Admin on the Web.
 $script:PcAuditConfigEndpoint = 'https://kpi.review360.id.vn/api/pc-audit/config'
 $script:PcAuditApiBaseUrl = $null
