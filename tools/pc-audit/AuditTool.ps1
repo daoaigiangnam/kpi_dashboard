@@ -20,11 +20,8 @@ if (-not [string]::IsNullOrWhiteSpace($serverVersion)) {
 }
 
 $code = Read-Host 'Audit Code'
-$department = Read-Host 'Phòng ban'
-$employeeName = Read-Host 'Họ và tên'
-
-if ([string]::IsNullOrWhiteSpace($code) -or [string]::IsNullOrWhiteSpace($department) -or [string]::IsNullOrWhiteSpace($employeeName)) {
-    throw 'Code, Phòng ban và Họ tên không được để trống.'
+if ([string]::IsNullOrWhiteSpace($code)) {
+    throw 'Audit Code không được để trống.'
 }
 
 Write-Host 'Đang xác thực Audit Code...' -ForegroundColor Yellow
@@ -36,8 +33,21 @@ if ($validation.ok -ne $true) {
 
 $customerName = $validation.data.customer.name
 $branchName = $validation.data.branch.name
+$department = [string]$validation.data.department
+if ([string]::IsNullOrWhiteSpace($department)) {
+    throw 'Audit Code chưa được khai báo Phòng ban trên hệ thống.'
+}
+
 Write-Host "Khách hàng : $customerName" -ForegroundColor Green
 Write-Host "Chi nhánh  : $branchName" -ForegroundColor Green
+Write-Host "Phòng ban  : $department" -ForegroundColor Green
+
+$defaultEmployee = [string]$env:USERNAME
+$employeeInput = Read-Host "Họ tên người sử dụng (Enter = $defaultEmployee)"
+$employeeName = if ([string]::IsNullOrWhiteSpace($employeeInput)) { $defaultEmployee } else { $employeeInput.Trim() }
+if ([string]::IsNullOrWhiteSpace($employeeName)) {
+    throw 'Không xác định được người sử dụng máy.'
+}
 
 Write-Host 'Đang kiểm tra cấu hình Email...' -ForegroundColor Yellow
 $mailConfig = Invoke-PcAuditGetMailConfig -Code $code
