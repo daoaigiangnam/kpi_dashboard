@@ -57,7 +57,7 @@ class PcAuditAdminController extends Controller
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
 
-        // Chi nhánh chỉ khai báo bổ sung cho Customer Service; không tạo Customer mới.
+        // Chỉ khai báo bổ sung Chi nhánh cho Customer Service khi cần.
         $branches = CustomerBranch::query()
             ->with('customer:id,code,name')
             ->where('is_active', true)
@@ -71,9 +71,10 @@ class PcAuditAdminController extends Controller
             ->whereHas('branch', fn ($q) => $q
                 ->where('is_active', true)
                 ->whereHas('customer', fn ($c) => $c->where('is_active', true)))
-            ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
-                ->where('code', 'like', "%{$search}%")
-                ->orWhere('department', 'like', "%{$search}%")))
+            ->when($search !== '', fn ($q) => $q->where(function ($x) use ($search) {
+                $x->where('code', 'like', "%{$search}%")
+                    ->orWhere('name', 'like', "%{$search}%");
+            }))
             ->when($customerId, fn ($q) => $q->whereHas('branch', fn ($b) => $b->where('customer_id', $customerId)))
             ->latest()
             ->paginate(25)
@@ -145,7 +146,6 @@ class PcAuditAdminController extends Controller
 
         $data = $request->validate([
             'branch_id' => ['required', 'exists:customer_branches,id'],
-            'department' => ['required', 'string', 'max:200'],
         ]);
 
         $branch = CustomerBranch::query()
@@ -161,17 +161,17 @@ class PcAuditAdminController extends Controller
             ]);
         }
 
-        $department = trim($data['department']);
-        $baseCode = collect([
-            $branch->customer?->code,
-            $branch->code,
-            Str::slug($department, '-'),
-        ])->filter()->map(fn ($value) => strtoupper((string) $value))->implode('-');
+        // Audit Code chỉ phụ thuộc Customer + Chi nhánh. Không phụ thuộc Phòng ban.
+        $customerCode = strtoupper((string) ($branch->customer?->code ?: Str::slug($branch->customer?->name ?? 'CUSTOMER', '-')));
+        $branchCode = strtoupper((string) ($branch->code ?: Str::slug($branch->name, '-')));
+        $baseCode = Str::limit(implode('-', array_filter([$customerCode, $branchCode])), 92, '');
 
-        $baseCode = Str::limit($baseCode, 92, '');
+        if ($baseCode === '') {
+            $baseCode = 'PC-AUDIT';
+        }
+
         $code = $baseCode;
         $suffix = 2;
-
         while (PcAuditCode::query()->where('code', $code)->exists()) {
             $suffixText = '-' . $suffix++;
             $code = Str::limit($baseCode, 100 - strlen($suffixText), '') . $suffixText;
@@ -180,8 +180,7 @@ class PcAuditAdminController extends Controller
         PcAuditCode::create([
             'branch_id' => $branch->id,
             'code' => $code,
-            'name' => 'PC Audit - ' . $department,
-            'department' => $department,
+            'name' => 'PC Audit - ' . $branch->name,
             'is_active' => true,
         ]);
 
