@@ -59,28 +59,29 @@ class PcAuditApiController extends Controller
         $audit = DB::transaction(function () use ($code, $payload, $data, $computer, $windows, $security, $value, $auditResult) {
             $audit = PcAudit::create([
                 'pc_audit_code_id' => $code->id,
-                'department' => $payload['department'] ?? null,
-                'employee_name' => $payload['employee_name'],
-                'employee_username' => $computer['username'] ?? $value(['username', 'employee_username']),
-                'domain' => $computer['domain'] ?? $value(['domain']),
-                'computer_name' => $computer['computer_name'] ?? $value(['computer_name', 'computerName']),
-                'manufacturer' => $computer['manufacturer'] ?? $value(['manufacturer']),
-                'model' => $computer['model'] ?? $value(['model']),
-                'serial_number' => $computer['serial_number'] ?? $value(['serial_number', 'serialNumber']),
-                'asset_tag' => $computer['asset_tag'] ?? $value(['asset_tag', 'assetTag']),
+                'department' => self::scalarValue($payload['department'] ?? null),
+                'employee_name' => self::scalarValue($payload['employee_name']),
+                'employee_username' => self::scalarValue($computer['username'] ?? $value(['username', 'employee_username'])),
+                'domain' => self::scalarValue($computer['domain'] ?? $value(['domain'])),
+                'computer_name' => self::scalarValue($computer['computer_name'] ?? $value(['computer_name', 'computerName'])),
+                'manufacturer' => self::scalarValue($computer['manufacturer'] ?? $value(['manufacturer'])),
+                'model' => self::scalarValue($computer['model'] ?? $value(['model'])),
+                'serial_number' => self::scalarValue($computer['serial_number'] ?? $value(['serial_number', 'serialNumber'])),
+                'asset_tag' => self::scalarValue($computer['asset_tag'] ?? $value(['asset_tag', 'assetTag'])),
+                // These columns are JSON-backed by the PcAudit model casts.
                 'mainboard' => $data['mainboard'] ?? null,
                 'bios' => $data['bios'] ?? null,
                 'operating_system' => $windows ?: ($data['operating_system'] ?? null),
                 'windows_update' => $data['windows_update'] ?? null,
-                'last_boot' => $windows['last_boot'] ?? $value(['last_boot']),
-                'uptime' => $windows['uptime_hours'] ?? $value(['uptime']),
+                'last_boot' => self::scalarValue($windows['last_boot'] ?? $value(['last_boot'])),
+                'uptime' => self::scalarValue($windows['uptime_hours'] ?? $value(['uptime'])),
                 'tpm' => $security['tpm'] ?? ($data['tpm'] ?? null),
-                'secure_boot' => $security['secure_boot'] ?? ($data['secure_boot'] ?? null),
-                'collected_at' => $value(['collected_at'], now()),
-                'audit_status' => $auditResult['status'],
+                'secure_boot' => self::scalarValue($security['secure_boot'] ?? ($data['secure_boot'] ?? null)),
+                'collected_at' => self::scalarValue($value(['collected_at'], now())),
+                'audit_status' => self::scalarValue($auditResult['status']),
                 'audit_score' => $auditResult['score'],
                 'audit_results' => $auditResult,
-                'audit_engine_version' => $auditResult['engine_version'],
+                'audit_engine_version' => self::scalarValue($auditResult['engine_version']),
                 'raw_payload' => $data,
             ]);
 
@@ -117,6 +118,13 @@ class PcAuditApiController extends Controller
         });
 
         return response()->json(['ok' => true, 'id' => $audit->id, 'audit_status' => $audit->audit_status, 'audit_score' => $audit->audit_score, 'audit_results' => $audit->audit_results, 'message' => 'Audit đã được ghi nhận và đánh giá.'], 201);
+    }
+
+    private static function scalarValue(mixed $value): mixed
+    {
+        if ($value === null || is_scalar($value)) return $value;
+        if (is_object($value) && method_exists($value, '__toString')) return (string) $value;
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     private static function typedLicenseRows(mixed $rows, string $type): array
