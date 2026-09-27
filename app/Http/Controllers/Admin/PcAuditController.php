@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CustomerBranch;
 use App\Models\PcAudit;
+use App\Models\PcAuditCode;
 use App\Models\ServiceCustomer;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -53,6 +55,80 @@ class PcAuditController extends Controller
         ]);
 
         return view('admin.pc-audit.show', ['audit' => $pcAudit]);
+    }
+
+    public function edit(PcAudit $pcAudit)
+    {
+        $pcAudit->load('auditCode.branch.customer');
+
+        $customers = ServiceCustomer::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+
+        $branches = CustomerBranch::query()
+            ->with('customer:id,code,name')
+            ->where('is_active', true)
+            ->whereHas('customer', fn ($q) => $q->where('is_active', true))
+            ->orderBy('customer_id')
+            ->orderBy('name')
+            ->get(['id', 'customer_id', 'code', 'name']);
+
+        return view('admin.pc-audit.edit', compact('pcAudit', 'customers', 'branches'));
+    }
+
+    public function update(Request $request, PcAudit $pcAudit)
+    {
+        $data = $request->validate([
+            'employee_name' => ['nullable', 'string', 'max:150'],
+            'customer_id' => ['required', 'integer', 'exists:service_customers,id'],
+            'branch_id' => ['required', 'integer', 'exists:customer_branches,id'],
+        ]);
+
+        $customer = ServiceCustomer::query()
+            ->whereKey($data['customer_id'])
+            ->where('is_active', true)
+            ->first();
+
+        if (!$customer) {
+            return back()->withInput()->withErrors([
+                'customer_id' => 'Customer không tồn tại hoặc đang không hoạt động.',
+            ]);
+        }
+
+        $branch = CustomerBranch::query()
+            ->whereKey($data['branch_id'])
+            ->where('customer_id', $customer->id)
+            ->where('is_active', true)
+            ->whereHas('customer', fn ($q) => $q->where('is_active', true))
+            ->first();
+
+        if (!$branch) {
+            return back()->withInput()->withErrors([
+                'branch_id' => 'Chi nhánh không thuộc Customer đã chọn hoặc đang không hoạt động.',
+            ]);
+        }
+
+        $auditCode = PcAuditCode::query()
+            ->where('branch_id', $branch->id)
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->first();
+
+        if (!$auditCode) {
+            return back()->withInput()->withErrors([
+                'branch_id' => 'Chi nhánh này chưa có Audit Code đang hoạt động. Vui lòng tạo Audit Code trước.',
+            ]);
+        }
+
+        $pcAudit->update([
+            'employee_name' => trim((string) ($data['employee_name'] ?? '')) ?: null,
+            'pc_audit_code_id' => $auditCode->id,
+        ]);
+
+        return redirect()
+            ->route('admin.pc_audit.show', $pcAudit)
+            ->with('success', 'Đã cập nhật Họ tên, Customer và Chi nhánh cho PC Audit.');
     }
 
     public function export(Request $request): StreamedResponse
