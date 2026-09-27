@@ -16,13 +16,15 @@ class PcAudit extends Model
 
     protected $fillable = [
         'pc_audit_code_id','department','employee_name','employee_username','domain','computer_name','manufacturer','model','serial_number','asset_tag',
-        'mainboard','bios','operating_system','windows_update','last_boot','uptime','tpm','secure_boot','collected_at','raw_payload',
+        'mainboard','bios','operating_system','windows_update','last_boot','uptime','tpm','secure_boot','collected_at',
+        'audit_status','audit_score','audit_results','audit_engine_version','raw_payload',
     ];
 
     protected function casts(): array
     {
         return [
-            'mainboard'=>'array','bios'=>'array','operating_system'=>'array','windows_update'=>'array','tpm'=>'array','raw_payload'=>'array','collected_at'=>'datetime',
+            'mainboard'=>'array','bios'=>'array','operating_system'=>'array','windows_update'=>'array','tpm'=>'array',
+            'audit_score'=>'integer','audit_results'=>'array','raw_payload'=>'array','collected_at'=>'datetime',
         ];
     }
 
