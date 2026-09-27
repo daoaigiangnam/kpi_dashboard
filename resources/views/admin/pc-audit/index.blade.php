@@ -13,12 +13,21 @@
 <div class="card" style="margin-top:18px">
 <form method="GET" action="{{ route('admin.pc_audit.export') }}" id="export-form">
 <table style="width:100%;border-collapse:collapse">
-<thead><tr><th></th><th>Khách hàng</th><th>Chi nhánh</th><th>Code</th><th>Computer</th><th>Serial</th><th>Họ tên</th><th>Phòng ban</th><th>Ngày Audit</th><th></th></tr></thead>
+<thead><tr><th></th><th>Khách hàng</th><th>Chi nhánh</th><th>Code</th><th>Computer</th><th>Serial</th><th>Họ tên</th><th>Phòng ban</th><th>Kết quả</th><th>Điểm</th><th>Ngày Audit</th><th></th></tr></thead>
 <tbody>
 @forelse($audits as $audit)
-<tr><td><input type="checkbox" name="ids[]" value="{{ $audit->id }}"></td><td>{{ $audit->auditCode?->branch?->customer?->name }}</td><td>{{ $audit->auditCode?->branch?->name }}</td><td>{{ $audit->auditCode?->code }}</td><td>{{ $audit->computer_name }}</td><td>{{ $audit->serial_number }}</td><td>{{ $audit->employee_name }}</td><td>{{ $audit->department }}</td><td>{{ optional($audit->collected_at)->format('d/m/Y H:i') }}</td><td><a class="button" href="{{ route('admin.pc_audit.show', $audit) }}">Xem</a></td></tr>
+@php $status=$audit->audit_status ?: 'REVIEW'; $badge=$status==='PASS'?'#198754':($status==='FAIL'?'#dc3545':'#d39e00'); @endphp
+<tr>
+<td><input type="checkbox" name="ids[]" value="{{ $audit->id }}"></td>
+<td>{{ $audit->auditCode?->branch?->customer?->name }}</td><td>{{ $audit->auditCode?->branch?->name }}</td><td>{{ $audit->auditCode?->code }}</td>
+<td>{{ $audit->computer_name }}</td><td>{{ $audit->serial_number }}</td><td>{{ $audit->employee_name }}</td><td>{{ $audit->department }}</td>
+<td><span style="display:inline-block;padding:3px 8px;border-radius:12px;background:{{ $badge }};color:#fff;font-weight:600">{{ $status }}</span></td>
+<td>{{ $audit->audit_score !== null ? $audit->audit_score.'%' : '—' }}</td>
+<td>{{ optional($audit->collected_at)->format('d/m/Y H:i') }}</td>
+<td><a class="button" href="{{ route('admin.pc_audit.show', $audit) }}">Xem</a></td>
+</tr>
 @empty
-<tr><td colspan="10">Chưa có dữ liệu Audit.</td></tr>
+<tr><td colspan="12">Chưa có dữ liệu Audit.</td></tr>
 @endforelse
 </tbody></table>
 <div style="margin-top:14px;display:flex;gap:10px;align-items:center"><button type="submit">Xuất Excel các máy đã chọn</button><span class="muted">Tối đa 200 máy/lần. Mỗi máy được xuất thành một sheet đầy đủ.</span></div>
