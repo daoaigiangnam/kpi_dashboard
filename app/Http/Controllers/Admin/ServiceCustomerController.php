@@ -21,18 +21,26 @@ class ServiceCustomerController extends Controller
         $customers = $query
             ->when(!$user->isSuperAdmin(), function ($q) use ($user): void {
                 $q->where(function ($x) use ($user): void {
+                    // Current ownership is by the assigned IT user.
                     $x->where('responsible_it_id', $user->id);
 
+                    // Keep legacy customers visible when they have not yet been assigned
+                    // to a specific IT user and are still assigned to this user's group.
                     if ($user->user_group_id) {
-                        $x->orWhereHas('groups', fn ($g) => $g->whereKey($user->user_group_id));
+                        $x->orWhere(function ($legacy) use ($user): void {
+                            $legacy->whereNull('responsible_it_id')
+                                ->whereHas('groups', fn ($g) => $g->whereKey($user->user_group_id));
+                        });
                     }
                 });
             })
-            ->with(['alertRecipients', 'groups', 'responsibleIt', 'salesContact'])
+            ->with(['groups', 'responsibleIt'])
             ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
                 ->where('code', 'like', "%{$search}%")
                 ->orWhere('name', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")
+                ->orWhere('sales_name', 'like', "%{$search}%")
+                ->orWhere('sales_email', 'like', "%{$search}%")
             ))
             ->when($showDeleted, fn ($q) => $q->whereNotNull('deleted_at'))
             ->orderBy('name')
@@ -48,9 +56,7 @@ class ServiceCustomerController extends Controller
 
         return view('admin.service-customers.form', [
             'customer' => new ServiceCustomer(),
-            'groups' => collect(),
             'itUsers' => $this->responsibleItUsers(),
-            'salesUsers' => $this->salesUsers(),
         ]);
     }
 
@@ -61,11 +67,15 @@ class ServiceCustomerController extends Controller
 
         $data = $this->validated($request);
         $data['responsible_it_id'] = $this->responsibleItIdForRequest($request);
-        $data['sales_contact_id'] = $this->salesContactIdForRequest($request);
+        $data['sales_active'] = $request->boolean('sales_active');
+
+        if (!$data['sales_active']) {
+            $data['sales_name'] = null;
+            $data['sales_email'] = null;
+        }
 
         $customer = ServiceCustomer::create($data);
         $this->syncResponsibleGroup($customer);
-        $this->saveAlertRecipient($request, $customer);
 
         return redirect()->route('admin.service_customers.index')->with('success', 'Customer created.');
     }
@@ -75,13 +85,11 @@ class ServiceCustomerController extends Controller
         abort_unless(auth()->user()->hasPermission('service_customers.edit'), 403);
         abort_unless($this->canAccess($serviceCustomer), 403);
 
-        $serviceCustomer->load(['alertRecipients', 'groups', 'responsibleIt', 'salesContact']);
+        $serviceCustomer->load(['groups', 'responsibleIt']);
 
         return view('admin.service-customers.form', [
             'customer' => $serviceCustomer,
-            'groups' => collect(),
             'itUsers' => $this->responsibleItUsers(),
-            'salesUsers' => $this->salesUsers(),
         ]);
     }
 
@@ -92,16 +100,22 @@ class ServiceCustomerController extends Controller
         abort_unless($this->canAccess($serviceCustomer), 403);
 
         $data = $this->validated($request, $serviceCustomer);
+
         if ($user->isSuperAdmin()) {
             $data['responsible_it_id'] = $this->responsibleItIdForRequest($request, $serviceCustomer);
         } else {
+            // A normal Team IT user cannot reassign ownership.
             $data['responsible_it_id'] = $serviceCustomer->responsible_it_id ?: $user->id;
         }
-        $data['sales_contact_id'] = $this->salesContactIdForRequest($request, $serviceCustomer);
+
+        $data['sales_active'] = $request->boolean('sales_active');
+        if (!$data['sales_active']) {
+            $data['sales_name'] = null;
+            $data['sales_email'] = null;
+        }
 
         $serviceCustomer->update($data);
         $this->syncResponsibleGroup($serviceCustomer);
-        $this->saveAlertRecipient($request, $serviceCustomer);
 
         return redirect()->route('admin.service_customers.index')->with('success', 'Customer updated.');
     }
@@ -130,9 +144,19 @@ class ServiceCustomerController extends Controller
     {
         $user = auth()->user();
 
-        return $user->isSuperAdmin()
-            || (int) $customer->responsible_it_id === (int) $user->id
-            || ($user->user_group_id && $customer->groups()->whereKey($user->user_group_id)->exists());
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ((int) $customer->responsible_it_id === (int) $user->id) {
+            return true;
+        }
+
+        // Legacy compatibility only: unassigned customers may still be managed
+        // by members of the legacy IT group until a specific IT owner is selected.
+        return $customer->responsible_it_id === null
+            && $user->user_group_id
+            && $customer->groups()->whereKey($user->user_group_id)->exists();
     }
 
     private function responsibleItUsers()
@@ -140,15 +164,6 @@ class ServiceCustomerController extends Controller
         return User::query()
             ->where('is_active', true)
             ->whereHas('group', fn ($q) => $q->where('name', 'Team IT'))
-            ->with('group')
-            ->orderBy('name')
-            ->get();
-    }
-
-    private function salesUsers()
-    {
-        return User::query()
-            ->where('is_active', true)
             ->with('group')
             ->orderBy('name')
             ->get();
@@ -176,19 +191,6 @@ class ServiceCustomerController extends Controller
         return $responsible->id;
     }
 
-    private function salesContactIdForRequest(Request $request, ?ServiceCustomer $customer = null): ?int
-    {
-        $id = (int) $request->input('sales_contact_id', $customer?->sales_contact_id ?? 0);
-        if ($id <= 0) {
-            return null;
-        }
-
-        $sales = User::query()->whereKey($id)->where('is_active', true)->first();
-        abort_unless($sales, 422, 'Đầu mối Sales không hợp lệ.');
-
-        return $sales->id;
-    }
-
     private function syncResponsibleGroup(ServiceCustomer $customer): void
     {
         $responsible = $customer->responsibleIt()->with('group')->first();
@@ -201,39 +203,6 @@ class ServiceCustomerController extends Controller
         }
     }
 
-    private function saveAlertRecipient(Request $request, ServiceCustomer $customer): void
-    {
-        $data = $request->validate([
-            'alert_recipient.name' => ['nullable', 'string', 'max:150'],
-            'alert_recipient.email' => ['nullable', 'email', 'max:190'],
-            'alert_recipient.phone' => ['nullable', 'string', 'max:50'],
-            'alert_recipient.is_active' => ['nullable', 'boolean'],
-        ]);
-
-        $row = $data['alert_recipient'] ?? [];
-        $name = trim((string) ($row['name'] ?? ''));
-        $email = trim((string) ($row['email'] ?? ''));
-        $phone = trim((string) ($row['phone'] ?? ''));
-        $active = !empty($row['is_active']) && $name !== '' && $email !== '';
-
-        if ($name === '' && $email === '' && $phone === '') {
-            $customer->alertRecipients()->delete();
-            return;
-        }
-
-        $customer->alertRecipients()->updateOrCreate(
-            ['level' => 1],
-            [
-                'recipient_name' => $name !== '' ? $name : $customer->name,
-                'recipient_email' => $email !== '' ? $email : 'disabled-1@invalid.local',
-                'recipient_phone' => $phone !== '' ? $phone : null,
-                'is_active' => $active,
-            ]
-        );
-
-        $customer->alertRecipients()->where('level', '!=', 1)->delete();
-    }
-
     private function validated(Request $request, ?ServiceCustomer $customer = null): array
     {
         return $request->validate([
@@ -243,6 +212,9 @@ class ServiceCustomerController extends Controller
             'email' => ['nullable','email','max:190'],
             'phone' => ['nullable','string','max:50'],
             'is_active' => ['nullable','boolean'],
+            'sales_name' => ['nullable','string','max:150'],
+            'sales_email' => ['nullable','email','max:190'],
+            'sales_active' => ['nullable','boolean'],
         ]);
     }
 }
