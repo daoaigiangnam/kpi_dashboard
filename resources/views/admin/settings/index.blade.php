@@ -51,22 +51,24 @@
 
         <h3 style="margin:0 0 14px">IT Monitoring - Alert Email</h3>
         <div style="padding:15px 16px;background:#f8fafc;border:1px solid #dbe3ec;border-radius:10px;margin-bottom:24px">
-            <label style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer"><input type="hidden" name="alert_email_enabled" value="0"><input type="checkbox" name="alert_email_enabled" value="1" @checked($settings['alert_email.enabled'] === '1')> <strong>Enable Alert Email Escalation</strong></label>
+            <label style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer"><input type="hidden" name="alert_email_enabled" value="0"><input type="checkbox" name="alert_email_enabled" value="1" @checked($settings['alert_email.enabled'] === '1')> <strong>Enable Alert Email</strong></label>
             <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:18px">
-                <label style="display:flex;align-items:center;gap:10px"><input type="hidden" name="alert_operator_enabled" value="0"><input type="checkbox" name="alert_operator_enabled" value="1" @checked($settings['alert_email.operator_enabled'] === '1')> NV vận hành - gửi ngay</label>
+                <label style="display:flex;align-items:center;gap:10px"><input type="hidden" name="alert_operator_enabled" value="0"><input type="checkbox" name="alert_operator_enabled" value="1" @checked($settings['alert_email.operator_enabled'] === '1')> NV vận hành - theo Customer</label>
                 <label style="display:flex;align-items:center;gap:10px"><input type="hidden" name="alert_it_lead_enabled" value="0"><input type="checkbox" name="alert_it_lead_enabled" value="1" @checked($settings['alert_email.it_lead_enabled'] === '1')> IT Lead</label>
-                <label style="display:flex;align-items:center;gap:10px"><input type="hidden" name="alert_bod_enabled" value="0"><input type="checkbox" name="alert_bod_enabled" value="1" @checked($settings['alert_email.bod_enabled'] === '1')> BOD Outsourcing</label>
+                <label style="display:flex;align-items:center;gap:10px"><input type="hidden" name="alert_sales_enabled" value="0"><input type="checkbox" name="alert_sales_enabled" value="1" @checked($settings['alert_email.sales_enabled'] === '1')> Sales - theo Customer</label>
+                <label style="display:flex;align-items:center;gap:10px"><input type="hidden" name="alert_bod_enabled" value="0"><input type="checkbox" name="alert_bod_enabled" value="1" @checked($settings['alert_email.bod_enabled'] === '1')> BOD</label>
                 <label style="display:flex;align-items:center;gap:10px"><input type="hidden" name="alert_customer_enabled" value="0"><input type="checkbox" name="alert_customer_enabled" value="1" @checked($settings['alert_email.customer_enabled'] === '1')> Khách hàng</label>
             </div>
             <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:18px">
                 <div class="field"><label>Email IT Lead</label><input name="alert_it_lead_email" type="email" class="input" value="{{ old('alert_it_lead_email', $settings['alert_email.it_lead_email']) }}" placeholder="itlead@example.com"></div>
-                <div class="field"><label>Email BOD Outsourcing</label><input name="alert_bod_email" type="email" class="input" value="{{ old('alert_bod_email', $settings['alert_email.bod_email']) }}" placeholder="bod@example.com"></div>
+                <div class="field"><label>Email BOD</label><input name="alert_bod_email" type="email" class="input" value="{{ old('alert_bod_email', $settings['alert_email.bod_email']) }}" placeholder="bod@example.com"></div>
                 <div class="field"><label>IT Lead sau (phút)</label><input name="alert_it_lead_delay_minutes" type="number" min="1" max="10080" class="input" value="{{ old('alert_it_lead_delay_minutes', $settings['alert_email.it_lead_delay_minutes']) }}"></div>
+                <div class="field"><label>Sales sau (phút)</label><input name="alert_sales_delay_minutes" type="number" min="0" max="10080" class="input" value="{{ old('alert_sales_delay_minutes', $settings['alert_email.sales_delay_minutes']) }}"><div class="muted" style="margin-top:4px">Mặc định 0 = gửi ngay.</div></div>
                 <div class="field"><label>BOD sau (phút)</label><input name="alert_bod_delay_minutes" type="number" min="1" max="10080" class="input" value="{{ old('alert_bod_delay_minutes', $settings['alert_email.bod_delay_minutes']) }}"></div>
                 <div class="field"><label>Khách hàng sau (phút)</label><input name="alert_customer_delay_minutes" type="number" min="1" max="10080" class="input" value="{{ old('alert_customer_delay_minutes', $settings['alert_email.customer_delay_minutes']) }}"></div>
             </div>
-            <label style="display:flex;align-items:center;gap:10px"><input type="hidden" name="alert_send_resolution" value="0"><input type="checkbox" name="alert_send_resolution" value="1" @checked($settings['alert_email.send_resolution'] === '1')> Gửi Resolution Report cho các cấp khi Alert được Resolve</label>
-            <div class="muted" style="margin-top:10px">NV vận hành lấy email từ Responsible IT của Service. Khách hàng lấy email từ Customer. IT Lead và BOD dùng email cấu hình trên.</div>
+            <label style="display:flex;align-items:center;gap:10px"><input type="hidden" name="alert_send_resolution" value="0"><input type="checkbox" name="alert_send_resolution" value="1" @checked($settings['alert_email.send_resolution'] === '1')> Gửi Resolution Report cho các bên khi Alert được Resolve</label>
+            <div class="muted" style="margin-top:10px">Khi Alert phát sinh: <strong>IT Vận hành + IT Lead + Sales + BOD + Customer</strong> nhận email. IT Lead/BOD dùng email cấu hình; IT Vận hành/Sales/Customer lấy theo Customer.</div>
         </div>
 
         <h3 style="margin:0 0 14px">User Registration</h3>
