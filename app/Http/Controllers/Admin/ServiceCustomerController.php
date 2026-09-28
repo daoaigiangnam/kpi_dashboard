@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ServiceCustomer;
+use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -23,10 +24,11 @@ class ServiceCustomerController extends Controller
                     if ($user->user_group_id) {
                         $x->whereHas('groups', fn ($g) => $g->whereKey($user->user_group_id));
                     }
+                    $x->orWhere('responsible_it_id', $user->id);
                     $x->orWhereHas('services', fn ($sq) => $sq->visibleTo($user));
                 });
             })
-            ->with(['alertRecipients', 'groups'])
+            ->with(['alertRecipients', 'groups', 'responsibleIt', 'salesContact'])
             ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
                 ->where('code', 'like', "%{$search}%")
                 ->orWhere('name', 'like', "%{$search}%")
@@ -42,22 +44,25 @@ class ServiceCustomerController extends Controller
     {
         abort_unless(auth()->user()->hasPermission('service_customers.create'), 403);
 
-        $groups = auth()->user()->hasPermission('service_customers.access')
-            ? UserGroup::query()->orderBy('name')->get()
-            : collect();
-
         return view('admin.service-customers.form', [
             'customer' => new ServiceCustomer(),
-            'groups' => $groups,
+            'groups' => collect(),
+            'itUsers' => $this->responsibleItUsers(),
+            'salesUsers' => $this->salesUsers(),
         ]);
     }
 
     public function store(Request $request)
     {
-        abort_unless(auth()->user()->hasPermission('service_customers.create'), 403);
+        $user = auth()->user();
+        abort_unless($user->hasPermission('service_customers.create'), 403);
 
-        $customer = ServiceCustomer::create($this->validated($request));
-        $this->syncGroups($request, $customer);
+        $data = $this->validated($request);
+        $data['responsible_it_id'] = $this->responsibleItIdForRequest($request);
+        $data['sales_contact_id'] = $this->salesContactIdForRequest($request);
+
+        $customer = ServiceCustomer::create($data);
+        $this->syncResponsibleGroup($customer);
         $this->saveAlertRecipient($request, $customer);
 
         return redirect()->route('admin.service_customers.index')->with('success', 'Customer created.');
@@ -68,24 +73,32 @@ class ServiceCustomerController extends Controller
         abort_unless(auth()->user()->hasPermission('service_customers.edit'), 403);
         abort_unless($this->canAccess($serviceCustomer), 403);
 
-        $serviceCustomer->load(['alertRecipients', 'groups']);
-        $groups = auth()->user()->hasPermission('service_customers.access')
-            ? UserGroup::query()->orderBy('name')->get()
-            : collect();
+        $serviceCustomer->load(['alertRecipients', 'groups', 'responsibleIt', 'salesContact']);
 
         return view('admin.service-customers.form', [
             'customer' => $serviceCustomer,
-            'groups' => $groups,
+            'groups' => collect(),
+            'itUsers' => $this->responsibleItUsers(),
+            'salesUsers' => $this->salesUsers(),
         ]);
     }
 
     public function update(Request $request, ServiceCustomer $serviceCustomer)
     {
-        abort_unless(auth()->user()->hasPermission('service_customers.edit'), 403);
+        $user = auth()->user();
+        abort_unless($user->hasPermission('service_customers.edit'), 403);
         abort_unless($this->canAccess($serviceCustomer), 403);
 
-        $serviceCustomer->update($this->validated($request, $serviceCustomer));
-        $this->syncGroups($request, $serviceCustomer);
+        $data = $this->validated($request, $serviceCustomer);
+        if ($user->isSuperAdmin()) {
+            $data['responsible_it_id'] = $this->responsibleItIdForRequest($request, $serviceCustomer);
+        } else {
+            $data['responsible_it_id'] = $serviceCustomer->responsible_it_id ?: $user->id;
+        }
+        $data['sales_contact_id'] = $this->salesContactIdForRequest($request, $serviceCustomer);
+
+        $serviceCustomer->update($data);
+        $this->syncResponsibleGroup($serviceCustomer);
         $this->saveAlertRecipient($request, $serviceCustomer);
 
         return redirect()->route('admin.service_customers.index')->with('success', 'Customer updated.');
@@ -116,24 +129,74 @@ class ServiceCustomerController extends Controller
         $user = auth()->user();
 
         return $user->isSuperAdmin()
+            || (int) $customer->responsible_it_id === (int) $user->id
             || ($user->user_group_id && $customer->groups()->whereKey($user->user_group_id)->exists())
             || $customer->services()->visibleTo($user)->exists();
     }
 
-    private function syncGroups(Request $request, ServiceCustomer $customer): void
+    private function responsibleItUsers()
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->whereHas('group', fn ($q) => $q->where('name', 'Team IT'))
+            ->with('group')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function salesUsers()
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->with('group')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function responsibleItIdForRequest(Request $request, ?ServiceCustomer $customer = null): int
     {
         $user = auth()->user();
 
-        if ($user->hasPermission('service_customers.access')) {
-            $groupIds = $request->input('group_ids', []);
-            $groupIds = array_values(array_unique(array_map('intval', is_array($groupIds) ? $groupIds : [])));
-            $validIds = UserGroup::query()->whereIn('id', $groupIds)->pluck('id')->all();
-            $customer->groups()->sync($validIds);
-            return;
+        if (!$user->isSuperAdmin()) {
+            return (int) $user->id;
         }
 
-        if ($user->user_group_id && !$customer->groups()->whereKey($user->user_group_id)->exists()) {
-            $customer->groups()->syncWithoutDetaching([$user->user_group_id]);
+        $id = (int) $request->input('responsible_it_id', $customer?->responsible_it_id ?? 0);
+        abort_unless($id > 0, 422, 'Vui lòng chọn Đầu mối vận hành IT.');
+
+        $responsible = User::query()
+            ->whereKey($id)
+            ->where('is_active', true)
+            ->whereHas('group', fn ($q) => $q->where('name', 'Team IT'))
+            ->first();
+
+        abort_unless($responsible, 422, 'Đầu mối vận hành IT không hợp lệ.');
+
+        return $responsible->id;
+    }
+
+    private function salesContactIdForRequest(Request $request, ?ServiceCustomer $customer = null): ?int
+    {
+        $id = (int) $request->input('sales_contact_id', $customer?->sales_contact_id ?? 0);
+        if ($id <= 0) {
+            return null;
+        }
+
+        $sales = User::query()->whereKey($id)->where('is_active', true)->first();
+        abort_unless($sales, 422, 'Đầu mối Sales không hợp lệ.');
+
+        return $sales->id;
+    }
+
+    private function syncResponsibleGroup(ServiceCustomer $customer): void
+    {
+        $responsible = $customer->responsibleIt()->with('group')->first();
+        $groupId = $responsible?->user_group_id;
+
+        if ($groupId) {
+            $customer->groups()->sync([$groupId]);
+        } else {
+            $customer->groups()->detach();
         }
     }
 
