@@ -22,16 +22,10 @@ class ServiceCustomer extends Model
         'phone',
         'responsible_it_id',
         'sales_contact_id',
-        'sales_name',
-        'sales_email',
-        'sales_active',
         'is_active',
     ];
 
-    protected $casts = [
-        'is_active' => 'boolean',
-        'sales_active' => 'boolean',
-    ];
+    protected $casts = ['is_active' => 'boolean'];
 
     protected static function booted(): void
     {
@@ -60,6 +54,11 @@ class ServiceCustomer extends Model
     public function responsibleIt(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsible_it_id');
+    }
+
+    public function salesContact(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sales_contact_id');
     }
 
     public function alertRecipients(): HasMany
