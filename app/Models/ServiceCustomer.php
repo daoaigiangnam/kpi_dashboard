@@ -22,16 +22,20 @@ class ServiceCustomer extends Model
         'phone',
         'responsible_it_id',
         'sales_contact_id',
+        'sales_name',
+        'sales_email',
+        'sales_active',
         'is_active',
     ];
 
-    protected $casts = ['is_active' => 'boolean'];
+    protected $casts = [
+        'is_active' => 'boolean',
+        'sales_active' => 'boolean',
+    ];
 
     protected static function booted(): void
     {
         static::addGlobalScope('pc_audit_responsible_group', function ($builder): void {
-            // Restrict Customer queries only while working inside the PC Audit admin module.
-            // Other Service/Customer screens keep their existing authorization logic.
             if (!function_exists('request') || !request()->routeIs('admin.pc_audit.*')) {
                 return;
             }
@@ -56,11 +60,6 @@ class ServiceCustomer extends Model
     public function responsibleIt(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsible_it_id');
-    }
-
-    public function salesContact(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'sales_contact_id');
     }
 
     public function alertRecipients(): HasMany
