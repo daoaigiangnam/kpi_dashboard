@@ -2,7 +2,7 @@
 @section('title', $customer->exists ? 'Edit Customer' : 'Add Customer')
 @section('content')
 <style>
-.customer-form{max-width:980px}.customer-form .section{background:#fff;border:1px solid #e1e9e4;border-radius:12px;padding:18px 20px;margin-bottom:16px}.customer-form .section h3{margin:0 0 6px}.customer-form .section-note{color:#66736b;font-size:13px;margin-bottom:14px}.customer-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.customer-group{border:1px solid #d8e3dc;border-radius:8px;padding:10px;background:#fbfdfc}.customer-group label{display:flex;gap:8px;align-items:center}.customer-group small{display:block;color:#66736b;margin:4px 0 0 24px}@media(max-width:700px){.customer-groups{grid-template-columns:1fr}}
+.customer-form{max-width:980px}.customer-form .section{background:#fff;border:1px solid #e1e9e4;border-radius:12px;padding:18px 20px;margin-bottom:16px}.customer-form .section h3{margin:0 0 6px}.customer-form .section-note{color:#66736b;font-size:13px;margin-bottom:14px}.person-card{border:1px solid #d8e3dc;border-radius:9px;padding:12px 14px;background:#fbfdfc}.person-card strong{display:block}.person-card small{display:block;color:#66736b;margin-top:4px}.person-card .badge{display:inline-block;margin-top:7px;padding:3px 8px;border-radius:999px;background:#e8f5ef;color:#08745c;font-size:12px;font-weight:600}.customer-groups{display:none}
 </style>
 <div class="customer-form">
 <form method="post" action="{{ $customer->exists ? route('admin.service_customers.update',$customer) : route('admin.service_customers.store') }}">
@@ -25,37 +25,51 @@
 </div>
 </div>
 
-@if(auth()->user()->hasPermission('service_customers.access'))
 <div class="section">
-<h3>👥 Nhóm IT được phép quản lý Customer</h3>
-<div class="section-note">Chỉ User thuộc các Group được chọn mới nhìn thấy Customer này trong danh mục Customer và được quản lý các Service của Customer. Super Admin luôn nhìn thấy toàn bộ.</div>
-<div class="customer-groups">
-@foreach($groups as $group)
-@php($selected = old('group_ids', $customer->exists ? $customer->groups->pluck('id')->all() : []))
-<div class="customer-group">
-<label><input type="checkbox" name="group_ids[]" value="{{ $group->id }}" @checked(in_array($group->id,$selected))> <strong>{{ $group->name }}</strong></label>
-<small>{{ $group->users()->count() }} user</small>
-</div>
+<h3>👨‍💻 Đầu mối vận hành IT</h3>
+<div class="section-note">Customer được quản lý theo Đầu mối vận hành IT. Quyền xem Customer, Service và PC Audit sẽ đi theo IT phụ trách/nhóm IT của nhân sự này.</div>
+@if(auth()->user()->isSuperAdmin())
+<div class="field">
+<label>Nhân sự vận hành IT *</label>
+<select class="input" name="responsible_it_id" required>
+<option value="">-- Chọn nhân sự vận hành IT --</option>
+@foreach($itUsers as $person)
+<option value="{{ $person->id }}" @selected((int) old('responsible_it_id', $customer->responsible_it_id) === (int) $person->id)>{{ $person->name }}{{ $person->employee_code ? ' · '.$person->employee_code : '' }}{{ $person->group ? ' · '.$person->group->name : '' }}</option>
 @endforeach
-</div>
-@if($groups->isEmpty())<div class="muted">Chưa có User Group để phân quyền.</div>@endif
+</select>
 </div>
 @else
-<div class="section">
-<h3>👥 Nhóm quản lý</h3>
-<div class="section-note">Customer sẽ được tự động gán cho Group của bạn khi tạo mới. Chỉ người có quyền <strong>Manage Customer Access</strong> mới thay đổi được danh sách Group quản lý.</div>
+@php($responsible = $customer->exists ? $customer->responsibleIt : auth()->user())
+<div class="person-card">
+<strong>{{ $responsible?->name ?: auth()->user()->name }}</strong>
+<small>{{ $responsible?->email ?: auth()->user()->email }}</small>
+<span class="badge">Tự động theo tài khoản đăng nhập</span>
 </div>
 @endif
+</div>
+
+<div class="section">
+<h3>💼 Đầu mối Sales</h3>
+<div class="section-note">Nhân sự Sales phụ trách Customer. Khi phát sinh Alert, Sales sẽ nhận thông báo cùng IT Vận hành, IT Lead, BOD và Customer.</div>
+<div class="field">
+<label>Nhân sự Sales</label>
+<select class="input" name="sales_contact_id">
+<option value="">-- Chưa chọn --</option>
+@foreach($salesUsers as $person)
+<option value="{{ $person->id }}" @selected((int) old('sales_contact_id', $customer->sales_contact_id) === (int) $person->id)>{{ $person->name }}{{ $person->employee_code ? ' · '.$person->employee_code : '' }}{{ $person->group ? ' · '.$person->group->name : '' }}</option>
+@endforeach
+</select>
+</div>
+</div>
 
 @php($r = $customer->exists ? $customer->alertRecipients->firstWhere('level', 1) : null)
 <div class="section">
 <h3>📧 Customer Alert Contact</h3>
-<div class="section-note">Đầu mối Operations Staff / NV vận hành của Customer.</div>
+<div class="section-note">Đầu mối nhận email cảnh báo phía Customer. Email này sẽ nhận Alert cùng với IT Vận hành, IT Lead, Sales và BOD.</div>
 <div class="table-wrap">
 <table class="table">
-<thead><tr><th>Alert Level</th><th>Người nhận</th><th>Email *</th><th>Phone</th><th>Active</th></tr></thead>
+<thead><tr><th>Người nhận</th><th>Email *</th><th>Phone</th><th>Active</th></tr></thead>
 <tbody><tr>
-<td><strong>Alert 1</strong><div class="muted" style="font-size:12px">Operations Staff / NV vận hành</div></td>
 <td><input class="input" name="alert_recipient[name]" value="{{ old('alert_recipient.name', $r?->recipient_name) }}" placeholder="Họ tên"></td>
 <td><input class="input" type="email" name="alert_recipient[email]" value="{{ old('alert_recipient.email', $r?->recipient_email) }}" placeholder="email@example.com"></td>
 <td><input class="input" name="alert_recipient[phone]" value="{{ old('alert_recipient.phone', $r?->recipient_phone) }}" placeholder="Số điện thoại"></td>
@@ -63,6 +77,11 @@
 </tr></tbody>
 </table>
 </div>
+</div>
+
+<div class="section" style="background:#f7fbfa">
+<h3>🔔 Luồng nhận Alert</h3>
+<div class="section-note" style="margin-bottom:0"><strong>IT Vận hành → IT Lead → Sales → BOD → Customer</strong> sẽ cùng nhận thông báo khi hệ thống phát sinh Alert.</div>
 </div>
 
 <div class="actions"><button class="btn">Save</button> <a class="btn gray" href="{{ route('admin.service_customers.index') }}">Cancel</a></div>
