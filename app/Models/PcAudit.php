@@ -29,6 +29,32 @@ class PcAudit extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope('pc_audit_responsible_group', function ($builder): void {
+            // Only apply the responsible-IT visibility rule inside the PC Audit admin module.
+            // The Audit Agent API is intentionally not affected by this scope.
+            if (!function_exists('request') || !request()->routeIs('admin.pc_audit.*')) {
+                return;
+            }
+
+            $user = auth()->user();
+            if (!$user || $user->isSuperAdmin()) {
+                return;
+            }
+
+            $groupId = $user->user_group_id;
+            if (!$groupId) {
+                $builder->whereRaw('1 = 0');
+                return;
+            }
+
+            $builder->whereHas('auditCode.branch.customer.groups', function ($query) use ($groupId): void {
+                $query->whereKey($groupId);
+            });
+        });
+    }
+
     public function auditCode(): BelongsTo { return $this->belongsTo(PcAuditCode::class, 'pc_audit_code_id'); }
     public function details(): HasOne { return $this->hasOne(PcAuditDetail::class, 'pc_audit_id'); }
     public function memory(): HasMany { return $this->hasMany(PcAuditMemory::class); }
