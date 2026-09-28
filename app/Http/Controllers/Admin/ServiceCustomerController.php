@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ServiceCustomer;
+use App\Models\UserGroup;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -17,8 +18,15 @@ class ServiceCustomerController extends Controller
 
         $query = $showDeleted ? ServiceCustomer::withTrashed() : ServiceCustomer::query();
         $customers = $query
-            ->when(!$user->isSuperAdmin(), fn ($q) => $q->whereHas('services', fn ($sq) => $sq->visibleTo($user)))
-            ->with('alertRecipients')
+            ->when(!$user->isSuperAdmin(), function ($q) use ($user) {
+                $q->where(function ($x) use ($user) {
+                    if ($user->user_group_id) {
+                        $x->whereHas('groups', fn ($g) => $g->whereKey($user->user_group_id));
+                    }
+                    $x->orWhereHas('services', fn ($sq) => $sq->visibleTo($user));
+                });
+            })
+            ->with(['alertRecipients', 'groups'])
             ->when($search !== '', fn ($q) => $q->where(fn ($x) => $x
                 ->where('code', 'like', "%{$search}%")
                 ->orWhere('name', 'like', "%{$search}%")
@@ -32,28 +40,46 @@ class ServiceCustomerController extends Controller
 
     public function create()
     {
-        return view('admin.service-customers.form', ['customer' => new ServiceCustomer()]);
+        $groups = auth()->user()->hasPermission('service_customers.access')
+            ? UserGroup::query()->orderBy('name')->get()
+            : collect();
+
+        return view('admin.service-customers.form', [
+            'customer' => new ServiceCustomer(),
+            'groups' => $groups,
+        ]);
     }
 
     public function store(Request $request)
     {
         $customer = ServiceCustomer::create($this->validated($request));
+        $this->syncGroups($request, $customer);
         $this->saveAlertRecipient($request, $customer);
+
         return redirect()->route('admin.service_customers.index')->with('success', 'Customer created.');
     }
 
     public function edit(ServiceCustomer $serviceCustomer)
     {
         abort_unless($this->canAccess($serviceCustomer), 403);
-        $serviceCustomer->load('alertRecipients');
-        return view('admin.service-customers.form', ['customer' => $serviceCustomer]);
+        $serviceCustomer->load(['alertRecipients', 'groups']);
+        $groups = auth()->user()->hasPermission('service_customers.access')
+            ? UserGroup::query()->orderBy('name')->get()
+            : collect();
+
+        return view('admin.service-customers.form', [
+            'customer' => $serviceCustomer,
+            'groups' => $groups,
+        ]);
     }
 
     public function update(Request $request, ServiceCustomer $serviceCustomer)
     {
         abort_unless($this->canAccess($serviceCustomer), 403);
         $serviceCustomer->update($this->validated($request, $serviceCustomer));
+        $this->syncGroups($request, $serviceCustomer);
         $this->saveAlertRecipient($request, $serviceCustomer);
+
         return redirect()->route('admin.service_customers.index')->with('success', 'Customer updated.');
     }
 
@@ -77,7 +103,28 @@ class ServiceCustomerController extends Controller
         $user = auth()->user();
 
         return $user->isSuperAdmin()
+            || ($user->user_group_id && $customer->groups()->whereKey($user->user_group_id)->exists())
             || $customer->services()->visibleTo($user)->exists();
+    }
+
+    private function syncGroups(Request $request, ServiceCustomer $customer): void
+    {
+        $user = auth()->user();
+
+        if ($user->hasPermission('service_customers.access')) {
+            $groupIds = $request->input('group_ids', []);
+            $groupIds = array_values(array_unique(array_map('intval', is_array($groupIds) ? $groupIds : [])));
+            $validIds = UserGroup::query()->whereIn('id', $groupIds)->pluck('id')->all();
+            $customer->groups()->sync($validIds);
+            return;
+        }
+
+        // An operator without access-management permission can only manage
+        // customers belonging to their own group. New customers are automatically
+        // assigned to that group and existing assignments are left intact.
+        if ($user->user_group_id && !$customer->groups()->whereKey($user->user_group_id)->exists()) {
+            $customer->groups()->syncWithoutDetaching([$user->user_group_id]);
+        }
     }
 
     private function saveAlertRecipient(Request $request, ServiceCustomer $customer): void
