@@ -54,18 +54,9 @@ class Service extends Model
     protected static function booted(): void
     {
         static::saving(function (Service $service) {
-            // Saving a service must stay fast. Do not perform DNS/TCP/TLS checks here.
-            // Mark network/SSL monitoring as pending so the scheduler performs the
-            // real checks after the transaction/request has completed.
             if ($service->isDirty([
-                'service_type_id',
-                'value',
-                'monitor_check_method',
-                'monitor_target',
-                'monitor_port',
-                'monitor_ports',
-                'monitor_interval_seconds',
-                'monitor_timeout_seconds',
+                'service_type_id','value','monitor_check_method','monitor_target','monitor_port','monitor_ports',
+                'monitor_interval_seconds','monitor_timeout_seconds',
             ])) {
                 $service->monitor_last_checked_at = null;
                 $service->monitor_status = 'pending';
@@ -74,11 +65,7 @@ class Service extends Model
             }
 
             if ($service->isDirty([
-                'service_type_id',
-                'value',
-                'monitor_target',
-                'monitor_port',
-                'monitor_ports',
+                'service_type_id','value','monitor_target','monitor_port','monitor_ports',
             ])) {
                 $service->ssl_last_checked_at = null;
                 $service->ssl_status = 'pending';
@@ -94,13 +81,22 @@ class Service extends Model
             return $query;
         }
 
-        return $query->where('responsible_it_id', $user->id);
+        return $query->where(function (Builder $q) use ($user) {
+            $q->where('responsible_it_id', $user->id);
+
+            if ($user->user_group_id) {
+                $q->orWhereHas('customer.groups', fn (Builder $g) => $g->whereKey($user->user_group_id));
+            }
+        });
     }
 
     public function isVisibleTo(?User $user = null): bool
     {
         $user ??= auth()->user();
-        return !$user || $user->isSuperAdmin() || (int) $this->responsible_it_id === (int) $user->id;
+        return !$user
+            || $user->isSuperAdmin()
+            || (int) $this->responsible_it_id === (int) $user->id
+            || ($user->user_group_id && $this->customer?->groups()->whereKey($user->user_group_id)->exists());
     }
 
     public function customer(): BelongsTo { return $this->belongsTo(ServiceCustomer::class); }
