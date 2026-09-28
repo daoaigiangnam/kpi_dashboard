@@ -21,15 +21,20 @@ class ServiceCustomer extends Model
         'email',
         'phone',
         'responsible_it_id',
-        'sales_contact_id',
+        'sales_name',
+        'sales_email',
+        'sales_active',
         'is_active',
     ];
 
-    protected $casts = ['is_active' => 'boolean'];
+    protected $casts = [
+        'is_active' => 'boolean',
+        'sales_active' => 'boolean',
+    ];
 
     protected static function booted(): void
     {
-        static::addGlobalScope('pc_audit_responsible_group', function ($builder): void {
+        static::addGlobalScope('pc_audit_responsible_it', function ($builder): void {
             if (!function_exists('request') || !request()->routeIs('admin.pc_audit.*')) {
                 return;
             }
@@ -39,14 +44,17 @@ class ServiceCustomer extends Model
                 return;
             }
 
-            $groupId = $user->user_group_id;
-            if (!$groupId) {
-                $builder->whereRaw('1 = 0');
-                return;
-            }
+            // New records are owned by a specific IT user.
+            // Legacy records without responsible_it_id continue to follow their IT group.
+            $builder->where(function ($query) use ($user): void {
+                $query->where('responsible_it_id', $user->id);
 
-            $builder->whereHas('groups', function ($query) use ($groupId): void {
-                $query->whereKey($groupId);
+                if ($user->user_group_id) {
+                    $query->orWhere(function ($legacy) use ($user): void {
+                        $legacy->whereNull('responsible_it_id')
+                            ->whereHas('groups', fn ($group) => $group->whereKey($user->user_group_id));
+                    });
+                }
             });
         });
     }
@@ -54,11 +62,6 @@ class ServiceCustomer extends Model
     public function responsibleIt(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsible_it_id');
-    }
-
-    public function salesContact(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'sales_contact_id');
     }
 
     public function alertRecipients(): HasMany
