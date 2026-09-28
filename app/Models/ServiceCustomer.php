@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -13,7 +14,17 @@ class ServiceCustomer extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['code','name','contact_name','email','phone','is_active'];
+    protected $fillable = [
+        'code',
+        'name',
+        'contact_name',
+        'email',
+        'phone',
+        'responsible_it_id',
+        'sales_contact_id',
+        'is_active',
+    ];
+
     protected $casts = ['is_active' => 'boolean'];
 
     protected static function booted(): void
@@ -42,7 +53,17 @@ class ServiceCustomer extends Model
         });
     }
 
-    public function alertRecipients()
+    public function responsibleIt(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsible_it_id');
+    }
+
+    public function salesContact(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sales_contact_id');
+    }
+
+    public function alertRecipients(): HasMany
     {
         return $this->hasMany(ServiceCustomerAlertRecipient::class, 'customer_id')->orderBy('level');
     }
