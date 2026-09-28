@@ -40,6 +40,8 @@ class ServiceCustomerController extends Controller
 
     public function create()
     {
+        abort_unless(auth()->user()->hasPermission('service_customers.create'), 403);
+
         $groups = auth()->user()->hasPermission('service_customers.access')
             ? UserGroup::query()->orderBy('name')->get()
             : collect();
@@ -52,6 +54,8 @@ class ServiceCustomerController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless(auth()->user()->hasPermission('service_customers.create'), 403);
+
         $customer = ServiceCustomer::create($this->validated($request));
         $this->syncGroups($request, $customer);
         $this->saveAlertRecipient($request, $customer);
@@ -61,7 +65,9 @@ class ServiceCustomerController extends Controller
 
     public function edit(ServiceCustomer $serviceCustomer)
     {
+        abort_unless(auth()->user()->hasPermission('service_customers.edit'), 403);
         abort_unless($this->canAccess($serviceCustomer), 403);
+
         $serviceCustomer->load(['alertRecipients', 'groups']);
         $groups = auth()->user()->hasPermission('service_customers.access')
             ? UserGroup::query()->orderBy('name')->get()
@@ -75,7 +81,9 @@ class ServiceCustomerController extends Controller
 
     public function update(Request $request, ServiceCustomer $serviceCustomer)
     {
+        abort_unless(auth()->user()->hasPermission('service_customers.edit'), 403);
         abort_unless($this->canAccess($serviceCustomer), 403);
+
         $serviceCustomer->update($this->validated($request, $serviceCustomer));
         $this->syncGroups($request, $serviceCustomer);
         $this->saveAlertRecipient($request, $serviceCustomer);
@@ -85,16 +93,21 @@ class ServiceCustomerController extends Controller
 
     public function destroy(ServiceCustomer $serviceCustomer)
     {
+        abort_unless(auth()->user()->hasPermission('service_customers.delete'), 403);
         abort_unless($this->canAccess($serviceCustomer), 403);
+
         $serviceCustomer->delete();
         return back()->with('success', 'Customer deleted.');
     }
 
     public function restore(int $serviceCustomer)
     {
+        abort_unless(auth()->user()->hasPermission('service_customers.delete'), 403);
+
         $customer = ServiceCustomer::withTrashed()->findOrFail($serviceCustomer);
         abort_unless($this->canAccess($customer), 403);
         $customer->restore();
+
         return back()->with('success', 'Customer restored.');
     }
 
@@ -119,9 +132,6 @@ class ServiceCustomerController extends Controller
             return;
         }
 
-        // An operator without access-management permission can only manage
-        // customers belonging to their own group. New customers are automatically
-        // assigned to that group and existing assignments are left intact.
         if ($user->user_group_id && !$customer->groups()->whereKey($user->user_group_id)->exists()) {
             $customer->groups()->syncWithoutDetaching([$user->user_group_id]);
         }
