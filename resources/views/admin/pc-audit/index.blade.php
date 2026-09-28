@@ -131,7 +131,7 @@
                                         <a class="pc-audit-edit" href="{{ route('admin.pc_audit.edit', $audit) }}">✏ Sửa</a>
                                     @endif
                                     @if(auth()->user()->hasPermission('pc_audit.delete'))
-                                        <button class="pc-audit-delete" type="submit" form="export-form" formaction="{{ route('admin.pc_audit.delete', $audit) }}" formmethod="POST" onclick="return confirmDeletePcAudit('{{ addslashes($audit->computer_name ?: 'máy này') }}');" title="Xóa vĩnh viễn PC Audit">🗑 Xóa</button>
+                                        <button class="pc-audit-delete" type="button" onclick="return submitDeletePcAudit(this, '{{ $audit->id }}', @js($audit->computer_name ?: 'máy này'));" title="Xóa vĩnh viễn PC Audit">🗑 Xóa</button>
                                     @endif
                                 </div>
                             </td>
@@ -158,13 +158,45 @@
 </div>
 
 <script>
-function confirmDeletePcAudit(computerName) {
-    return window.confirm(
+function submitDeletePcAudit(button, auditId, computerName) {
+    const confirmed = window.confirm(
         'XÓA VĨNH VIỄN PC AUDIT\n\n' +
         'Máy: ' + computerName + '\n\n' +
         'Thao tác này sẽ xóa toàn bộ dữ liệu Audit của máy, bao gồm phần cứng, lưu trữ, màn hình, GPU, pin, network, security, license và software.\n\n' +
         'Dữ liệu sẽ không được đánh dấu mà bị xóa hoàn toàn. Bạn có chắc chắn muốn tiếp tục?'
     );
+
+    if (!confirmed) return false;
+
+    const exportForm = document.getElementById('export-form');
+    const csrf = exportForm ? exportForm.querySelector('input[name="_token"]')?.value : null;
+    if (!csrf) {
+        alert('Không tìm thấy CSRF token. Vui lòng tải lại trang.');
+        return false;
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = "{{ url('/admin/pc-audit') }}/" + encodeURIComponent(auditId);
+    form.style.display = 'none';
+
+    const token = document.createElement('input');
+    token.type = 'hidden';
+    token.name = '_token';
+    token.value = csrf;
+    form.appendChild(token);
+
+    const method = document.createElement('input');
+    method.type = 'hidden';
+    method.name = '_method';
+    method.value = 'DELETE';
+    form.appendChild(method);
+
+    document.body.appendChild(form);
+    button.disabled = true;
+    button.textContent = '⏳ Đang xóa...';
+    form.submit();
+    return false;
 }
 
 (function(){
@@ -181,8 +213,6 @@ function confirmDeletePcAudit(computerName) {
     if(all) all.addEventListener('change',()=>{checks.forEach(c=>c.checked=all.checked);update()});
     checks.forEach(c=>c.addEventListener('change',update));
     if(exportForm) exportForm.addEventListener('submit',function(e){
-        const submitter=e.submitter;
-        if(submitter && submitter.hasAttribute('formaction')) return;
         if(!label) return;
         if(checks.filter(c=>c.checked).length===0){
             e.preventDefault();
