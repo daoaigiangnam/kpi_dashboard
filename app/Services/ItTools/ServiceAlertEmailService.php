@@ -20,8 +20,6 @@ class ServiceAlertEmailService
 
         $event->loadMissing([
             'service.customer.responsibleIt',
-            'service.customer.salesContact',
-            'service.customer.alertRecipients',
             'service.responsibleIt',
             'service.serviceType',
             'service.provider',
@@ -41,8 +39,6 @@ class ServiceAlertEmailService
         ServiceAlertEvent::query()->whereIn('status', ['open', 'acknowledged'])
             ->with([
                 'service.customer.responsibleIt',
-                'service.customer.salesContact',
-                'service.customer.alertRecipients',
                 'service.responsibleIt',
                 'service.serviceType',
                 'service.provider',
@@ -65,8 +61,6 @@ class ServiceAlertEmailService
 
         $event->loadMissing([
             'service.customer.responsibleIt',
-            'service.customer.salesContact',
-            'service.customer.alertRecipients',
             'service.responsibleIt',
             'service.serviceType',
             'service.provider',
@@ -148,7 +142,7 @@ class ServiceAlertEmailService
         $service = $event->service;
         $customer = $service?->customer;
 
-        // 1. IT Vận hành: prefer the Customer's responsible IT; keep service-level fallback.
+        // 1. IT Vận hành: Customer owner first; service owner is the fallback.
         if ($level === 1) {
             $user = $customer?->responsibleIt ?: $service?->responsibleIt;
             if (!$user?->email) return null;
@@ -165,15 +159,16 @@ class ServiceAlertEmailService
             return $this->configuredRecipient('alert_email.it_lead_email', 'it_lead', 'IT Lead');
         }
 
-        // 3. Sales: Customer-specific personnel record.
+        // 3. Sales: Customer-specific name/email, only when Active.
         if ($level === 3) {
-            $user = $customer?->salesContact;
-            if (!$user?->email) return null;
+            if (!$customer?->sales_active || !filter_var($customer?->sales_email, FILTER_VALIDATE_EMAIL)) {
+                return null;
+            }
 
             return [
                 'type' => 'sales',
-                'email' => $user->email,
-                'name' => $user->name ?: 'Sales',
+                'email' => $customer->sales_email,
+                'name' => $customer->sales_name ?: 'Sales',
             ];
         }
 
@@ -182,21 +177,9 @@ class ServiceAlertEmailService
             return $this->configuredRecipient('alert_email.bod_email', 'bod_outsourcing', 'BOD');
         }
 
-        // 5. Customer: use the explicit Alert Contact first, then Customer email as fallback.
+        // 5. Customer: use the Customer's main email. The separate Alert Contact is no longer required.
         if ($level === 5) {
-            $contact = $customer?->alertRecipients?->first(function ($item) {
-                return $item->level === 1 && $item->is_active && filter_var($item->recipient_email, FILTER_VALIDATE_EMAIL);
-            });
-
-            if ($contact) {
-                return [
-                    'type' => 'customer',
-                    'email' => $contact->recipient_email,
-                    'name' => $contact->recipient_name ?: ($customer?->name ?: 'Customer'),
-                ];
-            }
-
-            if (!$customer?->email) return null;
+            if (!filter_var($customer?->email, FILTER_VALIDATE_EMAIL)) return null;
 
             return [
                 'type' => 'customer',
