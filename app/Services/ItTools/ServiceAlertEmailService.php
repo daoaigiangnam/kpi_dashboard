@@ -10,37 +10,75 @@ use Throwable;
 
 class ServiceAlertEmailService
 {
+    /**
+     * Send a new alert to the complete Customer notification chain immediately:
+     * Operations IT, IT Lead, Sales, BOD and Customer.
+     */
     public function notifyNewAlert(ServiceAlertEvent $event): void
     {
         if (!$this->enabled()) return;
-        $event->loadMissing(['service.customer', 'service.responsibleIt', 'service.serviceType', 'service.provider', 'alertPolicy']);
-        $this->sendLevel($event, 1, 'alert');
+
+        $event->loadMissing([
+            'service.customer.responsibleIt',
+            'service.customer.salesContact',
+            'service.customer.alertRecipients',
+            'service.responsibleIt',
+            'service.serviceType',
+            'service.provider',
+            'alertPolicy',
+        ]);
+
+        foreach ([1, 2, 3, 4, 5] as $level) {
+            $this->sendLevel($event, $level, 'alert');
+        }
     }
 
     public function processEscalations(): int
     {
         if (!$this->enabled()) return 0;
+
         $sent = 0;
         ServiceAlertEvent::query()->whereIn('status', ['open', 'acknowledged'])
-            ->with(['service.customer', 'service.responsibleIt', 'service.serviceType', 'service.provider', 'alertPolicy'])
+            ->with([
+                'service.customer.responsibleIt',
+                'service.customer.salesContact',
+                'service.customer.alertRecipients',
+                'service.responsibleIt',
+                'service.serviceType',
+                'service.provider',
+                'alertPolicy',
+            ])
             ->orderBy('id')->limit(1000)->get()->each(function (ServiceAlertEvent $event) use (&$sent) {
-                foreach ([2, 3, 4] as $level) {
+                foreach ([1, 2, 3, 4, 5] as $level) {
                     $delay = $this->delayForLevel($level);
                     if ($delay === null || now()->lt($event->triggered_at->copy()->addMinutes($delay))) continue;
                     if ($this->sendLevel($event, $level, 'alert')) $sent++;
                 }
             });
+
         return $sent;
     }
 
     public function notifyResolved(ServiceAlertEvent $event): int
     {
         if (!$this->enabled() || !$this->sendResolution()) return 0;
-        $event->loadMissing(['service.customer', 'service.responsibleIt', 'service.serviceType', 'service.provider', 'alertPolicy', 'resolvedBy']);
+
+        $event->loadMissing([
+            'service.customer.responsibleIt',
+            'service.customer.salesContact',
+            'service.customer.alertRecipients',
+            'service.responsibleIt',
+            'service.serviceType',
+            'service.provider',
+            'alertPolicy',
+            'resolvedBy',
+        ]);
+
         $sent = 0;
-        foreach ([1, 2, 3, 4] as $level) {
+        foreach ([1, 2, 3, 4, 5] as $level) {
             if ($this->levelEnabled($level) && $this->sendLevel($event, $level, 'resolution')) $sent++;
         }
+
         return $sent;
     }
 
@@ -48,18 +86,59 @@ class ServiceAlertEmailService
     {
         $recipient = $this->recipientForLevel($event, $level);
         if (!$recipient || !$this->levelEnabled($level)) return false;
-        $alreadySent = ServiceAlertEmailLog::query()->where('service_alert_event_id', $event->id)->where('level', $level)->where('recipient_email', $recipient['email'])->where('email_type', $emailType)->where('status', 'sent')->exists();
+
+        $alreadySent = ServiceAlertEmailLog::query()
+            ->where('service_alert_event_id', $event->id)
+            ->where('level', $level)
+            ->where('recipient_email', $recipient['email'])
+            ->where('email_type', $emailType)
+            ->where('status', 'sent')
+            ->exists();
+
         if ($alreadySent) return false;
+
         try {
             Mail::html($this->renderHtml($event, $level, $emailType), function ($message) use ($recipient, $event, $emailType) {
                 $kind = $event->alert_type === 'ssl_expiry' ? 'SSL' : 'IT Monitoring';
-                $subject = $emailType === 'resolution' ? '[RESOLVED] '.$kind.' - '.$event->service->service_name : '[ALERT '.$event->alert_stage.'] '.$kind.' - '.$event->service->service_name;
+                $subject = $emailType === 'resolution'
+                    ? '[RESOLVED] '.$kind.' - '.$event->service->service_name
+                    : '[ALERT '.$event->alert_stage.'] '.$kind.' - '.$event->service->service_name;
+
                 $message->to($recipient['email'], $recipient['name'])->subject($subject);
             });
-            ServiceAlertEmailLog::updateOrCreate(['service_alert_event_id' => $event->id, 'level' => $level, 'recipient_email' => $recipient['email'], 'email_type' => $emailType], ['recipient_type' => $recipient['type'], 'sent_at' => now(), 'status' => 'sent', 'error' => null]);
+
+            ServiceAlertEmailLog::updateOrCreate(
+                [
+                    'service_alert_event_id' => $event->id,
+                    'level' => $level,
+                    'recipient_email' => $recipient['email'],
+                    'email_type' => $emailType,
+                ],
+                [
+                    'recipient_type' => $recipient['type'],
+                    'sent_at' => now(),
+                    'status' => 'sent',
+                    'error' => null,
+                ]
+            );
+
             return true;
         } catch (Throwable $e) {
-            ServiceAlertEmailLog::updateOrCreate(['service_alert_event_id' => $event->id, 'level' => $level, 'recipient_email' => $recipient['email'], 'email_type' => $emailType], ['recipient_type' => $recipient['type'], 'sent_at' => null, 'status' => 'failed', 'error' => mb_substr($e->getMessage(), 0, 2000)]);
+            ServiceAlertEmailLog::updateOrCreate(
+                [
+                    'service_alert_event_id' => $event->id,
+                    'level' => $level,
+                    'recipient_email' => $recipient['email'],
+                    'email_type' => $emailType,
+                ],
+                [
+                    'recipient_type' => $recipient['type'],
+                    'sent_at' => null,
+                    'status' => 'failed',
+                    'error' => mb_substr($e->getMessage(), 0, 2000),
+                ]
+            );
+
             return false;
         }
     }
@@ -68,15 +147,65 @@ class ServiceAlertEmailService
     {
         $service = $event->service;
         $customer = $service?->customer;
+
+        // 1. IT Vận hành: prefer the Customer's responsible IT; keep service-level fallback.
         if ($level === 1) {
-            $user = $service?->responsibleIt;
+            $user = $customer?->responsibleIt ?: $service?->responsibleIt;
             if (!$user?->email) return null;
-            return ['type' => 'responsible_it', 'email' => $user->email, 'name' => $user->name ?: 'Operations Staff'];
+
+            return [
+                'type' => 'responsible_it',
+                'email' => $user->email,
+                'name' => $user->name ?: 'IT Vận hành',
+            ];
         }
-        if ($level === 2) return $this->configuredRecipient('alert_email.it_lead_email', 'it_lead', 'IT Lead');
-        if ($level === 3) return $this->configuredRecipient('alert_email.bod_email', 'bod_outsourcing', 'BOD Outsourcing');
-        if (!$customer?->email) return null;
-        return ['type' => 'customer', 'email' => $customer->email, 'name' => $customer->contact_name ?: $customer->name];
+
+        // 2. IT Lead: existing global configuration.
+        if ($level === 2) {
+            return $this->configuredRecipient('alert_email.it_lead_email', 'it_lead', 'IT Lead');
+        }
+
+        // 3. Sales: Customer-specific personnel record.
+        if ($level === 3) {
+            $user = $customer?->salesContact;
+            if (!$user?->email) return null;
+
+            return [
+                'type' => 'sales',
+                'email' => $user->email,
+                'name' => $user->name ?: 'Sales',
+            ];
+        }
+
+        // 4. BOD: existing global configuration.
+        if ($level === 4) {
+            return $this->configuredRecipient('alert_email.bod_email', 'bod_outsourcing', 'BOD');
+        }
+
+        // 5. Customer: use the explicit Alert Contact first, then Customer email as fallback.
+        if ($level === 5) {
+            $contact = $customer?->alertRecipients?->first(function ($item) {
+                return $item->level === 1 && $item->is_active && filter_var($item->recipient_email, FILTER_VALIDATE_EMAIL);
+            });
+
+            if ($contact) {
+                return [
+                    'type' => 'customer',
+                    'email' => $contact->recipient_email,
+                    'name' => $contact->recipient_name ?: ($customer?->name ?: 'Customer'),
+                ];
+            }
+
+            if (!$customer?->email) return null;
+
+            return [
+                'type' => 'customer',
+                'email' => $customer->email,
+                'name' => $customer->contact_name ?: ($customer->name ?: 'Customer'),
+            ];
+        }
+
+        return null;
     }
 
     private function configuredRecipient(string $key, string $type, string $name): ?array
@@ -87,19 +216,45 @@ class ServiceAlertEmailService
 
     private function levelEnabled(int $level): bool
     {
-        return match ($level) { 1 => $this->settingBool('alert_email.operator_enabled', true), 2 => $this->settingBool('alert_email.it_lead_enabled', true), 3 => $this->settingBool('alert_email.bod_enabled', true), 4 => $this->settingBool('alert_email.customer_enabled', true), default => false };
+        return match ($level) {
+            1 => $this->settingBool('alert_email.operator_enabled', true),
+            2 => $this->settingBool('alert_email.it_lead_enabled', true),
+            3 => $this->settingBool('alert_email.sales_enabled', true),
+            4 => $this->settingBool('alert_email.bod_enabled', true),
+            5 => $this->settingBool('alert_email.customer_enabled', true),
+            default => false,
+        };
     }
 
     private function delayForLevel(int $level): ?int
     {
         if (!$this->levelEnabled($level)) return null;
-        $key = match ($level) { 2 => 'alert_email.it_lead_delay_minutes', 3 => 'alert_email.bod_delay_minutes', 4 => 'alert_email.customer_delay_minutes', default => null };
-        return $key ? max(0, (int) SystemSetting::value($key, 0)) : null;
+
+        $key = match ($level) {
+            2 => 'alert_email.it_lead_delay_minutes',
+            3 => 'alert_email.sales_delay_minutes',
+            4 => 'alert_email.bod_delay_minutes',
+            5 => 'alert_email.customer_delay_minutes',
+            default => null,
+        };
+
+        return $key ? max(0, (int) SystemSetting::value($key, 0)) : 0;
     }
 
-    private function enabled(): bool { return $this->settingBool('alert_email.enabled', false); }
-    private function sendResolution(): bool { return $this->settingBool('alert_email.send_resolution', true); }
-    private function settingBool(string $key, bool $default): bool { return in_array((string) SystemSetting::value($key, $default ? '1' : '0'), ['1', 'true', 'on', 'yes'], true); }
+    private function enabled(): bool
+    {
+        return $this->settingBool('alert_email.enabled', false);
+    }
+
+    private function sendResolution(): bool
+    {
+        return $this->settingBool('alert_email.send_resolution', true);
+    }
+
+    private function settingBool(string $key, bool $default): bool
+    {
+        return in_array((string) SystemSetting::value($key, $default ? '1' : '0'), ['1', 'true', 'on', 'yes'], true);
+    }
 
     private function renderHtml(ServiceAlertEvent $event, int $level, string $emailType): string
     {
