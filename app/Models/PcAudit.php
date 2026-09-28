@@ -49,8 +49,17 @@ class PcAudit extends Model
                 return;
             }
 
-            $builder->whereHas('auditCode.branch.customer.groups', function ($query) use ($groupId): void {
-                $query->whereKey($groupId);
+            $builder->where(function ($query) use ($groupId): void {
+                // New rule: visibility follows the Customer's Responsible IT user's group.
+                $query->whereHas('auditCode.branch.customer.responsibleIt', function ($responsible) use ($groupId): void {
+                    $responsible->where('user_group_id', $groupId);
+                });
+
+                // Backward compatibility for existing Customers that have not yet been
+                // assigned a Responsible IT user: keep the previous Customer -> Group mapping.
+                $query->orWhereHas('auditCode.branch.customer.groups', function ($groups) use ($groupId): void {
+                    $groups->whereKey($groupId);
+                });
             });
         });
     }
