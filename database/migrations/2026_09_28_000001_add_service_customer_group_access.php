@@ -28,7 +28,7 @@ return new class extends Migration {
 
         $permissionIds = [];
         foreach ($permissions as $permission) {
-            $permissionIds[$permission['code']] = DB::table('permissions')->updateOrInsert(
+            DB::table('permissions')->updateOrInsert(
                 ['code' => $permission['code']],
                 [
                     'module' => 'IT Monitoring',
@@ -52,10 +52,11 @@ return new class extends Migration {
             }
         }
 
-        // Existing IT operation groups that already manage Services receive the
-        // basic customer permissions automatically. Access assignment remains
-        // restricted until an administrator grants service_customers.access.
+        // Groups that already manage Services receive the basic Customer permissions.
+        // Customer-to-group assignment is separate and remains controlled by the
+        // dedicated service_customers.access permission.
         $serviceViewPermission = DB::table('permissions')->where('code', 'services.view')->value('id');
+        $opsGroups = collect();
         if ($serviceViewPermission) {
             $opsGroups = DB::table('group_permissions')
                 ->where('permission_id', $serviceViewPermission)
@@ -69,6 +70,27 @@ return new class extends Migration {
                     );
                 }
             }
+        }
+
+        // Preserve the existing visibility model: before this migration, a Customer
+        // was visible through Services assigned to responsible IT users. Convert that
+        // relationship into explicit Customer -> User Group assignments.
+        $existingAssignments = DB::table('services as s')
+            ->join('users as u', 'u.id', '=', 's.responsible_it_id')
+            ->whereNotNull('s.customer_id')
+            ->whereNotNull('u.user_group_id')
+            ->select('s.customer_id as service_customer_id', 'u.user_group_id')
+            ->distinct()
+            ->get();
+
+        foreach ($existingAssignments as $assignment) {
+            DB::table('service_customer_group')->updateOrInsert(
+                [
+                    'service_customer_id' => $assignment->service_customer_id,
+                    'user_group_id' => $assignment->user_group_id,
+                ],
+                ['updated_at' => now(), 'created_at' => now()]
+            );
         }
     }
 
