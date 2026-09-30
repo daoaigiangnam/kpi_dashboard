@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable implements CanResetPasswordContract
 {
@@ -22,6 +23,14 @@ class User extends Authenticatable implements CanResetPasswordContract
     public function departmentRelation(): BelongsTo { return $this->belongsTo(Department::class,'department_id'); }
     public function unit(): BelongsTo { return $this->belongsTo(Unit::class,'unit_id'); }
     public function registrationReviewer(): BelongsTo { return $this->belongsTo(self::class,'registration_reviewed_by'); }
+
+    /**
+     * Customers for which this User is the assigned IT operations owner.
+     */
+    public function serviceCustomers(): HasMany
+    {
+        return $this->hasMany(ServiceCustomer::class, 'responsible_it_id');
+    }
 
     public function hasPermission(string $permission): bool
     {
