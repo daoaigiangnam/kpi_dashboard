@@ -18,17 +18,51 @@
     <div class="card"><div class="muted">FTTH / VPS / Website / Network</div><h2>{{ $networkStats['total'] }}</h2></div>
     <div class="card"><div class="muted">ONLINE</div><h2>{{ $networkStats['online'] }}</h2></div>
     <div class="card"><div class="muted">OFFLINE</div><h2>{{ $networkStats['offline'] }}</h2></div>
-    <div class="card"><div class="muted">UNKNOWN</div><h2>{{ $networkStats['unknown'] }}</h2></div>
+    <div class="card"><div class="muted">UNKNOWN / PENDING</div><h2>{{ $networkStats['unknown'] }}</h2></div>
 </div>
 
-<div class="card" style="margin-top:16px"><div class="actions" style="justify-content:space-between"><div><h3 style="margin:0">Service Monitoring</h3><div class="muted">Expiry alerts, SSL certificate alerts and continuous PING / TCP port checks for Internet, FTTH, VPS and Website services.</div></div><form method="post" action="{{ route('admin.service_monitoring.run') }}">@csrf<button class="btn" type="submit">▶ Run Monitoring Now</button></form></div></div>
+<div class="card" style="margin-top:16px"><div class="actions" style="justify-content:space-between"><div><h3 style="margin:0">Service Monitoring</h3><div class="muted">Hiển thị tất cả dịch vụ đã cấu hình PING / TCP monitoring. Expired chỉ là trạng thái hạn dịch vụ, không làm ẩn monitoring.</div></div><form method="post" action="{{ route('admin.service_monitoring.run') }}">@csrf<button class="btn" type="submit">▶ Run Monitoring Now</button></form></div></div>
 
-<div class="card" style="margin-top:16px"><h3>FTTH / VPS / Website / Network Status</h3><div class="table-wrap"><table class="table"><thead><tr><th>Status</th><th>Customer</th><th>Service</th><th>Type</th><th>Responsible IT</th><th>Provider</th><th>Target</th><th>Method</th><th>Port(s)</th><th>Latency</th><th>Loss</th><th>Failures</th><th>Last Check</th></tr></thead><tbody>
+<div class="card" style="margin-top:16px"><h3>FTTH / VPS / Website / Network Status</h3><div class="table-wrap"><table class="table"><thead><tr>
+<th>Status</th><th>Customer</th><th>Service</th><th>Type</th><th>Service State</th><th>Expiry</th><th>SSL Expiry</th><th>Responsible IT</th><th>Provider</th><th>Target</th><th>Method</th><th>Port(s)</th><th>Latency</th><th>Loss</th><th>Failures</th><th>Last Check</th>
+</tr></thead><tbody>
 @forelse($monitoredServices as $service)
-@php $ports = is_array($service->monitor_ports) ? $service->monitor_ports : ($service->monitor_port ? [$service->monitor_port] : []); @endphp
-<tr style="{{ $service->monitor_status === 'offline' ? 'background:#fef2f2' : '' }}"><td><strong>{{ $service->monitor_status === 'offline' ? '🔴 OFFLINE' : ($service->monitor_status === 'online' ? '🟢 ONLINE' : '🟡 UNKNOWN') }}</strong></td><td>{{ $service->customer?->name }}</td><td>{{ $service->service_name }}</td><td>{{ $service->serviceType?->name ?? '-' }}</td><td><strong>{{ $service->responsibleIt?->name ?? '-' }}</strong></td><td>{{ $service->provider?->name ?? '-' }}</td><td>{{ $service->monitor_target }}</td><td>{{ strtoupper($service->monitor_check_method) }}</td><td>{{ $ports ? implode(', ', $ports) : '-' }}</td><td>{{ $service->monitor_last_latency_ms !== null ? $service->monitor_last_latency_ms.' ms' : '-' }}</td><td>{{ $service->monitor_packet_loss_percent !== null ? $service->monitor_packet_loss_percent.'%' : '-' }}</td><td>{{ $service->monitor_failure_count }}</td><td>{{ optional($service->monitor_last_checked_at)->format('d/m/Y H:i:s') ?: '-' }}</td></tr>
+@php
+    $ports = is_array($service->monitor_ports) ? $service->monitor_ports : ($service->monitor_port ? [$service->monitor_port] : []);
+    $isExpired = $service->status === 'expired' || ($service->expiry_date && $service->expiry_date->isPast());
+    $sslDays = $service->ssl_expiry_date ? now()->startOfDay()->diffInDays($service->ssl_expiry_date->copy()->startOfDay(), false) : null;
+@endphp
+<tr style="{{ $service->monitor_status === 'offline' ? 'background:#fef2f2' : ($isExpired ? 'background:#fff7ed' : '') }}">
+<td><strong>{{ $service->monitor_status === 'offline' ? '🔴 OFFLINE' : ($service->monitor_status === 'online' ? '🟢 ONLINE' : '🟡 UNKNOWN') }}</strong></td>
+<td>{{ $service->customer?->name }}</td>
+<td>{{ $service->service_name }}</td>
+<td>{{ $service->serviceType?->name ?? '-' }}</td>
+<td>@if($isExpired)<span style="color:#b91c1c;font-weight:700">EXPIRED</span>@elseif($service->status === 'active')<span style="color:#15803d;font-weight:700">ACTIVE</span>@else{{ strtoupper((string) $service->status) }}@endif</td>
+<td>{{ optional($service->expiry_date)->format('d/m/Y') ?: '-' }}</td>
+<td>
+@if($service->ssl_expiry_date)
+    {{ $service->ssl_expiry_date->format('d/m/Y') }}
+    @if($sslDays < 0)<div style="color:#b91c1c;font-weight:700">EXPIRED</div>
+    @elseif($sslDays <= 30)<div style="color:#b45309;font-weight:700">{{ $sslDays }} day(s)</div>
+    @else<div style="color:#15803d">{{ $sslDays }} day(s)</div>@endif
+@elseif($service->serviceType?->code === 'WEBSITE')
+    <span class="muted">{{ $service->ssl_status === 'error' ? 'Not detected' : 'Pending' }}</span>
+@else
+    <span class="muted">-</span>
+@endif
+</td>
+<td><strong>{{ $service->responsibleIt?->name ?? '-' }}</strong></td>
+<td>{{ $service->provider?->name ?? '-' }}</td>
+<td>{{ $service->monitor_target }}</td>
+<td>{{ strtoupper($service->monitor_check_method) }}</td>
+<td>{{ $ports ? implode(', ', $ports) : '-' }}</td>
+<td>{{ $service->monitor_last_latency_ms !== null ? $service->monitor_last_latency_ms.' ms' : '-' }}</td>
+<td>{{ $service->monitor_packet_loss_percent !== null ? $service->monitor_packet_loss_percent.'%' : '-' }}</td>
+<td>{{ $service->monitor_failure_count }}</td>
+<td>{{ optional($service->monitor_last_checked_at)->format('d/m/Y H:i:s') ?: '-' }}</td>
+</tr>
 @empty
-<tr><td colspan="13" class="muted">No network monitors configured.</td></tr>
+<tr><td colspan="16" class="muted">No network monitors configured.</td></tr>
 @endforelse
 </tbody></table></div></div>
 
@@ -40,11 +74,12 @@
 @endforelse
 </tbody></table></div></div>
 
-<div class="card" style="margin-top:16px"><h3>Upcoming Expiry</h3><div class="table-wrap"><table class="table"><thead><tr><th>Customer</th><th>Service</th><th>Responsible IT</th><th>Type</th><th>Provider</th><th>Expiry</th><th>Alert Stage</th></tr></thead><tbody>
+<div class="card" style="margin-top:16px"><h3>Upcoming / Expired Service Dates</h3><div class="table-wrap"><table class="table"><thead><tr><th>Customer</th><th>Service</th><th>Responsible IT</th><th>Type</th><th>Provider</th><th>Expiry</th><th>Alert Stage</th></tr></thead><tbody>
 @forelse($upcoming as $service)
-<tr><td>{{ $service->customer?->name }}</td><td>{{ $service->service_name }}</td><td><strong>{{ $service->responsibleIt?->name ?? '-' }}</strong></td><td>{{ $service->serviceType?->name }}</td><td>{{ $service->provider?->name ?? '-' }}</td><td>{{ optional($service->expiry_date)->format('d/m/Y') }}</td><td>{{ $service->alert_stage ?: 'Normal' }}</td></tr>
+@php $expired = $service->expiry_date?->isPast(); @endphp
+<tr style="{{ $expired ? 'background:#fff7ed' : '' }}"><td>{{ $service->customer?->name }}</td><td>{{ $service->service_name }}</td><td><strong>{{ $service->responsibleIt?->name ?? '-' }}</strong></td><td>{{ $service->serviceType?->name }}</td><td>{{ $service->provider?->name ?? '-' }}</td><td>{{ optional($service->expiry_date)->format('d/m/Y') }} @if($expired)<strong style="color:#b91c1c">EXPIRED</strong>@endif</td><td>{{ $service->alert_stage ?: 'Normal' }}</td></tr>
 @empty
-<tr><td colspan="7" class="muted">No services found.</td></tr>
+<tr><td colspan="7" class="muted">No expiry records found.</td></tr>
 @endforelse
 </tbody></table></div></div>
 
