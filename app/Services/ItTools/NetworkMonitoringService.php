@@ -8,9 +8,16 @@ use Symfony\Component\Process\Process;
 
 class NetworkMonitoringService
 {
+    /**
+     * Run monitoring based on the monitoring configuration.
+     *
+     * Service expiry is intentionally NOT used as a monitoring gate.
+     * Monitoring answers "is the target reachable?", while expiry answers
+     * "is the service contract/term current?".
+     */
     public function monitor(Service $service): array
     {
-        if ($service->status !== 'active' || !in_array($service->monitor_check_method, ['ping', 'port'], true) || !$service->monitor_target) {
+        if (!in_array($service->monitor_check_method, ['ping', 'port'], true) || !$service->monitor_target) {
             return ['checked' => false, 'reason' => 'Monitoring is not configured.'];
         }
 
@@ -39,24 +46,29 @@ class NetworkMonitoringService
         }
 
         if ($method === 'port') {
-            $ports = $this->normalizePorts($config['monitor_ports'] ?? $service->monitor_ports, $config['monitor_port'] ?? $service->monitor_port);
+            $ports = $this->normalizePorts(
+                $config['monitor_ports'] ?? $service->monitor_ports,
+                $config['monitor_port'] ?? $service->monitor_port
+            );
+
             if (!$ports) {
                 return ['checked' => false, 'online' => false, 'reason' => 'No valid TCP port configured.'];
             }
 
-            return ['checked' => true, 'service_id' => $service->id] + $this->checkPorts($target, $ports, $timeout);
+            return [
+                'checked' => true,
+                'service_id' => $service->id,
+            ] + $this->checkPorts($target, $ports, $timeout);
         }
 
-        return ['checked' => true, 'service_id' => $service->id] + $this->ping($target, $timeout);
+        return [
+            'checked' => true,
+            'service_id' => $service->id,
+        ] + $this->ping($target, $timeout);
     }
 
     /**
      * REAL SSL certificate detection for Website services.
-     *
-     * This intentionally uses the same SNI-aware TLS certificate inspection
-     * service used by the SSL audit functionality instead of parsing the
-     * output of the openssl CLI. This avoids false "SSL not detected" results
-     * on virtual-hosted HTTPS sites such as Cloudflare/fronted websites.
      */
     public function detectSsl(Service $service, ?string $target = null): array
     {
@@ -95,7 +107,9 @@ class NetworkMonitoringService
                 ];
             }
 
-            $validFrom = !empty($result['valid_from']) ? \Carbon\Carbon::parse($result['valid_from']) : null;
+            $validFrom = !empty($result['valid_from'])
+                ? \Carbon\Carbon::parse($result['valid_from'])
+                : null;
             $expiry = \Carbon\Carbon::parse($result['valid_to']);
             $status = $expiry->isPast() ? 'expired' : 'valid';
             $daysRemaining = now()->startOfDay()->diffInDays($expiry->copy()->startOfDay(), false);
@@ -108,9 +122,6 @@ class NetworkMonitoringService
             $service->ssl_last_checked_at = now();
             $service->save();
 
-            // Recalculate SSL expiry alert immediately after a real certificate
-            // detection. The engine handles alert stages, duplicate prevention,
-            // recovery and the configured notification recipients.
             $event = app(ServiceAlertEngine::class)->evaluateSsl($service->fresh(['alertPolicy']));
             if ($event) {
                 app(ServiceAlertEmailService::class)->notifyNewAlert($event);
@@ -148,8 +159,13 @@ class NetworkMonitoringService
     private function normalizeHostOrIp(string $target): ?string
     {
         $target = trim($target);
-        if ($target === '') return null;
-        if (filter_var($target, FILTER_VALIDATE_IP)) return $target;
+        if ($target === '') {
+            return null;
+        }
+
+        if (filter_var($target, FILTER_VALIDATE_IP)) {
+            return $target;
+        }
 
         $candidate = preg_match('/^https?:\/\//i', $target) ? $target : 'https://' . $target;
         $host = strtolower(trim((string) parse_url($candidate, PHP_URL_HOST)));
@@ -162,8 +178,14 @@ class NetworkMonitoringService
         if (is_string($ports)) {
             $ports = preg_split('/[\s,;]+/', $ports, -1, PREG_SPLIT_NO_EMPTY);
         }
-        if (!is_array($ports)) $ports = [];
-        if (!$ports && $fallbackPort) $ports = [(int) $fallbackPort];
+
+        if (!is_array($ports)) {
+            $ports = [];
+        }
+
+        if (!$ports && $fallbackPort) {
+            $ports = [(int) $fallbackPort];
+        }
 
         $ports = array_map('intval', $ports);
         $ports = array_values(array_unique(array_filter(
@@ -181,6 +203,7 @@ class NetworkMonitoringService
         if ($service->monitor_check_method === 'port') {
             $ports = $this->portsFor($service);
             $target = $this->normalizeHostOrIp((string) $service->monitor_target);
+
             $result = $ports && $target
                 ? $this->checkPorts($target, $ports, $timeout)
                 : [
@@ -192,6 +215,7 @@ class NetworkMonitoringService
                 ];
         } else {
             $target = $this->normalizeHostOrIp((string) $service->monitor_target);
+
             $result = $target
                 ? $this->ping($target, $timeout)
                 : [
@@ -202,14 +226,21 @@ class NetworkMonitoringService
                 ];
         }
 
-        if ($persist) $this->persist($service, $result);
+        if ($persist) {
+            $this->persist($service, $result);
+        }
+
         return ['checked' => true, 'service_id' => $service->id] + $result;
     }
 
     private function isDue(Service $service): bool
     {
-        if (!$service->monitor_last_checked_at) return true;
+        if (!$service->monitor_last_checked_at) {
+            return true;
+        }
+
         $interval = max(30, (int) ($service->monitor_interval_seconds ?: 60));
+
         return now()->greaterThanOrEqualTo(
             $service->monitor_last_checked_at->copy()->addSeconds($interval)
         );
@@ -240,6 +271,7 @@ class NetworkMonitoringService
 
         $output = $process->getOutput() . "\n" . $process->getErrorOutput();
         $latency = null;
+
         if (preg_match('/time[=<]([\d.]+)\s*ms/i', $output, $m)) {
             $latency = (float) $m[1];
         }
@@ -269,8 +301,11 @@ class NetworkMonitoringService
 
         $started = microtime(true);
         $results = [];
+
         foreach ($ports as $port) {
-            $results[] = $this->checkPort($target, (int) $port, $timeout) + ['port' => (int) $port];
+            $results[] = $this->checkPort($target, (int) $port, $timeout) + [
+                'port' => (int) $port,
+            ];
         }
 
         $failed = array_values(array_filter($results, fn (array $r) => !$r['online']));
@@ -307,9 +342,11 @@ class NetworkMonitoringService
         $started = microtime(true);
         $errno = 0;
         $error = '';
+
         $socketHost = filter_var($target, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)
             ? '[' . $target . ']'
             : $target;
+
         $stream = @stream_socket_client(
             'tcp://' . $socketHost . ':' . $port,
             $errno,
@@ -317,10 +354,12 @@ class NetworkMonitoringService
             max(1, min($timeout, 60)),
             STREAM_CLIENT_CONNECT
         );
+
         $latency = round((microtime(true) - $started) * 1000, 1);
 
         if (is_resource($stream)) {
             fclose($stream);
+
             return [
                 'online' => true,
                 'latency_ms' => $latency,
@@ -346,6 +385,7 @@ class NetworkMonitoringService
     {
         $isOnline = (bool) $result['online'];
         $now = now();
+
         $service->monitor_last_checked_at = $now;
         $service->monitor_last_latency_ms = $result['latency_ms'];
         $service->monitor_packet_loss_percent = $result['packet_loss_percent'];
@@ -375,7 +415,10 @@ class NetworkMonitoringService
         } else {
             $service->monitor_status = 'offline';
             $service->monitor_failure_count = ((int) $service->monitor_failure_count) + 1;
-            if (!$service->monitor_down_since) $service->monitor_down_since = $now;
+
+            if (!$service->monitor_down_since) {
+                $service->monitor_down_since = $now;
+            }
 
             $open = ServiceMonitorEvent::query()
                 ->where('service_id', $service->id)
@@ -384,6 +427,7 @@ class NetworkMonitoringService
 
             if (!$open) {
                 $failedPort = collect($result['port_results'] ?? [])->firstWhere('online', false);
+
                 ServiceMonitorEvent::create([
                     'service_id' => $service->id,
                     'event_type' => 'down',
@@ -406,7 +450,10 @@ class NetworkMonitoringService
     private function validTarget(string $target): bool
     {
         $target = trim($target);
-        if (filter_var($target, FILTER_VALIDATE_IP)) return true;
+
+        if (filter_var($target, FILTER_VALIDATE_IP)) {
+            return true;
+        }
 
         return (bool) preg_match(
             '/^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/',
