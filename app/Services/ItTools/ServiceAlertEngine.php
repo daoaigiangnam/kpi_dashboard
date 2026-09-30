@@ -11,38 +11,67 @@ class ServiceAlertEngine
 {
     public function evaluate(Service $service): ?ServiceAlertEvent
     {
-        if ($service->status !== 'active' || !$service->expiry_date || !$service->service_term_months || !$service->alertPolicy) {
+        // An expiry date + active Alert Policy is enough to detect an already
+        // expired contract. The service term is only required for the
+        // percentage-based pre-expiry stages.
+        if ($service->status !== 'active' || !$service->expiry_date || !$service->alertPolicy) {
             return null;
         }
 
-        $start = Carbon::parse($service->expiry_date)->copy()->subMonthsNoOverflow((int) $service->service_term_months);
         $expiry = Carbon::parse($service->expiry_date);
         $today = now()->startOfDay();
-        $totalDays = max(1, $start->diffInDays($expiry));
-        $remainingDays = $today->lt($expiry) ? $today->diffInDays($expiry) : -$today->diffInDays($expiry);
-        $remainingPercent = $today->gte($expiry) ? 0.0 : round(($remainingDays / $totalDays) * 100, 2);
         $policy = $service->alertPolicy;
-        $stage = match (true) {
-            $today->gte($expiry) => 4,
-            $remainingPercent <= (float) $policy->alert_3_percent => 3,
-            $remainingPercent <= (float) $policy->alert_2_percent => 2,
-            $remainingPercent <= (float) $policy->alert_1_percent => 1,
-            default => 0,
-        };
+
+        // Important: do not require service_term_months for an expired
+        // contract. Existing services can have an expiry date but no term;
+        // they still must generate the Expired alert (stage 4).
+        if ($today->gte($expiry)) {
+            $stage = 4;
+            $remainingPercent = 0.0;
+        } else {
+            if (!$service->service_term_months) {
+                return null;
+            }
+
+            $start = $expiry->copy()->subMonthsNoOverflow((int) $service->service_term_months);
+            $totalDays = max(1, $start->diffInDays($expiry));
+            $remainingDays = $today->diffInDays($expiry);
+            $remainingPercent = round(($remainingDays / $totalDays) * 100, 2);
+
+            $stage = match (true) {
+                $remainingPercent <= (float) $policy->alert_3_percent => 3,
+                $remainingPercent <= (float) $policy->alert_2_percent => 2,
+                $remainingPercent <= (float) $policy->alert_1_percent => 1,
+                default => 0,
+            };
+        }
+
         $currentStage = (int) $service->alert_stage;
 
         if ($stage < $currentStage) {
             return DB::transaction(function () use ($service, $stage) {
-                ServiceAlertEvent::query()->where('service_id', $service->id)->where('alert_type', 'service_expiry')->whereIn('status', ['open', 'acknowledged'])->update([
-                    'status' => 'resolved', 'resolved_at' => now(),
-                    'note' => 'Alert closed automatically because the service monitoring state was recalculated.',
+                ServiceAlertEvent::query()
+                    ->where('service_id', $service->id)
+                    ->where('alert_type', 'service_expiry')
+                    ->whereIn('status', ['open', 'acknowledged'])
+                    ->update([
+                        'status' => 'resolved',
+                        'resolved_at' => now(),
+                        'note' => 'Alert closed automatically because the service monitoring state was recalculated.',
+                    ]);
+
+                $service->update([
+                    'alert_stage' => $stage,
+                    'last_alert_at' => null,
                 ]);
-                $service->update(['alert_stage' => $stage, 'last_alert_at' => null]);
+
                 return null;
             });
         }
 
-        if ($stage === 0 || $stage <= $currentStage) return null;
+        if ($stage === 0 || $stage <= $currentStage) {
+            return null;
+        }
 
         return DB::transaction(function () use ($service, $policy, $stage, $remainingPercent, $expiry) {
             $event = ServiceAlertEvent::create([
@@ -55,11 +84,13 @@ class ServiceAlertEngine
                 'status' => 'open',
                 'triggered_at' => now(),
             ]);
+
             $service->update([
                 'alert_stage' => $stage,
                 'last_alert_at' => now(),
                 'status' => $stage === 4 ? 'expired' : $service->status,
             ]);
+
             return $event;
         });
     }
