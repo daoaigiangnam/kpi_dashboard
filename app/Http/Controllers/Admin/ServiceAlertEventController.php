@@ -11,11 +11,12 @@ class ServiceAlertEventController extends Controller
 {
     public function index(Request $request)
     {
-        $status = trim((string) $request->query('status', ''));
+        $status = trim((string) $request->query('status', 'current'));
         $events = ServiceAlertEvent::query()
             ->whereHas('service', fn ($q) => $q->visibleTo(auth()->user()))
             ->with(['service', 'alertPolicy'])
-            ->when($status !== '', fn ($q) => $q->where('status', $status))
+            ->when($status === 'current', fn ($q) => $q->whereIn('status', ['open', 'acknowledged']))
+            ->when(in_array($status, ['open', 'acknowledged', 'resolved'], true), fn ($q) => $q->where('status', $status))
             ->latest('triggered_at')
             ->paginate(25)
             ->withQueryString();
@@ -72,7 +73,9 @@ class ServiceAlertEventController extends Controller
                 $service->update([
                     'status' => 'active',
                     'alert_stage' => 0,
-                    'last_alert_at' => null,
+                    // Keep the resolution timestamp as a same-day re-alert
+                    // suppression marker. The next expiry cycle can alert again.
+                    'last_alert_at' => now(),
                 ]);
             }
         }
