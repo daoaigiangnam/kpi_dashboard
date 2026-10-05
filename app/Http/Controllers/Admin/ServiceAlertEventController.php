@@ -54,6 +54,29 @@ class ServiceAlertEventController extends Controller
             'resolved_by' => auth()->id(),
         ]);
 
+        /*
+         * A manually resolved EXPIRED service-expiry alert means the current
+         * incident has been handled. Reset the service to the normal monitoring
+         * state so the next scheduled monitoring cycle can evaluate it again.
+         *
+         * Do NOT reset stages 1-3: resolving a warning should not immediately
+         * cause the same warning to be generated again on every scan.
+         */
+        if (
+            $serviceAlertEvent->alert_type === 'service_expiry'
+            && (int) $serviceAlertEvent->alert_stage === 4
+        ) {
+            $service = $serviceAlertEvent->service()->first();
+
+            if ($service) {
+                $service->update([
+                    'status' => 'active',
+                    'alert_stage' => 0,
+                    'last_alert_at' => null,
+                ]);
+            }
+        }
+
         $emailService->notifyResolved($serviceAlertEvent);
 
         return back()->with('success', 'Alert resolved and resolution report sent.');
