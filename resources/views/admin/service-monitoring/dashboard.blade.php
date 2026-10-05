@@ -29,7 +29,7 @@
 @forelse($monitoredServices as $service)
 @php
     $ports = is_array($service->monitor_ports) ? $service->monitor_ports : ($service->monitor_port ? [$service->monitor_port] : []);
-    $isExpired = $service->status === 'expired' || ($service->expiry_date && $service->expiry_date->isPast());
+    $isExpired = $service->status === 'expired';
     $sslDays = $service->ssl_expiry_date ? now()->startOfDay()->diffInDays($service->ssl_expiry_date->copy()->startOfDay(), false) : null;
 @endphp
 <tr style="{{ $service->monitor_status === 'offline' ? 'background:#fef2f2' : ($isExpired ? 'background:#fff7ed' : '') }}">
