@@ -48,18 +48,6 @@ class ServiceAlertEngine
 
         $currentStage = (int) $service->alert_stage;
 
-        // A Stage-4 alert that was manually resolved today must not be
-        // recreated by "Run Monitoring Now". It will be eligible again on
-        // the next expiry-monitoring cycle (the next day).
-        if (
-            $stage === 4
-            && $currentStage === 0
-            && $service->last_alert_at
-            && $service->last_alert_at->isSameDay(now())
-        ) {
-            return null;
-        }
-
         if ($stage < $currentStage) {
             return DB::transaction(function () use ($service, $stage) {
                 ServiceAlertEvent::query()
