@@ -63,6 +63,11 @@ class ServiceMonitoringController extends Controller
 
         $monitoredServices = (clone $networkBase)
             ->with(['customer', 'provider', 'serviceType', 'responsibleIt'])
+            ->withCount(['alertEvents as active_expired_alerts_count' => function ($q) {
+                $q->where('alert_type', 'service_expiry')
+                    ->where('alert_stage', 4)
+                    ->whereIn('status', ['open', 'acknowledged']);
+            }])
             ->orderByRaw("CASE monitor_status
                 WHEN 'offline' THEN 0
                 WHEN 'unknown' THEN 1
@@ -177,6 +182,26 @@ class ServiceMonitoringController extends Controller
          * visibility. Only evaluate services that actually have the relevant
          * expiry/SSL data and alert policy.
          */
+        // Repair stale EXPIRED flags left by an older resolve flow. If a
+        // service is marked expired but has no current Stage-4 alert, the
+        // alert was already resolved and the service must be re-armed as
+        // ACTIVE so the next evaluation can detect the expiry again.
+        Service::query()
+            ->where('status', 'expired')
+            ->where(function ($q) {
+                $q->whereNull('expiry_date')
+                    ->orWhereDoesntHave('alertEvents', function ($event) {
+                        $event->where('alert_type', 'service_expiry')
+                            ->where('alert_stage', 4)
+                            ->whereIn('status', ['open', 'acknowledged']);
+                    });
+            })
+            ->update([
+                'status' => 'active',
+                'alert_stage' => 0,
+                'last_alert_at' => null,
+            ]);
+
         Service::query()
             ->where('status', 'active')
             ->where(function ($q) {
