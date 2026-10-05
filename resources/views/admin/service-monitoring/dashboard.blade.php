@@ -29,7 +29,10 @@
 @forelse($monitoredServices as $service)
 @php
     $ports = is_array($service->monitor_ports) ? $service->monitor_ports : ($service->monitor_port ? [$service->monitor_port] : []);
-    $isExpired = $service->status === 'expired';
+    // EXPIRED is a current monitoring state only when a Stage-4 expiry alert
+    // is still open/acknowledged. Resolving the alert must immediately return
+    // the row to ACTIVE even if expiry_date is still in the past.
+    $isExpired = (int) $service->active_expired_alerts_count > 0;
     $sslDays = $service->ssl_expiry_date ? now()->startOfDay()->diffInDays($service->ssl_expiry_date->copy()->startOfDay(), false) : null;
 @endphp
 <tr style="{{ $service->monitor_status === 'offline' ? 'background:#fef2f2' : ($isExpired ? 'background:#fff7ed' : '') }}">
