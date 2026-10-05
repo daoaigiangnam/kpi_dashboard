@@ -113,5 +113,10 @@ class Service extends Model
     public function serviceType(): BelongsTo { return $this->belongsTo(ServiceType::class); }
     public function provider(): BelongsTo { return $this->belongsTo(ServiceProvider::class); }
     public function alertPolicy(): BelongsTo { return $this->belongsTo(ServiceAlertPolicy::class); }
+
+    public function alertEvents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ServiceAlertEvent::class);
+    }
     public function responsibleIt(): BelongsTo { return $this->belongsTo(User::class, 'responsible_it_id'); }
 }
