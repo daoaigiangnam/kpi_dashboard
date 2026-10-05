@@ -57,7 +57,7 @@
 </div>
 
 <div class="pc-audit-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3>📋 Danh sách Audit Code</h3><div class="pc-audit-muted">Mỗi Code được gắn với một Chi nhánh.</div></div><a class="pc-audit-btn secondary" href="{{ route('admin.pc_audit.settings') }}" style="display:inline-flex;align-items:center;text-decoration:none">⚙ Cấu hình API</a></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h3>📋 Danh sách Audit Code</h3><div class="pc-audit-muted">Mỗi Code được gắn với một Chi nhánh.</div></div>@if(auth()->user()->hasPermission('pc_audit.settings'))<a class="pc-audit-btn secondary" href="{{ route('admin.pc_audit.settings') }}" style="display:inline-flex;align-items:center;text-decoration:none">⚙ Cấu hình API</a>@endif</div>
     <form method="GET" style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(240px,1.4fr) auto auto;gap:10px;align-items:end;margin:18px 0">
         <div class="pc-audit-field"><label>Customer</label><select name="customer_id" onchange="this.form.submit()"><option value="">Tất cả Customer</option>@foreach($customers as $customer)<option value="{{ $customer->id }}" @selected((string)$customerId===(string)$customer->id)>{{ $customer->name }}</option>@endforeach</select></div>
         <div class="pc-audit-field"><label>Tìm kiếm</label><input name="search" value="{{ $search }}" placeholder="Audit Code / Chi nhánh"></div>
