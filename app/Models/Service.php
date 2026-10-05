@@ -82,10 +82,20 @@ class Service extends Model
         }
 
         return $query->where(function (Builder $q) use ($user) {
+            // Current ownership is by the assigned IT user.
             $q->where('responsible_it_id', $user->id);
 
+            // Legacy compatibility only: services created before individual
+            // ownership was introduced may have no responsible IT and belong
+            // to an unassigned customer in the user's legacy IT group.
             if ($user->user_group_id) {
-                $q->orWhereHas('customer.groups', fn (Builder $g) => $g->whereKey($user->user_group_id));
+                $q->orWhere(function (Builder $legacy) use ($user): void {
+                    $legacy->whereNull('responsible_it_id')
+                        ->whereHas('customer', function (Builder $customer) use ($user): void {
+                            $customer->whereNull('responsible_it_id')
+                                ->whereHas('groups', fn (Builder $g) => $g->whereKey($user->user_group_id));
+                        });
+                });
             }
         });
     }
