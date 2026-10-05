@@ -9,7 +9,7 @@
     <form method="get" class="actions" style="margin-bottom:12px">
         <label>Status
             <select name="status">
-                <option value="">All</option>
+                <option value="current" @selected($status === 'current')>Current</option>
                 @foreach(['open','acknowledged','resolved'] as $value)
                     <option value="{{ $value }}" @selected($status === $value)>{{ ucfirst($value) }}</option>
                 @endforeach
