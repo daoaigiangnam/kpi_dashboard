@@ -91,6 +91,8 @@ class ServiceMonitoringController extends Controller
          * Keep expiry reporting separate from network monitoring.
          * Only services with an expiry date are relevant here.
          */
+        // Show only currently active expiry alerts. Once an alert is
+        // resolved, the service disappears from this warning list immediately.
         $upcoming = Service::visibleTo(auth()->user())
             ->with([
                 'customer',
@@ -101,6 +103,10 @@ class ServiceMonitoringController extends Controller
             ])
             ->whereNotNull('expiry_date')
             ->whereBetween('alert_stage', [1, 4])
+            ->whereHas('alertEvents', function ($q) {
+                $q->where('alert_type', 'service_expiry')
+                    ->whereIn('status', ['open', 'acknowledged']);
+            })
             ->orderBy('expiry_date')
             ->limit(50)
             ->get();
