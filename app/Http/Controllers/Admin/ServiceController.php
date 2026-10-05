@@ -256,7 +256,22 @@ class ServiceController extends Controller
 
         $customers = ServiceCustomer::query()
             ->where('is_active', true)
-            ->when(!$user->isSuperAdmin(), fn ($q) => $q->whereHas('services', fn ($sq) => $sq->visibleTo($user)))
+            ->when(!$user->isSuperAdmin(), function ($q) use ($user): void {
+                $q->where(function ($x) use ($user): void {
+                    // A Team IT user can create/manage services for customers
+                    // explicitly assigned to that user.
+                    $x->where('responsible_it_id', $user->id);
+
+                    // Legacy compatibility: customers created before individual
+                    // ownership was introduced may still belong to the user's IT group.
+                    if ($user->user_group_id) {
+                        $x->orWhere(function ($legacy) use ($user): void {
+                            $legacy->whereNull('responsible_it_id')
+                                ->whereHas('groups', fn ($g) => $g->whereKey($user->user_group_id));
+                        });
+                    }
+                });
+            })
             ->orderBy('name')
             ->get();
 
