@@ -56,8 +56,8 @@
                 <p class="pc-settings-subtitle">Quản lý kết nối API, phiên bản Audit Tool và trạng thái cho phép máy trạm thực hiện Audit.</p>
             </div>
             <div class="pc-settings-actions">
-                <a href="{{ route('admin.pc_audit.index') }}">📋 Kết quả Audit</a>
-                <a href="{{ route('admin.pc_audit.codes') }}">🔑 Audit Code</a>
+                @if(auth()->user()->hasPermission('pc_audit.view'))<a href="{{ route('admin.pc_audit.index') }}">📋 Kết quả Audit</a>@endif
+                @if(auth()->user()->hasPermission('pc_audit.codes'))<a href="{{ route('admin.pc_audit.codes') }}">🔑 Audit Code</a>@endif
             </div>
         </div>
     </div>
