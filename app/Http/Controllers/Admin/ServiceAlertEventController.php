@@ -73,10 +73,23 @@ class ServiceAlertEventController extends Controller
                 $service->update([
                     'status' => 'active',
                     'alert_stage' => 0,
-                    // Keep the resolution timestamp as a same-day re-alert
-                    // suppression marker. The next expiry cycle can alert again.
-                    'last_alert_at' => now(),
+                    'last_alert_at' => null,
                 ]);
+
+                // Close any other currently-open Stage-4 service-expiry alerts
+                // for the same service so the resolved incident disappears
+                // from all "current alert" views immediately.
+                ServiceAlertEvent::query()
+                    ->where('service_id', $service->id)
+                    ->where('alert_type', 'service_expiry')
+                    ->where('alert_stage', 4)
+                    ->whereIn('status', ['open', 'acknowledged'])
+                    ->update([
+                        'status' => 'resolved',
+                        'resolved_at' => now(),
+                        'resolved_by' => auth()->id(),
+                        'note' => 'Closed together with the resolved expired-service alert.',
+                    ]);
             }
         }
 
