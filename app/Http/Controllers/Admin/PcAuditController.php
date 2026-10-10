@@ -218,7 +218,7 @@ class PcAuditController extends Controller
             $sheet->getPageMargins()->setTop(0.3)->setBottom(0.3)->setLeft(0.25)->setRight(0.25);
             $sheet->getRowDimension(2)->setRowHeight(180);
 
-            $widths = [18,20,20,18,18,20,18,16,34,25,42,58,40,40,48,28,70,38,24,18,55,55,35,40,32,45,48,25,28,24,42,40,32,28,20,70,70,22,75];
+            $widths = [18,18,30,20,20,18,18,20,18,16,34,25,42,58,40,40,48,28,70,38,24,18,55,55,35,40,32,45,48,25,28,24,42,40,32,28,20,70,70,22,75];
             foreach ($widths as $i => $width) {
                 $sheet->getColumnDimension($this->columnLetter($i + 1))->setWidth($width);
             }
@@ -311,7 +311,7 @@ class PcAuditController extends Controller
         $sheet->getPageSetup()->setOrientation('landscape')->setFitToWidth(1)->setFitToHeight(0);
         $sheet->getPageMargins()->setTop(0.3)->setBottom(0.3)->setLeft(0.25)->setRight(0.25);
 
-        $widths = [18,20,20,22,18,20,18,16,34,25,42,58,40,40,48,28,70,38,24,18,55,55,35,40,32,45,48,25,28,24,42,40,32,28,20,70,70,22,75];
+        $widths = [18,18,30,20,20,22,18,20,18,16,34,25,42,58,40,40,48,28,70,38,24,18,55,55,35,40,32,45,48,25,28,24,42,40,32,28,20,70,70,22,75];
         foreach ($widths as $i => $width) {
             $sheet->getColumnDimension($this->columnLetter($i + 1))->setWidth($width);
         }
