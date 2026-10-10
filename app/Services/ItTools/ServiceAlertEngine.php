@@ -19,7 +19,13 @@ class ServiceAlertEngine
             && $service->cost_billing_cycle === 'monthly';
 
         if ($isMonthlyInternet) {
-            if ((int) $service->alert_stage > 0) {
+            $hasStaleExpiryState = $service->expiry_date !== null
+                || $service->service_term_months !== null
+                || $service->alert_policy_id !== null
+                || $service->status === 'expired'
+                || (int) $service->alert_stage > 0;
+
+            if ($hasStaleExpiryState) {
                 DB::transaction(function () use ($service) {
                     ServiceAlertEvent::query()
                         ->where('service_id', $service->id)
@@ -33,6 +39,9 @@ class ServiceAlertEngine
 
                     $service->update([
                         'status' => 'active',
+                        'expiry_date' => null,
+                        'service_term_months' => null,
+                        'alert_policy_id' => null,
                         'alert_stage' => 0,
                         'last_alert_at' => null,
                     ]);
