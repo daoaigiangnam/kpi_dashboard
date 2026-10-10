@@ -93,9 +93,13 @@
             <div class="pc-audit-field">
                 <label>Chi nhánh</label>
                 <select name="branch_id" id="filter-branch">
-                    <option value="">Tất cả chi nhánh</option>
+                    <option value="">Tất cả chi nhánh của khách hàng</option>
                     @foreach($branches as $branch)
-                        <option value="{{ $branch->id }}" @selected((string)$branchId===(string)$branch->id)>{{ $branch->name }}</option>
+                        <option value="{{ $branch->id }}"
+                            data-customer-id="{{ $branch->customer_id }}"
+                            @selected((string)$branchId===(string)$branch->id)>
+                            {{ $branch->name }}
+                        </option>
                     @endforeach
                 </select>
             </div>
@@ -246,10 +250,28 @@ function submitDeletePcAudit(button, auditId, computerName) {
     });
     const customerFilter=document.getElementById('filter-customer');
     const branchFilter=document.getElementById('filter-branch');
+
+    // Dependent dropdown: only show branches belonging to the selected customer.
+    // "All customers" shows every branch; choosing a customer narrows the list.
     if(customerFilter && branchFilter){
-        customerFilter.addEventListener('change',function(){
-            branchFilter.value='';
-        });
+        const allBranchOptions=[...branchFilter.querySelectorAll('option[data-customer-id]')];
+        function refreshBranches(preserveSelection){
+            const customerId=customerFilter.value;
+            const previousValue=preserveSelection ? branchFilter.value : '';
+            allBranchOptions.forEach(option=>{
+                const belongs=customerId==='' || option.dataset.customerId===customerId;
+                option.hidden=!belongs;
+                option.disabled=!belongs;
+            });
+            const selectedOption=allBranchOptions.find(option=>option.value===previousValue && !option.disabled);
+            branchFilter.value=selectedOption ? previousValue : '';
+            const firstOption=branchFilter.options[0];
+            if(firstOption){
+                firstOption.textContent=customerId ? 'Tất cả chi nhánh của khách hàng' : 'Tất cả chi nhánh';
+            }
+        }
+        customerFilter.addEventListener('change',()=>refreshBranches(false));
+        refreshBranches(true);
     }
     update();
 })();
