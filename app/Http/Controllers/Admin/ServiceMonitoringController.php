@@ -43,6 +43,20 @@ class ServiceMonitoringController extends Controller
                 'last_alert_at' => null,
             ]);
 
+        // Expiry alert records already raised for monthly Internet are no longer applicable.
+        ServiceAlertEvent::query()
+            ->whereHas('service', function ($q) {
+                $q->where('cost_billing_cycle', 'monthly')
+                    ->whereHas('serviceType', fn ($type) => $type->whereRaw('UPPER(code) = ?', ['INTERNET']));
+            })
+            ->where('alert_type', 'service_expiry')
+            ->whereIn('status', ['open', 'acknowledged'])
+            ->update([
+                'status' => 'resolved',
+                'resolved_at' => now(),
+                'note' => 'Automatically resolved: monthly Internet uses recurring payment due day, not a fixed expiry date.',
+            ]);
+
         // Repair stale EXPIRED flags left by an older resolve flow. If a
         // service is marked expired but has no current Stage-4 alert, the
         // alert was already resolved and the service must be re-armed as
