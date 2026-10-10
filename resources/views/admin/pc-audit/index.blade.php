@@ -23,7 +23,7 @@
     .pc-audit-section-title{margin:0;font-size:16px;font-weight:750;color:var(--pa-text)}
     .pc-audit-count{font-size:12px;color:var(--pa-muted);background:#f8fafc;border:1px solid var(--pa-border);padding:6px 10px;border-radius:999px}
     .pc-audit-table-wrap{overflow-x:auto;border:1px solid var(--pa-border);border-radius:12px}
-    .pc-audit-table{width:100%;min-width:1220px;border-collapse:separate;border-spacing:0;font-size:13px}
+    .pc-audit-table{width:100%;min-width:1450px;border-collapse:separate;border-spacing:0;font-size:13px}
     .pc-audit-table th{background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.35px;font-weight:750;padding:12px 11px;border-bottom:1px solid var(--pa-border);white-space:nowrap;text-align:left}
     .pc-audit-table td{padding:13px 11px;border-bottom:1px solid #eef2f7;color:#334155;vertical-align:middle}
     .pc-audit-table tbody tr:last-child td{border-bottom:0}
@@ -79,7 +79,7 @@
         <form method="GET" action="{{ route('admin.pc_audit.index') }}" class="pc-audit-toolbar">
             <div class="pc-audit-field full">
                 <label>Tìm kiếm</label>
-                <input name="search" value="{{ $search }}" placeholder="Computer Name, Serial, Họ tên, Phòng ban hoặc Code...">
+                <input name="search" value="{{ $search }}" placeholder="Computer Name, Serial, Họ tên, Di động, Email, Phòng ban hoặc Code...">
             </div>
             <div class="pc-audit-field">
                 <label>Khách hàng</label>
@@ -133,7 +133,7 @@
                         <tr>
                             <th style="width:42px"><input type="checkbox" class="pc-audit-check" id="check-all" title="Chọn tất cả"></th>
                             <th>Khách hàng</th><th>Chi nhánh</th><th>Code</th><th>Computer</th><th>Serial</th>
-                            <th>Họ tên</th><th>Phòng ban</th><th>Kết quả</th><th>Điểm</th><th>Ngày Audit</th><th>Thao tác</th>
+                            <th>Họ tên</th><th>Di động</th><th>Email</th><th>Phòng ban</th><th>Kết quả</th><th>Điểm</th><th>Ngày Audit</th><th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -147,6 +147,8 @@
                             <td><span class="pc-audit-computer">{{ $audit->computer_name ?: '—' }}</span></td>
                             <td><span class="pc-audit-serial">{{ $audit->serial_number ?: '—' }}</span></td>
                             <td>{{ $audit->employee_name ?: '—' }}</td>
+                            <td>{{ $audit->employee_mobile ?: '—' }}</td>
+                            <td>{{ $audit->employee_email ?: '—' }}</td>
                             <td>{{ $audit->department ?: '—' }}</td>
                             <td><span class="pc-audit-status {{ in_array($statusClass,['pass','fail','review']) ? $statusClass : 'review' }}">{{ $status }}</span></td>
                             <td><span class="pc-audit-score">{{ $audit->audit_score !== null ? $audit->audit_score.'%' : '—' }}</span></td>
