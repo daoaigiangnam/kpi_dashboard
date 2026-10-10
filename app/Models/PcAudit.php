@@ -15,7 +15,7 @@ class PcAudit extends Model
     use HasFactory;
 
     protected $fillable = [
-        'pc_audit_code_id','department','employee_name','employee_username','domain','computer_name','manufacturer','model','serial_number','asset_tag',
+        'pc_audit_code_id','department','employee_name','employee_mobile','employee_email','employee_username','domain','computer_name','manufacturer','model','serial_number','asset_tag',
         'mainboard','bios','operating_system','windows_update','last_boot','uptime','tpm','secure_boot','collected_at',
         'audit_status','audit_score','audit_results','audit_engine_version','raw_payload',
     ];
