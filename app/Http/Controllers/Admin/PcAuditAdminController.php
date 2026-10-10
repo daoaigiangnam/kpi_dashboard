@@ -27,6 +27,7 @@ class PcAuditAdminController extends Controller
         $data = $request->validate([
             'customer_id' => ['required', 'integer', 'exists:service_customers,id'],
             'branch_id' => ['required', 'integer', 'exists:customer_branches,id'],
+            'target_os' => ['required', 'in:windows7,windows10'],
         ]);
 
         $customer = ServiceCustomer::query()->whereKey($data['customer_id'])->where('is_active', true)->firstOrFail();
@@ -56,7 +57,9 @@ class PcAuditAdminController extends Controller
         $main = preg_replace('/^\$here\s*=.*\R/', '', (string) $main, 1);
         $main = preg_replace('/^\. \(Join-Path \$here .*?\R/m', '', (string) $main);
 
-        $compatibility = <<<'PS'
+        $compatibility = '';
+        if ($data['target_os'] === 'windows7') {
+            $compatibility = <<<'PS'
 $Progress = $true
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 if (-not (Get-Command Get-CimInstance -ErrorAction SilentlyContinue)) {
@@ -69,16 +72,20 @@ if (-not (Get-Command Get-CimInstance -ErrorAction SilentlyContinue)) {
 }
 PS;
 
-        $collector = str_replace(
-            '$result.security.bitlocker=@(Get-BitLockerVolume -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{mount_point=$_.MountPoint;protection_status=[string]$_.ProtectionStatus;volume_status=[string]$_.VolumeStatus;encryption_percent=$_.EncryptionPercentage}})',
-            'if (Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue) {$result.security.bitlocker=@(Get-BitLockerVolume -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{mount_point=$_.MountPoint;protection_status=[string]$_.ProtectionStatus;volume_status=[string]$_.VolumeStatus;encryption_percent=$_.EncryptionPercentage}})} else {$result.security.bitlocker=@()}',
-            (string) $collector
-        );
-        $collector = str_replace(
-            '$result.security.firewall=@(Get-NetFirewallProfile -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{profile=$_.Name;enabled=$_.Enabled}})',
-            'if (Get-Command Get-NetFirewallProfile -ErrorAction SilentlyContinue) {$result.security.firewall=@(Get-NetFirewallProfile -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{profile=$_.Name;enabled=$_.Enabled}})} else {$result.security.firewall=@()}',
-            (string) $collector
-        );
+            // Guard security cmdlets unavailable on Windows 7 / older PowerShell.
+            $collector = str_replace(
+                '$result.security.bitlocker=@(Get-BitLockerVolume -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{mount_point=$_.MountPoint;protection_status=[string]$_.ProtectionStatus;volume_status=[string]$_.VolumeStatus;encryption_percent=$_.EncryptionPercentage}})',
+                'if (Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue) {$result.security.bitlocker=@(Get-BitLockerVolume -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{mount_point=$_.MountPoint;protection_status=[string]$_.ProtectionStatus;volume_status=[string]$_.VolumeStatus;encryption_percent=$_.EncryptionPercentage}})} else {$result.security.bitlocker=@()}',
+                (string) $collector
+            );
+            $collector = str_replace(
+                '$result.security.firewall=@(Get-NetFirewallProfile -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{profile=$_.Name;enabled=$_.Enabled}})',
+                'if (Get-Command Get-NetFirewallProfile -ErrorAction SilentlyContinue) {$result.security.firewall=@(Get-NetFirewallProfile -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{profile=$_.Name;enabled=$_.Enabled}})} else {$result.security.firewall=@()}',
+                (string) $collector
+            );
+        } else {
+            $compatibility = "try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}";
+        }
 
         $psQuote = static fn (string $value): string => "'" . str_replace("'", "''", $value) . "'";
         $main = str_replace(
@@ -116,7 +123,8 @@ BAT;
         $zip->addFromString('PC_Audit.bat', $bat);
         $zip->close();
 
-        $filename = 'PC_Audit_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $branch->code ?: $branch->name) . '_' . now()->format('Ymd_His') . '.zip';
+        $osLabel = $data['target_os'] === 'windows7' ? 'Windows7' : 'Windows10Plus';
+        $filename = 'PC_Audit_' . $osLabel . '_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $branch->code ?: $branch->name) . '_' . now()->format('Ymd_His') . '.zip';
         return response()->download($tmp, $filename, ['Content-Type' => 'application/zip'])->deleteFileAfterSend(true);
     }
 
