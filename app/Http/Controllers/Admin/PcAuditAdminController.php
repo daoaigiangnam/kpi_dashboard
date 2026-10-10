@@ -27,10 +27,6 @@ class PcAuditAdminController extends Controller
         $data = $request->validate([
             'customer_id' => ['required', 'integer', 'exists:service_customers,id'],
             'branch_id' => ['required', 'integer', 'exists:customer_branches,id'],
-            'department' => ['required', 'string', 'max:200'],
-            'employee_name' => ['required', 'string', 'max:200'],
-            'employee_mobile' => ['nullable', 'string', 'max:50'],
-            'employee_email' => ['nullable', 'email', 'max:190'],
         ]);
 
         $customer = ServiceCustomer::query()->whereKey($data['customer_id'])->where('is_active', true)->firstOrFail();
@@ -88,21 +84,6 @@ PS;
         $main = str_replace(
             "$" . "code = Read-Host 'Audit Code'\nif ([string]::IsNullOrWhiteSpace($" . "code)) { throw 'Audit Code khong duoc de trong.' }\n$" . "code = $" . "code.Trim().ToUpperInvariant()",
             '$code = ' . $psQuote($auditCode->code) . "\nif ([string]::IsNullOrWhiteSpace($" . "code)) { throw 'Audit Code khong duoc de trong.' }\n$" . "code = $" . "code.Trim().ToUpperInvariant()",
-            (string) $main
-        );
-
-        $userPattern = '/\$defaultEmployee = \[string\]\$env:USERNAME.*?if \(\$answer -notmatch \'\^\(Y\|y\)\$\'\) \{ exit 0 \}/s';
-        $userBlock = '$employeeName = ' . $psQuote($data['employee_name']) . "\n" .
-            '$department = ' . $psQuote($data['department']) . "\n" .
-            '$employeeMobile = ' . $psQuote((string) ($data['employee_mobile'] ?? '')) . "\n" .
-            '$employeeEmail = ' . $psQuote((string) ($data['employee_email'] ?? '')) . "\n" .
-            "if ([string]::IsNullOrWhiteSpace($" . "employeeName)) { throw 'Ho ten nguoi su dung khong duoc de trong.' }\n" .
-            "if ([string]::IsNullOrWhiteSpace($" . "department)) { throw 'Phong ban khong duoc de trong.' }";
-        $main = preg_replace($userPattern, $userBlock, (string) $main, 1);
-
-        $main = str_replace(
-            "    department = $" . "department\n    data = $" . "collector",
-            "    department = $" . "department\n    employee_mobile = $" . "employeeMobile\n    employee_email = $" . "employeeEmail\n    data = $" . "collector",
             (string) $main
         );
 
