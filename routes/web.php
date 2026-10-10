@@ -205,6 +205,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::post('it-tools/export',[ItToolsController::class,'export'])->middleware('permission:it_tools.audit')->name('it_tools.export');
 
     // PC Audit - uses Customer/Branch from the existing IT Service module.
+    Route::get('pc-audit/launcher',[PcAuditAdminController::class,'launcher'])->middleware('permission:pc_audit.codes')->name('pc_audit.launcher');
+    Route::post('pc-audit/launcher',[PcAuditAdminController::class,'generateLauncher'])->middleware('permission:pc_audit.codes')->name('pc_audit.launcher.generate');
     Route::get('pc-audit',[PcAuditController::class,'index'])->middleware('permission:pc_audit.view')->name('pc_audit.index');
     Route::post('pc-audit/export',[PcAuditController::class,'export'])->middleware('permission:pc_audit.export')->name('pc_audit.export');
     Route::post('pc-audit/export-single-sheet',[PcAuditController::class,'exportSingleSheet'])->middleware('permission:pc_audit.export')->name('pc_audit.export_single_sheet');
