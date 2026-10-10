@@ -214,7 +214,7 @@ function submitDeletePcAudit(button, auditId, computerName) {
     function update(){
         if(!label) return;
         const n=checks.filter(c=>c.checked).length;
-        label.textContent=n?`${n} máy đã chọn · Tối đa 200 máy/lần · Mỗi máy một sheet đầy đủ.`:'Chưa chọn máy nào · Tối đa 200 máy/lần · Mỗi máy một sheet đầy đủ.';
+        label.textContent=n?`${n} máy đã chọn · Tối đa 200 máy/lần.`:'Chưa chọn máy nào · Tối đa 200 máy/lần.';
         if(all){all.checked=checks.length>0&&n===checks.length;all.indeterminate=n>0&&n<checks.length;}
     }
     if(all) all.addEventListener('change',()=>{checks.forEach(c=>c.checked=all.checked);update()});
