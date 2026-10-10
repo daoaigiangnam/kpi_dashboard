@@ -37,18 +37,14 @@ class ServiceAlertEngine
                             'note' => 'Closed automatically: monthly Internet service uses a recurring payment schedule, not a fixed expiry date.',
                         ]);
 
-                    // Use a direct DB update here to avoid the Service model saving hook.
-                    // The hook intentionally protects monthly Internet business state.
-                    \App\Models\Service::query()
-                        ->whereKey($service->id)
-                        ->update([
-                            'status' => 'active',
-                            'expiry_date' => null,
-                            'service_term_months' => null,
-                            'alert_policy_id' => null,
-                            'alert_stage' => 0,
-                            'last_alert_at' => null,
-                        ]);
+                    $service->forceFill([
+                        'status' => 'active',
+                        'expiry_date' => null,
+                        'service_term_months' => null,
+                        'alert_policy_id' => null,
+                        'alert_stage' => 0,
+                        'last_alert_at' => null,
+                    ])->saveQuietly();
                 });
             }
 
