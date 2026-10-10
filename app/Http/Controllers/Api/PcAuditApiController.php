@@ -39,6 +39,8 @@ class PcAuditApiController extends Controller
             'code' => ['required', 'string', 'max:120'],
             'employee_name' => ['required', 'string', 'max:200'],
             'department' => ['nullable', 'string', 'max:200'],
+            'employee_mobile' => ['nullable', 'string', 'max:50'],
+            'employee_email' => ['nullable', 'email', 'max:190'],
             'data' => ['required', 'array'],
         ]);
 
@@ -61,6 +63,8 @@ class PcAuditApiController extends Controller
                 'pc_audit_code_id' => $code->id,
                 'department' => self::scalarValue($payload['department'] ?? null),
                 'employee_name' => self::scalarValue($payload['employee_name']),
+                'employee_mobile' => self::scalarValue($payload['employee_mobile'] ?? null),
+                'employee_email' => self::scalarValue($payload['employee_email'] ?? null),
                 'employee_username' => self::scalarValue($computer['username'] ?? $value(['username', 'employee_username'])),
                 'domain' => self::scalarValue($computer['domain'] ?? $value(['domain'])),
                 'computer_name' => self::scalarValue($computer['computer_name'] ?? $value(['computer_name', 'computerName'])),
