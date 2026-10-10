@@ -64,10 +64,11 @@
             <div class="pc-launcher-note">
                 <strong>Gói tải xuống gồm 2 file:</strong> <code>PC_Audit.ps1</code> và <code>PC_Audit.bat</code> trong một file ZIP. Giải nén cả hai file vào cùng thư mục rồi chạy BAT trên máy cần kiểm kê. Website không thể tự chạy BAT trực tiếp trên máy người dùng do giới hạn bảo mật của trình duyệt.
                 <br><br>
-                <strong>Windows 7:</strong> máy cần PowerShell 3.0 trở lên và hỗ trợ kết nối HTTPS/TLS 1.2. Trên Windows 10/11, dùng Windows PowerShell có sẵn.
+                <strong>Chọn đúng hệ điều hành:</strong> nút Windows 7 tạo gói có lớp tương thích WMI và kiểm tra các lệnh bảo mật không có trên PowerShell cũ. Nút Windows 10/11+ tạo gói riêng cho Windows hiện đại. Máy đích vẫn cần kết nối HTTPS/TLS 1.2 tới máy chủ Audit.
             </div>
             <div class="pc-launcher-actions">
-                <button type="submit" class="pc-launcher-submit">⬇ Tạo và tải bộ PC Audit</button>
+                <button type="submit" name="target_os" value="windows7" class="pc-launcher-submit">⬇ Tải bộ Audit Windows 7</button>
+                <button type="submit" name="target_os" value="windows10" class="pc-launcher-submit">⬇ Tải bộ Audit Windows 10/11+</button>
                 <a href="{{ route('admin.pc_audit.index') }}" style="color:#475569;font-size:13px;font-weight:700;text-decoration:none">Quay lại danh sách Audit</a>
             </div>
         </div>
