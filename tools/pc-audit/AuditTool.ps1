@@ -43,6 +43,10 @@ if ([string]::IsNullOrWhiteSpace($employeeName)) { throw 'Khong xac dinh duoc ng
 
 $departmentInput = Read-Host 'Phong ban (Enter = bo qua)'
 $department = if ([string]::IsNullOrWhiteSpace($departmentInput)) { $null } else { $departmentInput.Trim() }
+$employeeMobileInput = Read-Host 'Di dong (Enter = bo qua)'
+$employeeMobile = if ([string]::IsNullOrWhiteSpace($employeeMobileInput)) { $null } else { $employeeMobileInput.Trim() }
+$employeeEmailInput = Read-Host 'Email (Enter = bo qua)'
+$employeeEmail = if ([string]::IsNullOrWhiteSpace($employeeEmailInput)) { $null } else { $employeeEmailInput.Trim() }
 
 Write-Host ''
 $answer = Read-Host 'Tiep tuc Audit may nay? (Y/N)'
@@ -63,6 +67,8 @@ $payload = @{
     code = $code
     employee_name = $employeeName
     department = $department
+    employee_mobile = $employeeMobile
+    employee_email = $employeeEmail
     data = $collector
 }
 
