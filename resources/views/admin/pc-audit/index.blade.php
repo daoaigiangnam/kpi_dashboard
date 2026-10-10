@@ -151,8 +151,9 @@
 
             <div class="pc-audit-export">
                 @if(auth()->user()->hasPermission('pc_audit.export'))
-                    <button class="pc-audit-btn" type="submit" id="export-button">📊 Xuất Excel các máy đã chọn</button>
-                    <span class="pc-audit-export-note" id="selected-count">Chưa chọn máy nào · Tối đa 200 máy/lần · Mỗi máy một sheet đầy đủ.</span>
+                    <button class="pc-audit-btn" type="submit" id="export-button">📊 Xuất Excel · Mỗi máy một sheet</button>
+                    <button class="pc-audit-btn" type="submit" id="export-single-sheet-button" formaction="{{ route('admin.pc_audit.export_single_sheet') }}" style="background:#2563eb">📋 Xuất Excel · Chung một sheet</button>
+                    <span class="pc-audit-export-note" id="selected-count">Chưa chọn máy nào · Tối đa 200 máy/lần. Chọn nút xuất phù hợp với cách sắp xếp mong muốn.</span>
                 @else
                     <span class="pc-audit-export-note">Bạn không có quyền xuất Excel PC Audit.</span>
                 @endif
