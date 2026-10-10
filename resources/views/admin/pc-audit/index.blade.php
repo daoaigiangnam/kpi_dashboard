@@ -83,10 +83,19 @@
             </div>
             <div class="pc-audit-field">
                 <label>Khách hàng</label>
-                <select name="customer_id">
+                <select name="customer_id" id="filter-customer">
                     <option value="">Tất cả khách hàng</option>
                     @foreach($customers as $customer)
                         <option value="{{ $customer->id }}" @selected((string)$customerId===(string)$customer->id)>{{ $customer->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="pc-audit-field">
+                <label>Chi nhánh</label>
+                <select name="branch_id" id="filter-branch">
+                    <option value="">Tất cả chi nhánh</option>
+                    @foreach($branches as $branch)
+                        <option value="{{ $branch->id }}" @selected((string)$branchId===(string)$branch->id)>{{ $branch->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -106,6 +115,14 @@
 
         <form method="POST" action="{{ route('admin.pc_audit.export') }}" id="export-form">
             @csrf
+            <input type="hidden" name="search" value="{{ $search }}">
+            <input type="hidden" name="customer_id" value="{{ $customerId }}">
+            <input type="hidden" name="branch_id" value="{{ $branchId }}">
+            <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px;padding:11px 13px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px">
+                <input type="checkbox" class="pc-audit-check" id="all-filtered" name="all_filtered" value="1">
+                <label for="all-filtered" style="font-size:13px;font-weight:750;color:#115e59;cursor:pointer">Xuất toàn bộ kết quả theo bộ lọc (tất cả các trang)</label>
+                <span style="font-size:12px;color:#0f766e">Áp dụng bộ lọc Khách hàng, Chi nhánh và Tìm kiếm ở trên.</span>
+            </div>
             <div class="pc-audit-table-wrap">
                 <table class="pc-audit-table">
                     <thead>
@@ -221,11 +238,19 @@ function submitDeletePcAudit(button, auditId, computerName) {
     checks.forEach(c=>c.addEventListener('change',update));
     if(exportForm) exportForm.addEventListener('submit',function(e){
         if(!label) return;
-        if(checks.filter(c=>c.checked).length===0){
+        const allFiltered=document.getElementById('all-filtered');
+        if(checks.filter(c=>c.checked).length===0 && !(allFiltered && allFiltered.checked)){
             e.preventDefault();
-            alert('Vui lòng chọn ít nhất 1 máy để xuất Excel.');
+            alert('Vui lòng chọn ít nhất 1 máy hoặc bật “Xuất toàn bộ kết quả theo bộ lọc”.');
         }
     });
+    const customerFilter=document.getElementById('filter-customer');
+    const branchFilter=document.getElementById('filter-branch');
+    if(customerFilter && branchFilter){
+        customerFilter.addEventListener('change',function(){
+            branchFilter.value='';
+        });
+    }
     update();
 })();
 </script>
