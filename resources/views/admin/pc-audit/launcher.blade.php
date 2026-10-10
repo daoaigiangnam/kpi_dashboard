@@ -23,7 +23,7 @@
 <div class="pc-launcher">
     <div class="pc-launcher-hero">
         <h1>🖥️ PC Audit Launcher</h1>
-        <p>Chọn thông tin người sử dụng trên Web. Hệ thống tự tạo gói PC_Audit.ps1 và PC_Audit.bat để tải về.</p>
+        <p>Chọn khách hàng và chi nhánh. Hệ thống tự tạo gói PC_Audit.ps1 và PC_Audit.bat để tải về.</p>
     </div>
 
     @if($errors->any())
@@ -37,7 +37,7 @@
         @csrf
         <div class="pc-launcher-card">
             <h2 style="font-size:17px;font-weight:800;margin:0 0 5px">Thông tin phân bổ</h2>
-            <p style="font-size:13px;color:#64748b;margin:0 0 18px">Chi nhánh tự lọc theo khách hàng. Phòng ban được nhập tự do.</p>
+            <p style="font-size:13px;color:#64748b;margin:0 0 18px">Chọn khách hàng trước; danh sách chi nhánh sẽ tự động lọc theo khách hàng.</p>
             <div class="pc-launcher-grid">
                 <div class="pc-launcher-field">
                     <label for="customer_id">Khách hàng *</label>
@@ -56,23 +56,6 @@
                             <option value="{{ $branch->id }}" data-customer-id="{{ $branch->customer_id }}" @selected((string)old('branch_id')===(string)$branch->id)>{{ $branch->name }}</option>
                         @endforeach
                     </select>
-                </div>
-                <div class="pc-launcher-field">
-                    <label for="department">Phòng ban *</label>
-                    <input name="department" id="department" value="{{ old('department') }}" maxlength="200" required placeholder="Ví dụ: Kế toán, IT, Kinh doanh">
-                    <span class="pc-launcher-help">Nhập tên phòng ban theo thực tế; không cần khai báo danh mục trước.</span>
-                </div>
-                <div class="pc-launcher-field">
-                    <label for="employee_name">Họ tên người sử dụng *</label>
-                    <input name="employee_name" id="employee_name" value="{{ old('employee_name') }}" maxlength="200" required placeholder="Nhập họ tên đầy đủ">
-                </div>
-                <div class="pc-launcher-field">
-                    <label for="employee_mobile">Di động</label>
-                    <input name="employee_mobile" id="employee_mobile" type="tel" value="{{ old('employee_mobile') }}" maxlength="50" placeholder="Số điện thoại liên hệ">
-                </div>
-                <div class="pc-launcher-field">
-                    <label for="employee_email">Email</label>
-                    <input name="employee_email" id="employee_email" type="email" value="{{ old('employee_email') }}" maxlength="190" placeholder="name@company.com">
                 </div>
             </div>
         </div>
