@@ -21,6 +21,28 @@ class ServiceMonitoringController extends Controller
     public function dashboard()
     {
 
+        // Repair monthly Internet services that were incorrectly marked EXPIRED
+        // by a legacy fixed-expiry date. Monthly Internet is recurrent and uses
+        // payment_due_day; it must not have a fixed service expiry alert.
+        Service::query()
+            ->where('cost_billing_cycle', 'monthly')
+            ->whereHas('serviceType', fn ($q) => $q->whereRaw('UPPER(code) = ?', ['INTERNET']))
+            ->where(function ($q) {
+                $q->whereNotNull('expiry_date')
+                    ->orWhereNotNull('service_term_months')
+                    ->orWhereNotNull('alert_policy_id')
+                    ->orWhere('status', 'expired')
+                    ->orWhere('alert_stage', '>', 0);
+            })
+            ->update([
+                'status' => 'active',
+                'expiry_date' => null,
+                'service_term_months' => null,
+                'alert_policy_id' => null,
+                'alert_stage' => 0,
+                'last_alert_at' => null,
+            ]);
+
         // Repair stale EXPIRED flags left by an older resolve flow. If a
         // service is marked expired but has no current Stage-4 alert, the
         // alert was already resolved and the service must be re-armed as
