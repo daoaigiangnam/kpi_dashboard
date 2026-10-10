@@ -262,7 +262,7 @@ class PcAuditController extends Controller
         abort_if($audits->isEmpty(), 404, 'Không tìm thấy dữ liệu PC Audit đã chọn.');
 
         $headers = [
-            'Họ Tên', 'Username', 'Domain', 'Tên máy tính', 'Manufacturer', 'Model', 'Serial Number', 'Asset Tag',
+            'Họ Tên', 'Di động', 'Email', 'Username', 'Domain', 'Tên máy tính', 'Manufacturer', 'Model', 'Serial Number', 'Asset Tag',
             'Mainboard', 'BIOS', 'CPU', 'RAM', 'HDD', 'Monitor', 'VGA', 'Battery', 'OS', 'Windows Update',
             'Last Boot', 'Uptime', 'LAN', 'WIFI', 'MODEM', 'IP', 'MAC', 'Gateway', 'DNS', 'DHCP',
             'Connection Status', 'Link Speed', 'Antivirus', 'BitLocker', 'Firewall', 'TPM', 'Secure Boot',
