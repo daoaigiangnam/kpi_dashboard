@@ -56,6 +56,8 @@ class PcAuditController extends Controller
                     $x->where('computer_name', 'like', $like)
                         ->orWhere('serial_number', 'like', $like)
                         ->orWhere('employee_name', 'like', $like)
+                        ->orWhere('employee_mobile', 'like', $like)
+                        ->orWhere('employee_email', 'like', $like)
                         ->orWhere('department', 'like', $like)
                         ->orWhere('manufacturer', 'like', $like)
                         ->orWhere('model', 'like', $like)
