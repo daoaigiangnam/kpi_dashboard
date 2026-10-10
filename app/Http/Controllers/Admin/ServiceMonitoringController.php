@@ -57,6 +57,27 @@ class ServiceMonitoringController extends Controller
                 'note' => 'Automatically resolved: monthly Internet uses recurring payment due day, not a fixed expiry date.',
             ]);
 
+        // An alert may have already been resolved manually; the service still
+        // needs normalization if it carries stale fixed-term expiry data.
+        Service::query()
+            ->where('cost_billing_cycle', 'monthly')
+            ->whereHas('serviceType', fn ($q) => $q->whereRaw('UPPER(code) = ?', ['INTERNET']))
+            ->where(function ($q) {
+                $q->where('status', 'expired')
+                    ->orWhere('alert_stage', '>', 0)
+                    ->orWhereNotNull('expiry_date')
+                    ->orWhereNotNull('service_term_months')
+                    ->orWhereNotNull('alert_policy_id');
+            })
+            ->update([
+                'status' => 'active',
+                'expiry_date' => null,
+                'service_term_months' => null,
+                'alert_policy_id' => null,
+                'alert_stage' => 0,
+                'last_alert_at' => null,
+            ]);
+
         // Repair stale EXPIRED flags left by an older resolve flow. If a
         // service is marked expired but has no current Stage-4 alert, the
         // alert was already resolved and the service must be re-armed as
