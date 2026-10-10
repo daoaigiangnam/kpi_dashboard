@@ -40,7 +40,13 @@
 <td>{{ $service->service_name }}</td>
 <td>{{ $service->serviceType?->name ?? '-' }}</td>
 <td>@if($isExpired)<span style="color:#b91c1c;font-weight:700">EXPIRED</span>@elseif($service->status === 'active')<span style="color:#15803d;font-weight:700">ACTIVE</span>@else{{ strtoupper((string) $service->status) }}@endif</td>
-<td>{{ optional($service->expiry_date)->format('d/m/Y') ?: '-' }}</td>
+<td>
+@if(strtoupper((string) $service->serviceType?->code) === 'INTERNET' && $service->cost_billing_cycle === 'monthly')
+    <span style="color:#15803d;font-weight:700">Hàng tháng · ngày {{ $service->payment_due_day ?: 15 }}</span>
+@else
+    {{ optional($service->expiry_date)->format('d/m/Y') ?: '-' }}
+@endif
+</td>
 <td>
 @if($service->ssl_expiry_date)
     {{ $service->ssl_expiry_date->format('d/m/Y') }}
