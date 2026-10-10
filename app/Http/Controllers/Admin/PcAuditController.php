@@ -210,6 +210,90 @@ class PcAuditController extends Controller
         );
     }
 
+    public function exportSingleSheet(Request $request): StreamedResponse
+    {
+        $ids = collect($request->input('ids', []))
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()->take(200)->values();
+
+        abort_if($ids->isEmpty(), 422, 'Chưa chọn máy để xuất Excel.');
+
+        $audits = PcAudit::with([
+            'auditCode.branch.customer', 'details', 'memory', 'storage', 'monitors', 'gpu',
+            'batteries', 'network', 'antivirus', 'bitlocker', 'firewall', 'licenses', 'software',
+        ])->whereIn('id', $ids)->orderByDesc('collected_at')->get();
+
+        abort_if($audits->isEmpty(), 404, 'Không tìm thấy dữ liệu PC Audit đã chọn.');
+
+        $headers = [
+            'Họ Tên', 'Username', 'Domain', 'Tên máy tính', 'Manufacturer', 'Model', 'Serial Number', 'Asset Tag',
+            'Mainboard', 'BIOS', 'CPU', 'RAM', 'HDD', 'Monitor', 'VGA', 'Battery', 'OS', 'Windows Update',
+            'Last Boot', 'Uptime', 'LAN', 'WIFI', 'MODEM', 'IP', 'MAC', 'Gateway', 'DNS', 'DHCP',
+            'Connection Status', 'Link Speed', 'Antivirus', 'BitLocker', 'Firewall', 'TPM', 'Secure Boot',
+            'Windows Activation', 'Office Activation', 'Ngày thu thập', 'SOFTWARE',
+        ];
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('PC Audit');
+        $sheet->fromArray($headers, null, 'A1');
+
+        $rowNumber = 2;
+        foreach ($audits as $audit) {
+            $sheet->fromArray($this->inventoryRow($audit), null, 'A' . $rowNumber);
+            $rowNumber++;
+        }
+
+        $lastColumn = $this->columnLetter(count($headers));
+        $lastRow = $rowNumber - 1;
+
+        $sheet->getStyle('A1:' . $lastColumn . '1')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '126B6F']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            'borders' => ['bottom' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '0D5255']]],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(36);
+
+        if ($lastRow >= 2) {
+            $sheet->getStyle('A2:' . $lastColumn . $lastRow)->applyFromArray([
+                'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D9E2E3']]],
+            ]);
+            $sheet->getStyle('A2:' . $lastColumn . $lastRow)
+                ->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFFFF');
+            $sheet->getStyle($lastColumn . '2:' . $lastColumn . $lastRow)
+                ->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EAF8F4');
+
+            for ($row = 2; $row <= $lastRow; $row++) {
+                $sheet->getRowDimension($row)->setRowHeight(90);
+            }
+        }
+
+        $sheet->freezePane('A2');
+        $sheet->setAutoFilter('A1:' . $lastColumn . $lastRow);
+        $sheet->getPageSetup()->setOrientation('landscape')->setFitToWidth(1)->setFitToHeight(0);
+        $sheet->getPageMargins()->setTop(0.3)->setBottom(0.3)->setLeft(0.25)->setRight(0.25);
+
+        $widths = [18,20,20,22,18,20,18,16,34,25,42,58,40,40,48,28,70,38,24,18,55,55,35,40,32,45,48,25,28,24,42,40,32,28,20,70,70,22,75];
+        foreach ($widths as $i => $width) {
+            $sheet->getColumnDimension($this->columnLetter($i + 1))->setWidth($width);
+        }
+
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(
+            fn() => $writer->save('php://output'),
+            'PC_Audit_Inventory_Combined_' . now()->format('Ymd-His') . '.xlsx',
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate',
+                'Pragma' => 'no-cache',
+            ]
+        );
+    }
+
     private function inventoryRow(PcAudit $audit): array
     {
         $raw = is_array($audit->raw_payload) ? $audit->raw_payload : [];
