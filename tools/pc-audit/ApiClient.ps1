@@ -53,7 +53,27 @@ function Invoke-PcAuditSubmit {
     catch {
         $detail = $_.Exception.Message
         try {
-            if ($_.ErrorDetails.Message) { $detail = $_.ErrorDetails.Message }
+            if ($_.ErrorDetails.Message) {
+                $rawDetail = [string]$_.ErrorDetails.Message
+                try {
+                    $parsedDetail = $rawDetail | ConvertFrom-Json -ErrorAction Stop
+                    if ($parsedDetail.errors) {
+                        $lines = @()
+                        foreach ($key in $parsedDetail.errors.PSObject.Properties.Name) {
+                            $messages = @($parsedDetail.errors.$key | ForEach-Object { [string]$_ }) -join '; '
+                            $lines += ($key + ': ' + $messages)
+                        }
+                        if ($lines.Count -gt 0) { $detail = ($lines -join ' | ') }
+                        else { $detail = $rawDetail }
+                    } elseif ($parsedDetail.message) {
+                        $detail = [string]$parsedDetail.message
+                    } else {
+                        $detail = $rawDetail
+                    }
+                } catch {
+                    $detail = $rawDetail
+                }
+            }
         } catch {}
         throw "Khong the gui du lieu Audit len may chu: $detail"
     }
