@@ -34,7 +34,13 @@
                     <td style="white-space:nowrap">{{ $service->cost_amount !== null ? number_format((float)$service->cost_amount, 2, ',', '.') : '—' }} {{ $service->cost_currency }}</td>
                     <td>{{ match($service->cost_billing_cycle) { 'monthly' => 'Monthly', 'quarterly' => 'Quarterly', 'yearly' => 'Yearly', 'one_time' => 'One-time', default => '—' } }}</td>
                     <td>{{ $service->service_term_months ? $service->service_term_months.' tháng' : '—' }}</td>
-                    <td>{{ optional($service->expiry_date)->format('d/m/Y') ?: '—' }}</td>
+                    <td>
+@if(strtoupper((string) $service->serviceType?->code) === 'INTERNET' && $service->cost_billing_cycle === 'monthly')
+    <span style="color:#15803d;font-weight:700">Hàng tháng · ngày {{ $service->payment_due_day ?: 15 }}</span>
+@else
+    {{ optional($service->expiry_date)->format('d/m/Y') ?: '—' }}
+@endif
+</td>
                     <td>{{ $service->alertPolicy?->name ?: '—' }}</td>
                     <td>{{ $service->responsibleIt?->name ?: '—' }}</td>
                     <td>{{ ucfirst($service->trashed()?'Deleted':$service->status) }}</td>

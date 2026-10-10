@@ -343,10 +343,22 @@ class ServiceController extends Controller
             $data['website_title'] = null;
         }
 
+        $isMonthlyInternet = $isInternet && (($data['cost_billing_cycle'] ?? null) === 'monthly');
+
         if ($isInternet) {
-            if (($data['cost_billing_cycle'] ?? null) === 'monthly') {
+            if ($isMonthlyInternet) {
                 $data['payment_due_day'] = $data['payment_due_day'] ?? 15;
                 $data['payment_alert_percent'] = $data['payment_alert_percent'] ?? 20;
+
+                // Monthly Internet is a recurring subscription. Its due day repeats
+                // every month, so fixed-term expiry fields and old expiry values
+                // must not trigger contract-expiry alerts.
+                $data['expiry_date'] = null;
+                $data['service_term_months'] = null;
+                $data['alert_policy_id'] = null;
+                $data['status'] = 'active';
+                $data['alert_stage'] = 0;
+                $data['last_alert_at'] = null;
             } else {
                 $data['payment_due_day'] = null;
                 $data['payment_alert_percent'] = null;
@@ -357,10 +369,16 @@ class ServiceController extends Controller
         }
 
         $hasExpiry = !empty($data['expiry_date']);
-        if ($hasExpiry && empty($data['service_term_months'])) abort(422, 'Service Term is required when Expiry Date is set.');
-        if ($hasExpiry && empty($data['alert_policy_id'])) abort(422, 'Alert Policy is required when Expiry Date is set.');
+        if (!$isMonthlyInternet && $hasExpiry && empty($data['service_term_months'])) abort(422, 'Service Term is required when Expiry Date is set.');
+        if (!$isMonthlyInternet && $hasExpiry && empty($data['alert_policy_id'])) abort(422, 'Alert Policy is required when Expiry Date is set.');
 
-        if (!empty($data['service_term_months']) && !$type->terms->pluck('months')->contains((int) $data['service_term_months'])) abort(422, 'Selected service term is not allowed for this Service Type.');
+        if (
+            !$isMonthlyInternet
+            && !empty($data['service_term_months'])
+            && !$type->terms->pluck('months')->contains((int) $data['service_term_months'])
+        ) {
+            abort(422, 'Selected service term is not allowed for this Service Type.');
+        }
 
         if ($isWebsite && empty($data['alert_policy_id'])) {
             $defaultPolicy = ServiceAlertPolicy::query()

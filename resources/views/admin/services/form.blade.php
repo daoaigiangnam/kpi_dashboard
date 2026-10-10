@@ -117,8 +117,13 @@
  function syncExpiryFields(){
    const code=String(type.options[type.selectedIndex]?.dataset.code||'').toUpperCase();
    const isMonthlyFtth=code==='INTERNET' && billing.value==='monthly';
-   if(isMonthlyFtth){term.value='';policy.value='';term.disabled=true;policy.disabled=true;expiry.value='';expiry.disabled=true;}
-   else{term.disabled=false;policy.disabled=false;expiry.disabled=false;term.required=!!expiry.value;policy.required=!!expiry.value;}
+   if(isMonthlyFtth){
+      term.value='';policy.value='';term.disabled=true;policy.disabled=true;expiry.value='';expiry.disabled=true;
+      term.required=false;policy.required=false;
+   } else {
+      term.disabled=false;policy.disabled=false;expiry.disabled=false;
+      term.required=!!expiry.value;policy.required=!!expiry.value;
+   }
  }
  type.addEventListener('change',()=>{currentTerm='';currentPolicy='';currentMethod='';result.textContent='';if(testResult)testResult.textContent='';refresh();});
  billing.addEventListener('change',()=>{refresh();});

@@ -11,6 +11,46 @@ class ServiceAlertEngine
 {
     public function evaluate(Service $service): ?ServiceAlertEvent
     {
+        // Internet services billed monthly are recurring, not fixed-term expiry records.
+        // Their monthly due date is managed via payment_due_day/payment_alert_percent.
+        // Never open a service-expiry incident merely because a legacy expiry_date passed.
+        $service->loadMissing('serviceType');
+        $isMonthlyInternet = strtoupper((string) $service->serviceType?->code) === 'INTERNET'
+            && $service->cost_billing_cycle === 'monthly';
+
+        if ($isMonthlyInternet) {
+            $hasStaleExpiryState = $service->expiry_date !== null
+                || $service->service_term_months !== null
+                || $service->alert_policy_id !== null
+                || $service->status === 'expired'
+                || (int) $service->alert_stage > 0;
+
+            if ($hasStaleExpiryState) {
+                DB::transaction(function () use ($service) {
+                    ServiceAlertEvent::query()
+                        ->where('service_id', $service->id)
+                        ->where('alert_type', 'service_expiry')
+                        ->whereIn('status', ['open', 'acknowledged'])
+                        ->update([
+                            'status' => 'resolved',
+                            'resolved_at' => now(),
+                            'note' => 'Closed automatically: monthly Internet service uses a recurring payment schedule, not a fixed expiry date.',
+                        ]);
+
+                    $service->forceFill([
+                        'status' => 'active',
+                        'expiry_date' => null,
+                        'service_term_months' => null,
+                        'alert_policy_id' => null,
+                        'alert_stage' => 0,
+                        'last_alert_at' => null,
+                    ])->saveQuietly();
+                });
+            }
+
+            return null;
+        }
+
         // An expiry date + active Alert Policy is enough to detect an already
         // expired contract. The service term is only required for the
         // percentage-based pre-expiry stages.
