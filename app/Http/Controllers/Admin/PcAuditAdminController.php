@@ -15,6 +15,131 @@ use Illuminate\Support\Str;
 
 class PcAuditAdminController extends Controller
 {
+    public function launcher()
+    {
+        $customers = ServiceCustomer::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']);
+        $branches = CustomerBranch::query()->where('is_active', true)->whereHas('customer', fn ($q) => $q->where('is_active', true))->orderBy('customer_id')->orderBy('name')->get(['id', 'customer_id', 'name']);
+        return view('admin.pc-audit.launcher', compact('customers', 'branches'));
+    }
+
+    public function generateLauncher(Request $request)
+    {
+        $data = $request->validate([
+            'customer_id' => ['required', 'integer', 'exists:service_customers,id'],
+            'branch_id' => ['required', 'integer', 'exists:customer_branches,id'],
+            'department' => ['required', 'string', 'max:200'],
+            'employee_name' => ['required', 'string', 'max:200'],
+            'employee_mobile' => ['nullable', 'string', 'max:50'],
+            'employee_email' => ['nullable', 'email', 'max:190'],
+        ]);
+
+        $customer = ServiceCustomer::query()->whereKey($data['customer_id'])->where('is_active', true)->firstOrFail();
+        $branch = CustomerBranch::query()->whereKey($data['branch_id'])->where('customer_id', $customer->id)->where('is_active', true)->firstOrFail();
+
+        $auditCode = PcAuditCode::query()->where('branch_id', $branch->id)->where('is_active', true)->orderBy('id')->first();
+        if (!$auditCode) {
+            $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            do {
+                $code = '';
+                for ($i = 0; $i < 6; $i++) { $code .= $alphabet[random_int(0, strlen($alphabet) - 1)]; }
+            } while (PcAuditCode::query()->where('code', $code)->exists());
+            $auditCode = PcAuditCode::create(['branch_id' => $branch->id, 'code' => $code, 'name' => 'PC Audit - ' . $branch->name, 'is_active' => true]);
+        }
+
+        $basePath = base_path('tools/pc-audit');
+        foreach (['Config.ps1', 'ApiClient.ps1', 'Collector.ps1', 'AuditTool.ps1'] as $file) {
+            abort_unless(is_file($basePath . DIRECTORY_SEPARATOR . $file), 500, 'Thiếu file nguồn PC Audit: ' . $file);
+        }
+
+        $config = file_get_contents($basePath . '/Config.ps1');
+        $api = file_get_contents($basePath . '/ApiClient.ps1');
+        $collector = file_get_contents($basePath . '/Collector.ps1');
+        $main = file_get_contents($basePath . '/AuditTool.ps1');
+
+        $collector = preg_replace('/^\s*param\(\[switch\]\$Progress\)\s*/', '', (string) $collector, 1);
+        $main = preg_replace('/^\$here\s*=.*\R/', '', (string) $main, 1);
+        $main = preg_replace('/^\. \(Join-Path \$here .*?\R/m', '', (string) $main);
+
+        $compatibility = <<<'PS'
+$Progress = $true
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
+if (-not (Get-Command Get-CimInstance -ErrorAction SilentlyContinue)) {
+    function Get-CimInstance {
+        param([Parameter(Position=0)][string]$ClassName,[string]$Namespace='root/cimv2',[string]$Filter,[string]$ErrorAction='Continue')
+        $args = @{ Class=$ClassName; Namespace=$Namespace; ErrorAction=$ErrorAction }
+        if (-not [string]::IsNullOrWhiteSpace($Filter)) { $args.Filter=$Filter }
+        Get-WmiObject @args
+    }
+}
+PS;
+
+        $collector = str_replace(
+            '$result.security.bitlocker=@(Get-BitLockerVolume -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{mount_point=$_.MountPoint;protection_status=[string]$_.ProtectionStatus;volume_status=[string]$_.VolumeStatus;encryption_percent=$_.EncryptionPercentage}})',
+            'if (Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue) {$result.security.bitlocker=@(Get-BitLockerVolume -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{mount_point=$_.MountPoint;protection_status=[string]$_.ProtectionStatus;volume_status=[string]$_.VolumeStatus;encryption_percent=$_.EncryptionPercentage}})} else {$result.security.bitlocker=@()}',
+            (string) $collector
+        );
+        $collector = str_replace(
+            '$result.security.firewall=@(Get-NetFirewallProfile -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{profile=$_.Name;enabled=$_.Enabled}})',
+            'if (Get-Command Get-NetFirewallProfile -ErrorAction SilentlyContinue) {$result.security.firewall=@(Get-NetFirewallProfile -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{profile=$_.Name;enabled=$_.Enabled}})} else {$result.security.firewall=@()}',
+            (string) $collector
+        );
+
+        $psQuote = static fn (string $value): string => "'" . str_replace("'", "''", $value) . "'";
+        $main = str_replace(
+            "$" . "code = Read-Host 'Audit Code'\nif ([string]::IsNullOrWhiteSpace($" . "code)) { throw 'Audit Code khong duoc de trong.' }\n$" . "code = $" . "code.Trim().ToUpperInvariant()",
+            '$code = ' . $psQuote($auditCode->code) . "\nif ([string]::IsNullOrWhiteSpace($" . "code)) { throw 'Audit Code khong duoc de trong.' }\n$" . "code = $" . "code.Trim().ToUpperInvariant()",
+            (string) $main
+        );
+
+        $userPattern = '/\$defaultEmployee = \[string\]\$env:USERNAME.*?if \(\$answer -notmatch \'\^\(Y\|y\)\$\'\) \{ exit 0 \}/s';
+        $userBlock = '$employeeName = ' . $psQuote($data['employee_name']) . "\n" .
+            '$department = ' . $psQuote($data['department']) . "\n" .
+            '$employeeMobile = ' . $psQuote((string) ($data['employee_mobile'] ?? '')) . "\n" .
+            '$employeeEmail = ' . $psQuote((string) ($data['employee_email'] ?? '')) . "\n" .
+            "if ([string]::IsNullOrWhiteSpace($" . "employeeName)) { throw 'Ho ten nguoi su dung khong duoc de trong.' }\n" .
+            "if ([string]::IsNullOrWhiteSpace($" . "department)) { throw 'Phong ban khong duoc de trong.' }";
+        $main = preg_replace($userPattern, $userBlock, (string) $main, 1);
+
+        $main = str_replace(
+            "    department = $" . "department\n    data = $" . "collector",
+            "    department = $" . "department\n    employee_mobile = $" . "employeeMobile\n    employee_email = $" . "employeeEmail\n    data = $" . "collector",
+            (string) $main
+        );
+
+        $ps1 = $compatibility . "\r\n" . $config . "\r\n" . $api . "\r\n" . $collector . "\r\n" . $main;
+        $bat = <<<'BAT'
+@echo off
+setlocal
+cd /d "%~dp0"
+chcp 65001 >nul
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0PC_Audit.ps1"
+if errorlevel 1 (
+    echo.
+    echo PC Audit that bai. Vui long chup man hinh loi gui cho IT.
+    pause
+)
+endlocal
+BAT;
+
+        if (!class_exists(\ZipArchive::class)) {
+            return back()->withInput()->withErrors(['launcher' => 'PHP ZipArchive chưa được cài trên server. Vui lòng bật extension zip rồi thử lại.']);
+        }
+        $tmp = tempnam(sys_get_temp_dir(), 'pc-audit-');
+        if ($tmp === false) { return back()->withInput()->withErrors(['launcher' => 'Không tạo được file tạm để đóng gói PC Audit.']); }
+        $zip = new \ZipArchive();
+        if ($zip->open($tmp, \ZipArchive::OVERWRITE) !== true) {
+            @unlink($tmp);
+            return back()->withInput()->withErrors(['launcher' => 'Không thể tạo gói ZIP PC Audit.']);
+        }
+        $zip->addFromString('PC_Audit.ps1', "\xEF\xBB\xBF" . $ps1);
+        $zip->addFromString('PC_Audit.bat', $bat);
+        $zip->addFromString('README.txt', "PC AUDIT - HUONG DAN\n\n1. Giai nen 2 file vao cung mot thu muc.\n2. Chay PC_Audit.bat tren may Windows can kiem ke.\n3. Audit Code da duoc gan tu Web.\n4. May can ket noi Internet HTTPS den kpi.review360.id.vn.\n\nCustomer: {$customer->name}\nBranch: {$branch->name}\nDepartment: {$data['department']}\nEmployee: {$data['employee_name']}\nAudit Code: {$auditCode->code}\n");
+        $zip->close();
+
+        $filename = 'PC_Audit_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $branch->code ?: $branch->name) . '_' . now()->format('Ymd_His') . '.zip';
+        return response()->download($tmp, $filename, ['Content-Type' => 'application/zip'])->deleteFileAfterSend(true);
+    }
+
     public function settings()
     {
         $setting = PcAuditSetting::query()->first() ?? new PcAuditSetting([
