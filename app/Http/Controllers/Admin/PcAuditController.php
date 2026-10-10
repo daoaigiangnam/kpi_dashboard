@@ -98,6 +98,8 @@ class PcAuditController extends Controller
     {
         $data = $request->validate([
             'employee_name' => ['nullable', 'string', 'max:150'],
+            'employee_mobile' => ['nullable', 'string', 'max:50'],
+            'employee_email' => ['nullable', 'email', 'max:190'],
             'customer_id' => ['required', 'integer', 'exists:service_customers,id'],
             'branch_id' => ['required', 'integer', 'exists:customer_branches,id'],
         ]);
@@ -140,12 +142,14 @@ class PcAuditController extends Controller
 
         $pcAudit->update([
             'employee_name' => trim((string) ($data['employee_name'] ?? '')) ?: null,
+            'employee_mobile' => trim((string) ($data['employee_mobile'] ?? '')) ?: null,
+            'employee_email' => trim((string) ($data['employee_email'] ?? '')) ?: null,
             'pc_audit_code_id' => $auditCode->id,
         ]);
 
         return redirect()
             ->route('admin.pc_audit.show', $pcAudit)
-            ->with('success', 'Đã cập nhật Họ tên, Customer và Chi nhánh cho PC Audit.');
+            ->with('success', 'Đã cập nhật Họ tên, Di động, Email, Customer và Chi nhánh cho PC Audit.');
     }
 
     public function export(Request $request): StreamedResponse
@@ -173,7 +177,7 @@ class PcAuditController extends Controller
         $spreadsheet->removeSheetByIndex(0);
 
         $headers = [
-            'Họ Tên', 'Username', 'Domain', 'Tên máy tính', 'Manufacturer', 'Model', 'Serial Number', 'Asset Tag',
+            'Họ Tên', 'Di động', 'Email', 'Username', 'Domain', 'Tên máy tính', 'Manufacturer', 'Model', 'Serial Number', 'Asset Tag',
             'Mainboard', 'BIOS', 'CPU', 'RAM', 'HDD', 'Monitor', 'VGA', 'Battery', 'OS', 'Windows Update',
             'Last Boot', 'Uptime', 'LAN', 'WIFI', 'MODEM', 'IP', 'MAC', 'Gateway', 'DNS', 'DHCP',
             'Connection Status', 'Link Speed', 'Antivirus', 'BitLocker', 'Firewall', 'TPM', 'Secure Boot',
@@ -349,6 +353,8 @@ class PcAuditController extends Controller
 
         return [
             $audit->employee_name,
+            $audit->employee_mobile,
+            $audit->employee_email,
             $audit->employee_username,
             $audit->domain,
             $audit->computer_name,
