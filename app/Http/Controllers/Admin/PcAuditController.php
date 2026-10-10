@@ -148,17 +148,24 @@ class PcAuditController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
+        $allFiltered = $request->boolean('all_filtered');
         $ids = collect($request->input('ids', []))
             ->map(fn($id) => (int) $id)
             ->filter(fn($id) => $id > 0)
             ->unique()->take(200)->values();
 
-        abort_if($ids->isEmpty(), 422, 'Chưa chọn máy để xuất Excel.');
+        abort_if(!$allFiltered && $ids->isEmpty(), 422, 'Chọn máy hoặc bật Xuất toàn bộ kết quả theo bộ lọc.');
 
-        $audits = PcAudit::with([
+        $auditsQuery = $allFiltered
+            ? $this->filteredAuditsQuery($request)
+            : PcAudit::query()->whereIn('id', $ids);
+
+        $audits = $auditsQuery->with([
             'auditCode.branch.customer', 'details', 'memory', 'storage', 'monitors', 'gpu',
             'batteries', 'network', 'antivirus', 'bitlocker', 'firewall', 'licenses', 'software',
-        ])->whereIn('id', $ids)->get();
+        ])->get();
+
+        abort_if($audits->isEmpty(), 404, 'Không tìm thấy dữ liệu PC Audit phù hợp với bộ lọc.');
 
         $spreadsheet = new Spreadsheet();
         $spreadsheet->removeSheetByIndex(0);
@@ -227,17 +234,24 @@ class PcAuditController extends Controller
 
     public function exportSingleSheet(Request $request): StreamedResponse
     {
+        $allFiltered = $request->boolean('all_filtered');
         $ids = collect($request->input('ids', []))
             ->map(fn($id) => (int) $id)
             ->filter(fn($id) => $id > 0)
             ->unique()->take(200)->values();
 
-        abort_if($ids->isEmpty(), 422, 'Chưa chọn máy để xuất Excel.');
+        abort_if(!$allFiltered && $ids->isEmpty(), 422, 'Chọn máy hoặc bật Xuất toàn bộ kết quả theo bộ lọc.');
 
-        $audits = PcAudit::with([
+        $auditsQuery = $allFiltered
+            ? $this->filteredAuditsQuery($request)
+            : PcAudit::query()->whereIn('id', $ids);
+
+        $audits = $auditsQuery->with([
             'auditCode.branch.customer', 'details', 'memory', 'storage', 'monitors', 'gpu',
             'batteries', 'network', 'antivirus', 'bitlocker', 'firewall', 'licenses', 'software',
-        ])->whereIn('id', $ids)->orderByDesc('collected_at')->get();
+        ])->orderByDesc('collected_at')->get();
+
+        abort_if($audits->isEmpty(), 404, 'Không tìm thấy dữ liệu PC Audit phù hợp với bộ lọc.');
 
         abort_if($audits->isEmpty(), 404, 'Không tìm thấy dữ liệu PC Audit đã chọn.');
 
