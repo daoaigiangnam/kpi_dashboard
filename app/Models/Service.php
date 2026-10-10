@@ -74,19 +74,17 @@ class Service extends Model
             // A recurring monthly Internet subscription does not have a fixed
             // service-expiry lifecycle. Keep its business status active even if
             // an older record carried an expired status/stage from expiry alerts.
-            if ($service->exists) {
-                $service->loadMissing('serviceType');
-                if (
-                    strtoupper((string) $service->serviceType?->code) === 'INTERNET'
-                    && $service->cost_billing_cycle === 'monthly'
-                ) {
-                    $service->status = 'active';
-                    $service->expiry_date = null;
-                    $service->service_term_months = null;
-                    $service->alert_policy_id = null;
-                    $service->alert_stage = 0;
-                    $service->last_alert_at = null;
-                }
+            $service->loadMissing('serviceType');
+            if (
+                strtoupper((string) $service->serviceType?->code) === 'INTERNET'
+                && $service->cost_billing_cycle === 'monthly'
+            ) {
+                $service->status = 'active';
+                $service->expiry_date = null;
+                $service->service_term_months = null;
+                $service->alert_policy_id = null;
+                $service->alert_stage = 0;
+                $service->last_alert_at = null;
             }
         });
     }
