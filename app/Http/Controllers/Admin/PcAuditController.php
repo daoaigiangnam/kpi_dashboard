@@ -25,8 +25,10 @@ class PcAuditController extends Controller
         $customerId = $request->query('customer_id');
         $branchId = $request->query('branch_id');
         $customers = ServiceCustomer::query()->orderBy('name')->get(['id', 'code', 'name']);
+        // Load branch options for the dependent customer/branch dropdown.
+        // The browser filters these options whenever the selected customer changes.
         $branches = CustomerBranch::query()
-            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
+            ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'customer_id', 'name']);
 
