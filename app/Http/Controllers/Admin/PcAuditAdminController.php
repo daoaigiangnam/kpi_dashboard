@@ -84,7 +84,7 @@ PS;
                 (string) $collector
             );
         } else {
-            $compatibility = "try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}";
+            $compatibility = "$Progress = $true`r`ntry { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}";
         }
 
         $psQuote = static fn (string $value): string => "'" . str_replace("'", "''", $value) . "'";
