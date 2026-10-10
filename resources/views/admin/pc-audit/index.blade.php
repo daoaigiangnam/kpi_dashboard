@@ -46,6 +46,12 @@
     .pc-audit-empty{text-align:center!important;padding:38px!important;color:#94a3b8!important}
     .pc-audit-alert{display:flex;align-items:flex-start;gap:10px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:13px}
     .pc-audit-pagination{margin-top:16px}
+    /* Laravel pagination uses Tailwind utility classes, but this admin layout
+       does not load Tailwind. Set SVG dimensions explicitly to avoid the
+       Previous/Next chevrons rendering at the browser's default 300x150 size. */
+    .pc-audit-page nav[role="navigation"] svg{width:20px!important;height:20px!important;max-width:20px!important;max-height:20px!important;display:inline-block;vertical-align:middle}
+    .pc-audit-page nav[role="navigation"]{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .pc-audit-page nav[role="navigation"] a,.pc-audit-page nav[role="navigation"] span{line-height:1.5}
     @media(max-width:900px){.pc-audit-toolbar{grid-template-columns:1fr 1fr}.pc-audit-toolbar .full{grid-column:1/-1}}
     @media(max-width:600px){.pc-audit-toolbar{grid-template-columns:1fr}.pc-audit-toolbar .full{grid-column:auto}.pc-audit-card{padding:14px}.pc-audit-hero{padding:20px}}
 </style>
