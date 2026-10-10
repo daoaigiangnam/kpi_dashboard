@@ -372,7 +372,13 @@ class ServiceController extends Controller
         if (!$isMonthlyInternet && $hasExpiry && empty($data['service_term_months'])) abort(422, 'Service Term is required when Expiry Date is set.');
         if (!$isMonthlyInternet && $hasExpiry && empty($data['alert_policy_id'])) abort(422, 'Alert Policy is required when Expiry Date is set.');
 
-        if (!empty($data['service_term_months']) && !$type->terms->pluck('months')->contains((int) $data['service_term_months'])) abort(422, 'Selected service term is not allowed for this Service Type.');
+        if (
+            !$isMonthlyInternet
+            && !empty($data['service_term_months'])
+            && !$type->terms->pluck('months')->contains((int) $data['service_term_months'])
+        ) {
+            abort(422, 'Selected service term is not allowed for this Service Type.');
+        }
 
         if ($isWebsite && empty($data['alert_policy_id'])) {
             $defaultPolicy = ServiceAlertPolicy::query()
