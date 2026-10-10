@@ -170,7 +170,7 @@
                 @if(auth()->user()->hasPermission('pc_audit.export'))
                     <button class="pc-audit-btn" type="submit" id="export-button">📊 Xuất Excel · Mỗi máy một sheet</button>
                     <button class="pc-audit-btn" type="submit" id="export-single-sheet-button" formaction="{{ route('admin.pc_audit.export_single_sheet') }}" style="background:#2563eb">📋 Xuất Excel · Chung một sheet</button>
-                    <span class="pc-audit-export-note" id="selected-count">Chưa chọn máy nào · Tối đa 200 máy/lần. Chọn nút xuất phù hợp với cách sắp xếp mong muốn.</span>
+                    <span class="pc-audit-export-note" id="selected-count">Chọn tối đa 200 máy bằng checkbox, hoặc bật “Xuất toàn bộ kết quả theo bộ lọc” để lấy mọi trang.</span>
                 @else
                     <span class="pc-audit-export-note">Bạn không có quyền xuất Excel PC Audit.</span>
                 @endif
@@ -231,7 +231,7 @@ function submitDeletePcAudit(button, auditId, computerName) {
     function update(){
         if(!label) return;
         const n=checks.filter(c=>c.checked).length;
-        label.textContent=n?`${n} máy đã chọn · Tối đa 200 máy/lần.`:'Chưa chọn máy nào · Tối đa 200 máy/lần.';
+        label.textContent=n?`${n} máy đã chọn bằng checkbox.`:'Chưa chọn máy nào.';
         if(all){all.checked=checks.length>0&&n===checks.length;all.indeterminate=n>0&&n<checks.length;}
     }
     if(all) all.addEventListener('change',()=>{checks.forEach(c=>c.checked=all.checked);update()});
