@@ -23,11 +23,31 @@ class PcAuditController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
         $customerId = $request->query('customer_id');
+        $branchId = $request->query('branch_id');
         $customers = ServiceCustomer::query()->orderBy('name')->get(['id', 'code', 'name']);
+        $branches = CustomerBranch::query()
+            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
+            ->orderBy('name')
+            ->get(['id', 'customer_id', 'name']);
 
-        $audits = PcAudit::query()
+        $audits = $this->filteredAuditsQuery($request)
             ->with(['auditCode.branch.customer'])
-            ->when($customerId, fn($q) => $q->whereHas('auditCode.branch', fn($b) => $b->where('customer_id', $customerId)))
+            ->latest('collected_at')
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('admin.pc-audit.index', compact('audits', 'search', 'customerId', 'branchId', 'customers', 'branches'));
+    }
+
+    private function filteredAuditsQuery(Request $request)
+    {
+        $search = trim((string) $request->input('search', ''));
+        $customerId = $request->input('customer_id');
+        $branchId = $request->input('branch_id');
+
+        return PcAudit::query()
+            ->when($customerId, fn ($q) => $q->whereHas('auditCode.branch', fn ($b) => $b->where('customer_id', $customerId)))
+            ->when($branchId, fn ($q) => $q->whereHas('auditCode', fn ($c) => $c->where('branch_id', $branchId)))
             ->when($search !== '', function ($q) use ($search) {
                 $like = "%{$search}%";
                 $q->where(function ($x) use ($like) {
@@ -37,14 +57,9 @@ class PcAuditController extends Controller
                         ->orWhere('department', 'like', $like)
                         ->orWhere('manufacturer', 'like', $like)
                         ->orWhere('model', 'like', $like)
-                        ->orWhereHas('auditCode', fn($c) => $c->where('code', 'like', $like));
+                        ->orWhereHas('auditCode', fn ($c) => $c->where('code', 'like', $like));
                 });
-            })
-            ->latest('collected_at')
-            ->paginate(25)
-            ->withQueryString();
-
-        return view('admin.pc-audit.index', compact('audits', 'search', 'customerId', 'customers'));
+            });
     }
 
     public function show(PcAudit $pcAudit)
