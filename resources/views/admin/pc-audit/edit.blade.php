@@ -25,7 +25,7 @@
     <div class="pc-edit-wrap">
         <div class="pc-edit-hero">
             <h1>✏️ Chỉnh sửa thông tin PC Audit</h1>
-            <p>Cập nhật Họ tên, Customer và Chi nhánh. Thông tin phần cứng, phần mềm và kết quả Audit được giữ nguyên.</p>
+            <p>Cập nhật Họ tên, Di động, Email, Customer và Chi nhánh. Thông tin phần cứng, phần mềm và kết quả Audit được giữ nguyên.</p>
         </div>
 
         @if($errors->any())
@@ -50,6 +50,18 @@
                         <label for="employee_name">Họ Tên</label>
                         <input id="employee_name" name="employee_name" value="{{ old('employee_name', $pcAudit->employee_name) }}" maxlength="150" placeholder="Nhập họ và tên người sử dụng máy">
                         @error('employee_name')<div class="pc-edit-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="pc-edit-field">
+                        <label for="employee_mobile">Di động</label>
+                        <input id="employee_mobile" name="employee_mobile" type="tel" value="{{ old('employee_mobile', $pcAudit->employee_mobile) }}" maxlength="50" autocomplete="tel" placeholder="Nhập số điện thoại">
+                        @error('employee_mobile')<div class="pc-edit-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="pc-edit-field">
+                        <label for="employee_email">Email</label>
+                        <input id="employee_email" name="employee_email" type="email" value="{{ old('employee_email', $pcAudit->employee_email) }}" maxlength="190" autocomplete="email" placeholder="name@company.com">
+                        @error('employee_email')<div class="pc-edit-error">{{ $message }}</div>@enderror
                     </div>
 
                     @php
