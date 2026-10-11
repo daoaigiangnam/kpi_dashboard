@@ -98,4 +98,5 @@ function Invoke-PcAuditSubmit {
         }
 
         throw "Khong the gui du lieu Audit len may chu: $detail"
+    }
 }
