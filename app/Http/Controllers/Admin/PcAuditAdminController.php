@@ -60,17 +60,68 @@ class PcAuditAdminController extends Controller
         $compatibility = '';
         if ($data['target_os'] === 'windows7') {
             $compatibility = <<<'PS'
+# Windows 7 legacy runtime: PowerShell 2.0 has no ConvertTo/From-Json or Invoke-RestMethod.
 $Progress = $true
-try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
+try { [void][Reflection.Assembly]::LoadWithPartialName('System.Web.Extensions') } catch {}
+$script:PcAuditJsonSerializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+$script:PcAuditJsonSerializer.MaxJsonLength = 10485760
+function ConvertTo-Json {
+    param([Parameter(ValueFromPipeline=$true)]$InputObject,[int]$Depth=2,[switch]$Compress)
+    process { $script:PcAuditJsonSerializer.Serialize($InputObject) }
+}
+function ConvertFrom-Json {
+    param([Parameter(ValueFromPipeline=$true)]$InputObject)
+    process { $script:PcAuditJsonSerializer.DeserializeObject([string]$InputObject) }
+}
+function Invoke-RestMethod {
+    [CmdletBinding()]
+    param([Parameter(Mandatory=$true)][string]$Uri,[string]$Method='Get',[hashtable]$Headers,[string]$ContentType,[string]$Body,[int]$TimeoutSec=120)
+    $request = [System.Net.HttpWebRequest]::Create($Uri)
+    $request.Method = $Method.ToUpperInvariant()
+    $request.Timeout = $TimeoutSec * 1000
+    $request.ReadWriteTimeout = $TimeoutSec * 1000
+    if ($Headers) { foreach ($key in $Headers.Keys) { if ($key -ieq 'Accept') { $request.Accept=[string]$Headers[$key] } else { $request.Headers[[string]$key]=[string]$Headers[$key] } } }
+    if ($ContentType) { $request.ContentType=$ContentType }
+    if ($Body -and $request.Method -ne 'GET') {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($Body)
+        $request.ContentLength = $bytes.Length
+        $stream = $request.GetRequestStream()
+        try { $stream.Write($bytes,0,$bytes.Length) } finally { $stream.Close() }
+    }
+    try {
+        $response = $request.GetResponse()
+        try {
+            $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
+            try { $responseText=$reader.ReadToEnd() } finally { $reader.Close() }
+        } finally { $response.Close() }
+    } catch [System.Net.WebException] {
+        $webError=$_
+        $responseText=''
+        if ($webError.Exception.Response) {
+            try {
+                $reader=New-Object System.IO.StreamReader($webError.Exception.Response.GetResponseStream())
+                try { $responseText=$reader.ReadToEnd() } finally { $reader.Close() }
+            } catch {}
+        }
+        if ($responseText) { throw $responseText }
+        throw $webError.Exception.Message
+    }
+    if ([string]::IsNullOrEmpty($responseText)) { return $null }
+    return (ConvertFrom-Json $responseText)
+}
 if (-not (Get-Command Get-CimInstance -ErrorAction SilentlyContinue)) {
     function Get-CimInstance {
         param([Parameter(Position=0)][string]$ClassName,[string]$Namespace='root/cimv2',[string]$Filter,[string]$ErrorAction='Continue')
         $args = @{ Class=$ClassName; Namespace=$Namespace; ErrorAction=$ErrorAction }
-        if (-not [string]::IsNullOrWhiteSpace($Filter)) { $args.Filter=$Filter }
+        if ($Filter) { $args.Filter=$Filter }
         Get-WmiObject @args
     }
 }
 PS;
+
+            // PowerShell 2.0 does not support ordered hashtables. Keep the transformation scoped to Windows 7 packages.
+            $collector = str_replace('[ordered]@{', '@{', (string) $collector);
+            $api = str_replace('$parsed.errors.PSObject.Properties.Name', '$parsed.errors.Keys', (string) $api);
 
             // Guard security cmdlets unavailable on Windows 7 / older PowerShell.
             $collector = str_replace(
