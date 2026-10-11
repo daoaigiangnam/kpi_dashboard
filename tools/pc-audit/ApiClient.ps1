@@ -52,29 +52,50 @@ function Invoke-PcAuditSubmit {
     }
     catch {
         $detail = $_.Exception.Message
+        $responseBody = $null
+
+        # Windows PowerShell may not populate ErrorDetails.Message for HTTP 422.
+        # Read the response stream directly so Laravel validation errors are visible.
         try {
-            if ($_.ErrorDetails.Message) {
-                $rawDetail = [string]$_.ErrorDetails.Message
-                try {
-                    $parsedDetail = $rawDetail | ConvertFrom-Json -ErrorAction Stop
-                    if ($parsedDetail.errors) {
-                        $lines = @()
-                        foreach ($key in $parsedDetail.errors.PSObject.Properties.Name) {
-                            $messages = @($parsedDetail.errors.$key | ForEach-Object { [string]$_ }) -join '; '
-                            $lines += ($key + ': ' + $messages)
-                        }
-                        if ($lines.Count -gt 0) { $detail = ($lines -join ' | ') }
-                        else { $detail = $rawDetail }
-                    } elseif ($parsedDetail.message) {
-                        $detail = [string]$parsedDetail.message
-                    } else {
-                        $detail = $rawDetail
-                    }
-                } catch {
-                    $detail = $rawDetail
-                }
+            if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+                $responseBody = [string]$_.ErrorDetails.Message
             }
         } catch {}
+
+        if ([string]::IsNullOrWhiteSpace($responseBody)) {
+            try {
+                $httpResponse = $_.Exception.Response
+                if ($null -ne $httpResponse) {
+                    $stream = $httpResponse.GetResponseStream()
+                    if ($null -ne $stream) {
+                        $reader = New-Object System.IO.StreamReader($stream)
+                        try { $responseBody = $reader.ReadToEnd() } finally { $reader.Dispose() }
+                    }
+                }
+            } catch {}
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($responseBody)) {
+            try {
+                $parsed = $responseBody | ConvertFrom-Json -ErrorAction Stop
+                if ($parsed.errors) {
+                    $lines = @()
+                    foreach ($key in $parsed.errors.PSObject.Properties.Name) {
+                        $messages = @($parsed.errors.$key | ForEach-Object { [string]$_ }) -join '; '
+                        $lines += ($key + ': ' + $messages)
+                    }
+                    if ($lines.Count -gt 0) { $detail = $lines -join ' | ' }
+                    elseif ($parsed.message) { $detail = [string]$parsed.message }
+                    else { $detail = $responseBody }
+                } elseif ($parsed.message) {
+                    $detail = [string]$parsed.message
+                } else {
+                    $detail = $responseBody
+                }
+            } catch {
+                $detail = $responseBody
+            }
+        }
+
         throw "Khong the gui du lieu Audit len may chu: $detail"
-    }
 }
