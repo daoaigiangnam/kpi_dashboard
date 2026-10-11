@@ -119,10 +119,6 @@ if (-not (Get-Command Get-CimInstance -ErrorAction SilentlyContinue)) {
 }
 PS;
 
-            // PowerShell 2.0 does not support ordered hashtables. Keep the transformation scoped to Windows 7 packages.
-            $collector = str_replace('[ordered]@{', '@{', (string) $collector);
-            $api = str_replace('$parsed.errors.PSObject.Properties.Name', '$parsed.errors.Keys', (string) $api);
-
             // Guard security cmdlets unavailable on Windows 7 / older PowerShell.
             $collector = str_replace(
                 '$result.security.bitlocker=@(Get-BitLockerVolume -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{mount_point=$_.MountPoint;protection_status=[string]$_.ProtectionStatus;volume_status=[string]$_.VolumeStatus;encryption_percent=$_.EncryptionPercentage}})',
@@ -134,6 +130,10 @@ PS;
                 'if (Get-Command Get-NetFirewallProfile -ErrorAction SilentlyContinue) {$result.security.firewall=@(Get-NetFirewallProfile -ErrorAction SilentlyContinue|ForEach-Object{[ordered]@{profile=$_.Name;enabled=$_.Enabled}})} else {$result.security.firewall=@()}',
                 (string) $collector
             );
+            // PowerShell 2.0 does not support ordered hashtables. Keep the transformation scoped to Windows 7 packages.
+            $collector = str_replace('[ordered]@{', '@{', (string) $collector);
+            $api = str_replace('$parsed.errors.PSObject.Properties.Name', '$parsed.errors.Keys', (string) $api);
+
         } else {
             $compatibility = '$Progress = $true' . "\r\n" . 'try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}';
         }
