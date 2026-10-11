@@ -135,7 +135,7 @@ PS;
             $api = str_replace('$parsed.errors.PSObject.Properties.Name', '$parsed.errors.Keys', (string) $api);
 
         } else {
-            $compatibility = '$Progress = $true' . "\r\n" . 'try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}';
+            $compatibility = '$Progress = $true' . "\r\n" . 'try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]3072 } catch { Write-Host 'Can .NET Framework 4.5 tro len va TLS 1.2 de ket noi HTTPS.' -ForegroundColor Red; throw }';
         }
 
         $psQuote = static fn (string $value): string => "'" . str_replace("'", "''", $value) . "'";
