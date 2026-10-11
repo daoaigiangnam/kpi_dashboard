@@ -146,7 +146,27 @@ PS;
         );
 
         $ps1 = $compatibility . "\r\n" . $config . "\r\n" . $api . "\r\n" . $collector . "\r\n" . $main;
-        $bat = <<<'BAT'
+        if ($data['target_os'] === 'windows7') {
+            // PowerShell 2.0 requires explicit named-parameter values; keep this transformation isolated to Win7 packages.
+            $ps1 = str_replace('[Parameter(Mandatory)]', '[Parameter(Mandatory=$true)]', $ps1);
+        }
+
+        if ($data['target_os'] === 'windows7') {
+            $bat = <<<'BAT'
+@echo off
+setlocal
+cd /d "%~dp0."
+chcp 65001 >nul
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0PC_Audit.ps1"
+if errorlevel 1 (
+    echo.
+    echo PC Audit that bai. Vui long chup man hinh loi gui cho IT.
+    pause
+)
+endlocal
+BAT;
+        } else {
+            $bat = <<<'BAT'
 @echo off
 setlocal
 cd /d "%~dp0"
@@ -159,6 +179,7 @@ if errorlevel 1 (
 )
 endlocal
 BAT;
+        }
 
         if (!class_exists(\ZipArchive::class)) {
             return back()->withInput()->withErrors(['launcher' => 'PHP ZipArchive chưa được cài trên server. Vui lòng bật extension zip rồi thử lại.']);
