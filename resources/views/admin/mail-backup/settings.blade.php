@@ -74,5 +74,9 @@
         </td></tr>
     @endforeach
     </tbody></table></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+    <a class="btn gray" href="{{ route('admin.mail_backup.index') }}">← Mail Backup Dashboard</a>
+    <a class="btn gray" href="{{ route('admin.mail_backup.audit') }}">Xem Audit Log</a>
+</div>
 </div>
 @endsection
