@@ -37,6 +37,7 @@ return new class extends Migration
         MailBackupSettingDefinition::whereIn('key', [
             'mail.gmail.domain',
             'mail.google.service_account_json_path',
+            'mail.google.service_account_private_key',
             'mail.google.delegated_admin_email',
             'mail.google.read_scope',
             'mail.backup.storage_path',
