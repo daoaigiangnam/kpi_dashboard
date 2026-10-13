@@ -32,7 +32,7 @@ class MailBackupSettingDefinition extends Model
         try {
             // Secret values are explicitly encrypted by the settings controller.
             return decrypt($this->value);
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             return null;
         }
     }
