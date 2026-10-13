@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Console\\Commands;
+namespace App\Console\Commands;
 
-use App\\Models\\MailBackupJob;
-use Illuminate\\Console\\Command;
+use App\Models\MailBackupJob;
+use Illuminate\Console\Command;
 
 class MailBackupQueueDryRunCommand extends Command
 {
