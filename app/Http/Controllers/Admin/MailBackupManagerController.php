@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Http\\Controllers\\Admin;
+namespace App\Http\Controllers\Admin;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\MailBackupAuditLog;
-use App\\Models\\MailBackupBatch;
-use App\\Models\\MailBackupJob;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
+use App\Http\Controllers\Controller;
+use App\Models\MailBackupAuditLog;
+use App\Models\MailBackupBatch;
+use App\Models\MailBackupJob;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class MailBackupManagerController extends Controller
 {
@@ -48,7 +48,7 @@ class MailBackupManagerController extends Controller
             fclose($handle);
             throw ValidationException::withMessages(['accounts_csv' => 'CSV trống.']);
         }
-        $header[0] = preg_replace('/^\\xEF\\xBB\\xBF/', '', (string) $header[0]);
+        $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header[0]);
         $header = array_map(fn ($v) => strtolower(trim((string) $v)), $header);
         $emailIndex = array_search('email', $header, true);
         $nameIndex = array_search('display_name', $header, true);
