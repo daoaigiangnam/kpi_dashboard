@@ -15,7 +15,6 @@ class MailBackupSettingDefinition extends Model
     protected function casts(): array
     {
         return [
-            'value' => 'encrypted',
             'validation_rules' => 'array',
             'options' => 'array',
             'is_secret' => 'boolean',
