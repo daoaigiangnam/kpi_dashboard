@@ -23,6 +23,20 @@ class MailBackupSettingDefinition extends Model
         ];
     }
 
+    public function resolvedValue(): ?string
+    {
+        if (!$this->is_secret || blank($this->value)) {
+            return $this->value;
+        }
+
+        try {
+            // Secret values are explicitly encrypted by the settings controller.
+            return decrypt($this->value);
+        } catch (\\Throwable $e) {
+            return null;
+        }
+    }
+
     public function displayValue(): ?string
     {
         if ($this->is_secret && filled($this->value)) {
