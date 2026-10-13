@@ -76,6 +76,10 @@ class MailBackupSettingController extends Controller
             if ($definition->is_secret && (!$present || trim((string) $raw) === '')) {
                 continue; // Blank secret means retain current encrypted value.
             }
+            if ($definition->type === 'boolean' && !$present) {
+                $values[$definition->id] = '0';
+                continue;
+            }
 
             if (!$present && $definition->type !== 'boolean') {
                 if ($definition->is_required) throw ValidationException::withMessages(["settings.{$id}" => "Thiếu giá trị {$definition->label}."]);
