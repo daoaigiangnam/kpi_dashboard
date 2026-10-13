@@ -225,16 +225,16 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::get('pc-audit/{pcAudit}',[PcAuditController::class,'show'])->whereNumber('pcAudit')->middleware('permission:pc_audit.view')->name('pc_audit.show');
 
     // Mail Backup Manager - Phase 1
-    Route::get('mail-backup',[\\App\\Http\\Controllers\\Admin\\MailBackupManagerController::class,'index'])->middleware('permission:mail_backup.view')->name('mail_backup.index');
-    Route::get('mail-backup/create',[\\App\\Http\\Controllers\\Admin\\MailBackupManagerController::class,'create'])->middleware('permission:mail_backup.manage')->name('mail_backup.create');
-    Route::post('mail-backup',[\\App\\Http\\Controllers\\Admin\\MailBackupManagerController::class,'store'])->middleware('permission:mail_backup.manage')->name('mail_backup.store');
-    Route::get('mail-backup/batches/{batch}',[\\App\\Http\\Controllers\\Admin\\MailBackupManagerController::class,'show'])->middleware('permission:mail_backup.view')->name('mail_backup.show');
-    Route::post('mail-backup/batches/{batch}/retry-failed',[\\App\\Http\\Controllers\\Admin\\MailBackupManagerController::class,'retryFailed'])->middleware('permission:mail_backup.manage')->name('mail_backup.retry_failed');
-    Route::get('mail-backup/jobs/{job}',[\\App\\Http\\Controllers\\Admin\\MailBackupManagerController::class,'job'])->middleware('permission:mail_backup.view')->name('mail_backup.job');
-    Route::post('mail-backup/jobs/{job}/retry',[\\App\\Http\\Controllers\\Admin\\MailBackupManagerController::class,'retryJob'])->middleware('permission:mail_backup.manage')->name('mail_backup.retry_job');
+    Route::get('mail-backup',[\App\Http\Controllers\Admin\\MailBackupManagerController::class,'index'])->middleware('permission:mail_backup.view')->name('mail_backup.index');
+    Route::get('mail-backup/create',[\App\Http\Controllers\Admin\\MailBackupManagerController::class,'create'])->middleware('permission:mail_backup.manage')->name('mail_backup.create');
+    Route::post('mail-backup',[\App\Http\Controllers\Admin\\MailBackupManagerController::class,'store'])->middleware('permission:mail_backup.manage')->name('mail_backup.store');
+    Route::get('mail-backup/batches/{batch}',[\App\Http\Controllers\Admin\\MailBackupManagerController::class,'show'])->middleware('permission:mail_backup.view')->name('mail_backup.show');
+    Route::post('mail-backup/batches/{batch}/retry-failed',[\App\Http\Controllers\Admin\\MailBackupManagerController::class,'retryFailed'])->middleware('permission:mail_backup.manage')->name('mail_backup.retry_failed');
+    Route::get('mail-backup/jobs/{job}',[\App\Http\Controllers\Admin\\MailBackupManagerController::class,'job'])->middleware('permission:mail_backup.view')->name('mail_backup.job');
+    Route::post('mail-backup/jobs/{job}/retry',[\App\Http\Controllers\Admin\\MailBackupManagerController::class,'retryJob'])->middleware('permission:mail_backup.manage')->name('mail_backup.retry_job');
 
-    Route::get('mail-backup/settings',[\\App\\Http\\Controllers\\Admin\\MailBackupSettingController::class,'index'])->middleware('permission:mail_backup.settings')->name('mail_backup.settings');
-    Route::post('mail-backup/settings/definitions',[\\App\\Http\\Controllers\\Admin\\MailBackupSettingController::class,'store'])->middleware('permission:mail_backup.settings')->name('mail_backup.settings.store');
-    Route::put('mail-backup/settings/values',[\\App\\Http\\Controllers\\Admin\\MailBackupSettingController::class,'updateValues'])->middleware('permission:mail_backup.settings')->name('mail_backup.settings.values');
-    Route::put('mail-backup/settings/definitions/{definition}',[\\App\\Http\\Controllers\\Admin\\MailBackupSettingController::class,'updateDefinition'])->middleware('permission:mail_backup.settings')->name('mail_backup.settings.definition.update');
+    Route::get('mail-backup/settings',[\App\Http\Controllers\Admin\\MailBackupSettingController::class,'index'])->middleware('permission:mail_backup.settings')->name('mail_backup.settings');
+    Route::post('mail-backup/settings/definitions',[\App\Http\Controllers\Admin\\MailBackupSettingController::class,'store'])->middleware('permission:mail_backup.settings')->name('mail_backup.settings.store');
+    Route::put('mail-backup/settings/values',[\App\Http\Controllers\Admin\\MailBackupSettingController::class,'updateValues'])->middleware('permission:mail_backup.settings')->name('mail_backup.settings.values');
+    Route::put('mail-backup/settings/definitions/{definition}',[\App\Http\Controllers\Admin\\MailBackupSettingController::class,'updateDefinition'])->middleware('permission:mail_backup.settings')->name('mail_backup.settings.definition.update');
 });
