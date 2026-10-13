@@ -1,8 +1,8 @@
 <?php
 
-use App\\Models\\Permission;
-use App\\Models\\UserGroup;
-use Illuminate\\Database\\Migrations\\Migration;
+use App\Models\Permission;
+use App\Models\UserGroup;
+use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
 {
