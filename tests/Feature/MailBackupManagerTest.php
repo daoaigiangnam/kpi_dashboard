@@ -1,15 +1,15 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\MailBackupBatch;
-use App\\Models\\MailBackupJob;
-use App\\Models\\Permission;
-use App\\Models\\User;
-use App\\Models\\UserGroup;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Http\\UploadedFile;
-use Tests\\TestCase;
+use App\Models\MailBackupBatch;
+use App\Models\MailBackupJob;
+use App\Models\Permission;
+use App\Models\User;
+use App\Models\UserGroup;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Tests\TestCase;
 
 class MailBackupManagerTest extends TestCase
 {
