@@ -18,7 +18,7 @@
                                 <input type="hidden" name="settings[{{ $definition->id }}]" value="0">
                                 <label style="display:flex;gap:8px;align-items:center"><input style="width:auto" type="checkbox" name="settings[{{ $definition->id }}]" value="1" @checked((string)$definition->value === '1')> Bật</label>
                             @elseif($definition->type === 'textarea')
-                                <textarea class="input" rows="3" name="settings[{{ $definition->id }}]" @required($definition->is_required)>{{ $definition->is_secret ? '' : old('settings.'.$definition->id,$definition->value) }}</textarea>
+                                <textarea class="input" rows="3" name="settings[{{ $definition->id }}]" @required($definition->is_required && !$definition->is_secret)>{{ $definition->is_secret ? '' : old('settings.'.$definition->id,$definition->value) }}</textarea>
                             @elseif($definition->type === 'select')
                                 <select class="input" name="settings[{{ $definition->id }}]" @required($definition->is_required)>
                                     @foreach(($definition->options ?? []) as $optionValue => $optionLabel)<option value="{{ $optionValue }}" @selected((string)$definition->value === (string)$optionValue)>{{ $optionLabel }}</option>@endforeach
