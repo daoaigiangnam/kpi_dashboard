@@ -26,6 +26,12 @@ class MailBackupManagerController extends Controller
         return view('admin.mail-backup.index', compact('batches', 'summary'));
     }
 
+    public function audit()
+    {
+        $logs = MailBackupAuditLog::with('actor')->latest()->paginate(50);
+        return view('admin.mail-backup.audit', compact('logs'));
+    }
+
     public function create()
     {
         return view('admin.mail-backup.create');
