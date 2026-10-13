@@ -26,7 +26,7 @@ class MailBackupSettingController extends Controller
             'label' => ['required', 'string', 'max:160'],
             'group' => ['required', 'string', 'max:80'],
             'type' => ['required', Rule::in(['text','email','url','number','boolean','password','textarea','select'])],
-            'value' => ['nullable', 'string', 'max:10000'],
+            'value' => ['nullable', 'string', 'max:20000'],
             'description' => ['nullable', 'string', 'max:2000'],
             'options_json' => ['nullable', 'string', 'max:10000'],
             'is_secret' => ['nullable', 'boolean'],
