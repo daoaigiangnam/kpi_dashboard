@@ -96,12 +96,14 @@ class MailBackupSettingController extends Controller
             $values[$definition->id] = $value;
         }
 
-        foreach ($definitions as $definition) {
-            if (!array_key_exists($definition->id, $values)) continue;
-            $definition->value = $values[$definition->id];
-            $definition->updated_by = auth()->id();
-            $definition->save();
-        }
+        \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($definitions, $values) {
+            foreach ($definitions as $definition) {
+                if (!array_key_exists($definition->id, $values)) continue;
+                $definition->value = $values[$definition->id];
+                $definition->updated_by = auth()->id();
+                $definition->save();
+            }
+        });
 
         MailBackupAuditLog::create([
             'actor_id' => auth()->id(), 'action' => 'DYNAMIC_SETTINGS_UPDATED',
