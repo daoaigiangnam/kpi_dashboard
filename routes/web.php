@@ -225,6 +225,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::get('pc-audit/{pcAudit}',[PcAuditController::class,'show'])->whereNumber('pcAudit')->middleware('permission:pc_audit.view')->name('pc_audit.show');
 
     // Mail Backup Manager - Phase 1
+    Route::get('mail-backup/audit',[\App\Http\Controllers\Admin\MailBackupManagerController::class,'audit'])->middleware('permission:mail_backup.settings')->name('mail_backup.audit');
     Route::get('mail-backup',[\App\Http\Controllers\Admin\MailBackupManagerController::class,'index'])->middleware('permission:mail_backup.view')->name('mail_backup.index');
     Route::get('mail-backup/create',[\App\Http\Controllers\Admin\MailBackupManagerController::class,'create'])->middleware('permission:mail_backup.manage')->name('mail_backup.create');
     Route::post('mail-backup',[\App\Http\Controllers\Admin\MailBackupManagerController::class,'store'])->middleware('permission:mail_backup.manage')->name('mail_backup.store');
