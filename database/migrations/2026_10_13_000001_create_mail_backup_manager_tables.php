@@ -78,7 +78,7 @@ return new class extends Migration
             $table->string('label', 160);
             $table->string('group', 80)->default('Email Admin');
             $table->string('type', 30)->default('text');
-            $table->text('value')->nullable();
+            $table->longText('value')->nullable();
             $table->text('description')->nullable();
             $table->json('validation_rules')->nullable();
             $table->json('options')->nullable();
