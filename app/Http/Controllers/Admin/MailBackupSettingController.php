@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MailBackupAuditLog;
 use App\Models\MailBackupSettingDefinition;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -96,7 +97,7 @@ class MailBackupSettingController extends Controller
             $values[$definition->id] = $value;
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($definitions, $values) {
+        DB::transaction(function () use ($definitions, $values) {
             foreach ($definitions as $definition) {
                 if (!array_key_exists($definition->id, $values)) continue;
                 $definition->value = $values[$definition->id];
