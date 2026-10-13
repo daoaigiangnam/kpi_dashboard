@@ -96,7 +96,7 @@ class MailBackupSettingController extends Controller
             $values[$definition->id] = $value;
         }
 
-        \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($definitions, $values) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($definitions, $values) {
             foreach ($definitions as $definition) {
                 if (!array_key_exists($definition->id, $values)) continue;
                 $definition->value = $values[$definition->id];
