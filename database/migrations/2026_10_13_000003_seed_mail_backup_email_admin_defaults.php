@@ -1,7 +1,7 @@
 <?php
 
-use App\\Models\\MailBackupSettingDefinition;
-use Illuminate\\Database\\Migrations\\Migration;
+use App\Models\MailBackupSettingDefinition;
+use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
 {
