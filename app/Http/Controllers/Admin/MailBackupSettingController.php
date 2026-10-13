@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Http\\Controllers\\Admin;
+namespace App\Http\Controllers\Admin;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\MailBackupAuditLog;
-use App\\Models\\MailBackupSettingDefinition;
-use Illuminate\\Http\\Request;
-use Illuminate\\Validation\\Rule;
-use Illuminate\\Validation\\ValidationException;
+use App\Http\Controllers\Controller;
+use App\Models\MailBackupAuditLog;
+use App\Models\MailBackupSettingDefinition;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class MailBackupSettingController extends Controller
 {
