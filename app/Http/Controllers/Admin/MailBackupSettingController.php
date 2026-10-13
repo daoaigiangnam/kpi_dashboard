@@ -45,11 +45,12 @@ class MailBackupSettingController extends Controller
             throw ValidationException::withMessages(['options_json' => 'Trường select cần khai báo options.']);
         }
         $value = (string) ($data['value'] ?? '');
+        $secret = (bool) ($data['is_secret'] ?? false) || $data['type'] === 'password';
         $this->validateValue($data['type'], $value, $options, (bool) ($data['is_required'] ?? false));
 
         $definition = MailBackupSettingDefinition::create([
             'key' => $data['key'], 'label' => $data['label'], 'group' => $data['group'],
-            'type' => $data['type'], 'value' => $value, 'description' => $data['description'] ?? null,
+            'type' => $data['type'], 'value' => $secret && $value !== '' ? encrypt($value) : $value, 'description' => $data['description'] ?? null,
             'validation_rules' => null, 'options' => $options,
             'is_secret' => $secret,
             'is_required' => (bool) ($data['is_required'] ?? false), 'is_active' => true,
@@ -85,9 +86,9 @@ class MailBackupSettingController extends Controller
                 $value = $present && in_array((string) $raw, ['1', 'true', 'on'], true) ? '1' : '0';
             } else {
                 $value = is_scalar($raw) ? trim((string) $raw) : '';
-                if ($definition->is_secret && $value !== '') $value = encrypt($value);
             }
             $this->validateValue($definition->type, $value, $definition->options, $definition->is_required);
+            if ($definition->is_secret && $value !== '') $value = encrypt($value);
             $values[$definition->id] = $value;
         }
 
