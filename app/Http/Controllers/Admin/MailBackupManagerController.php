@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MailBackupAuditLog;
 use App\Models\MailBackupBatch;
 use App\Models\MailBackupJob;
+use App\Models\MailBackupSettingDefinition;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -47,6 +48,7 @@ class MailBackupManagerController extends Controller
             'accounts_csv' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
         ]);
 
+        $maxRows = max(1, min((int) (MailBackupSettingDefinition::where('key', 'mail.backup.max_accounts_per_batch')->first()?->value ?: 5000), 50000));
         $handle = fopen($data['accounts_csv']->getRealPath(), 'rb');
         if (!$handle) throw ValidationException::withMessages(['accounts_csv' => 'Không đọc được CSV.']);
         $header = fgetcsv($handle);
@@ -67,9 +69,9 @@ class MailBackupManagerController extends Controller
         $issues = [];
         $line = 1;
         while (($row = fgetcsv($handle)) !== false) {
-            if (++$line > 5001) {
+            if (++$line > $maxRows + 1) {
                 fclose($handle);
-                throw ValidationException::withMessages(['accounts_csv' => 'CSV chỉ được tối đa 5.000 dòng dữ liệu.']);
+                throw ValidationException::withMessages(['accounts_csv' => "CSV chỉ được tối đa {$maxRows} dòng dữ liệu theo cấu hình hệ thống."]);
             }
             $email = strtolower(trim((string) ($row[$emailIndex] ?? '')));
             $displayName = $nameIndex === false ? '' : trim((string) ($row[$nameIndex] ?? ''));
