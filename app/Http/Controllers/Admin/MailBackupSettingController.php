@@ -51,7 +51,7 @@ class MailBackupSettingController extends Controller
             'key' => $data['key'], 'label' => $data['label'], 'group' => $data['group'],
             'type' => $data['type'], 'value' => $value, 'description' => $data['description'] ?? null,
             'validation_rules' => null, 'options' => $options,
-            'is_secret' => (bool) ($data['is_secret'] ?? false) || $data['type'] === 'password',
+            'is_secret' => $secret,
             'is_required' => (bool) ($data['is_required'] ?? false), 'is_active' => true,
             'sort_order' => (int) ($data['sort_order'] ?? 0), 'updated_by' => auth()->id(),
         ]);
@@ -85,6 +85,7 @@ class MailBackupSettingController extends Controller
                 $value = $present && in_array((string) $raw, ['1', 'true', 'on'], true) ? '1' : '0';
             } else {
                 $value = is_scalar($raw) ? trim((string) $raw) : '';
+                if ($definition->is_secret && $value !== '') $value = encrypt($value);
             }
             $this->validateValue($definition->type, $value, $definition->options, $definition->is_required);
             $values[$definition->id] = $value;
