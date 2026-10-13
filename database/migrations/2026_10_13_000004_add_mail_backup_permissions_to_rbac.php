@@ -1,8 +1,8 @@
 <?php
 
-use App\\Models\\Permission;
-use App\\Models\\UserGroup;
-use Illuminate\\Database\\Migrations\\Migration;
+use App\Models\Permission;
+use App\Models\UserGroup;
+use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
 {
@@ -34,7 +34,7 @@ return new class extends Migration
         $codes = ['mail_backup.view', 'mail_backup.manage', 'mail_backup.settings'];
         $ids = Permission::whereIn('code', $codes)->pluck('id')->all();
         if ($ids) {
-            \\Illuminate\\Support\\Facades\\DB::table('group_permissions')->whereIn('permission_id', $ids)->delete();
+            \Illuminate\Support\Facades\DB::table('group_permissions')->whereIn('permission_id', $ids)->delete();
         }
         Permission::whereIn('code', $codes)->delete();
     }
