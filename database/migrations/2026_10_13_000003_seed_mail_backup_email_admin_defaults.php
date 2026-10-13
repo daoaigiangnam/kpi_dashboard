@@ -9,7 +9,8 @@ return new class extends Migration
     {
         $defs = [
             ['mail.gmail.domain', 'Google Workspace Domain', 'Google Workspace', 'text', '', 'Domain áp dụng cho các tài khoản cần backup.', false, true, 10],
-            ['mail.google.service_account_json_path', 'Service Account JSON Path', 'Google Workspace', 'text', '', 'Đường dẫn trên máy chủ tới file JSON; không upload khóa qua trình duyệt.', true, true, 20],
+            ['mail.google.service_account_json_path', 'Service Account JSON Path', 'Google Workspace', 'text', '', 'Đường dẫn trên máy chủ tới file JSON; không upload khóa qua trình duyệt.', false, true, 20],
+            ['mail.google.service_account_private_key', 'Service Account Private Key (optional)', 'Google Workspace', 'textarea', '', 'Chỉ dùng nếu quản trị viên chủ động nhập key trực tiếp; khuyến nghị để trống và dùng file JSON ngoài web root.', true, false, 25],
             ['mail.google.delegated_admin_email', 'Delegated Admin Email', 'Google Workspace', 'email', '', 'Tài khoản quản trị Workspace được dùng để ủy quyền.', false, true, 30],
             ['mail.google.read_scope', 'Gmail Read Scope', 'Google Workspace', 'text', 'https://www.googleapis.com/auth/gmail.readonly', 'Scope cần cấp trong Domain-Wide Delegation cho giai đoạn backup.', false, true, 40],
             ['mail.backup.storage_path', 'PST / Staging Storage Path', 'Backup', 'text', '/srv/mail-backup-manager/storage', 'Thư mục ngoài web root để lưu dữ liệu tạm và PST.', false, true, 50],
