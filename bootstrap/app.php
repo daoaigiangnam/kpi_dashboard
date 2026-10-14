@@ -21,6 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
                         ->whereNumber('pcAudit')
                         ->name('pc_audit.delete');
                 });
+
+            Route::middleware(['web', 'auth'])
+                ->group(base_path('routes/software-management.php'));
         }
     )
     ->withMiddleware(function (Middleware $middleware) {
