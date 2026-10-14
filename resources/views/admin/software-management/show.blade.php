@@ -84,7 +84,7 @@ $assessment=$item->assessments->last(); $install=$item->installations->last(); $
 
 @if($item->status==='pending_closure' && auth()->user()->hasPermission('software.close'))
 <div class="card" style="margin-bottom:16px"><h3>FR-16-05 – Checklist trước khi đóng Ticket</h3><form method="post" action="{{ route('admin.software_management.checklist',$item) }}">@csrf
-@foreach($closeItems as $key=>$label)<div style="padding:12px 0;border-bottom:1px solid #e8eee9"><label><input type="checkbox" name="items[{{ $key }}][passed]" value="1" @checked($checklist->get($key)?->passed)> {{ $label }}</label><input class="input" name="items[{{ $key }}][evidence]" value="{{ $checklist->get($key)?->evidence }}" placeholder="Bằng chứng / ghi chú"></div>@endforeach
+@foreach($closeItems as $key=>$label)<div style="padding:12px 0;border-bottom:1px solid #e8eee9"><label><input type="hidden" name="items[{{ $key }}][passed]" value="0"><input type="checkbox" name="items[{{ $key }}][passed]" value="1" @checked($checklist->get($key)?->passed)> {{ $label }}</label><input class="input" name="items[{{ $key }}][evidence]" value="{{ $checklist->get($key)?->evidence }}" placeholder="Bằng chứng / ghi chú"></div>@endforeach
 <button class="btn" style="margin-top:14px">Lưu checklist</button></form>
 <form method="post" action="{{ route('admin.software_management.close',$item) }}" style="margin-top:12px" onsubmit="return confirm('Đóng Ticket sau khi kiểm tra toàn bộ bằng chứng?')">@csrf<button class="btn" type="submit">Kiểm tra và đóng Ticket</button></form></div>
 @endif
