@@ -25,25 +25,14 @@ class SoftwareManagementPermissionSeeder extends Seeder
             ['Software Management','View/download software evidence','software.attachments.view'],
             ['Software Management','Upload software evidence','software.attachments.manage'],
         ];
-
         foreach ($defs as [$module, $name, $code]) {
             Permission::updateOrCreate(['code' => $code], ['module' => $module, 'name' => $name]);
         }
-
-        $allCodes = array_column($defs, 2);
-        $superAdmin = UserGroup::where('name', 'Super Admin')->first();
-        if ($superAdmin) {
-            $superAdmin->permissions()->syncWithoutDetaching(Permission::whereIn('code', $allCodes)->pluck('id'));
-        }
-
-        $kpiAdmin = UserGroup::where('name', 'KPI Admin')->first();
-        if ($kpiAdmin) {
-            $kpiAdmin->permissions()->syncWithoutDetaching(Permission::whereIn('code', [
-                'software.requests.view','software.requests.create','software.approve','software.assess',
-                'software.purchase_approve','software.install','software.close','software.exception.create',
-                'software.exception.approve','software.licenses.view','software.licenses.manage',
-                'software.attachments.view','software.attachments.manage'
-            ])->pluck('id'));
-        }
+        $codes = array_column($defs, 2);
+        $all = Permission::whereIn('code', $codes)->pluck('id');
+        $super = UserGroup::where('name', 'Super Admin')->first();
+        if ($super) $super->permissions()->syncWithoutDetaching($all);
+        $admin = UserGroup::where('name', 'KPI Admin')->first();
+        if ($admin) $admin->permissions()->syncWithoutDetaching($all);
     }
 }
