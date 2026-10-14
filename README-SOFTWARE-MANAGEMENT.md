@@ -15,7 +15,7 @@ Module under development for the KPI Dashboard Laravel application. This impleme
 - Dashboard counters and request search/filter.
 
 ## Branch
-`feature/software-installation-management` (branched from `feature/admin-foundation`).
+`feature/admin-foundation`.
 
 ## Before testing
 1. Back up the database and application.
