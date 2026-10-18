@@ -120,18 +120,24 @@ if not "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
 
 :RUN_AUDIT
 echo.
-echo Validated Node.js: %NODE_VERSION_REQUIRED%
+echo [1] Chay Audit day du ngay bay gio (nen chay lan dau)
+echo [2] Cai dat Windows Service tu dong cap nhat moi 6 gio
+echo [3] Dung Windows Service
+echo [4] Go Windows Service
+echo [5] Xem trang thai Service
+echo [6] Cai dat lich Task Scheduler cu
+echo [7] Go lich Task Scheduler cu
+echo [8] Thoat
 echo.
-echo [1] Chay Audit ngay
- echo [2] Cai dat lich tu dong gui Server
- echo [3] Go lich tu dong
- echo [4] Thoat
- echo.
 set "CHOICE="
-set /p CHOICE=Chon (1-4): 
-if "%CHOICE%"=="2" goto SET_SCHEDULE
-if "%CHOICE%"=="3" goto REMOVE_SCHEDULE
-if "%CHOICE%"=="4" exit /b 0
+set /p CHOICE=Chon (1-8): 
+if "%CHOICE%"=="2" goto INSTALL_SERVICE
+if "%CHOICE%"=="3" goto STOP_SERVICE
+if "%CHOICE%"=="4" goto REMOVE_SERVICE
+if "%CHOICE%"=="5" goto STATUS_SERVICE
+if "%CHOICE%"=="6" goto SET_SCHEDULE
+if "%CHOICE%"=="7" goto REMOVE_SCHEDULE
+if "%CHOICE%"=="8" exit /b 0
 if not "%CHOICE%"=="1" goto RUN_AUDIT
 node "%~dp0PC_Audit.js"
 set "AUDIT_EXIT=%ERRORLEVEL%"
@@ -143,14 +149,102 @@ if not "%AUDIT_EXIT%"=="0" (
 )
 endlocal & exit /b %AUDIT_EXIT%
 
+:INSTALL_SERVICE
+net session >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] Hay chay PC_Audit.bat bang Run as administrator.
+  pause
+  goto RUN_AUDIT
+)
+if not exist "%~dp0nssm.exe" (
+  echo Dang tai NSSM tu trang chinh thuc nssm.cc...
+  set "NSSM_ZIP=%TEMP%\mstar-nssm-2.24.zip"
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('https://nssm.cc/release/nssm-2.24.zip',$env:TEMP+'\mstar-nssm-2.24.zip')" 
+  if not exist "%TEMP%\mstar-nssm-2.24.zip" (
+    echo [ERROR] Khong tai duoc NSSM. Kiem tra ket noi Internet/TLS.
+    pause
+    goto RUN_AUDIT
+  )
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$zip=New-Object -ComObject Shell.Application; $src=$zip.NameSpace($env:TEMP+'\mstar-nssm-2.24.zip'); $dst=$zip.NameSpace('%~dp0'); if(!$src -or !$dst){exit 2}; $dst.CopyHere($src.Items(),20); Start-Sleep -Seconds 3"
+  if not exist "%~dp0nssm-2.24\win32\nssm.exe" (
+    echo [ERROR] Khong giai nen duoc NSSM. Hay giai nen nssm-2.24.zip thu cong.
+    pause
+    goto RUN_AUDIT
+  )
+  set "ARCH=x86"
+  if /i "%PROCESSOR_ARCHITEW6432%"=="AMD64" set "ARCH=x64"
+  if /i "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "ARCH=x64"
+  copy /y "%~dp0nssm-2.24\%ARCH%\nssm.exe" "%~dp0nssm.exe" >nul
+  if not exist "%~dp0nssm.exe" copy /y "%~dp0nssm-2.24\win32\nssm.exe" "%~dp0nssm.exe" >nul
+)
+node "%~dp0PC_Audit.js" --setup-service
+if errorlevel 1 (
+  echo [ERROR] Khong cau hinh duoc Service.
+  pause
+  goto RUN_AUDIT
+)
+set "NODE_EXE="
+for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
+if not defined NODE_EXE (
+  echo [ERROR] Khong tim thay node.exe.
+  pause
+  goto RUN_AUDIT
+)
+"%~dp0nssm.exe" install MSTAR_PCAudit "%NODE_EXE%" "%~dp0PC_Audit.js" --service-loop
+if errorlevel 1 (
+  echo [ERROR] NSSM khong tao duoc Service. Kiem tra Service da ton tai chua.
+  pause
+  goto RUN_AUDIT
+)
+"%~dp0nssm.exe" set MSTAR_PCAudit AppDirectory "%~dp0"
+"%~dp0nssm.exe" set MSTAR_PCAudit DisplayName "MSTAR PC Audit Service"
+"%~dp0nssm.exe" set MSTAR_PCAudit Description "Dinh ky cap nhat inventory PC len MSTAR Audit Server"
+"%~dp0nssm.exe" set MSTAR_PCAudit Start SERVICE_AUTO_START
+"%~dp0nssm.exe" set MSTAR_PCAudit AppStdout "%~dp0output\service-stdout.log"
+"%~dp0nssm.exe" set MSTAR_PCAudit AppStderr "%~dp0output\service-stderr.log"
+"%~dp0nssm.exe" set MSTAR_PCAudit AppNoConsole 1
+"%~dp0nssm.exe" start MSTAR_PCAudit
+echo.
+echo Da cai dat Windows Service MSTAR_PCAudit.
+echo Service chay nen va cap nhat moi 6 gio. Log trong thu muc output.
+pause
+goto RUN_AUDIT
+
+:STOP_SERVICE
+net session >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] Hay chay bang Run as administrator.
+  pause
+  goto RUN_AUDIT
+)
+"%~dp0nssm.exe" stop MSTAR_PCAudit
+pause
+goto RUN_AUDIT
+
+:REMOVE_SERVICE
+net session >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] Hay chay bang Run as administrator.
+  pause
+  goto RUN_AUDIT
+)
+node "%~dp0PC_Audit.js" --remove-service
+pause
+goto RUN_AUDIT
+
+:STATUS_SERVICE
+node "%~dp0PC_Audit.js" --service-status
+pause
+goto RUN_AUDIT
+
 :SET_SCHEDULE
 node "%~dp0PC_Audit.js" --setup-schedule
 set "AUDIT_EXIT=%ERRORLEVEL%"
 pause
-endlocal & exit /b %AUDIT_EXIT%
+goto RUN_AUDIT
 
 :REMOVE_SCHEDULE
 node "%~dp0PC_Audit.js" --remove-schedule
 set "AUDIT_EXIT=%ERRORLEVEL%"
 pause
-endlocal & exit /b %AUDIT_EXIT%
+goto RUN_AUDIT
