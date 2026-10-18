@@ -121,23 +121,19 @@ if not "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
 :RUN_AUDIT
 echo.
 echo [1] Chay Audit day du ngay bay gio (nen chay lan dau)
-echo [2] Cai dat Windows Service tu dong cap nhat moi 6 gio
+echo [2] Cai dat Windows Service (lich lay tu Backend)
 echo [3] Dung Windows Service
 echo [4] Go Windows Service
 echo [5] Xem trang thai Service
-echo [6] Cai dat lich Task Scheduler cu
-echo [7] Go lich Task Scheduler cu
-echo [8] Thoat
+echo [6] Thoat
 echo.
 set "CHOICE="
-set /p CHOICE=Chon (1-8): 
+set /p CHOICE=Chon (1-6): 
 if "%CHOICE%"=="2" goto INSTALL_SERVICE
 if "%CHOICE%"=="3" goto STOP_SERVICE
 if "%CHOICE%"=="4" goto REMOVE_SERVICE
 if "%CHOICE%"=="5" goto STATUS_SERVICE
-if "%CHOICE%"=="6" goto SET_SCHEDULE
-if "%CHOICE%"=="7" goto REMOVE_SCHEDULE
-if "%CHOICE%"=="8" exit /b 0
+if "%CHOICE%"=="6" exit /b 0
 if not "%CHOICE%"=="1" goto RUN_AUDIT
 node "%~dp0PC_Audit.js"
 set "AUDIT_EXIT=%ERRORLEVEL%"
@@ -207,7 +203,7 @@ if errorlevel 1 (
 "%~dp0nssm.exe" start MSTAR_PCAudit
 echo.
 echo Da cai dat Windows Service MSTAR_PCAudit.
-echo Service chay nen va cap nhat moi 6 gio. Log trong thu muc output.
+echo Schedule do Backend quan ly; Service lay cau hinh moi 5 phut. Log trong thu muc output.
 pause
 goto RUN_AUDIT
 
@@ -238,14 +234,3 @@ node "%~dp0PC_Audit.js" --service-status
 pause
 goto RUN_AUDIT
 
-:SET_SCHEDULE
-node "%~dp0PC_Audit.js" --setup-schedule
-set "AUDIT_EXIT=%ERRORLEVEL%"
-pause
-goto RUN_AUDIT
-
-:REMOVE_SCHEDULE
-node "%~dp0PC_Audit.js" --remove-schedule
-set "AUDIT_EXIT=%ERRORLEVEL%"
-pause
-goto RUN_AUDIT
