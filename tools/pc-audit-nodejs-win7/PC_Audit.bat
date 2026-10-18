@@ -173,7 +173,7 @@ if not exist "%~dp0nssm.exe" (
     pause
     goto RUN_AUDIT
   )
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=$env:TEMP+'\mstar-nssm-2.24.zip'; $d='%~dp0'; [IO.Compression.ZipFile]::ExtractToDirectory($z,$d)"
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $sh=New-Object -ComObject Shell.Application; $src=$sh.NameSpace($env:TEMP+'\mstar-nssm-2.24.zip'); $dst=$sh.NameSpace('%~dp0'); if(!$src -or !$dst){exit 2}; $dst.CopyHere($src.Items(),20); Start-Sleep -Seconds 5"
   if errorlevel 1 (
     echo [ERROR] Khong giai nen duoc NSSM.
     pause
