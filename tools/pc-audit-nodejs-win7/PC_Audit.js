@@ -243,13 +243,46 @@ async function removeSchedule(){
 var SERVICE_NAME='MSTAR_PCAudit';
 var SERVICE_CONFIG=SCHEDULE_CONFIG;
 function sleep(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});}
+async function readAgentSchedule(profile){
+ var url=CONFIG_ENDPOINT.replace(/\\/config$/,'/agent-config')+'?code='+encodeURIComponent(String(profile.code||''));
+ return await reqJson(url,'GET');
+}
 async function serviceLoop(){
- logScheduled('SERVICE STARTED; interval=6 hours; retry=15 minutes');
+ var profile;
+ try{profile=JSON.parse(fs.readFileSync(SERVICE_CONFIG,'utf8'));}
+ catch(e){throw new Error('Chua co Audit Code. Hay chay PC_Audit.bat va cai dat Service lai.');}
+ var startedAt=Date.now(),lastSuccessAt=0,retryAfter=0,lastConfigVersion='';
+ logScheduled('SERVICE STARTED; schedule source=BACKEND; polling=5 minutes');
  while(true){
-  var ok=false;
-  try{await scheduledRun();ok=true;}
-  catch(e){try{logScheduled('SERVICE ERROR '+(e&&e.message?e.message:String(e)));}catch(ignore){}}
-  await sleep(ok?6*60*60*1000:15*60*1000);
+  try{
+   var cfg=await readAgentSchedule(profile);
+   if(cfg.ok!==true)throw new Error(cfg.message||'Server khong tra ve Agent Schedule');
+   if(cfg.enabled!==true)throw new Error('PC Audit dang bi khoa tren Backend');
+   var schedule=cfg.schedule||{};
+   if(schedule.enabled!==true){
+    logScheduled('Schedule is disabled by Backend; waiting for configuration.');
+   }else{
+    var interval=Math.max(15,Number(schedule.interval_minutes)||360)*60*1000;
+    var anchor=lastSuccessAt||startedAt;
+    var due=lastSuccessAt===0&&schedule.run_on_start===true?true:(Date.now()-anchor>=interval);
+    if(Date.now()<retryAfter)due=false;
+    if(due){
+     logScheduled('Backend schedule due; interval_minutes='+Math.round(interval/60000));
+     try{
+      await scheduledRun();
+      lastSuccessAt=Date.now();retryAfter=0;
+     }catch(runError){
+      retryAfter=Date.now()+15*60*1000;
+      logScheduled('AUDIT ERROR; retry after 15 minutes: '+(runError&&runError.message?runError.message:String(runError)));
+     }
+    }
+   }
+   var version=String((cfg.schedule||{}).updated_at||'');
+   if(version&&version!==lastConfigVersion){logScheduled('Backend schedule config refreshed: '+JSON.stringify(cfg.schedule));lastConfigVersion=version;}
+  }catch(e){
+   logScheduled('CONFIG ERROR '+(e&&e.message?e.message:String(e)));
+  }
+  await sleep(5*60*1000);
  }
 }
 async function setupService(){
