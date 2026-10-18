@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PcAuditSetting;
+use App\Models\PcAuditCode;
+use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class PcAuditConfigController extends Controller
