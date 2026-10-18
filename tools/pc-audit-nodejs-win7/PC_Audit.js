@@ -16,20 +16,53 @@ function parseList(s){var rows=[],row={};String(s||'').replace(/^\uFEFF/,'').spl
 function exec(file,args,timeout){return new Promise(function(resolve){cp.execFile(file,args,{windowsHide:true,timeout:timeout||25000,maxBuffer:8*1024*1024,encoding:'utf8'},function(err,stdout,stderr){resolve({ok:!err,out:String(stdout||''),err:String(stderr||''),error:err?err.message:null});});});}
 async function wmi(cls,props,opt){
  opt=opt||{};
- // Prefer PowerShell CIM/WMI APIs: WMIC is an optional feature and may be absent on current Windows 11.
- // Fall back to WMIC for older Windows installations if PowerShell query fails.
- var q="try { $ErrorActionPreference='Stop'; $p=@("+props.map(p=>"'"+p.replace(/'/g,"''")+"'").join(",")+"); ";
- q+="if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) { $x=Get-CimInstance -ClassName '"+cls.replace(/'/g,"''")+"'";
- if(opt.ns) q+=" -Namespace '"+opt.ns.split('\\').join('\\\\').split('/').join('\\\\').replace(/^\\\\+/,'').replace(/'/g,"''")+"'";
- if(opt.where) q+=" -Filter '"+opt.where.replace(/'/g,"''")+"'";
- q+=" -Property $p } else { $x=Get-WmiObject -Class '"+cls.replace(/'/g,"''")+"'";
- if(opt.ns) q+=" -Namespace '"+opt.ns.split('\\').join('\\\\').split('/').join('\\\\').replace(/^\\\\+/,'').replace(/'/g,"''")+"'";
- if(opt.where) q+=" -Filter '"+opt.where.replace(/'/g,"''")+"'";
- q+=" -Property $p }; @($x) | ConvertTo-Json -Depth 5 -Compress } catch { exit 2 }";
- var r=await exec('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-Command',q],30000);
- if(r.ok&&txt(r.out)){try{var data=JSON.parse(r.out);return Array.isArray(data)?data:(data&&typeof data==='object'?[data]:[]);}catch(e){}}
- var args=[];if(opt.ns)args.push('/namespace:'+opt.ns);args.push('path',cls);if(opt.where)args.push('where',opt.where);args.push('get',props.join(','),'/format:list');
- var legacy=await exec('wmic',args,30000);return parseList(legacy.out);
+ var isWin7=process.platform==='win32'&&String(os.release()).indexOf('6.1.')===0;
+ function runWmic(){
+   var args=[];if(opt.ns)args.push('/namespace:'+opt.ns);args.push('path',cls);if(opt.where)args.push('where',opt.where);args.push('get',props.join(','),'/format:list');
+   return exec('wmic',args,30000).then(function(r){return r.ok?parseList(r.out):[];});
+ }
+ function runPowerShell(){
+   var q="try { $ErrorActionPreference='Stop'; $p=@("+props.map(function(p){return "'"+p.replace(/'/g,"''")+"'";}).join(",")+"); ";
+   q+="if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) { $x=Get-CimInstance -ClassName '"+cls.replace(/'/g,"''")+"'";
+   if(opt.ns)q+=" -Namespace '"+opt.ns.split('\\').join('\\\\').split('/').join('\\\\').replace(/^\\\\+/,'').replace(/'/g,"''")+"'";
+   if(opt.where)q+=" -Filter '"+opt.where.replace(/'/g,"''")+"'";
+   q+=" -Property $p } else { $x=Get-WmiObject -Class '"+cls.replace(/'/g,"''")+"'";
+   if(opt.ns)q+=" -Namespace '"+opt.ns.split('\\').join('\\\\').split('/').join('\\\\').replace(/^\\\\+/,'').replace(/'/g,"''")+"'";
+   if(opt.where)q+=" -Filter '"+opt.where.replace(/'/g,"''")+"'";
+   q+=" -Property $p }; @($x) | ConvertTo-Json -Depth 5 -Compress } catch { exit 2 }";
+   return exec('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-Command',q],30000).then(function(r){
+     if(!r.ok||!txt(r.out))return[];
+     try{var data=JSON.parse(r.out);return Array.isArray(data)?data:(data&&typeof data==='object'?[data]:[]);}catch(e){return[];}
+   });
+ }
+ function field(row,name){if(!row)return undefined;if(Object.prototype.hasOwnProperty.call(row,name))return row[name];var keys=Object.keys(row);for(var i=0;i<keys.length;i++)if(keys[i].toLowerCase()===name.toLowerCase())return row[keys[i]];return undefined;}
+ function hasUsefulValue(v){return v!==undefined&&v!==null&&String(v).trim()!=='';}
+ function mergeRows(primary,fallback){
+   if(!primary.length)return fallback;
+   if(!fallback.length)return primary;
+   return primary.map(function(row,i){
+     var extra=fallback[i]||{},merged={},k;
+     Object.keys(row).forEach(function(key){merged[key]=row[key];});
+     props.forEach(function(prop){
+       var current=field(row,prop),other=field(extra,prop);
+       if(!hasUsefulValue(current)&&hasUsefulValue(other))merged[prop]=other;
+     });
+     return merged;
+   });
+ }
+ // Windows 7: query WMIC first because it is native there; use the existing PowerShell/WMI
+ // path only when WMIC fails or at least one requested property is missing.
+ if(isWin7){
+   var legacy=await runWmic();
+   var complete=legacy.length>0&&legacy.every(function(row){return props.every(function(prop){return hasUsefulValue(field(row,prop));});});
+   if(complete)return legacy;
+   var fallback=await runPowerShell();
+   return mergeRows(legacy,fallback);
+ }
+ // Windows 10/11: preserve the existing PowerShell-first behavior, with WMIC fallback.
+ var modern=await runPowerShell();
+ if(modern.length)return modern;
+ return await runWmic();
 }
 function val(r,k){return r?txt(r[k]):'';}
 function dateDmtf(v){if(v&&typeof v==='object'){if(v.value!==undefined)return dateDmtf(v.value);if(v.DateTime!==undefined)return dateDmtf(v.DateTime);}var s=txt(v);if(!s)return null;var dotnet=s.match(/^\/Date\((-?\d+)(?:[+-]\d+)?\)\/$/);if(dotnet){var d=new Date(Number(dotnet[1]));return isNaN(d.getTime())?null:d.toISOString().slice(0,19);}var m=s.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':'+m[6];var iso=s.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);return iso?iso[1]:s;}
