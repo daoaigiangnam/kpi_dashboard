@@ -159,8 +159,8 @@ if errorlevel 1 (
 if not exist "%~dp0nssm.exe" (
   set "NSSM_ARCH=win32"
   if /i "%ARCH%"=="x64" set "NSSM_ARCH=win64"
-  echo Dang tai NSSM tu MSTAR Server (%NSSM_ARCH%)...
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $u='https://kpi.review360.id.vn/nssm/%NSSM_ARCH%/nssm.exe'; $p='%~dp0nssm.exe'; try { (New-Object Net.WebClient).DownloadFile($u,$p); if((Get-Item $p).Length -lt 50000){Remove-Item $p -Force; throw 'File NSSM tai ve qua nho'} } catch { if(Test-Path $p){Remove-Item $p -Force -ErrorAction SilentlyContinue}; Write-Host ('Tai tu MSTAR Server that bai: '+$_.Exception.Message); exit 1 }"
+  echo Dang tai NSSM tu MSTAR Server (!NSSM_ARCH!)...
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $u='https://kpi.review360.id.vn/nssm/!NSSM_ARCH!/nssm.exe'; $p='%~dp0nssm.exe'; try { (New-Object Net.WebClient).DownloadFile($u,$p); if((Get-Item $p).Length -lt 50000){Remove-Item $p -Force; throw 'File NSSM tai ve qua nho'} } catch { if(Test-Path $p){Remove-Item $p -Force -ErrorAction SilentlyContinue}; Write-Host ('Tai tu MSTAR Server that bai: '+$_.Exception.Message); exit 1 }"
   if errorlevel 1 (
     echo Khong tai duoc tu MSTAR Server. Thu nguon du phong...
     set "NSSM_ZIP=%TEMP%\mstar-nssm.zip"
@@ -178,9 +178,9 @@ if not exist "%~dp0nssm.exe" (
       pause
       goto RUN_AUDIT
     )
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $root=$env:TEMP+'\mstar-nssm-extract'; $arch='%NSSM_ARCH%'; $f=Get-ChildItem -Path $root -Filter nssm.exe -Recurse | Where-Object {$_.FullName -match ('\\'+$arch+'\\nssm\.exe$')} | Select-Object -First 1; if(!$f){Write-Error ('Khong tim thay NSSM cho '+$arch); exit 1}; Copy-Item $f.FullName '%~dp0nssm.exe' -Force"
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $root=$env:TEMP+'\mstar-nssm-extract'; $arch='!NSSM_ARCH!'; $f=Get-ChildItem -Path $root -Filter nssm.exe -Recurse | Where-Object {$_.FullName -match ('\\'+$arch+'\\nssm\.exe$')} | Select-Object -First 1; if(!$f){Write-Error ('Khong tim thay NSSM cho '+$arch); exit 1}; Copy-Item $f.FullName '%~dp0nssm.exe' -Force"
     if errorlevel 1 (
-      echo [ERROR] Khong tim thay hoac sao chep duoc NSSM %NSSM_ARCH%.
+      echo [ERROR] Khong tim thay hoac sao chep duoc NSSM !NSSM_ARCH!.
       pause
       goto RUN_AUDIT
     )
