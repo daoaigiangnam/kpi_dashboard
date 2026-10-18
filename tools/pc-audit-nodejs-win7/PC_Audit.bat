@@ -1,52 +1,55 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
-title MSTAR PC Audit Tool - Windows 7 / 10 / 11 - Node.js
+title MSTAR PC Audit - Windows 7 / 10 / 11
 
 echo ==============================================
 echo   MSTAR PC AUDIT TOOL - WINDOWS 7 / 10 / 11
 echo ==============================================
 echo.
 
-rem If Node.js already exists, do not reinstall it.
-set "NODE_EXE="
-for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
-if defined NODE_EXE (
-  for /f "delims=" %%V in ('node --version 2^>nul') do set "NODE_VERSION=%%V"
-  echo Found Node.js %NODE_VERSION% at:
-  echo %NODE_EXE%
-  echo Skipping Node.js installation.
-  goto RUN_AUDIT
+rem Detect Windows version before validating Node.js.
+set "NODE_VERSION_REQUIRED=v22.16.0"
+set "NODE_URL_BASE=https://nodejs.org/dist/v22.16.0/"
+ver | findstr /c:"6.1." >nul
+if not errorlevel 1 (
+  set "NODE_VERSION_REQUIRED=v12.22.12"
+  set "NODE_URL_BASE=https://nodejs.org/dist/v12.22.12/"
 )
 
-echo Node.js not found. Detecting Windows version and architecture...
-
-rem Detect architecture: x64 or x86.
+rem Detect architecture.
 set "ARCH=x86"
 if /i "%PROCESSOR_ARCHITEW6432%"=="AMD64" set "ARCH=x64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "ARCH=x64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 
-rem Windows 7 reports version 6.1. Install Node.js 12.22.12.
-rem Windows 10/11 report version 10.0. Install Node.js 22 LTS.
-set "NODE_VERSION_REQUIRED=v22.16.0"
-set "NODE_URL_BASE=https://nodejs.org/dist/v22.16.0/"
-set "NODE_MSI=node-v22.16.0-%ARCH%.msi"
+set "NODE_MSI=node-%NODE_VERSION_REQUIRED:~1%-%ARCH%.msi"
+set "NODE_URL=%NODE_URL_BASE%%NODE_MSI%"
 
-for /f "tokens=2 delims=[]" %%V in ('ver') do set "WIN_VER=%%V"
-echo Windows version: %WIN_VER%
+echo Required Node.js: %NODE_VERSION_REQUIRED%
 echo Architecture: %ARCH%
+echo.
 
-ver | findstr /c:"6.1." >nul
-if not errorlevel 1 (
-  set "NODE_VERSION_REQUIRED=v12.22.12"
-  set "NODE_URL_BASE=https://nodejs.org/dist/v12.22.12/"
-  set "NODE_MSI=node-v12.22.12-%ARCH%.msi"
+rem Detect installed Node.js. Skip install only when exact required version matches.
+set "NODE_EXE="
+set "NODE_VERSION="
+for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
+if defined NODE_EXE (
+  for /f "delims=" %%V in ('node --version 2^>nul') do set "NODE_VERSION=%%V"
+  echo Found Node.js: %NODE_VERSION%
+  echo Path: %NODE_EXE%
+  if "%NODE_VERSION%"=="%NODE_VERSION_REQUIRED%" (
+    echo Version matches. Skipping Node.js installation.
+    goto RUN_AUDIT
+  )
+  echo.
+  echo [WARNING] Installed Node.js version does not match the required version.
+  echo Required: %NODE_VERSION_REQUIRED%
+  echo Installed: %NODE_VERSION%
+  echo The tool will try to install the required version.
 )
 
-set "NODE_URL=%NODE_URL_BASE%%NODE_MSI%"
-set "TEMP_MSI=%TEMP%\%NODE_MSI%"
-
+rem Install/repair the required exact version.
 net session >nul 2>&1
 if errorlevel 1 (
   echo.
@@ -56,26 +59,26 @@ if errorlevel 1 (
   exit /b 10
 )
 
+set "TEMP_MSI=%TEMP%\%NODE_MSI%"
+if exist "%TEMP_MSI%" del /f /q "%TEMP_MSI%" >nul 2>&1
 echo.
-echo Downloading official Node.js installer:
+echo Downloading official installer:
 echo %NODE_URL%
-echo.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $wc = New-Object Net.WebClient; $wc.DownloadFile('%NODE_URL%','%TEMP_MSI%')" >nul 2>&1
-if not exist "%TEMP_MSI%" (
-  certutil -urlcache -split -f "%NODE_URL%" "%TEMP_MSI%" >nul 2>&1
-)
+if not exist "%TEMP_MSI%" certutil -urlcache -split -f "%NODE_URL%" "%TEMP_MSI%" >nul 2>&1
+
 if not exist "%TEMP_MSI%" (
   echo.
-  echo [ERROR] Automatic download failed. Open the official Node.js download URL:
+  echo [ERROR] Download failed. Open the official installer URL:
   echo %NODE_URL%
   start "" "%NODE_URL%"
-  echo Install the MSI manually, then run this BAT again.
+  echo Install the MSI, then run this BAT again.
   pause
   exit /b 11
 )
 for %%F in ("%TEMP_MSI%") do if %%~zF LSS 100000 (
   del /f /q "%TEMP_MSI%" >nul 2>&1
-  echo [ERROR] MSI download is incomplete. Please download manually:
+  echo [ERROR] MSI download is incomplete:
   echo %NODE_URL%
   start "" "%NODE_URL%"
   pause
@@ -85,28 +88,35 @@ for %%F in ("%TEMP_MSI%") do if %%~zF LSS 100000 (
 echo Installing Node.js %NODE_VERSION_REQUIRED%...
 msiexec.exe /i "%TEMP_MSI%" /passive /norestart
 if errorlevel 1 (
-  echo [ERROR] Node.js installer failed. Run this MSI manually:
-  echo %TEMP_MSI%
+  echo.
+  echo [ERROR] Installer failed. If another Node.js version is installed,
+  echo uninstall it from Control Panel, then run this BAT again.
+  echo MSI: %TEMP_MSI%
   pause
   exit /b 13
 )
 del /f /q "%TEMP_MSI%" >nul 2>&1
 
-rem Refresh PATH for the current process.
 set "PATH=%ProgramFiles%\nodejs;%ProgramFiles(x86)%\nodejs;%PATH%"
 set "NODE_EXE="
+set "NODE_VERSION="
 for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
-if not defined NODE_EXE (
-  echo Node.js installed, but node.exe is not available in this CMD.
-  echo Close this window and run PC_Audit.bat again.
+if defined NODE_EXE for /f "delims=" %%V in ('node --version 2^>nul') do set "NODE_VERSION=%%V"
+
+if not "%NODE_VERSION%"=="%NODE_VERSION_REQUIRED%" (
+  echo.
+  echo [ERROR] Node.js version is still incorrect.
+  echo Required: %NODE_VERSION_REQUIRED%
+  echo Detected: %NODE_VERSION%
+  echo Check duplicate node.exe paths or uninstall the incompatible version.
   pause
   exit /b 14
 )
-for /f "delims=" %%V in ('node --version 2^>nul') do set "NODE_VERSION=%%V"
-echo Installed Node.js: %NODE_VERSION%
 
 :RUN_AUDIT
 echo.
+echo Validated Node.js: %NODE_VERSION_REQUIRED%
+echo Running PC Audit...
 node "%~dp0PC_Audit.js"
 set "AUDIT_EXIT=%ERRORLEVEL%"
 if not "%AUDIT_EXIT%"=="0" (
