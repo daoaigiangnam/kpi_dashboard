@@ -25,10 +25,10 @@
     .pc-settings-copy:hover{background:#f8fafc}
     .pc-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
     .pc-settings-field label{display:block;margin:0 0 7px;font-size:12px;font-weight:800;color:#334155}
-    .pc-settings-field input,.pc-settings-field textarea{width:100%;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:var(--pa-text);outline:none;transition:.15s;font-size:13px}
-    .pc-settings-field input{height:41px;padding:0 12px}
+    .pc-settings-field input,.pc-settings-field textarea,.pc-settings-field select{width:100%;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:var(--pa-text);outline:none;transition:.15s;font-size:13px}
+    .pc-settings-field input,.pc-settings-field select{height:41px;padding:0 12px}\n    .pc-settings-field select{width:100%;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:var(--pa-text);font-size:13px}
     .pc-settings-field textarea{padding:10px 12px;resize:vertical;min-height:92px;line-height:1.5}
-    .pc-settings-field input:focus,.pc-settings-field textarea:focus{border-color:var(--pa-accent);box-shadow:0 0 0 3px rgba(20,184,166,.12)}
+    .pc-settings-field input:focus,.pc-settings-field textarea:focus,.pc-settings-field select:focus{border-color:var(--pa-accent);box-shadow:0 0 0 3px rgba(20,184,166,.12)}
     .pc-settings-help{display:block;margin-top:5px;color:#94a3b8;font-size:11px;line-height:1.45}
     .pc-settings-switch{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:13px 14px;border:1px solid var(--pa-border);border-radius:11px;background:#f8fafc;margin-top:18px}
     .pc-settings-switch-main{display:flex;align-items:center;gap:10px}
@@ -109,6 +109,47 @@
                     <label>Download URL <span style="font-weight:500;color:#94a3b8">(tùy chọn)</span></label>
                     <input name="download_url" value="{{ old('download_url',$setting->download_url) }}" placeholder="https://.../AuditTool.exe">
                     <span class="pc-settings-help">Đường dẫn tải AuditTool.exe khi triển khai cơ chế cập nhật Tool.</span>
+                </div>
+            </div>
+
+            <div style="margin-top:22px;padding-top:20px;border-top:1px solid #eef2f7">
+                <div class="pc-settings-head">
+                    <div>
+                        <h2>🕒 Lịch chạy Agent Service (cấu hình tập trung)</h2>
+                        <p>Schedule được lưu tại Backend. Agent Service tự đọc cấu hình này từ API; thay đổi lịch không cần cài lại Service trên máy trạm.</p>
+                    </div>
+                </div>
+                <div class="pc-settings-grid">
+                    <div class="pc-settings-field">
+                        <label for="agent_interval_minutes">Chu kỳ cập nhật inventory</label>
+                        <select id="agent_interval_minutes" name="agent_interval_minutes" required>
+                            @foreach([15=>'Mỗi 15 phút',30=>'Mỗi 30 phút',60=>'Mỗi 1 giờ',180=>'Mỗi 3 giờ',360=>'Mỗi 6 giờ',720=>'Mỗi 12 giờ',1440=>'Mỗi ngày',10080=>'Mỗi 7 ngày'] as $minutes=>$label)
+                                <option value="{{ $minutes }}" @selected((int)old('agent_interval_minutes',$setting->agent_interval_minutes ?? 360)===$minutes)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <span class="pc-settings-help">Khoảng thời gian giữa hai lần cập nhật thành công.</span>
+                    </div>
+                    <div class="pc-settings-field">
+                        <label>Chính sách khi Service khởi động</label>
+                        <div class="pc-settings-switch" style="margin-top:0">
+                            <div class="pc-settings-switch-main">
+                                <input type="checkbox" id="agent_run_on_start" name="agent_run_on_start" value="1" @checked(old('agent_run_on_start',$setting->agent_run_on_start ?? true))>
+                                <label for="agent_run_on_start" style="margin:0;cursor:pointer">
+                                    <strong>Chạy cập nhật ngay</strong>
+                                    <span>Chạy một lượt khi Service khởi động.</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="pc-settings-switch">
+                    <div class="pc-settings-switch-main">
+                        <input type="checkbox" id="agent_schedule_enabled" name="agent_schedule_enabled" value="1" @checked(old('agent_schedule_enabled',$setting->agent_schedule_enabled ?? true))>
+                        <label for="agent_schedule_enabled" style="margin:0;cursor:pointer">
+                            <strong>Bật lịch cập nhật Agent</strong>
+                            <span>Bỏ chọn để Service vẫn chạy nhưng tạm ngừng thu thập và gửi inventory.</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
