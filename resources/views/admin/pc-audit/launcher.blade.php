@@ -23,7 +23,7 @@
 <div class="pc-launcher">
     <div class="pc-launcher-hero">
         <h1>🖥️ PC Audit Launcher</h1>
-        <p>Chọn khách hàng và chi nhánh. Hệ thống tự tạo gói PC_Audit.ps1 và PC_Audit.bat để tải về.</p>
+        <p>Chọn khách hàng và chi nhánh. Hệ thống tự tạo gói công cụ Audit tương thích với hệ điều hành đã chọn.</p>
     </div>
 
     @if($errors->any())
@@ -62,7 +62,7 @@
 
         <div class="pc-launcher-card">
             <div class="pc-launcher-note">
-                <strong>Gói tải xuống gồm 2 file:</strong> <code>PC_Audit.ps1</code> và <code>PC_Audit.bat</code> trong một file ZIP. Giải nén cả hai file vào cùng thư mục rồi chạy BAT trên máy cần kiểm kê. Website không thể tự chạy BAT trực tiếp trên máy người dùng do giới hạn bảo mật của trình duyệt.
+                <strong>Gói Windows 7:</strong> gồm <code>PC_Audit.js</code>, <code>PC_Audit.bat</code> và hướng dẫn. Cần cài Node.js 12.22.12 x86/x64 trên máy đích, giải nén cả bộ vào cùng thư mục rồi chạy BAT. Gói Windows 10/11+ tiếp tục dùng PowerShell hiện tại. Website không thể tự chạy BAT trên máy người dùng do giới hạn bảo mật trình duyệt.
                 <br><br>
                 <strong>Chọn đúng hệ điều hành:</strong> nút Windows 7 tạo gói có lớp tương thích WMI và kiểm tra các lệnh bảo mật không có trên PowerShell cũ. Nút Windows 10/11+ tạo gói riêng cho Windows hiện đại. Máy đích vẫn cần kết nối HTTPS/TLS 1.2 tới máy chủ Audit.
             </div>
