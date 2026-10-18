@@ -58,15 +58,15 @@ class PcAuditAdminController extends Controller
             $nodeBat = (string) file_get_contents($nodeToolPath . '/PC_Audit.bat');
             $nodeReadme = (string) file_get_contents($nodeToolPath . '/README-Windows7.txt');
 
-            if (!class_exists(\\ZipArchive::class)) {
+            if (!class_exists(\ZipArchive::class)) {
                 return back()->withInput()->withErrors(['launcher' => 'PHP ZipArchive chưa được cài trên server. Vui lòng bật extension zip rồi thử lại.']);
             }
             $tmp = tempnam(sys_get_temp_dir(), 'pc-audit-node-');
             if ($tmp === false) {
                 return back()->withInput()->withErrors(['launcher' => 'Không tạo được file tạm để đóng gói PC Audit Node.js.']);
             }
-            $zip = new \\ZipArchive();
-            if ($zip->open($tmp, \\ZipArchive::OVERWRITE) !== true) {
+            $zip = new \ZipArchive();
+            if ($zip->open($tmp, \ZipArchive::OVERWRITE) !== true) {
                 @unlink($tmp);
                 return back()->withInput()->withErrors(['launcher' => 'Không thể tạo gói ZIP PC Audit Node.js.']);
             }
