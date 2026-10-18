@@ -22,7 +22,41 @@ async function collect(){
  out.computer={username:val(cs,'UserName').split('\\').pop()||os.userInfo().username,domain:val(cs,'Domain')||null,computer_name:val(cs,'Name')||os.hostname(),manufacturer:val(cs,'Manufacturer')||null,model:val(cs,'Model')||null,serial_number:val(bios,'SerialNumber')||null,asset_tag:val(enc,'SMBIOSAssetTag')||null};
  out.mainboard={manufacturer:val(bb,'Manufacturer')||null,product:val(bb,'Product')||null,serial_number:val(bb,'SerialNumber')||null};out.bios={version:val(bios,'SMBIOSBIOSVersion')||null,date:dateDmtf(bios.ReleaseDate)};
  out.cpu=(await wmi('Win32_Processor',['Name','NumberOfCores','NumberOfLogicalProcessors','MaxClockSpeed'])).map(function(r){return{name:val(r,'Name')||null,cores:num(r.NumberOfCores),threads:num(r.NumberOfLogicalProcessors),max_clock:num(r.MaxClockSpeed)};});
- out.memory=(await wmi('Win32_PhysicalMemory',['Capacity','Speed','ConfiguredClockSpeed','DeviceLocator','BankLabel','Manufacturer','PartNumber','SerialNumber','FormFactor','MemoryType','DataWidth','TotalWidth'])).map(function(r){var b=num(r.Capacity),g=gb(r.Capacity);return{capacity:g===null?null:g+' GB',capacity_gb:g,capacity_bytes:b,speed:num(r.Speed),configured_clock_speed:num(r.ConfiguredClockSpeed),slot:val(r,'DeviceLocator')||null,bank_label:val(r,'BankLabel')||null,manufacturer:val(r,'Manufacturer')||null,part_number:val(r,'PartNumber')||null,serial_number:val(r,'SerialNumber')||null,form_factor:num(r.FormFactor),memory_type:num(r.MemoryType),data_width:num(r.DataWidth),total_width:num(r.TotalWidth)};}).filter(function(r){return r.capacity_bytes>0;});
+ var ramRows=await wmi('Win32_PhysicalMemory',['Capacity','Speed','ConfiguredClockSpeed','DeviceLocator','BankLabel','Manufacturer','PartNumber','SerialNumber','FormFactor','MemoryType','DataWidth','TotalWidth']);
+ // Windows 7 WMIC can return sparse fields on some BIOS/WMI providers. Retry with the exact minimal query used for diagnosis.
+ if(!ramRows.some(function(r){return num(r.Capacity)>0;})){
+   var ramFallback=await exec('wmic',['path','Win32_PhysicalMemory','get','Capacity,Speed,DeviceLocator,Manufacturer,PartNumber,SerialNumber','/format:list'],30000);
+   ramRows=parseList(ramFallback.out);
+ }
+ // Keep canonical DB fields and raw WMI fields side-by-side so no useful module data is lost.
+ out.memory=ramRows.map(function(r){
+   var bytes=num(r.Capacity)||num(r.capacity)||num(r.CapacityBytes),g=gb(bytes);
+   var speed=num(r.ConfiguredClockSpeed)||num(r.Speed)||num(r.speed);
+   var slot=val(r,'DeviceLocator')||val(r,'device_locator')||val(r,'BankLabel')||val(r,'bank_label');
+   return{
+     capacity:g===null?null:g+' GB',
+     capacity_gb:g,
+     capacity_bytes:bytes,
+     speed:speed,
+     configured_clock_speed:num(r.ConfiguredClockSpeed)||speed,
+     slot:slot||null,
+     bank_label:val(r,'BankLabel')||val(r,'bank_label')||null,
+     manufacturer:val(r,'Manufacturer')||val(r,'manufacturer')||null,
+     part_number:val(r,'PartNumber')||val(r,'part_number')||null,
+     serial_number:val(r,'SerialNumber')||val(r,'serial_number')||null,
+     form_factor:num(r.FormFactor),
+     memory_type:num(r.MemoryType),
+     data_width:num(r.DataWidth),
+     total_width:num(r.TotalWidth),
+     wmi_raw:r
+   };
+ }).filter(function(r){return r.capacity_bytes>0||r.slot||r.manufacturer||r.part_number||r.serial_number;});
+ out.memory_summary={
+   module_count:out.memory.length,
+   total_capacity_gb:out.memory.reduce(function(sum,r){return sum+(Number(r.capacity_gb)||0);},0),
+   query:'Win32_PhysicalMemory',
+   warning:out.memory.length?'': 'WMI/WMIC khong tra ve module RAM; can kiem tra dich vu WMI/BIOS tren may.'
+ };
  var disks=await wmi('Win32_LogicalDisk',['DeviceID','VolumeName','FreeSpace','Size','FileSystem','DriveType']);out.storage=disks.filter(function(r){return num(r.DriveType)===3&&num(r.Size)>0;}).map(function(r){var sz=num(r.Size),fr=num(r.FreeSpace);return{drive:val(r,'DeviceID')||null,volume_name:val(r,'VolumeName')||null,free_gb:gb(fr),used_gb:sz===null||fr===null?null:gb(sz-fr),total_gb:gb(sz),filesystem:val(r,'FileSystem')||null};});
  out.physical_disks=(await wmi('Win32_DiskDrive',['Model','Size','InterfaceType','SerialNumber','MediaType'])).map(function(r){return{model:val(r,'Model')||null,size_gb:gb(r.Size),interface_type:val(r,'InterfaceType')||null,serial_number:val(r,'SerialNumber')||null,media_type:val(r,'MediaType')||null};});
  function decodeWmi(v){return parseArray(v).map(Number).filter(function(n){return n>0;}).map(function(n){return String.fromCharCode(n);}).join('')||null;}
