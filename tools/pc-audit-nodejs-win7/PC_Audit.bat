@@ -35,7 +35,9 @@ set "NODE_EXE="
 set "NODE_VERSION="
 for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
 if defined NODE_EXE (
-  for /f "delims=" %%V in ('"!NODE_EXE!" --version 2^>nul') do set "NODE_VERSION=%%V"
+  "!NODE_EXE!" --version > "%TEMP%\\mstar_node_version.txt" 2>nul
+  if exist "%TEMP%\\mstar_node_version.txt" set /p NODE_VERSION=<"%TEMP%\\mstar_node_version.txt"
+  if exist "%TEMP%\\mstar_node_version.txt" del /q "%TEMP%\\mstar_node_version.txt" >nul 2>&1
   echo Found Node.js: !NODE_VERSION!
   echo Path: !NODE_EXE!
   if "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
@@ -100,7 +102,11 @@ set "PATH=%ProgramFiles%\nodejs;%ProgramFiles(x86)%\nodejs;%PATH%"
 set "NODE_EXE="
 set "NODE_VERSION="
 for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
-if defined NODE_EXE for /f "delims=" %%V in ('"!NODE_EXE!" --version 2^>nul') do set "NODE_VERSION=%%V"
+if defined NODE_EXE (
+  "!NODE_EXE!" --version > "%TEMP%\\mstar_node_version.txt" 2>nul
+  if exist "%TEMP%\\mstar_node_version.txt" set /p NODE_VERSION=<"%TEMP%\\mstar_node_version.txt"
+  if exist "%TEMP%\\mstar_node_version.txt" del /q "%TEMP%\\mstar_node_version.txt" >nul 2>&1
+)
 
 if not "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
   echo.
