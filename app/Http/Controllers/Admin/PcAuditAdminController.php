@@ -259,10 +259,15 @@ BAT;
             'enabled' => ['nullable', 'boolean'],
             'download_url' => ['nullable', 'url', 'max:1000'],
             'disabled_message' => ['nullable', 'string', 'max:2000'],
+            'agent_schedule_enabled' => ['nullable', 'boolean'],
+            'agent_interval_minutes' => ['required', 'integer', 'min:15', 'max:10080'],
+            'agent_run_on_start' => ['nullable', 'boolean'],
         ]);
 
         $data['api_base_url'] = rtrim($data['api_base_url'], '/');
         $data['enabled'] = $request->boolean('enabled');
+        $data['agent_schedule_enabled'] = $request->boolean('agent_schedule_enabled');
+        $data['agent_run_on_start'] = $request->boolean('agent_run_on_start');
 
         PcAuditSetting::query()->updateOrCreate(['id' => 1], $data);
 
