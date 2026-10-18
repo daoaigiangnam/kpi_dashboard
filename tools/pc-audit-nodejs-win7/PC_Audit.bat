@@ -1,4 +1,9 @@
 @echo off
+rem Keep the console open so errors remain visible when launched by double-click.
+if /i not "%~1"=="__MSTAR_KEEP_OPEN__" (
+  start "MSTAR PC Audit - Console" cmd.exe /k ""%~f0" __MSTAR_KEEP_OPEN__"
+  exit /b
+)
 setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 title MSTAR PC Audit - Windows 7 / 10 / 11
