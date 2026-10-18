@@ -27,7 +27,7 @@ class PcAuditAdminController extends Controller
         $data = $request->validate([
             'customer_id' => ['required', 'integer', 'exists:service_customers,id'],
             'branch_id' => ['required', 'integer', 'exists:customer_branches,id'],
-            'target_os' => ['required', 'in:windows7,windows10'],
+            'target_os' => ['required', 'in:windows7,windows10,nodejs'],
         ]);
 
         $customer = ServiceCustomer::query()->whereKey($data['customer_id'])->where('is_active', true)->firstOrFail();
@@ -43,7 +43,7 @@ class PcAuditAdminController extends Controller
             $auditCode = PcAuditCode::create(['branch_id' => $branch->id, 'code' => $code, 'name' => 'PC Audit - ' . $branch->name, 'is_active' => true]);
         }
 
-        if (in_array($data['target_os'], ['windows7', 'windows10'], true)) {
+        if ($data['target_os'] === 'nodejs') {
             // Shared Node.js collector for Windows 7, Windows 10 and Windows 11.
             $nodeToolPath = base_path('tools/pc-audit-nodejs-win7');
             foreach (['PC_Audit.js', 'PC_Audit.bat', 'README-Windows7.txt'] as $file) {
@@ -76,7 +76,7 @@ class PcAuditAdminController extends Controller
             $zip->addFromString('README-Windows7.txt', $nodeReadme);
             $zip->close();
 
-            $osLabel = $data['target_os'] === 'windows7' ? 'Windows7_NodeJS' : 'Windows10_11_NodeJS';
+            $osLabel = 'Windows7_10_11_NodeJS';
             $filename = 'PC_Audit_' . $osLabel . '_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $branch->code ?: $branch->name) . '_' . now()->format('Ymd_His') . '.zip';
             return response()->download($tmp, $filename, ['Content-Type' => 'application/zip'])->deleteFileAfterSend(true);
         }
