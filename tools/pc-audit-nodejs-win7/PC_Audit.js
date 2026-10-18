@@ -240,7 +240,58 @@ async function removeSchedule(){
 }
 
 
+var SERVICE_NAME='MSTAR_PCAudit';
+var SERVICE_CONFIG=SCHEDULE_CONFIG;
+function sleep(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});}
+async function serviceLoop(){
+ logScheduled('SERVICE STARTED; interval=6 hours');
+ while(true){
+  try{await scheduledRun();}
+  catch(e){try{logScheduled('SERVICE ERROR '+(e&&e.message?e.message:String(e)));}catch(ignore){}}
+  await sleep(6*60*60*1000);
+ }
+}
+async function setupService(){
+ var rl=readline.createInterface({input:process.stdin,output:process.stdout});
+ try{
+  console.log('=== CAU HINH WINDOWS SERVICE PC AUDIT ===');
+  var code=(EMBEDDED_AUDIT_CODE==='__MSTAR_AUDIT_CODE__'?(await ask(rl,'Audit Code: ')):EMBEDDED_AUDIT_CODE).toUpperCase();
+  if(!code)throw new Error('Audit Code khong duoc de trong.');
+  var conf=await reqJson(CONFIG_ENDPOINT,'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');
+  var base=String(conf.api_base_url||'').replace(/\\/+$/,'');
+  var v=await reqJson(base+'/pc-audit/validate-code','POST',{code:code});if(v.ok!==true)throw new Error(v.message||'Audit Code khong hop le');
+  console.log('Khach hang: '+v.data.customer.name+' | Chi nhanh: '+v.data.branch.name);
+  var def=os.userInfo().username||process.env.USERNAME||'Unknown';
+  var employee=(await ask(rl,'Ho ten nguoi dung (Enter = '+def+'): '))||def;
+  var department=(await ask(rl,'Phong ban (Enter = bo qua): '))||null;
+  var mobile=(await ask(rl,'Di dong (Enter = bo qua): '))||null;
+  var email=(await ask(rl,'Email (Enter = bo qua): '))||null;
+  var profile={code:code,employee_name:employee,department:department,employee_mobile:mobile,employee_email:email,created_at:new Date().toISOString(),customer:v.data.customer.name,branch:v.data.branch.name};
+  fs.writeFileSync(SERVICE_CONFIG,JSON.stringify(profile,null,2),'utf8');
+  console.log('Da luu cau hinh Service. Service se thu thap va cap nhat inventory moi 6 gio.');
+  console.log('Luu y: can chay Audit lan dau de tao du lieu day du truoc khi cai Service.');
+ }finally{try{rl.close();}catch(e){}}
+}
+async function removeService(){
+ var nssm=path.join(__dirname,'nssm.exe');
+ if(!fs.existsSync(nssm))throw new Error('Khong tim thay nssm.exe trong thu muc cong cu.');
+ var stop=await exec(nssm,['stop',SERVICE_NAME],20000);
+ await sleep(1500);
+ var rem=await exec(nssm,['remove',SERVICE_NAME,'confirm'],20000);
+ if(!rem.ok)throw new Error('Khong go duoc Service: '+(rem.err||rem.out||rem.error));
+ try{fs.unlinkSync(SERVICE_CONFIG);}catch(e){}
+ console.log('Da go Windows Service '+SERVICE_NAME+'.');
+}
+async function serviceStatus(){
+ var r=await exec('sc.exe',['query',SERVICE_NAME],15000);
+ console.log(r.out||r.err||r.error||'Khong co thong tin Service.');
+}
+
 async function main(){
+ if(process.argv.indexOf('--service-loop')>=0){serviceLoop().catch(function(e){try{logScheduled('FATAL '+(e&&e.message?e.message:String(e)));}catch(ignore){}process.exitCode=1;});return;}
+ if(process.argv.indexOf('--setup-service')>=0){await setupService();return;}
+ if(process.argv.indexOf('--remove-service')>=0){await removeService();return;}
+ if(process.argv.indexOf('--service-status')>=0){await serviceStatus();return;}
  if(process.argv.indexOf('--scheduled')>=0){try{await scheduledRun();}catch(e){try{logScheduled('ERROR '+(e&&e.message?e.message:String(e)));}catch(ignore){}console.error('[SCHEDULED AUDIT ERROR] '+(e&&e.message?e.message:String(e)));process.exitCode=1;}return;}
  if(process.argv.indexOf('--setup-schedule')>=0){await setupSchedule();return;}
  if(process.argv.indexOf('--remove-schedule')>=0){await removeSchedule();return;}
