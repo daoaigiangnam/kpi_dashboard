@@ -5,7 +5,7 @@ var EMBEDDED_AUDIT_CODE='__MSTAR_AUDIT_CODE__';
 var CONFIG_ENDPOINT='https://kpi.review360.id.vn/api/pc-audit/config';
 function ask(rl,q){return new Promise(function(resolve){rl.question(q,function(v){resolve(String(v||'').trim());});});}
 function txt(v){return v===undefined||v===null?'':String(v).trim();}
-function stage(title){console.log('\\n[THU THAP] '+title);}
+function stage(title){console.log('\n[THU THAP] '+title);}
 function detail(label,value){var v=value;if(v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length))v='(khong co du lieu)';else if(Array.isArray(v))v=v.join(' | ');console.log('  - '+label+': '+String(v));}
 function listValues(rows,fn){return (rows||[]).map(fn).filter(function(v){return !!v;});}
 function num(v){var n=Number(txt(v).replace(/,/g,''));return txt(v)===''||!isFinite(n)?null:n;}
@@ -23,7 +23,7 @@ function licenseText(v){return ({0:'Unlicensed',1:'Licensed / Activated',2:'OOB 
 async function collect(){
  stage('01/10 - May tinh / nguoi dung / domain / serial / asset tag');
  var out={},a,cs=(await wmi('Win32_ComputerSystem',['Name','Domain','Manufacturer','Model','UserName']))[0]||{},bios=(await wmi('Win32_BIOS',['SerialNumber','SMBIOSBIOSVersion','ReleaseDate']))[0]||{},bb=(await wmi('Win32_BaseBoard',['Manufacturer','Product','SerialNumber']))[0]||{},enc=(await wmi('Win32_SystemEnclosure',['SMBIOSAssetTag']))[0]||{},osr=(await wmi('Win32_OperatingSystem',['Caption','Version','BuildNumber','OSArchitecture','InstallDate','RegisteredUser','Organization','SerialNumber','ProductType','OperatingSystemSKU','OSLanguage','CSDVersion','WindowsDirectory','SystemDirectory','SystemDrive','Manufacturer','Status','TotalVisibleMemorySize','LastBootUpTime']))[0]||{};
- out.computer={username:val(cs,'UserName').split('\\\\').pop()||os.userInfo().username,domain:val(cs,'Domain')||null,computer_name:val(cs,'Name')||os.hostname(),manufacturer:val(cs,'Manufacturer')||null,model:val(cs,'Model')||null,serial_number:val(bios,'SerialNumber')||null,asset_tag:val(enc,'SMBIOSAssetTag')||null};
+ out.computer={username:val(cs,'UserName').split('\\').pop()||os.userInfo().username,domain:val(cs,'Domain')||null,computer_name:val(cs,'Name')||os.hostname(),manufacturer:val(cs,'Manufacturer')||null,model:val(cs,'Model')||null,serial_number:val(bios,'SerialNumber')||null,asset_tag:val(enc,'SMBIOSAssetTag')||null};
  detail('Computer Name',out.computer.computer_name);detail('User Windows',out.computer.username);detail('Domain',out.computer.domain);detail('Manufacturer / Model',out.computer.manufacturer+' / '+out.computer.model);detail('Serial BIOS',out.computer.serial_number);detail('Asset Tag',out.computer.asset_tag);
  stage('02/10 - Mainboard / BIOS');
  out.mainboard={manufacturer:val(bb,'Manufacturer')||null,product:val(bb,'Product')||null,serial_number:val(bb,'SerialNumber')||null};out.bios={version:val(bios,'SMBIOSBIOSVersion')||null,date:dateDmtf(bios.ReleaseDate)};
