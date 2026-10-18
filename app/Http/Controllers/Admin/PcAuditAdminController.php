@@ -43,6 +43,42 @@ class PcAuditAdminController extends Controller
             $auditCode = PcAuditCode::create(['branch_id' => $branch->id, 'code' => $code, 'name' => 'PC Audit - ' . $branch->name, 'is_active' => true]);
         }
 
+        if ($data['target_os'] === 'windows7') {
+            $nodeToolPath = base_path('tools/pc-audit-nodejs-win7');
+            foreach (['PC_Audit.js', 'PC_Audit.bat', 'README-Windows7.txt'] as $file) {
+                abort_unless(is_file($nodeToolPath . DIRECTORY_SEPARATOR . $file), 500, 'Thiếu file nguồn PC Audit Node.js: ' . $file);
+            }
+
+            $nodeScript = (string) file_get_contents($nodeToolPath . '/PC_Audit.js');
+            $nodeScript = str_replace(
+                "var EMBEDDED_AUDIT_CODE='__MSTAR_AUDIT_CODE__';",
+                'var EMBEDDED_AUDIT_CODE=' . json_encode($auditCode->code, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';',
+                $nodeScript
+            );
+            $nodeBat = (string) file_get_contents($nodeToolPath . '/PC_Audit.bat');
+            $nodeReadme = (string) file_get_contents($nodeToolPath . '/README-Windows7.txt');
+
+            if (!class_exists(\\ZipArchive::class)) {
+                return back()->withInput()->withErrors(['launcher' => 'PHP ZipArchive chưa được cài trên server. Vui lòng bật extension zip rồi thử lại.']);
+            }
+            $tmp = tempnam(sys_get_temp_dir(), 'pc-audit-node-');
+            if ($tmp === false) {
+                return back()->withInput()->withErrors(['launcher' => 'Không tạo được file tạm để đóng gói PC Audit Node.js.']);
+            }
+            $zip = new \\ZipArchive();
+            if ($zip->open($tmp, \\ZipArchive::OVERWRITE) !== true) {
+                @unlink($tmp);
+                return back()->withInput()->withErrors(['launcher' => 'Không thể tạo gói ZIP PC Audit Node.js.']);
+            }
+            $zip->addFromString('PC_Audit.js', $nodeScript);
+            $zip->addFromString('PC_Audit.bat', $nodeBat);
+            $zip->addFromString('README-Windows7.txt', $nodeReadme);
+            $zip->close();
+
+            $filename = 'PC_Audit_Windows7_NodeJS_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $branch->code ?: $branch->name) . '_' . now()->format('Ymd_His') . '.zip';
+            return response()->download($tmp, $filename, ['Content-Type' => 'application/zip'])->deleteFileAfterSend(true);
+        }
+
         $basePath = base_path('tools/pc-audit');
         foreach (['Config.ps1', 'ApiClient.ps1', 'Collector.ps1', 'AuditTool.ps1'] as $file) {
             abort_unless(is_file($basePath . DIRECTORY_SEPARATOR . $file), 500, 'Thiếu file nguồn PC Audit: ' . $file);
