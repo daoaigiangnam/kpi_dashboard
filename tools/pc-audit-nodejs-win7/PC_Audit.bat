@@ -150,6 +150,7 @@ if not "%AUDIT_EXIT%"=="0" (
 endlocal & exit /b %AUDIT_EXIT%
 
 :INSTALL_SERVICE
+if not exist "%~dp0output" mkdir "%~dp0output"
 net session >nul 2>&1
 if errorlevel 1 (
   echo [ERROR] Hay chay PC_Audit.bat bang Run as administrator.
