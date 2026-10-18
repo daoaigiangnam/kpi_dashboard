@@ -29,18 +29,20 @@ YEU CAU
 LUU Y BAO MAT
 Node.js 12 da het ho tro bao mat va chi danh cho Windows 7 legacy. Mot so truong nhu Secure Boot hoac serial RAM co the khong duoc firmware/may ao cung cap.
 
-WINDOWS SERVICE THUC THU (NSSM)
+WINDOWS SERVICE THUC THU - SCHEDULE QUAN LY TREN BACKEND
 - Chay PC_Audit.bat bang Run as administrator.
 - Nen chon [1] Audit day du truoc de tao inventory co du lieu chi tiet tren Server.
 - Chon [2] Cai dat Windows Service. Neu chua co NSSM, cong cu tu tai goi NSSM 2.24 tu trang chinh thuc https://nssm.cc/release/nssm-2.24.zip va tu giai nen.
 - Nhap Audit Code va thong tin nguoi dung. Service duoc tao ten MSTAR_PCAudit, Startup Automatic, chay nen qua tai khoan SYSTEM.
-- Service thu thap lai inventory va gui len Server ngay khi khoi dong, sau do lap lai moi 6 gio. Khi may mat mang, loi du lieu/API se duoc ghi log va thu lai o chu ky tiep theo.
+- Schedule khong cau hinh tren may tram. Quan tri vien vao Admin > PC Audit > Cau hinh, chon chu ky va bat/tat lich.
+- Agent Service doc endpoint /api/pc-audit/agent-config?code=... moi 5 phut; neu Backend doi lich, Agent tu nhan cau hinh moi ma khong can cai lai Service.
+- Theo lich Backend, Service thu thap lai inventory va gui len Server. Neu API/ket noi loi, Agent ghi log va thu lai sau 15 phut.
 - Cap nhat su dung cung Audit Code + computer_name de cap nhat ban ghi inventory hien co; payload gui len la bo du lieu thu thap day du, khong phai PATCH chi cac truong thay doi.
 - Log: output\scheduled.log, output\service-stdout.log, output\service-stderr.log.
 - Chon [3] de dung Service; [4] de go Service; [5] xem trang thai.
 - Khong xoa/di chuyen thu muc cong cu hoac nssm.exe khi Service con duoc cai dat. Go Service truoc khi di chuyen.
 - NSSM can quyen Administrator. Audit Code duoc luu trong pc-audit-schedule.json; gioi han quyen truy cap thu muc cong cu, khong chia se cho nguoi khong duoc phep.
-- Day la Windows Service thuc thu do NSSM quan ly, khong phai Scheduled Task.
+- Day la Windows Service thuc thu do NSSM quan ly; khong dung Windows Scheduled Task de lap lich Audit.
 
 CAU HINH CAP NHAT DINH KY LEN SERVER
 - Chay PC_Audit.bat bang Run as administrator va chon [2] Cai dat lich tu dong gui Server.
