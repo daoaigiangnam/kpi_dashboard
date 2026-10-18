@@ -53,13 +53,24 @@ class PcAuditApiController extends Controller
 
         $data = $payload['data'];
         $computer = is_array($data['computer'] ?? null) ? $data['computer'] : [];
+        $computerName = trim((string) ($computer['computer_name'] ?? $data['computer_name'] ?? $data['computerName'] ?? ''));
+        if ($computerName === '') {
+            return response()->json(['ok' => false, 'message' => 'Không xác định được Tên máy tính; không thể dùng làm khóa cập nhật Audit.'], 422);
+        }
         $windows = is_array($data['windows'] ?? null) ? $data['windows'] : [];
         $security = is_array($data['security'] ?? null) ? $data['security'] : [];
         $value = static fn(array $keys, $default = null) => self::firstValue($data, $keys, $default);
         $auditResult = $engine->evaluate($data);
 
-        $audit = DB::transaction(function () use ($code, $payload, $data, $computer, $windows, $security, $value, $auditResult) {
-            $audit = PcAudit::create([
+        $audit = DB::transaction(function () use ($code, $payload, $data, $computer, $computerName, $windows, $security, $value, $auditResult) {
+            // One current inventory record per Audit Code + computer name. Re-runs update this record.
+            $audit = PcAudit::query()
+                ->where('pc_audit_code_id', $code->id)
+                ->whereRaw('LOWER(computer_name) = ?', [mb_strtolower($computerName)])
+                ->lockForUpdate()
+                ->first();
+
+            $auditAttributes = [
                 'pc_audit_code_id' => $code->id,
                 'department' => self::scalarValue($payload['department'] ?? null),
                 'employee_name' => self::scalarValue($payload['employee_name']),
@@ -86,10 +97,41 @@ class PcAuditApiController extends Controller
                 'audit_results' => $auditResult,
                 'audit_engine_version' => self::scalarValue($auditResult['engine_version']),
                 'raw_payload' => $data,
-            ]);
+            ];
 
-            PcAuditDetail::create([
-                'pc_audit_id' => $audit->id,
+            if ($audit) {
+                $audit->fill($auditAttributes);
+                $audit->save();
+                // Replace the latest inventory components instead of accumulating duplicate rows.
+                PcAuditDetail::updateOrCreate(
+                    ['pc_audit_id' => $audit->id],
+                    [
+                        'hardware' => $data['hardware'] ?? null,
+                        'cpu' => $data['cpu'] ?? null,
+                        'memory' => $data['memory'] ?? null,
+                        'storage' => $data['storage'] ?? null,
+                        'monitors' => $data['monitors'] ?? null,
+                        'gpu' => $data['gpu'] ?? null,
+                        'battery' => $data['battery'] ?? null,
+                        'windows' => $data['windows'] ?? null,
+                        'network' => $data['network'] ?? null,
+                        'security' => $security ?: null,
+                        'licenses' => $data['licenses'] ?? null,
+                        'software' => $data['software'] ?? null,
+                        'other' => $data['other'] ?? null,
+                    ]
+                );
+                foreach ([
+                    'pc_audit_memory','pc_audit_storage','pc_audit_monitors','pc_audit_gpu',
+                    'pc_audit_battery','pc_audit_network','pc_audit_antivirus','pc_audit_bitlocker',
+                    'pc_audit_firewall','pc_audit_licenses','pc_audit_software'
+                ] as $table) {
+                    DB::table($table)->where('pc_audit_id', $audit->id)->delete();
+                }
+            } else {
+                $audit = PcAudit::create($auditAttributes);
+                PcAuditDetail::create([
+                    'pc_audit_id' => $audit->id,
                 'hardware' => $data['hardware'] ?? null,
                 'cpu' => $data['cpu'] ?? null,
                 'memory' => $data['memory'] ?? null,
@@ -102,8 +144,9 @@ class PcAuditApiController extends Controller
                 'security' => $security ?: null,
                 'licenses' => $data['licenses'] ?? null,
                 'software' => $data['software'] ?? null,
-                'other' => $data['other'] ?? null,
-            ]);
+                    'other' => $data['other'] ?? null,
+                ]);
+            }
 
             // Normalize aliases from Node.js/WMIC and legacy PowerShell collectors before persistence.
             self::insertRows($audit->id, self::normalizeRows($data['memory'] ?? [], [
