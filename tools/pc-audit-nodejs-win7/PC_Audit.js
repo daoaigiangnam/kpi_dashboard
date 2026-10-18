@@ -11,7 +11,7 @@ function listValues(rows,fn){return (rows||[]).map(fn).filter(function(v){return
 function num(v){var n=Number(txt(v).replace(/,/g,''));return txt(v)===''||!isFinite(n)?null:n;}
 function rnd(v,d){return v===null||v===undefined||!isFinite(Number(v))?null:Number(Number(v).toFixed(d));}
 function gb(v){var n=num(v);return n===null?null:rnd(n/1073741824,2);}
-function parseArray(v){var s=txt(v);if(!s)return[];if(s.charAt(0)==='{'&&s.charAt(s.length-1)==='}')s=s.slice(1,-1);return s.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(function(x){return x.trim().replace(/^"|"$/g,'');}).filter(Boolean);}
+function parseArray(v){if(Array.isArray(v))return v.map(function(x){return txt(x);}).filter(Boolean);var s=txt(v);if(!s)return[];if(s.charAt(0)==='{'&&s.charAt(s.length-1)==='}')s=s.slice(1,-1);return s.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(function(x){return x.trim().replace(/^"|"$/g,'');}).filter(Boolean);}
 function parseList(s){var rows=[],row={};String(s||'').replace(/^\uFEFF/,'').split(/\r?\n/).forEach(function(line){line=line.trim();if(!line){if(Object.keys(row).length)rows.push(row);row={};return;}var i=line.indexOf('=');if(i>0)row[line.slice(0,i).trim()]=line.slice(i+1).trim();});if(Object.keys(row).length)rows.push(row);return rows;}
 function exec(file,args,timeout){return new Promise(function(resolve){cp.execFile(file,args,{windowsHide:true,timeout:timeout||25000,maxBuffer:8*1024*1024,encoding:'utf8'},function(err,stdout,stderr){resolve({ok:!err,out:String(stdout||''),err:String(stderr||''),error:err?err.message:null});});});}
 async function wmi(cls,props,opt){
@@ -20,7 +20,7 @@ async function wmi(cls,props,opt){
  // Fall back to WMIC for older Windows installations if PowerShell query fails.
  var q="try { $ErrorActionPreference='Stop'; $p=@("+props.map(p=>"'"+p.replace(/'/g,"''")+"'").join(",")+"); ";
  q+="if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) { $x=Get-CimInstance -ClassName '"+cls.replace(/'/g,"''")+"'";
- if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/\\/g,"\\\\").replace(/'/g,"''")+"'";
+ if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/^\\\\+/,'').replace(/\\\\+/g,'\\\\').replace(/\\//g,'\\\\').replace(/'/g,"''")+"'";
  if(opt.where) q+=" -Filter '"+opt.where.replace(/'/g,"''")+"'";
  q+=" -Property $p } else { $x=Get-WmiObject -Class '"+cls.replace(/'/g,"''")+"'";
  if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/\\/g,"\\\\").replace(/'/g,"''")+"'";
@@ -32,7 +32,7 @@ async function wmi(cls,props,opt){
  var legacy=await exec('wmic',args,30000);return parseList(legacy.out);
 }
 function val(r,k){return r?txt(r[k]):'';}
-function dateDmtf(v){var m=txt(v).match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);return m?m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':'+m[6]:(txt(v)||null);}
+function dateDmtf(v){var s=txt(v);if(!s)return null;var m=s.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':'+m[6];var iso=s.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);return iso?iso[1]:s;}
 function readRegRows(out,source){var result=[],pathNow='',values={};function flush(){if(values.DisplayName)result.push({name:values.DisplayName,version:values.DisplayVersion||null,publisher:values.Publisher||null,install_date:values.InstallDate||null,estimated_size:num(values.EstimatedSize),source:source});values={};}String(out||'').split(/\r?\n/).forEach(function(line){var km=line.match(/^(HKEY_[^\r\n]+)$/i);if(km){if(pathNow)flush();pathNow=km[1];return;}var m=line.match(/^\s+([^\s]+)\s+REG_\w+\s*(.*)$/i);if(m)values[m[1]]=m[2].trim();});if(pathNow)flush();return result;}
 async function software(){var keys=[['HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall','Registry HKLM'],['HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall','Registry HKLM WOW6432Node'],['HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall','Registry HKCU']],all=[],seen={};for(var i=0;i<keys.length;i++){var r=await exec('reg',['query',keys[i][0],'/s'],35000);all=all.concat(readRegRows(r.out,keys[i][1]));}return all.filter(function(x){var k=(x.name+'|'+(x.version||'')+'|'+(x.publisher||'')).toLowerCase();if(seen[k])return false;seen[k]=true;return true;}).sort(function(a,b){return a.name.localeCompare(b.name);});}
 function licenseText(v){return ({0:'Unlicensed',1:'Licensed / Activated',2:'OOB Grace',3:'OOT Grace',4:'Non-Genuine Grace',5:'Notification',6:'Extended Grace'})[num(v)]||('Unknown ('+txt(v)+')');}
