@@ -105,9 +105,25 @@ class PcAuditApiController extends Controller
                 'other' => $data['other'] ?? null,
             ]);
 
-            self::insertRows($audit->id, $data['memory'] ?? [], 'pc_audit_memory', ['capacity','speed','slot','manufacturer','part_number','serial_number']);
-            self::insertRows($audit->id, $data['storage'] ?? [], 'pc_audit_storage', ['drive','used_gb','total_gb']);
-            self::insertRows($audit->id, $data['monitors'] ?? [], 'pc_audit_monitors', ['manufacturer','model','serial_number']);
+            // Normalize aliases from Node.js/WMIC and legacy PowerShell collectors before persistence.
+            self::insertRows($audit->id, self::normalizeRows($data['memory'] ?? [], [
+                'capacity' => ['capacity', 'capacity_gb', 'CapacityGB', 'Capacity'],
+                'speed' => ['speed', 'speed_mhz', 'configured_clock_speed', 'Speed'],
+                'slot' => ['slot', 'device_locator', 'DeviceLocator', 'bank_label', 'BankLabel'],
+                'manufacturer' => ['manufacturer', 'Manufacturer'],
+                'part_number' => ['part_number', 'partNumber', 'PartNumber'],
+                'serial_number' => ['serial_number', 'serialNumber', 'SerialNumber'],
+            ], ['capacity_gb' => 'capacity_gb']), 'pc_audit_memory', ['capacity','speed','slot','manufacturer','part_number','serial_number']);
+            self::insertRows($audit->id, self::normalizeRows($data['storage'] ?? [], [
+                'drive' => ['drive', 'DeviceID', 'device_id', 'mount_point'],
+                'used_gb' => ['used_gb', 'usedGB'],
+                'total_gb' => ['total_gb', 'size_gb', 'totalGB', 'SizeGB'],
+            ]), 'pc_audit_storage', ['drive','used_gb','total_gb']);
+            self::insertRows($audit->id, self::normalizeRows($data['monitors'] ?? [], [
+                'manufacturer' => ['manufacturer', 'Manufacturer', 'monitor_manufacturer'],
+                'model' => ['model', 'name', 'UserFriendlyName', 'friendly_name'],
+                'serial_number' => ['serial_number', 'serialNumber', 'SerialNumberID'],
+            ]), 'pc_audit_monitors', ['manufacturer','model','serial_number']);
             self::insertRows($audit->id, $data['gpu'] ?? [], 'pc_audit_gpu', ['name','vram','driver_version']);
             self::insertRows($audit->id, $data['battery'] ?? [], 'pc_audit_battery', ['name','status','charge_percent']);
             self::insertRows($audit->id, $data['network'] ?? [], 'pc_audit_network', ['type','name','description','ipv4','gateway','mac','dns','dhcp','connection_status','link_speed']);
@@ -153,6 +169,55 @@ class PcAuditApiController extends Controller
     {
         foreach ($keys as $key) if (array_key_exists($key, $data)) return $data[$key];
         return $default;
+    }
+
+    /**
+     * Convert collector-specific property names into the canonical database contract.
+     * Empty strings are treated as missing values, not as valid hardware data.
+     */
+    private static function normalizeRows(mixed $rows, array $aliases, array $units = []): array
+    {
+        if (!is_array($rows)) return [];
+        if ($rows === []) return [];
+        if (!array_is_list($rows)) $rows = [$rows];
+
+        $normalized = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) continue;
+            $item = $row;
+            foreach ($aliases as $target => $candidates) {
+                $found = null;
+                foreach ($candidates as $candidate) {
+                    if (array_key_exists($candidate, $row) && $row[$candidate] !== null && $row[$candidate] !== '') {
+                        $found = $row[$candidate];
+                        break;
+                    }
+                }
+                if ($found !== null) {
+                    if (isset($units[$target]) && $target === 'capacity_gb' && is_numeric($found)) {
+                        $item[$target] = (float) $found;
+                    } else {
+                        $item[$target] = $found;
+                    }
+                } elseif (!array_key_exists($target, $item)) {
+                    $item[$target] = null;
+                }
+            }
+
+            // Older collectors may send byte counts instead of GB.
+            if (($item['capacity'] ?? null) === null && is_numeric($row['capacity_bytes'] ?? null)) {
+                $item['capacity'] = round(((float) $row['capacity_bytes']) / 1073741824, 2) . ' GB';
+            } elseif (($item['capacity'] ?? null) === null && is_numeric($row['capacity_gb'] ?? null)) {
+                $item['capacity'] = round((float) $row['capacity_gb'], 2) . ' GB';
+            } elseif (is_numeric($item['capacity'] ?? null)) {
+                $item['capacity'] = round((float) $item['capacity'], 2) . ' GB';
+            }
+            foreach (['speed', 'used_gb', 'total_gb'] as $numericField) {
+                if (isset($item[$numericField]) && $item[$numericField] === '') $item[$numericField] = null;
+            }
+            $normalized[] = $item;
+        }
+        return $normalized;
     }
 
     private static function insertRows(int $auditId, mixed $rows, string $table, array $columns): void
