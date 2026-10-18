@@ -208,7 +208,7 @@ async function setupSchedule(){
   var email=(await ask(rl,'Email (Enter = bo qua): '))||null;
   console.log('Tan suat: 1 = Moi ngay, 2 = Moi gio');
   var freq=await ask(rl,'Chon tan suat (1/2): ');
-  var args=['/Create','/TN',SCHEDULE_TASK_NAME,'/TR',path.join(__dirname,'PC_Audit_Scheduled.bat'),'/RU','SYSTEM','/RL','HIGHEST','/F'];
+  var args=['/Create','/TN',SCHEDULE_TASK_NAME,'/TR','"'+path.join(__dirname,'PC_Audit_Scheduled.bat')+'"','/RU','SYSTEM','/RL','HIGHEST','/F'];
   if(freq==='2'){
     var hours=Number(await ask(rl,'Chay lap lai moi bao nhieu gio (1-23): '));
     if(!isFinite(hours)||hours<1||hours>23||Math.floor(hours)!==hours)throw new Error('Khoang gio phai tu 1 den 23.');
