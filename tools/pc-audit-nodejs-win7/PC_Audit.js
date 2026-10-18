@@ -14,7 +14,23 @@ function gb(v){var n=num(v);return n===null?null:rnd(n/1073741824,2);}
 function parseArray(v){var s=txt(v);if(!s)return[];if(s.charAt(0)==='{'&&s.charAt(s.length-1)==='}')s=s.slice(1,-1);return s.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(function(x){return x.trim().replace(/^"|"$/g,'');}).filter(Boolean);}
 function parseList(s){var rows=[],row={};String(s||'').replace(/^\uFEFF/,'').split(/\r?\n/).forEach(function(line){line=line.trim();if(!line){if(Object.keys(row).length)rows.push(row);row={};return;}var i=line.indexOf('=');if(i>0)row[line.slice(0,i).trim()]=line.slice(i+1).trim();});if(Object.keys(row).length)rows.push(row);return rows;}
 function exec(file,args,timeout){return new Promise(function(resolve){cp.execFile(file,args,{windowsHide:true,timeout:timeout||25000,maxBuffer:8*1024*1024,encoding:'utf8'},function(err,stdout,stderr){resolve({ok:!err,out:String(stdout||''),err:String(stderr||''),error:err?err.message:null});});});}
-async function wmi(cls,props,opt){var args=[];opt=opt||{};if(opt.ns)args.push('/namespace:'+opt.ns);args.push('path',cls);if(opt.where)args.push('where',opt.where);args.push('get',props.join(','),'/format:list');var r=await exec('wmic',args,30000);return parseList(r.out);}
+async function wmi(cls,props,opt){
+ opt=opt||{};
+ // Prefer PowerShell CIM/WMI APIs: WMIC is an optional feature and may be absent on current Windows 11.
+ // Fall back to WMIC for older Windows installations if PowerShell query fails.
+ var q="try { $ErrorActionPreference='Stop'; $p=@("+props.map(p=>"'"+p.replace(/'/g,"''")+"'").join(",")+"); ";
+ q+="if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) { $x=Get-CimInstance -ClassName '"+cls.replace(/'/g,"''")+"'";
+ if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/\/g,"\\").replace(/'/g,"''")+"'";
+ if(opt.where) q+=" -Filter '"+opt.where.replace(/'/g,"''")+"'";
+ q+=" -Property $p } else { $x=Get-WmiObject -Class '"+cls.replace(/'/g,"''")+"'";
+ if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/\/g,"\\").replace(/'/g,"''")+"'";
+ if(opt.where) q+=" -Filter '"+opt.where.replace(/'/g,"''")+"'";
+ q+=" -Property $p }; @($x) | ConvertTo-Json -Depth 5 -Compress } catch { exit 2 }";
+ var r=await exec('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-Command',q],30000);
+ if(r.ok&&txt(r.out)){try{var data=JSON.parse(r.out);return Array.isArray(data)?data:(data&&typeof data==='object'?[data]:[]);}catch(e){}}
+ var args=[];if(opt.ns)args.push('/namespace:'+opt.ns);args.push('path',cls);if(opt.where)args.push('where',opt.where);args.push('get',props.join(','),'/format:list');
+ var legacy=await exec('wmic',args,30000);return parseList(legacy.out);
+}
 function val(r,k){return r?txt(r[k]):'';}
 function dateDmtf(v){var m=txt(v).match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);return m?m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':'+m[6]:(txt(v)||null);}
 function readRegRows(out,source){var result=[],pathNow='',values={};function flush(){if(values.DisplayName)result.push({name:values.DisplayName,version:values.DisplayVersion||null,publisher:values.Publisher||null,install_date:values.InstallDate||null,estimated_size:num(values.EstimatedSize),source:source});values={};}String(out||'').split(/\r?\n/).forEach(function(line){var km=line.match(/^(HKEY_[^\r\n]+)$/i);if(km){if(pathNow)flush();pathNow=km[1];return;}var m=line.match(/^\s+([^\s]+)\s+REG_\w+\s*(.*)$/i);if(m)values[m[1]]=m[2].trim();});if(pathNow)flush();return result;}
