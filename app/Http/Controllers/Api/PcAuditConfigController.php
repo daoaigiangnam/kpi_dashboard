@@ -10,6 +10,39 @@ use Illuminate\Http\JsonResponse;
 
 class PcAuditConfigController extends Controller
 {
+
+    public function agentConfig(Request $request): JsonResponse
+    {
+        $input = $request->validate(['code' => ['required', 'string', 'max:120']]);
+        $code = PcAuditCode::query()
+            ->where('code', strtoupper(trim($input['code'])))
+            ->where('is_active', true)
+            ->whereHas('branch', fn ($q) => $q->where('is_active', true)->whereHas('customer', fn ($c) => $c->where('is_active', true)))
+            ->first();
+
+        if (!$code) {
+            return response()->json(['ok' => false, 'message' => 'Audit Code không hợp lệ hoặc không hoạt động.'], 404);
+        }
+
+        $setting = PcAuditSetting::query()->first();
+        if (!$setting) {
+            return response()->json(['ok' => false, 'message' => 'Chưa có cấu hình PC Audit trên Server.'], 503);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'code' => $code->code,
+            'server_time' => now()->toIso8601String(),
+            'enabled' => (bool) $setting->enabled,
+            'schedule' => [
+                'enabled' => (bool) ($setting->agent_schedule_enabled ?? true),
+                'interval_minutes' => (int) ($setting->agent_interval_minutes ?? 360),
+                'run_on_start' => (bool) ($setting->agent_run_on_start ?? true),
+                'updated_at' => $setting->updated_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
     public function show(): JsonResponse
     {
         $setting = PcAuditSetting::query()->first();
