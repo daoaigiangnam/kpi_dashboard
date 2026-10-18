@@ -28,3 +28,12 @@ YEU CAU
 
 LUU Y BAO MAT
 Node.js 12 da het ho tro bao mat va chi danh cho Windows 7 legacy. Mot so truong nhu Secure Boot hoac serial RAM co the khong duoc firmware/may ao cung cap.
+
+CAU HINH CAP NHAT DINH KY LEN SERVER
+- Chay PC_Audit.bat bang Run as administrator va chon [2] Cai dat lich tu dong gui Server.
+- Nhap Audit Code, nguoi dung va thong tin lien he; chon chay moi ngay (nhap gio HH:MM) hoac moi gio (chon khoang 1-23 gio).
+- Cong cu tao Windows Scheduled Task chay nen voi tai khoan SYSTEM; may can duoc bat va co ket noi mang tai thoi diem chay.
+- Moi lan chay se validate Audit Code, thu thap lai du lieu, luu JSON trong output va gui cap nhat len Server. Cung Audit Code + ten may tinh se cap nhat ban ghi inventory hien tai.
+- Log chay nen: output\scheduled.log. JSON: output\pc-audit-*.json.
+- Chon [3] de go lich. Cau hinh lich co chua Audit Code, gioi han quyen truy cap thu muc cong cu va khong chia se thu muc nay cho nguoi khong duoc phep.
+- Day la Windows Task Scheduler, khong phai Windows Service thuc thu. Khong chay duoc khi may tat; khi cai lich can Run as administrator.
