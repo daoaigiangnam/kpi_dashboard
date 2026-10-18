@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 title MSTAR PC Audit - Windows 7 / 10 / 11
 
@@ -35,17 +35,17 @@ set "NODE_EXE="
 set "NODE_VERSION="
 for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
 if defined NODE_EXE (
-  for /f "delims=" %%V in ('node --version 2^>nul') do set "NODE_VERSION=%%V"
-  echo Found Node.js: %NODE_VERSION%
-  echo Path: %NODE_EXE%
-  if "%NODE_VERSION%"=="%NODE_VERSION_REQUIRED%" (
+  for /f "delims=" %%V in ('"!NODE_EXE!" --version 2^>nul') do set "NODE_VERSION=%%V"
+  echo Found Node.js: !NODE_VERSION!
+  echo Path: !NODE_EXE!
+  if "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
     echo Version matches. Skipping Node.js installation.
     goto RUN_AUDIT
   )
   echo.
   echo [WARNING] Installed Node.js version does not match the required version.
   echo Required: %NODE_VERSION_REQUIRED%
-  echo Installed: %NODE_VERSION%
+  echo Installed: !NODE_VERSION!
   echo The tool will try to install the required version.
 )
 
@@ -100,13 +100,13 @@ set "PATH=%ProgramFiles%\nodejs;%ProgramFiles(x86)%\nodejs;%PATH%"
 set "NODE_EXE="
 set "NODE_VERSION="
 for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
-if defined NODE_EXE for /f "delims=" %%V in ('node --version 2^>nul') do set "NODE_VERSION=%%V"
+if defined NODE_EXE for /f "delims=" %%V in ('"!NODE_EXE!" --version 2^>nul') do set "NODE_VERSION=%%V"
 
-if not "%NODE_VERSION%"=="%NODE_VERSION_REQUIRED%" (
+if not "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
   echo.
   echo [ERROR] Node.js version is still incorrect.
   echo Required: %NODE_VERSION_REQUIRED%
-  echo Detected: %NODE_VERSION%
+  echo Detected: !NODE_VERSION!
   echo Check duplicate node.exe paths or uninstall the incompatible version.
   pause
   exit /b 14
