@@ -143,7 +143,10 @@ if not "%AUDIT_EXIT%"=="0" (
   echo If JSON was created, it is in the output folder.
   pause
 )
-endlocal & exit /b %AUDIT_EXIT%
+echo.
+echo Audit da ket thuc. Quay lai menu chinh...
+timeout /t 2 /nobreak >nul
+goto RUN_AUDIT
 
 :INSTALL_SERVICE
 if not exist "%~dp0output" mkdir "%~dp0output"
@@ -154,25 +157,37 @@ if errorlevel 1 (
   goto RUN_AUDIT
 )
 if not exist "%~dp0nssm.exe" (
-  echo Dang tai NSSM tu trang chinh thuc nssm.cc...
   set "NSSM_ZIP=%TEMP%\mstar-nssm-2.24.zip"
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('https://nssm.cc/release/nssm-2.24.zip',$env:TEMP+'\mstar-nssm-2.24.zip')" 
-  if not exist "%TEMP%\mstar-nssm-2.24.zip" (
-    echo [ERROR] Khong tai duoc NSSM. Kiem tra ket noi Internet/TLS.
+  if exist "%NSSM_ZIP%" del /f /q "%NSSM_ZIP%" >nul 2>&1
+  echo Dang tai NSSM tu may chu chinh thuc...
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('https://nssm.cc/release/nssm-2.24.zip',$env:TEMP+'\mstar-nssm-2.24.zip') } catch { Write-Host 'Nguon chinh thuc khong truy cap duoc; thu nguon GitHub...' ; try { (New-Object Net.WebClient).DownloadFile('https://github.com/tuyndoan/nssm/releases/download/v2.25/nssm-2.25.zip',$env:TEMP+'\mstar-nssm-2.24.zip') } catch { exit 1 } }"
+  if not exist "%NSSM_ZIP%" (
+    echo [ERROR] Khong tai duoc NSSM tu ca hai nguon.
+    echo Hay thu tai thu cong: https://github.com/tuyndoan/nssm/releases
     pause
     goto RUN_AUDIT
   )
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$zip=New-Object -ComObject Shell.Application; $src=$zip.NameSpace($env:TEMP+'\mstar-nssm-2.24.zip'); $dst=$zip.NameSpace('%~dp0'); if(!$src -or !$dst){exit 2}; $dst.CopyHere($src.Items(),20); Start-Sleep -Seconds 3"
-  if not exist "%~dp0nssm-2.24\win32\nssm.exe" (
-    echo [ERROR] Khong giai nen duoc NSSM. Hay giai nen nssm-2.24.zip thu cong.
+  for %%F in ("%NSSM_ZIP%") do if %%~zF LSS 50000 (
+    del /f /q "%NSSM_ZIP%" >nul 2>&1
+    echo [ERROR] File NSSM tai ve khong day du.
     pause
     goto RUN_AUDIT
   )
-  set "ARCH=x86"
-  if /i "%PROCESSOR_ARCHITEW6432%"=="AMD64" set "ARCH=x64"
-  if /i "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "ARCH=x64"
-  copy /y "%~dp0nssm-2.24\%ARCH%\nssm.exe" "%~dp0nssm.exe" >nul
-  if not exist "%~dp0nssm.exe" copy /y "%~dp0nssm-2.24\win32\nssm.exe" "%~dp0nssm.exe" >nul
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=$env:TEMP+'\mstar-nssm-2.24.zip'; $d='%~dp0'; [IO.Compression.ZipFile]::ExtractToDirectory($z,$d)"
+  if errorlevel 1 (
+    echo [ERROR] Khong giai nen duoc NSSM.
+    pause
+    goto RUN_AUDIT
+  )
+  set "NSSM_ARCH=win32"
+  if /i "%ARCH%"=="x64" set "NSSM_ARCH=win64"
+  if exist "%~dp0nssm-2.24\%NSSM_ARCH%\nssm.exe" copy /y "%~dp0nssm-2.24\%NSSM_ARCH%\nssm.exe" "%~dp0nssm.exe" >nul
+  if not exist "%~dp0nssm.exe" if exist "%~dp0nssm-2.25\%NSSM_ARCH%\nssm.exe" copy /y "%~dp0nssm-2.25\%NSSM_ARCH%\nssm.exe" "%~dp0nssm.exe" >nul
+  if not exist "%~dp0nssm.exe" (
+    echo [ERROR] Khong tim thay nssm.exe dung kien truc sau khi giai nen.
+    pause
+    goto RUN_AUDIT
+  )
 )
 node "%~dp0PC_Audit.js" --setup-service
 if errorlevel 1 (
