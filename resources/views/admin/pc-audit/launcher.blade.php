@@ -62,13 +62,16 @@
 
         <div class="pc-launcher-card">
             <div class="pc-launcher-note">
-                <strong>Gói Windows 7:</strong> gồm <code>PC_Audit.js</code>, <code>PC_Audit.bat</code> và hướng dẫn. Cần cài Node.js 12.22.12 x86/x64 trên máy đích, giải nén cả bộ vào cùng thư mục rồi chạy BAT. Gói Windows 7 và Windows 10/11+ dùng chung PC_Audit.js và PC_Audit.bat; BAT chỉ bỏ qua cài đặt khi Node.js đúng phiên bản yêu cầu; Audit chạy lại sẽ cập nhật máy theo Tên máy tính, không tạo bản ghi PC mới. Website không thể tự chạy BAT trên máy người dùng do giới hạn bảo mật trình duyệt.
+<strong>PowerShell (bản cũ):</strong> giữ nguyên bộ thu thập PowerShell hiện tại. Dùng nút Windows 7 cho gói tương thích Windows 7 hoặc nút Windows 10/11+ cho gói PowerShell trên Windows hiện đại.
                 <br><br>
-                <strong>Chọn đúng hệ điều hành:</strong> nút Windows 7 tạo gói có lớp tương thích WMI và kiểm tra các lệnh bảo mật không có trên PowerShell cũ. Nút Windows 10/11+ tạo gói riêng cho Windows hiện đại. Máy đích vẫn cần kết nối HTTPS/TLS 1.2 tới máy chủ Audit.
+                <strong>Node.js (bản riêng):</strong> dùng chung <code>PC_Audit.js</code> và <code>PC_Audit.bat</code> cho Windows 7/10/11. BAT chỉ bỏ qua cài đặt khi Node.js đúng chính xác phiên bản yêu cầu; nếu sai phiên bản sẽ thử cài bản phù hợp. Chạy Audit lại cùng Audit Code và Tên máy tính sẽ cập nhật hồ sơ hiện có thay vì tạo thêm PC.
+                <br><br>
+                Máy đích cần kết nối HTTPS/TLS 1.2 tới máy chủ Audit. Website không thể tự chạy BAT trên máy người dùng do giới hạn bảo mật trình duyệt.
             </div>
             <div class="pc-launcher-actions">
-                <button type="submit" name="target_os" value="windows7" class="pc-launcher-submit">⬇ Tải bộ Audit Windows 7</button>
-                <button type="submit" name="target_os" value="windows10" class="pc-launcher-submit">⬇ Tải bộ Audit Windows 10/11+</button>
+                <button type="submit" name="target_os" value="windows7" class="pc-launcher-submit">⬇ PowerShell — Windows 7</button>
+                <button type="submit" name="target_os" value="windows10" class="pc-launcher-submit">⬇ PowerShell — Windows 10/11+</button>
+                <button type="submit" name="target_os" value="nodejs" class="pc-launcher-submit" style="background:#1d4ed8">⬇ Node.js — Windows 7/10/11</button>
                 <a href="{{ route('admin.pc_audit.index') }}" style="color:#475569;font-size:13px;font-weight:700;text-decoration:none">Quay lại danh sách Audit</a>
             </div>
         </div>
