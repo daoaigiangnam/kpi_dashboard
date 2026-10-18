@@ -43,7 +43,8 @@ class PcAuditAdminController extends Controller
             $auditCode = PcAuditCode::create(['branch_id' => $branch->id, 'code' => $code, 'name' => 'PC Audit - ' . $branch->name, 'is_active' => true]);
         }
 
-        if ($data['target_os'] === 'windows7') {
+        if (in_array($data['target_os'], ['windows7', 'windows10'], true)) {
+            // Shared Node.js collector for Windows 7, Windows 10 and Windows 11.
             $nodeToolPath = base_path('tools/pc-audit-nodejs-win7');
             foreach (['PC_Audit.js', 'PC_Audit.bat', 'README-Windows7.txt'] as $file) {
                 abort_unless(is_file($nodeToolPath . DIRECTORY_SEPARATOR . $file), 500, 'Thiếu file nguồn PC Audit Node.js: ' . $file);
@@ -75,7 +76,8 @@ class PcAuditAdminController extends Controller
             $zip->addFromString('README-Windows7.txt', $nodeReadme);
             $zip->close();
 
-            $filename = 'PC_Audit_Windows7_NodeJS_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $branch->code ?: $branch->name) . '_' . now()->format('Ymd_His') . '.zip';
+            $osLabel = $data['target_os'] === 'windows7' ? 'Windows7_NodeJS' : 'Windows10_11_NodeJS';
+            $filename = 'PC_Audit_' . $osLabel . '_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $branch->code ?: $branch->name) . '_' . now()->format('Ymd_His') . '.zip';
             return response()->download($tmp, $filename, ['Content-Type' => 'application/zip'])->deleteFileAfterSend(true);
         }
 
