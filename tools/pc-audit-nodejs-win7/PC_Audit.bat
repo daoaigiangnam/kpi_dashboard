@@ -157,33 +157,35 @@ if errorlevel 1 (
   goto RUN_AUDIT
 )
 if not exist "%~dp0nssm.exe" (
-  set "NSSM_ZIP=%TEMP%\mstar-nssm.zip"
-  if exist "%NSSM_ZIP%" del /f /q "%NSSM_ZIP%" >nul 2>&1
-  echo Dang tu dong tai NSSM, thu lai toi da 3 lan moi nguon...
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $out=$env:TEMP+'\mstar-nssm.zip'; $urls=@('https://github.com/tuyndoan/nssm/releases/download/v2.25/nssm-2.25.zip','https://nssm.cc/release/nssm-2.24.zip'); foreach($u in $urls){ for($i=1;$i -le 3;$i++){ try { Write-Host ('Downloading '+$u+' (attempt '+$i+')'); if(Test-Path $out){Remove-Item $out -Force}; $wc=New-Object Net.WebClient; $wc.Headers.Add('User-Agent','MSTAR-PC-Audit/1.0'); $wc.DownloadFile($u,$out); if((Get-Item $out).Length -gt 50000){ Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead($out); $ok=($z.Entries | Where-Object {$_.FullName -match '(^|/)win(32|64)/nssm\.exe$'}).Count -gt 0; $z.Dispose(); if($ok){exit 0} }; throw 'ZIP khong hop le hoac khong co binary NSSM' } catch { Write-Host ('Download failed: '+$_.Exception.Message); Start-Sleep -Seconds 2 } } }; exit 1"
-  if errorlevel 1 (
-    echo [ERROR] Khong the tu dong tai NSSM sau 6 lan thu.
-    echo Co the mang cong ty/Proxy/Firewall dang chan cac nguon tai.
-    echo Hay thu lai tren mang khac hoac cho phep HTTPS toi nssm.cc va github.com.
-    pause
-    goto RUN_AUDIT
-  )
-  echo Dang giai nen NSSM...
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=$env:TEMP+'\mstar-nssm.zip'; $dest=$env:TEMP+'\mstar-nssm-extract'; if(Test-Path $dest){Remove-Item $dest -Recurse -Force}; [IO.Compression.ZipFile]::ExtractToDirectory($zip,$dest)"
-  if errorlevel 1 (
-    echo [ERROR] Khong giai nen duoc file NSSM.
-    pause
-    goto RUN_AUDIT
-  )
   set "NSSM_ARCH=win32"
   if /i "%ARCH%"=="x64" set "NSSM_ARCH=win64"
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $root=$env:TEMP+'\mstar-nssm-extract'; $arch='%NSSM_ARCH%'; $f=Get-ChildItem -Path $root -Filter nssm.exe -Recurse | Where-Object {$_.FullName -match ('\\'+$arch+'\\nssm\.exe$')} | Select-Object -First 1; if(!$f){Write-Error ('Khong tim thay NSSM cho '+$arch); exit 1}; Copy-Item $f.FullName '%~dp0nssm.exe' -Force"
+  echo Dang tai NSSM tu MSTAR Server (%NSSM_ARCH%)...
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $u='https://kpi.review360.id.vn/nssm/%NSSM_ARCH%/nssm.exe'; $p='%~dp0nssm.exe'; try { (New-Object Net.WebClient).DownloadFile($u,$p); if((Get-Item $p).Length -lt 50000){Remove-Item $p -Force; throw 'File NSSM tai ve qua nho'} } catch { if(Test-Path $p){Remove-Item $p -Force -ErrorAction SilentlyContinue}; Write-Host ('Tai tu MSTAR Server that bai: '+$_.Exception.Message); exit 1 }"
   if errorlevel 1 (
-    echo [ERROR] Khong tim thay hoac khong sao chep duoc NSSM %NSSM_ARCH%.
-    pause
-    goto RUN_AUDIT
+    echo Khong tai duoc tu MSTAR Server. Thu nguon du phong...
+    set "NSSM_ZIP=%TEMP%\mstar-nssm.zip"
+    if exist "%NSSM_ZIP%" del /f /q "%NSSM_ZIP%" >nul 2>&1
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $out=$env:TEMP+'\mstar-nssm.zip'; $urls=@('https://github.com/tuyndoan/nssm/releases/download/v2.25/nssm-2.25.zip','https://nssm.cc/release/nssm-2.24.zip'); foreach($u in $urls){ for($i=1;$i -le 2;$i++){ try { Write-Host ('Downloading '+$u+' (attempt '+$i+')'); if(Test-Path $out){Remove-Item $out -Force}; $wc=New-Object Net.WebClient; $wc.Headers.Add('User-Agent','MSTAR-PC-Audit/1.0'); $wc.DownloadFile($u,$out); if((Get-Item $out).Length -gt 50000){ Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead($out); $ok=($z.Entries | Where-Object {$_.FullName -match '(^|/)win(32|64)/nssm\.exe$'}).Count -gt 0; $z.Dispose(); if($ok){exit 0} }; throw 'ZIP khong hop le' } catch { Write-Host ('Download failed: '+$_.Exception.Message); Start-Sleep -Seconds 2 } } }; exit 1"
+    if errorlevel 1 (
+      echo [ERROR] Khong tai duoc NSSM tu MSTAR Server va nguon du phong.
+      pause
+      goto RUN_AUDIT
+    )
+    echo Dang giai nen NSSM...
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=$env:TEMP+'\mstar-nssm.zip'; $dest=$env:TEMP+'\mstar-nssm-extract'; if(Test-Path $dest){Remove-Item $dest -Recurse -Force}; [IO.Compression.ZipFile]::ExtractToDirectory($zip,$dest)"
+    if errorlevel 1 (
+      echo [ERROR] Khong giai nen duoc file NSSM.
+      pause
+      goto RUN_AUDIT
+    )
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $root=$env:TEMP+'\mstar-nssm-extract'; $arch='%NSSM_ARCH%'; $f=Get-ChildItem -Path $root -Filter nssm.exe -Recurse | Where-Object {$_.FullName -match ('\\'+$arch+'\\nssm\.exe$')} | Select-Object -First 1; if(!$f){Write-Error ('Khong tim thay NSSM cho '+$arch); exit 1}; Copy-Item $f.FullName '%~dp0nssm.exe' -Force"
+    if errorlevel 1 (
+      echo [ERROR] Khong tim thay hoac sao chep duoc NSSM %NSSM_ARCH%.
+      pause
+      goto RUN_AUDIT
+    )
   )
-  echo Da tai va chuan bi NSSM thanh cong.
+  echo Da chuan bi NSSM thanh cong.
 )
 node "%~dp0PC_Audit.js" --setup-service
 if errorlevel 1 (
