@@ -6,7 +6,7 @@ if /i not "%~1"=="__MSTAR_KEEP_OPEN__" (
 )
 setlocal EnableExtensions EnableDelayedExpansion
 set "INSTALL_DIR=%ProgramData%\MSTAR\PCAudit"
-if /i not "%~dp0"=="%INSTALL_DIR%\\" goto BOOTSTRAP_INSTALL
+if /i not "%~dp0"=="%INSTALL_DIR%\" goto BOOTSTRAP_INSTALL
 goto FIXED_DIR_READY
 
 :BOOTSTRAP_INSTALL
