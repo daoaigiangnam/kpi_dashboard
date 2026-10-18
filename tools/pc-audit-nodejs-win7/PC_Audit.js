@@ -244,11 +244,12 @@ var SERVICE_NAME='MSTAR_PCAudit';
 var SERVICE_CONFIG=SCHEDULE_CONFIG;
 function sleep(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});}
 async function serviceLoop(){
- logScheduled('SERVICE STARTED; interval=6 hours');
+ logScheduled('SERVICE STARTED; interval=6 hours; retry=15 minutes');
  while(true){
-  try{await scheduledRun();}
+  var ok=false;
+  try{await scheduledRun();ok=true;}
   catch(e){try{logScheduled('SERVICE ERROR '+(e&&e.message?e.message:String(e)));}catch(ignore){}}
-  await sleep(6*60*60*1000);
+  await sleep(ok?6*60*60*1000:15*60*1000);
  }
 }
 async function setupService(){
