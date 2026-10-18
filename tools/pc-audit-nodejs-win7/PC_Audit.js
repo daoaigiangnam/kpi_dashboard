@@ -258,7 +258,7 @@ async function setupService(){
   var code=(EMBEDDED_AUDIT_CODE==='__MSTAR_AUDIT_CODE__'?(await ask(rl,'Audit Code: ')):EMBEDDED_AUDIT_CODE).toUpperCase();
   if(!code)throw new Error('Audit Code khong duoc de trong.');
   var conf=await reqJson(CONFIG_ENDPOINT,'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');
-  var base=String(conf.api_base_url||'').replace(/\\/+$/,'');
+  var base=String(conf.api_base_url||'').replace(/\/+$/,'');
   var v=await reqJson(base+'/pc-audit/validate-code','POST',{code:code});if(v.ok!==true)throw new Error(v.message||'Audit Code khong hop le');
   console.log('Khach hang: '+v.data.customer.name+' | Chi nhanh: '+v.data.branch.name);
   var def=os.userInfo().username||process.env.USERNAME||'Unknown';
