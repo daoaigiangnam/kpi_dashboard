@@ -23,7 +23,7 @@ if /i "%PROCESSOR_ARCHITEW6432%"=="AMD64" set "ARCH=x64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "ARCH=x64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 
-set "NODE_MSI=node-%NODE_VERSION_REQUIRED:~1%-%ARCH%.msi"
+set "NODE_MSI=node-%NODE_VERSION_REQUIRED%-%ARCH%.msi"
 set "NODE_URL=%NODE_URL_BASE%%NODE_MSI%"
 
 echo Required Node.js: %NODE_VERSION_REQUIRED%
@@ -71,8 +71,7 @@ if not exist "%TEMP_MSI%" (
   echo.
   echo [ERROR] Download failed. Open the official installer URL:
   echo %NODE_URL%
-  start "" "%NODE_URL%"
-  echo Install the MSI, then run this BAT again.
+  echo Please check network access and TLS 1.2 support, then run this BAT again.
   pause
   exit /b 11
 )
@@ -80,13 +79,13 @@ for %%F in ("%TEMP_MSI%") do if %%~zF LSS 100000 (
   del /f /q "%TEMP_MSI%" >nul 2>&1
   echo [ERROR] MSI download is incomplete:
   echo %NODE_URL%
-  start "" "%NODE_URL%"
+  echo Please check network access and TLS 1.2 support, then run this BAT again.
   pause
   exit /b 12
 )
 
 echo Installing Node.js %NODE_VERSION_REQUIRED%...
-msiexec.exe /i "%TEMP_MSI%" /passive /norestart
+msiexec.exe /i "%TEMP_MSI%" /qn /norestart
 if errorlevel 1 (
   echo.
   echo [ERROR] Installer failed. If another Node.js version is installed,
