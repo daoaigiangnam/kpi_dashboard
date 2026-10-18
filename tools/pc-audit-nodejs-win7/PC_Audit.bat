@@ -5,7 +5,39 @@ if /i not "%~1"=="__MSTAR_KEEP_OPEN__" (
   exit /b
 )
 setlocal EnableExtensions EnableDelayedExpansion
-cd /d "%~dp0"
+set "INSTALL_DIR=%ProgramData%\MSTAR\PCAudit"
+if /i not "%~dp0"=="%INSTALL_DIR%\\" goto BOOTSTRAP_INSTALL
+goto FIXED_DIR_READY
+
+:BOOTSTRAP_INSTALL
+echo.
+echo Installing/updating PC Audit to fixed folder:
+echo %INSTALL_DIR%
+if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+if errorlevel 1 goto INSTALL_DIR_FAILED
+if not exist "%INSTALL_DIR%\output" mkdir "%INSTALL_DIR%\output"
+if errorlevel 1 goto INSTALL_DIR_FAILED
+copy /y "%~dp0PC_Audit.js" "%INSTALL_DIR%\PC_Audit.js" >nul
+if errorlevel 1 goto COPY_FILES_FAILED
+copy /y "%~f0" "%INSTALL_DIR%\PC_Audit.bat" >nul
+if errorlevel 1 goto COPY_FILES_FAILED
+if exist "%~dp0README-Windows7.txt" copy /y "%~dp0README-Windows7.txt" "%INSTALL_DIR%\README-Windows7.txt" >nul
+echo Files copied successfully.
+start "MSTAR PC Audit - Installed" "%ComSpec%" /k ""%INSTALL_DIR%\PC_Audit.bat" __MSTAR_KEEP_OPEN__
+exit /b 0
+
+:INSTALL_DIR_FAILED
+echo [ERROR] Cannot create %INSTALL_DIR%. Run as Administrator.
+pause
+exit /b 20
+
+:COPY_FILES_FAILED
+echo [ERROR] Cannot copy PC Audit files to %INSTALL_DIR%.
+pause
+exit /b 21
+
+:FIXED_DIR_READY
+cd /d "%INSTALL_DIR%"
 title MSTAR PC Audit - Windows 7 / 10 / 11
 
 echo ==============================================
@@ -140,7 +172,7 @@ if "%CHOICE%"=="4" goto REMOVE_SERVICE
 if "%CHOICE%"=="5" goto STATUS_SERVICE
 if "%CHOICE%"=="6" exit /b 0
 if not "%CHOICE%"=="1" goto RUN_AUDIT
-node "%~dp0PC_Audit.js"
+"!NODE_EXE!" "%INSTALL_DIR%\PC_Audit.js"
 set "AUDIT_EXIT=%ERRORLEVEL%"
 if not "%AUDIT_EXIT%"=="0" (
   echo.
@@ -176,19 +208,32 @@ if errorlevel 1 goto NSSM_COPY_FAILED
 :NSSM_READY
 echo Da chuan bi NSSM thanh cong.
 echo Dang cau hinh Audit Code va thong tin nguoi dung...
-node "%~dp0PC_Audit.js" --setup-service
+"!NODE_EXE!" "%INSTALL_DIR%\PC_Audit.js" --setup-service
 if errorlevel 1 goto SERVICE_CONFIG_FAILED
 set "NODE_EXE="
 for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
 if not defined NODE_EXE goto NODE_NOT_FOUND
-"%~dp0nssm.exe" install MSTAR_PCAudit "%NODE_EXE%" "%~dp0PC_Audit.js" --service-loop
+rem Reuse an existing service if present; update its paths to the fixed installation folder.
+sc.exe query MSTAR_PCAudit >nul 2>&1
+if errorlevel 1 goto NSSM_CREATE_SERVICE
+"%~dp0nssm.exe" stop MSTAR_PCAudit >nul 2>&1
+"%~dp0nssm.exe" set MSTAR_PCAudit Application "%NODE_EXE%"
+"%~dp0nssm.exe" set MSTAR_PCAudit AppParameters "\"%INSTALL_DIR%\PC_Audit.js\" --service-loop"
 if errorlevel 1 goto NSSM_INSTALL_FAILED
-"%~dp0nssm.exe" set MSTAR_PCAudit AppDirectory "%~dp0"
+goto NSSM_CONFIGURE_SERVICE
+
+:NSSM_CREATE_SERVICE
+"%~dp0nssm.exe" install MSTAR_PCAudit "%NODE_EXE%" "%INSTALL_DIR%\PC_Audit.js" --service-loop
+if errorlevel 1 goto NSSM_INSTALL_FAILED
+
+:NSSM_CONFIGURE_SERVICE
+"%~dp0nssm.exe" set MSTAR_PCAudit AppDirectory "%INSTALL_DIR%"
+if errorlevel 1 goto NSSM_INSTALL_FAILED
 "%~dp0nssm.exe" set MSTAR_PCAudit DisplayName "MSTAR PC Audit Service"
 "%~dp0nssm.exe" set MSTAR_PCAudit Description "Dinh ky cap nhat inventory PC len MSTAR Audit Server"
 "%~dp0nssm.exe" set MSTAR_PCAudit Start SERVICE_AUTO_START
-"%~dp0nssm.exe" set MSTAR_PCAudit AppStdout "%~dp0output\service-stdout.log"
-"%~dp0nssm.exe" set MSTAR_PCAudit AppStderr "%~dp0output\service-stderr.log"
+"%~dp0nssm.exe" set MSTAR_PCAudit AppStdout "%INSTALL_DIR%\output\service-stdout.log"
+"%~dp0nssm.exe" set MSTAR_PCAudit AppStderr "%INSTALL_DIR%\output\service-stderr.log"
 "%~dp0nssm.exe" set MSTAR_PCAudit AppNoConsole 1
 "%~dp0nssm.exe" start MSTAR_PCAudit
 if errorlevel 1 goto SERVICE_START_FAILED
@@ -256,12 +301,12 @@ if errorlevel 1 (
   pause
   goto RUN_AUDIT
 )
-node "%~dp0PC_Audit.js" --remove-service
+"!NODE_EXE!" "%INSTALL_DIR%\PC_Audit.js" --remove-service
 pause
 goto RUN_AUDIT
 
 :STATUS_SERVICE
-node "%~dp0PC_Audit.js" --service-status
+"!NODE_EXE!" "%INSTALL_DIR%\PC_Audit.js" --service-status
 pause
 goto RUN_AUDIT
 
