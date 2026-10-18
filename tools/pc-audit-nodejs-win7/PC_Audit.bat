@@ -156,61 +156,33 @@ goto RUN_AUDIT
 :INSTALL_SERVICE
 if not exist "%~dp0output" mkdir "%~dp0output"
 net session >nul 2>&1
-if errorlevel 1 (
-  echo [ERROR] Hay chay PC_Audit.bat bang Run as administrator.
-  pause
-  goto RUN_AUDIT
-)
-if not exist "%~dp0nssm.exe" (
-  set "NSSM_ARCH=win32"
-  if /i "%ARCH%"=="x64" set "NSSM_ARCH=win64"
-  echo Dang tai NSSM tu MSTAR Server (!NSSM_ARCH!)...
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $u='https://kpi.review360.id.vn/nssm/!NSSM_ARCH!/nssm.exe'; $p='%~dp0nssm.exe'; try { (New-Object Net.WebClient).DownloadFile($u,$p); if((Get-Item $p).Length -lt 50000){Remove-Item $p -Force; throw 'File NSSM tai ve qua nho'} } catch { if(Test-Path $p){Remove-Item $p -Force -ErrorAction SilentlyContinue}; Write-Host ('Tai tu MSTAR Server that bai: '+$_.Exception.Message); exit 1 }"
-  if errorlevel 1 (
-    echo Khong tai duoc tu MSTAR Server. Thu nguon du phong...
-    set "NSSM_ZIP=%TEMP%\mstar-nssm.zip"
-    if exist "%NSSM_ZIP%" del /f /q "%NSSM_ZIP%" >nul 2>&1
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $out=$env:TEMP+'\mstar-nssm.zip'; $urls=@('https://github.com/tuyndoan/nssm/releases/download/v2.25/nssm-2.25.zip','https://nssm.cc/release/nssm-2.24.zip'); foreach($u in $urls){ for($i=1;$i -le 2;$i++){ try { Write-Host ('Downloading '+$u+' (attempt '+$i+')'); if(Test-Path $out){Remove-Item $out -Force}; $wc=New-Object Net.WebClient; $wc.Headers.Add('User-Agent','MSTAR-PC-Audit/1.0'); $wc.DownloadFile($u,$out); if((Get-Item $out).Length -gt 50000){ Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead($out); $ok=($z.Entries | Where-Object {$_.FullName -match '(^|/)win(32|64)/nssm\.exe$'}).Count -gt 0; $z.Dispose(); if($ok){exit 0} }; throw 'ZIP khong hop le' } catch { Write-Host ('Download failed: '+$_.Exception.Message); Start-Sleep -Seconds 2 } } }; exit 1"
-    if errorlevel 1 (
-      echo [ERROR] Khong tai duoc NSSM tu MSTAR Server va nguon du phong.
-      pause
-      goto RUN_AUDIT
-    )
-    echo Dang giai nen NSSM...
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=$env:TEMP+'\mstar-nssm.zip'; $dest=$env:TEMP+'\mstar-nssm-extract'; if(Test-Path $dest){Remove-Item $dest -Recurse -Force}; [IO.Compression.ZipFile]::ExtractToDirectory($zip,$dest)"
-    if errorlevel 1 (
-      echo [ERROR] Khong giai nen duoc file NSSM.
-      pause
-      goto RUN_AUDIT
-    )
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $root=$env:TEMP+'\mstar-nssm-extract'; $arch='!NSSM_ARCH!'; $f=Get-ChildItem -Path $root -Filter nssm.exe -Recurse | Where-Object {$_.FullName -match ('\\'+$arch+'\\nssm\.exe$')} | Select-Object -First 1; if(!$f){Write-Error ('Khong tim thay NSSM cho '+$arch); exit 1}; Copy-Item $f.FullName '%~dp0nssm.exe' -Force"
-    if errorlevel 1 (
-      echo [ERROR] Khong tim thay hoac sao chep duoc NSSM !NSSM_ARCH!.
-      pause
-      goto RUN_AUDIT
-    )
-  )
-  echo Da chuan bi NSSM thanh cong.
-)
+if errorlevel 1 goto INSTALL_NEEDS_ADMIN
+if exist "%~dp0nssm.exe" goto NSSM_READY
+set "NSSM_ARCH=win32"
+if /i "%ARCH%"=="x64" set "NSSM_ARCH=win64"
+echo Dang tai NSSM tu MSTAR Server (!NSSM_ARCH!)...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $u='https://kpi.review360.id.vn/nssm/!NSSM_ARCH!/nssm.exe'; $p='%~dp0nssm.exe'; try { (New-Object Net.WebClient).DownloadFile($u,$p); $f=Get-Item $p; if($f.Length -lt 50000){Remove-Item $p -Force; throw 'File NSSM tai ve qua nho'} } catch { if(Test-Path $p){Remove-Item $p -Force -ErrorAction SilentlyContinue}; Write-Host ('Tai tu MSTAR Server that bai: '+$_.Exception.Message); exit 1 }"
+if not errorlevel 1 goto NSSM_READY
+echo Khong tai duoc tu MSTAR Server. Thu nguon du phong...
+set "NSSM_ZIP=%TEMP%\mstar-nssm.zip"
+if exist "%NSSM_ZIP%" del /f /q "%NSSM_ZIP%" >nul 2>&1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $out=$env:TEMP+'\mstar-nssm.zip'; $urls=@('https://github.com/tuyndoan/nssm/releases/download/v2.25/nssm-2.25.zip','https://nssm.cc/release/nssm-2.24.zip'); foreach($u in $urls){ for($i=1;$i -le 2;$i++){ try { Write-Host ('Downloading '+$u+' attempt '+$i); if(Test-Path $out){Remove-Item $out -Force}; $wc=New-Object Net.WebClient; $wc.Headers.Add('User-Agent','MSTAR-PC-Audit/1.0'); $wc.DownloadFile($u,$out); $z=[IO.Compression.ZipFile]::OpenRead($out); $ok=($z.Entries | Where-Object {$_.FullName -match '(^|/)win(32|64)/nssm\.exe$'}).Count -gt 0; $z.Dispose(); if($ok){exit 0}; throw 'ZIP khong hop le' } catch { Write-Host ('Download failed: '+$_.Exception.Message); Start-Sleep -Seconds 2 } } }; exit 1"
+if errorlevel 1 goto NSSM_DOWNLOAD_FAILED
+echo Dang giai nen NSSM...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=$env:TEMP+'\mstar-nssm.zip'; $dest=$env:TEMP+'\mstar-nssm-extract'; if(Test-Path $dest){Remove-Item $dest -Recurse -Force}; [IO.Compression.ZipFile]::ExtractToDirectory($zip,$dest)"
+if errorlevel 1 goto NSSM_EXTRACT_FAILED
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $root=$env:TEMP+'\mstar-nssm-extract'; $arch='!NSSM_ARCH!'; $f=Get-ChildItem -Path $root -Filter nssm.exe -Recurse | Where-Object {$_.FullName -match ('\\'+$arch+'\\nssm\.exe$')} | Select-Object -First 1; if(!$f){Write-Error ('Khong tim thay NSSM cho '+$arch); exit 1}; Copy-Item $f.FullName '%~dp0nssm.exe' -Force"
+if errorlevel 1 goto NSSM_COPY_FAILED
+:NSSM_READY
+echo Da chuan bi NSSM thanh cong.
+echo Dang cau hinh Audit Code va thong tin nguoi dung...
 node "%~dp0PC_Audit.js" --setup-service
-if errorlevel 1 (
-  echo [ERROR] Khong cau hinh duoc Service.
-  pause
-  goto RUN_AUDIT
-)
+if errorlevel 1 goto SERVICE_CONFIG_FAILED
 set "NODE_EXE="
 for /f "delims=" %%N in ('where node 2^>nul') do if not defined NODE_EXE set "NODE_EXE=%%N"
-if not defined NODE_EXE (
-  echo [ERROR] Khong tim thay node.exe.
-  pause
-  goto RUN_AUDIT
-)
+if not defined NODE_EXE goto NODE_NOT_FOUND
 "%~dp0nssm.exe" install MSTAR_PCAudit "%NODE_EXE%" "%~dp0PC_Audit.js" --service-loop
-if errorlevel 1 (
-  echo [ERROR] NSSM khong tao duoc Service. Kiem tra Service da ton tai chua.
-  pause
-  goto RUN_AUDIT
-)
+if errorlevel 1 goto NSSM_INSTALL_FAILED
 "%~dp0nssm.exe" set MSTAR_PCAudit AppDirectory "%~dp0"
 "%~dp0nssm.exe" set MSTAR_PCAudit DisplayName "MSTAR PC Audit Service"
 "%~dp0nssm.exe" set MSTAR_PCAudit Description "Dinh ky cap nhat inventory PC len MSTAR Audit Server"
@@ -219,9 +191,50 @@ if errorlevel 1 (
 "%~dp0nssm.exe" set MSTAR_PCAudit AppStderr "%~dp0output\service-stderr.log"
 "%~dp0nssm.exe" set MSTAR_PCAudit AppNoConsole 1
 "%~dp0nssm.exe" start MSTAR_PCAudit
+if errorlevel 1 goto SERVICE_START_FAILED
 echo.
 echo Da cai dat Windows Service MSTAR_PCAudit.
 echo Schedule do Backend quan ly; Service lay cau hinh moi 5 phut. Log trong thu muc output.
+pause
+goto RUN_AUDIT
+
+:INSTALL_NEEDS_ADMIN
+echo [ERROR] Hay chay PC_Audit.bat bang Run as administrator.
+pause
+goto RUN_AUDIT
+
+:NSSM_DOWNLOAD_FAILED
+echo [ERROR] Khong tai duoc NSSM tu MSTAR Server va nguon du phong.
+pause
+goto RUN_AUDIT
+
+:NSSM_EXTRACT_FAILED
+echo [ERROR] Khong giai nen duoc file NSSM.
+pause
+goto RUN_AUDIT
+
+:NSSM_COPY_FAILED
+echo [ERROR] Khong tim thay hoac sao chep duoc NSSM !NSSM_ARCH!.
+pause
+goto RUN_AUDIT
+
+:SERVICE_CONFIG_FAILED
+echo [ERROR] Khong cau hinh duoc Service. Kiem tra Audit Code va ket noi Server.
+pause
+goto RUN_AUDIT
+
+:NODE_NOT_FOUND
+echo [ERROR] Khong tim thay node.exe.
+pause
+goto RUN_AUDIT
+
+:NSSM_INSTALL_FAILED
+echo [ERROR] NSSM khong tao duoc Service. Kiem tra Service da ton tai chua.
+pause
+goto RUN_AUDIT
+
+:SERVICE_START_FAILED
+echo [ERROR] Da tao Service nhung khong khoi dong duoc. Kiem tra output\service-stderr.log.
 pause
 goto RUN_AUDIT
 
