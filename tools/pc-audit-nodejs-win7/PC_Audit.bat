@@ -29,10 +29,6 @@ if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 
 rem Windows 7 reports version 6.1. Install Node.js 12.22.12.
 rem Windows 10/11 report version 10.0. Install Node.js 22 LTS.
-for /f "tokens=4-5 delims=. " %%A in ('ver') do (
-  set "WIN_MAJOR=%%A"
-  set "WIN_MINOR=%%B"
-)
 set "NODE_VERSION_REQUIRED=v22.16.0"
 set "NODE_URL_BASE=https://nodejs.org/dist/v22.16.0/"
 set "NODE_MSI=node-v22.16.0-%ARCH%.msi"
@@ -41,7 +37,7 @@ for /f "tokens=2 delims=[]" %%V in ('ver') do set "WIN_VER=%%V"
 echo Windows version: %WIN_VER%
 echo Architecture: %ARCH%
 
-echo %WIN_VER% | findstr /b "6.1" >nul
+ver | findstr /c:"6.1." >nul
 if not errorlevel 1 (
   set "NODE_VERSION_REQUIRED=v12.22.12"
   set "NODE_URL_BASE=https://nodejs.org/dist/v12.22.12/"
