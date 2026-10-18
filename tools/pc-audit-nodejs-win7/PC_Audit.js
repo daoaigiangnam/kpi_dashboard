@@ -20,7 +20,7 @@ async function wmi(cls,props,opt){
  // Fall back to WMIC for older Windows installations if PowerShell query fails.
  var q="try { $ErrorActionPreference='Stop'; $p=@("+props.map(p=>"'"+p.replace(/'/g,"''")+"'").join(",")+"); ";
  q+="if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) { $x=Get-CimInstance -ClassName '"+cls.replace(/'/g,"''")+"'";
- if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/^\\\\+/,'').replace(/\\\\+/g,'\\\\').replace(/\\//g,'\\\\').replace(/'/g,"''")+"'";
+ if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/^\\\\+/,'').replace(/\\//g,'\\\\').replace(/'/g,"''")+"'";
  if(opt.where) q+=" -Filter '"+opt.where.replace(/'/g,"''")+"'";
  q+=" -Property $p } else { $x=Get-WmiObject -Class '"+cls.replace(/'/g,"''")+"'";
  if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/\\/g,"\\\\").replace(/'/g,"''")+"'";
