@@ -1,5 +1,5 @@
 'use strict';
-/* MSTAR PC Audit Tool for Windows 7; Node.js 12.22.12; built-in modules only. */
+/* MSTAR PC Audit Tool shared by Windows 7/10/11; built-in modules only. */
 var os=require('os'),fs=require('fs'),path=require('path'),https=require('https'),cp=require('child_process'),readline=require('readline');
 var EMBEDDED_AUDIT_CODE='__MSTAR_AUDIT_CODE__';
 var CONFIG_ENDPOINT='https://kpi.review360.id.vn/api/pc-audit/config';
