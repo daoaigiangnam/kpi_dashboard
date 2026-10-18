@@ -245,7 +245,6 @@ var SERVICE_CONFIG=SCHEDULE_CONFIG;
 function sleep(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});}
 async function readAgentSchedule(profile){
  var url=CONFIG_ENDPOINT.slice(0, CONFIG_ENDPOINT.lastIndexOf('/config'))+'/agent-config?code='+encodeURIComponent(String(profile.code||''));
- var url=CONFIG_ENDPOINT.replace(/\\/config$/,'/agent-config')+'?code='+encodeURIComponent(String(profile.code||''));
  return await reqJson(url,'GET');
 }
 async function serviceLoop(){
