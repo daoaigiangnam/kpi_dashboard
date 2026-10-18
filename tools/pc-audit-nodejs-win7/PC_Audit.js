@@ -20,10 +20,10 @@ async function wmi(cls,props,opt){
  // Fall back to WMIC for older Windows installations if PowerShell query fails.
  var q="try { $ErrorActionPreference='Stop'; $p=@("+props.map(p=>"'"+p.replace(/'/g,"''")+"'").join(",")+"); ";
  q+="if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) { $x=Get-CimInstance -ClassName '"+cls.replace(/'/g,"''")+"'";
- if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/\/g,"\\").replace(/'/g,"''")+"'";
+ if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/\\/g,"\\\\").replace(/'/g,"''")+"'";
  if(opt.where) q+=" -Filter '"+opt.where.replace(/'/g,"''")+"'";
  q+=" -Property $p } else { $x=Get-WmiObject -Class '"+cls.replace(/'/g,"''")+"'";
- if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/\/g,"\\").replace(/'/g,"''")+"'";
+ if(opt.ns) q+=" -Namespace '"+opt.ns.replace(/\\/g,"\\\\").replace(/'/g,"''")+"'";
  if(opt.where) q+=" -Filter '"+opt.where.replace(/'/g,"''")+"'";
  q+=" -Property $p }; @($x) | ConvertTo-Json -Depth 5 -Compress } catch { exit 2 }";
  var r=await exec('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-Command',q],30000);
