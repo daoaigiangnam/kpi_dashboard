@@ -121,7 +121,18 @@ if not "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
 :RUN_AUDIT
 echo.
 echo Validated Node.js: %NODE_VERSION_REQUIRED%
-echo Running PC Audit...
+echo.
+echo [1] Chay Audit ngay
+ echo [2] Cai dat lich tu dong gui Server
+ echo [3] Go lich tu dong
+ echo [4] Thoat
+ echo.
+set "CHOICE="
+set /p CHOICE=Chon (1-4): 
+if "%CHOICE%"=="2" goto SET_SCHEDULE
+if "%CHOICE%"=="3" goto REMOVE_SCHEDULE
+if "%CHOICE%"=="4" exit /b 0
+if not "%CHOICE%"=="1" goto RUN_AUDIT
 node "%~dp0PC_Audit.js"
 set "AUDIT_EXIT=%ERRORLEVEL%"
 if not "%AUDIT_EXIT%"=="0" (
@@ -130,4 +141,16 @@ if not "%AUDIT_EXIT%"=="0" (
   echo If JSON was created, it is in the output folder.
   pause
 )
+endlocal & exit /b %AUDIT_EXIT%
+
+:SET_SCHEDULE
+node "%~dp0PC_Audit.js" --setup-schedule
+set "AUDIT_EXIT=%ERRORLEVEL%"
+pause
+endlocal & exit /b %AUDIT_EXIT%
+
+:REMOVE_SCHEDULE
+node "%~dp0PC_Audit.js" --remove-schedule
+set "AUDIT_EXIT=%ERRORLEVEL%"
+pause
 endlocal & exit /b %AUDIT_EXIT%
