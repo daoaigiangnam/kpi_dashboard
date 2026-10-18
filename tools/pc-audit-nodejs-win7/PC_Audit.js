@@ -302,7 +302,7 @@ async function setupService(){
   var email=(await ask(rl,'Email (Enter = bo qua): '))||null;
   var profile={code:code,employee_name:employee,department:department,employee_mobile:mobile,employee_email:email,created_at:new Date().toISOString(),customer:v.data.customer.name,branch:v.data.branch.name};
   fs.writeFileSync(SERVICE_CONFIG,JSON.stringify(profile,null,2),'utf8');
-  console.log('Da luu cau hinh Service. Service se thu thap va cap nhat inventory moi 6 gio.');
+  console.log('Da luu Audit Code va thong tin nguoi dung. Lich chay se do Backend quan ly; Agent Service tu lay cau hinh moi 5 phut.');
   console.log('Luu y: can chay Audit lan dau de tao du lieu day du truoc khi cai Service.');
  }finally{try{rl.close();}catch(e){}}
 }
