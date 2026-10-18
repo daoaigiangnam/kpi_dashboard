@@ -15,9 +15,15 @@ class PcAuditSetting extends Model
         'enabled',
         'download_url',
         'disabled_message',
+        'agent_schedule_enabled',
+        'agent_interval_minutes',
+        'agent_run_on_start',
     ];
 
     protected $casts = [
         'enabled' => 'boolean',
+        'agent_schedule_enabled' => 'boolean',
+        'agent_run_on_start' => 'boolean',
+        'agent_interval_minutes' => 'integer',
     ];
 }
