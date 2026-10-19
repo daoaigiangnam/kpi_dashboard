@@ -30,6 +30,18 @@ class PcAuditAdminController extends Controller
             'target_os' => ['required', 'in:windows7,windows10,nodejs'],
         ]);
 
+        // Enforce the button-specific permission server-side as well as hiding the button in the UI.
+        $buttonPermissions = [
+            'windows7' => 'pc_audit.package_windows7',
+            'windows10' => 'pc_audit.package_windows10',
+            'nodejs' => 'pc_audit.package_nodejs',
+        ];
+        abort_unless(
+            auth()->user()?->hasPermission($buttonPermissions[$data['target_os']]),
+            403,
+            'Bạn không có quyền tạo gói PC Audit cho hệ điều hành đã chọn.'
+        );
+
         $customer = ServiceCustomer::query()->whereKey($data['customer_id'])->where('is_active', true)->firstOrFail();
         $branch = CustomerBranch::query()->whereKey($data['branch_id'])->where('customer_id', $customer->id)->where('is_active', true)->firstOrFail();
 
