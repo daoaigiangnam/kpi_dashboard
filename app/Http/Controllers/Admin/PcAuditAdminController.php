@@ -59,6 +59,16 @@ class PcAuditAdminController extends Controller
             $nodeBat = (string) file_get_contents($nodeToolPath . '/PC_Audit.bat');
             $nodeReadme = (string) file_get_contents($nodeToolPath . '/README-Windows7.txt');
 
+            // Bundle both NSSM architectures into the generated ZIP so Windows 7
+            // never needs PowerShell/.NET TLS support to download the service wrapper.
+            $nssmFiles = [
+                'win32' => public_path('nssm/win32/nssm.exe'),
+                'win64' => public_path('nssm/win64/nssm.exe'),
+            ];
+            foreach ($nssmFiles as $arch => $path) {
+                abort_unless(is_file($path) && filesize($path) > 50000, 500, 'Thiếu NSSM ' . $arch . ' tại public/nssm/' . $arch . '/nssm.exe. Hãy kiểm tra file NSSM trên server trước khi tạo gói.');
+            }
+
             if (!class_exists(\ZipArchive::class)) {
                 return back()->withInput()->withErrors(['launcher' => 'PHP ZipArchive chưa được cài trên server. Vui lòng bật extension zip rồi thử lại.']);
             }
@@ -74,6 +84,8 @@ class PcAuditAdminController extends Controller
             $zip->addFromString('PC_Audit.js', $nodeScript);
             $zip->addFromString('PC_Audit.bat', $nodeBat);
             $zip->addFromString('README-Windows7.txt', $nodeReadme);
+            $zip->addFile($nssmFiles['win32'], 'nssm/win32/nssm.exe');
+            $zip->addFile($nssmFiles['win64'], 'nssm/win64/nssm.exe');
             $zip->close();
 
             $osLabel = 'Windows7_10_11_NodeJS';
