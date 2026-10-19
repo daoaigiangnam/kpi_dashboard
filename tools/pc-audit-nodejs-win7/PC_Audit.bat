@@ -1,7 +1,7 @@
 @echo off
 rem Relaunch in a persistent console. This keeps startup and install errors visible.
 if /i not "%~1"=="__MSTAR_KEEP_OPEN__" (
-  start "MSTAR PC Audit - Console" "%ComSpec%" /k call "%~f0" __MSTAR_KEEP_OPEN__"
+  start "MSTAR PC Audit - Console" "%ComSpec%" /k call "%~f0" __MSTAR_KEEP_OPEN__
   exit /b
 )
 setlocal EnableExtensions EnableDelayedExpansion
