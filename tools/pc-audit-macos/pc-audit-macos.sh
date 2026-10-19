@@ -10,6 +10,7 @@ AGENT_FILE="${BASE_DIR}/agent.py"
 PLIST_LABEL="vn.review360.pc-audit"
 PLIST_FILE="${HOME}/Library/LaunchAgents/${PLIST_LABEL}.plist"
 API_ROOT="https://kpi.review360.id.vn/api"
+EMBEDDED_AUDIT_CODE="__MSTAR_AUDIT_CODE__"
 mkdir -p "$BASE_DIR" "$LOG_DIR" "${HOME}/Library/LaunchAgents"
 chmod 700 "$BASE_DIR"
 
@@ -23,7 +24,8 @@ if [ ! -f "$CONFIG_FILE" ]; then
   echo " Máy: $(scutil --get ComputerName 2>/dev/null || hostname)"
   echo " Kiến trúc: $(uname -m)"
   echo "=============================================="
-  read -r -p "Nhập Audit Code: " AUDIT_CODE
+  AUDIT_CODE="$EMBEDDED_AUDIT_CODE"
+  if [ "$AUDIT_CODE" = "__MSTAR_AUDIT_CODE__" ]; then read -r -p "Nhập Audit Code: " AUDIT_CODE; fi
   [ -n "$AUDIT_CODE" ] || fail "Audit Code không được để trống."
   read -r -p "Họ tên người sử dụng: " EMPLOYEE_NAME
   [ -n "$EMPLOYEE_NAME" ] || EMPLOYEE_NAME="$(id -F 2>/dev/null || id -un)"
