@@ -1,160 +1,180 @@
 #!/bin/bash
-# MSTAR PC Audit Agent for macOS (Intel and Apple Silicon)
-# First run installs a LaunchAgent for the current user; use --install-daemon for managed/system-wide deployment.
-set -u
-APP_NAME="MSTAR PCAudit"
-BASE_DIR="${HOME}/Library/Application Support/MSTAR/PCAudit"
-CONFIG_FILE="${BASE_DIR}/config.json"
-LOG_DIR="${BASE_DIR}/logs"
-AGENT_FILE="${BASE_DIR}/agent.py"
-PLIST_LABEL="vn.review360.pc-audit"
-PLIST_FILE="${HOME}/Library/LaunchAgents/${PLIST_LABEL}.plist"
+# MSTAR PC Audit macOS - system LaunchDaemon installer
+set -Eeuo pipefail
+LABEL="vn.review360.pc-audit"
+DOMAIN="system/$LABEL"
+ROOT="/Library/Application Support/MSTAR/PCAudit"
+BIN="$ROOT/agent.py"
+CONFIG="$ROOT/config.json"
+PLIST="/Library/LaunchDaemons/$LABEL.plist"
+LOGDIR="$ROOT/logs"
 API_ROOT="https://kpi.review360.id.vn/api"
-EMBEDDED_AUDIT_CODE="__MSTAR_AUDIT_CODE__"
-mkdir -p "$BASE_DIR" "$LOG_DIR" "${HOME}/Library/LaunchAgents"
-chmod 700 "$BASE_DIR"
+log(){ printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
+die(){ log "ERROR: $*"; exit 1; }
+need_root(){ [ "$(id -u)" -eq 0 ] || die "Chạy bằng sudo: sudo $0 --install"; }
+safe_dirs(){ install -d -o root -g wheel -m 700 "$ROOT" "$LOGDIR"; }
 
-log(){ printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "${LOG_DIR}/agent.log"; }
-fail(){ log "ERROR: $*"; echo; echo "Cài đặt chưa hoàn tất. Xem log: ${LOG_DIR}/agent.log"; exit 1; }
-command -v /usr/bin/python3 >/dev/null 2>&1 || fail "Không tìm thấy Python 3 hệ thống. Cần triển khai runtime đi kèm trong bản đóng gói."
-command -v /usr/bin/curl >/dev/null 2>&1 || fail "Không tìm thấy curl hệ thống."
-if [ ! -f "$CONFIG_FILE" ]; then
-  echo "=============================================="
-  echo " MSTAR PC AUDIT - macOS"
-  echo " Máy: $(scutil --get ComputerName 2>/dev/null || hostname)"
-  echo " Kiến trúc: $(uname -m)"
-  echo "=============================================="
-  AUDIT_CODE="$EMBEDDED_AUDIT_CODE"
-  if [ "$AUDIT_CODE" = "__MSTAR_AUDIT_CODE__" ]; then read -r -p "Nhập Audit Code: " AUDIT_CODE; fi
-  [ -n "$AUDIT_CODE" ] || fail "Audit Code không được để trống."
-  read -r -p "Họ tên người sử dụng: " EMPLOYEE_NAME
-  [ -n "$EMPLOYEE_NAME" ] || EMPLOYEE_NAME="$(id -F 2>/dev/null || id -un)"
-  read -r -p "Phòng ban (Enter để bỏ qua): " DEPARTMENT
-  read -r -p "Email (Enter để bỏ qua): " EMPLOYEE_EMAIL
-  /usr/bin/python3 - "$CONFIG_FILE" "$AUDIT_CODE" "$EMPLOYEE_NAME" "$DEPARTMENT" "$EMPLOYEE_EMAIL" "$API_ROOT" <<'PYCFG'
-import json,sys,os
-p,code,name,dept,email,api=sys.argv[1:]
-with open(p,'w',encoding='utf-8') as f:
- json.dump({'code':code.strip().upper(),'employee_name':name.strip(),'department':dept.strip() or None,'employee_email':email.strip() or None,'api_root':api},f)
-os.chmod(p,0o600)
-PYCFG
-fi
-
-cat > "$AGENT_FILE" <<'PYAGENT'
+write_agent(){
+cat > "$BIN" <<'PYAGENT'
 #!/usr/bin/python3
-import json, os, platform, subprocess, urllib.request, urllib.error, datetime, socket, plistlib, glob, time, sys
-BASE=os.path.expanduser('~/Library/Application Support/MSTAR/PCAudit')
-CFG=os.path.join(BASE,'config.json')
-LOG=os.path.join(BASE,'logs','agent.log')
-def log(msg):
- os.makedirs(os.path.dirname(LOG),exist_ok=True)
- with open(LOG,'a',encoding='utf-8') as f:f.write('[%s] %s\n'%(datetime.datetime.now().isoformat(timespec='seconds'),msg))
-def cmd(args,timeout=30):
- try:return subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,timeout=timeout).stdout.strip()
- except Exception:return ''
-def api(url,method='GET',data=None):
- raw=json.dumps(data).encode() if data is not None else None
- req=urllib.request.Request(url,data=raw,method=method,headers={'Accept':'application/json','Content-Type':'application/json'})
- with urllib.request.urlopen(req,timeout=60) as r:return json.loads(r.read().decode())
-def collect():
+import datetime,json,os,platform,subprocess,sys,time,urllib.error,urllib.parse,urllib.request,glob,plistlib
+ROOT="/Library/Application Support/MSTAR/PCAudit"; CFG=ROOT+"/config.json"; LOGDIR=ROOT+"/logs"; LOG=LOGDIR+"/agent.log"
+def log(s):
+ os.makedirs(LOGDIR,mode=0o700,exist_ok=True)
+ try:
+  if os.path.exists(LOG) and os.path.getsize(LOG)>2097152:
+   for i in range(4,0,-1):
+    a=LOG+"."+str(i); b=LOG+"."+str(i+1)
+    if os.path.exists(a):
+     if i==4: os.remove(a)
+     else: os.replace(a,b)
+   os.replace(LOG,LOG+".1")
+  with open(LOG,"a",encoding="utf-8") as f: os.chmod(LOG,0o600); f.write("[%s] %s\n"%(datetime.datetime.now().astimezone().isoformat(timespec="seconds"),str(s)[:2000]))
+ except Exception: pass
+def cmd(a,t=30):
+ try:return subprocess.run(a,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,timeout=t).stdout.strip()
+ except Exception:return ""
+def config():
+ if os.path.islink(CFG): raise RuntimeError("Refusing symlink config")
+ st=os.stat(CFG)
+ if st.st_uid!=0 or st.st_mode&0o077: raise RuntimeError("Config must be root-owned mode 0600")
+ with open(CFG,encoding="utf-8") as f:p=json.load(f)
+ if not isinstance(p,dict) or not all(isinstance(p.get(k),str) and p[k].strip() for k in ("code","employee_name","api_root","computer_id")): raise RuntimeError("Invalid config schema")
+ if not p["api_root"].startswith("https://"): raise RuntimeError("API must use HTTPS")
+ return p
+def api(url,method="GET",data=None):
+ req=urllib.request.Request(url,data=json.dumps(data).encode() if data is not None else None,method=method,headers={"Accept":"application/json","Content-Type":"application/json","User-Agent":"MSTAR-PC-Audit-macOS/2.0"})
+ try:
+  with urllib.request.urlopen(req,timeout=45) as r:
+   raw=r.read().decode("utf-8","replace")
+   try:return json.loads(raw)
+   except Exception:raise RuntimeError("Invalid JSON response")
+ except urllib.error.HTTPError as e:
+  raw=e.read(2000).decode("utf-8","replace"); log("HTTP %s %s: %s"%(e.code,urllib.parse.urlparse(url).path,raw))
+  if e.code==422: raise RuntimeError("HTTP 422 validation error; inspect agent.log")
+  if e.code in (401,403): raise RuntimeError("HTTP %s authorization error"%e.code)
+  if e.code==429: raise RuntimeError("HTTP 429 rate limited")
+  if e.code>=500: raise RuntimeError("HTTP %s server error"%e.code)
+  raise RuntimeError("HTTP %s"%e.code)
+ except urllib.error.URLError as e: raise RuntimeError("Network/DNS/TLS error: "+str(e.reason))
+def collect(p):
  sp={}
- try:sp=json.loads(cmd(['/usr/sbin/system_profiler','SPHardwareDataType','SPSoftwareDataType','SPMemoryDataType','SPStorageDataType','SPDisplaysDataType','SPPowerDataType','SPNetworkDataType','SPApplicationsDataType','-json'],120) or '{}')
+ try:sp=json.loads(cmd(["/usr/sbin/system_profiler","SPHardwareDataType","SPSoftwareDataType","-json"],90) or "{}")
  except Exception:pass
- hw=(sp.get('SPHardwareDataType') or [{}])[0]; sw=(sp.get('SPSoftwareDataType') or [{}])[0]
- serial=hw.get('serial_number') or hw.get('serial_number_system')
- hostname=cmd(['/usr/sbin/scutil','--get','ComputerName']) or socket.gethostname()
- uname=cmd(['/usr/bin/id','-un']) or os.getenv('USER','')
- memory=cmd(['/usr/sbin/sysctl','-n','hw.memsize'])
- try:memgb=round(int(memory)/1073741824,2)
- except Exception:memgb=None
- disk=cmd(['/bin/df','-k','/'])
+ hw=(sp.get("SPHardwareDataType") or [{}])[0]; sw=(sp.get("SPSoftwareDataType") or [{}])[0]
+ try:mem=round(int(cmd(["/usr/sbin/sysctl","-n","hw.memsize"]))/1073741824,2)
+ except Exception:mem=None
  disks=[]
- for line in disk.splitlines()[1:]:
-  p=line.split()
-  if len(p)>=6:
-   try:disks.append({'volume':p[-1],'total_gb':round(int(p[1])/1048576,2),'used_gb':round(int(p[2])/1048576,2),'free_gb':round(int(p[3])/1048576,2)})
+ for line in cmd(["/bin/df","-k","/"]).splitlines()[1:]:
+  a=line.split()
+  if len(a)>=6:
+   try:disks.append({"drive":"/","total_gb":round(int(a[1])/1048576,2),"used_gb":round(int(a[2])/1048576,2)})
    except Exception:pass
- net=[]
- try:
-  for iface in cmd(['/sbin/ifconfig','-l']).split():
-   detail=cmd(['/sbin/ifconfig',iface])
-   mac=''; ip=[]
-   for line in detail.splitlines():
-    line=line.strip()
-    if line.startswith('ether '):mac=line.split()[1]
-    if line.startswith('inet '):ip.append(line.split()[1])
-   if mac or ip:net.append({'name':iface,'mac':mac or None,'ipv4':ip})
- except Exception:pass
+ fv=cmd(["/usr/bin/fdesetup","status"]); fw=cmd(["/usr/libexec/ApplicationFirewall/socketfilterfw","--getglobalstate"])
  apps=[]
- for pattern in ['/Applications/*.app/Contents/Info.plist','/System/Applications/*.app/Contents/Info.plist','/Applications/*/*.app/Contents/Info.plist']:
-  for p in glob.glob(pattern):
+ if p.get("collect_app_inventory") is True:
+  seen=set()
+  for pat in ("/Applications/*.app/Contents/Info.plist","/Applications/*/*.app/Contents/Info.plist"):
+   for path in glob.glob(pat):
+    try:
+     with open(path,"rb") as f:x=plistlib.load(f)
+     n=x.get("CFBundleDisplayName") or x.get("CFBundleName")
+     if n and n not in seen: seen.add(n); apps.append({"name":n,"version":x.get("CFBundleShortVersionString")})
+    except Exception:pass
+ osver=sw.get("os_version") or sw.get("system_version") or platform.mac_ver()[0]
+ return {"computer":{"computer_name":p["computer_id"],"manufacturer":"Apple","model":hw.get("machine_model") or hw.get("model_identifier") or "Mac","serial_number":None,"username":None,"domain":None},
+ "mainboard":{"manufacturer":"Apple","product":hw.get("machine_model") or hw.get("model_identifier"),"serial_number":None},"bios":{"version":hw.get("boot_rom_version") or hw.get("system_firmware_version")},
+ "cpu":[{"name":hw.get("chip") or hw.get("cpu_type") or platform.processor()}],"memory":[{"capacity_gb":mem,"capacity":str(mem)+" GB" if mem is not None else None}],"storage":disks,"monitors":[],"gpu":[],"battery":[],
+ "windows":{"caption":"macOS "+str(osver),"version":platform.mac_ver()[0],"build":sw.get("kernel_version"),"architecture":platform.machine()},"windows_update":None,"network":[],
+ "security":{"filevault":{"enabled":True if "FileVault is On" in fv else (False if "FileVault is Off" in fv else None),"raw_status":fv},"firewall":{"enabled":True if "enabled" in fw.lower() else (False if "disabled" in fw.lower() else None),"raw_status":fw},"secure_boot":None,"antivirus":[],"bitlocker":[],"tpm":None},
+ "licenses":[],"software":apps,"other":{"platform":"macOS","macos_version":platform.mac_ver()[0],"architecture":platform.machine(),"collected_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}}
+def once():
+ p=config(); c=api(p["api_root"]+"/pc-audit/config")
+ if c.get("enabled") is not True: raise RuntimeError(c.get("disabled_message") or "PC Audit disabled")
+ d=collect(p); payload={"code":p["code"],"employee_name":p["employee_name"],"department":p.get("department"),"employee_email":p.get("employee_email"),"data":d}
+ r=api(p["api_root"]+"/pc-audit/submit","POST",payload)
+ if r.get("ok") is not True: raise RuntimeError(r.get("message") or "Submit failed")
+ log("Audit submitted score=%s status=%s"%(r.get("audit_score"),r.get("audit_status")))
+def loop():
+ while True:
+  try:
+   p=config(); c=api(p["api_root"]+"/pc-audit/agent-config?code="+urllib.parse.quote(p["code"])); s=c.get("schedule") or {}; state=ROOT+"/last-success"
    try:
-    with open(p,'rb') as f:pl=plistlib.load(f)
-    apps.append({'name':pl.get('CFBundleDisplayName') or pl.get('CFBundleName') or os.path.basename(os.path.dirname(os.path.dirname(p))),'version':pl.get('CFBundleShortVersionString'),'publisher':pl.get('TeamIdentifier')})
-   except Exception:pass
- filevault=cmd(['/usr/bin/fdesetup','status'])
- firewall=cmd(['/usr/libexec/ApplicationFirewall/socketfilterfw','--getglobalstate'])
- return {
-  'computer':{'computer_name':hostname,'username':uname,'domain':None,'manufacturer':'Apple','model':hw.get('machine_model') or hw.get('model_identifier'),'serial_number':serial,'asset_tag':None},
-  'mainboard':{'manufacturer':'Apple','product':hw.get('machine_model') or hw.get('model_identifier'),'serial_number':serial},
-  'bios':{'version':hw.get('boot_rom_version') or hw.get('system_firmware_version'),'date':None},
-  'cpu':[{'name':hw.get('chip') or hw.get('cpu_type') or platform.processor(),'cores':hw.get('number_processors'),'threads':None,'max_clock':None}],
-  'memory':[{'capacity_gb':memgb,'capacity':str(memgb)+' GB' if memgb is not None else None,'speed':None,'slot':None,'manufacturer':None,'part_number':None,'serial_number':None}],
-  'storage':disks,'monitors':sp.get('SPDisplaysDataType',[]),'gpu':sp.get('SPDisplaysDataType',[]),'battery':sp.get('SPPowerDataType',[]),
-  'windows':{'caption':sw.get('os_version') or sw.get('system_version'),'version':platform.mac_ver()[0],'build':sw.get('kernel_version'),'architecture':platform.machine(),'last_boot':None,'uptime_hours':None},
-  'windows_update':None,'network':net,
-  'security':{'filevault':filevault,'firewall':firewall,'secure_boot':None,'antivirus':[],'bitlocker':[],'tpm':None},
-  'licenses':[],'software':apps,'other':{'platform':'macOS','macos_version':platform.mac_ver()[0],'architecture':platform.machine(),'collected_at':datetime.datetime.now(datetime.timezone.utc).isoformat()}
- }
-def run_once():
- with open(CFG,encoding='utf-8') as f:profile=json.load(f)
- conf=api(profile['api_root']+'/pc-audit/config')
- if conf.get('enabled') is not True:raise RuntimeError(conf.get('disabled_message') or 'PC Audit is disabled on server')
- data=collect()
- payload={'code':profile['code'],'employee_name':profile['employee_name'],'department':profile.get('department'),'employee_email':profile.get('employee_email'),'data':data}
- result=api(profile['api_root']+'/pc-audit/submit','POST',payload)
- if result.get('ok') is not True:raise RuntimeError(result.get('message') or 'Audit submit failed')
- log('Audit submitted; computer=%s score=%s status=%s'%(data['computer']['computer_name'],result.get('audit_score'),result.get('audit_status')))
-def main():
+    with open(state) as f:last=float(f.read())
+   except Exception:last=0
+   interval=max(15,min(10080,int(s.get("interval_minutes") or 360)))*60
+   if c.get("enabled") and s.get("enabled",True) and ((last==0 and s.get("run_on_start",True)) or time.time()-last>=interval):
+    once()
+    with open(state,"w") as f:f.write(str(time.time()))
+    os.chmod(state,0o600)
+  except Exception as e:log("ERROR: "+str(e))
+  time.sleep(300)
+if __name__=="__main__":
  try:
-  if '--once' in sys.argv:run_once();return
-  while True:
-   try:
-    with open(CFG,encoding='utf-8') as f:p=json.load(f)
-    c=api(p['api_root']+'/pc-audit/agent-config?code='+p['code'])
-    if c.get('enabled') and c.get('schedule',{}).get('enabled',True):
-     state=os.path.join(BASE,'last-success')
-     try:last=float(open(state).read().strip())
-     except Exception:last=0
-     sch=c.get('schedule',{});interval=max(15,int(sch.get('interval_minutes') or 360))*60
-     if (last==0 and sch.get('run_on_start',True)) or time.time()-last>=interval:
-      run_once()
-      open(state,'w').write(str(time.time()))
-   except Exception as e:log('ERROR: '+str(e))
-   time.sleep(300)
- except Exception as e:log('FATAL: '+str(e));raise
-if __name__=='__main__':main()
+  if "--run-once" in sys.argv:once()
+  elif "--service" in sys.argv:loop()
+  else:raise RuntimeError("Use --service or --run-once")
+ except Exception as e:log("FATAL: "+str(e)); print(str(e),file=sys.stderr); sys.exit(1)
 PYAGENT
-chmod 700 "$AGENT_FILE"
-
-# Register a per-user LaunchAgent (no admin prompt required).
-cat > "$PLIST_FILE" <<PLIST
+chmod 700 "$BIN"; chown root:wheel "$BIN"
+}
+write_config(){
+ local code name dept email consent computer_id
+ read -r -p "Audit Code: " code; [ -n "$code" ] || die "Audit Code trống"
+ read -r -p "Họ tên người sử dụng: " name; [ -n "$name" ] || die "Họ tên trống"
+ read -r -p "Phòng ban (Enter bỏ qua): " dept
+ read -r -p "Email (Enter bỏ qua): " email
+ read -r -p "Đồng ý thu thập danh sách ứng dụng? (y/N): " consent
+ [[ "$consent" =~ ^[Yy]$ ]] && consent_json=true || consent_json=false
+ computer_id="macOS-$(/usr/bin/uuidgen | tr '[:upper:]' '[:lower:]')"
+ /usr/bin/python3 - "$CONFIG" "$code" "$name" "$dept" "$email" "$API_ROOT" "$computer_id" "$consent_json" <<'PYCFG'
+import json,os,sys,tempfile
+path,code,name,dept,email,api,cid,consent=sys.argv[1:]
+obj={"code":code.strip().upper(),"employee_name":name.strip(),"department":dept.strip() or None,"employee_email":email.strip() or None,"api_root":api.rstrip("/"),"computer_id":cid,"collect_app_inventory":consent=="true","schema_version":2}
+fd,tmp=tempfile.mkstemp(dir=os.path.dirname(path),prefix=".config-")
+try:
+ with os.fdopen(fd,"w",encoding="utf-8") as f: json.dump(obj,f,ensure_ascii=False); f.flush(); os.fsync(f.fileno())
+ os.chmod(tmp,0o600); os.replace(tmp,path); os.chown(path,0,0); os.chmod(path,0o600)
+finally:
+ try:os.unlink(tmp)
+ except FileNotFoundError:pass
+PYCFG
+}
+write_plist(){
+cat > "$PLIST" <<PLISTXML
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>Label</key><string>$PLIST_LABEL</string>
-<key>ProgramArguments</key><array><string>/usr/bin/python3</string><string>$AGENT_FILE</string></array>
-<key>RunAtLoad</key><true/>
-<key>KeepAlive</key><true/>
-<key>StandardOutPath</key><string>$LOG_DIR/launchd-out.log</string>
-<key>StandardErrorPath</key><string>$LOG_DIR/launchd-error.log</string>
+<key>Label</key><string>$LABEL</string>
+<key>ProgramArguments</key><array><string>/usr/bin/python3</string><string>$BIN</string><string>--service</string></array>
+<key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>ProcessType</key><string>Background</string>
+<key>WorkingDirectory</key><string>$ROOT</string>
+<key>StandardOutPath</key><string>$LOGDIR/launchd-out.log</string>
+<key>StandardErrorPath</key><string>$LOGDIR/launchd-error.log</string>
 </dict></plist>
-PLIST
-chmod 644 "$PLIST_FILE"
-/bin/launchctl unload "$PLIST_FILE" >/dev/null 2>&1 || true
-/bin/launchctl load "$PLIST_FILE" || fail "Không đăng ký được LaunchAgent."
-log "Installed/loaded LaunchAgent $PLIST_LABEL for $(uname -m)"
-echo
-echo "Đã cài MSTAR PC Audit Agent cho macOS."
-echo "Log: $LOG_DIR/agent.log"
-echo "Agent sẽ tự lấy Schedule từ Backend."
+PLISTXML
+chown root:wheel "$PLIST"; chmod 644 "$PLIST"; plutil -lint "$PLIST" >/dev/null || die "Plist không hợp lệ"
+}
+install_service(){
+ need_root; safe_dirs
+ command -v /usr/bin/python3 >/dev/null 2>&1 || die "Thiếu Python hệ thống; bản này chưa phải executable tự chứa"
+ write_agent
+ if [ ! -f "$CONFIG" ]; then write_config; else chown root:wheel "$CONFIG"; chmod 600 "$CONFIG"; fi
+ write_plist
+ launchctl bootout "$DOMAIN" >/dev/null 2>&1 || true
+ launchctl bootstrap system "$PLIST" || die "launchctl bootstrap thất bại"
+ launchctl kickstart -k "$DOMAIN" || die "Không khởi động được Service"
+ log "Đã cài LaunchDaemon $LABEL"; launchctl print "$DOMAIN" | head -n 25
+}
+status_service(){ launchctl print "$DOMAIN" || { echo "Service chưa cài; chạy sudo $0 --install"; exit 1; } }
+uninstall_service(){ need_root; launchctl bootout "$DOMAIN" >/dev/null 2>&1 || true; rm -f "$PLIST"; echo "Đã gỡ Service; giữ cấu hình/log tại $ROOT"; }
+MODE="$1"
+case "$MODE" in
+ --install) install_service ;;
+ --update) need_root; [ -f "$CONFIG" ] || die "Chưa cài"; install_service ;;
+ --status) status_service ;;
+ --run-once) [ -x "$BIN" ] || die "Chưa cài"; /usr/bin/python3 "$BIN" --run-once ;;
+ --reconfigure) need_root; safe_dirs; write_config; chown root:wheel "$CONFIG"; chmod 600 "$CONFIG"; launchctl kickstart -k "$DOMAIN" >/dev/null 2>&1 || true; log "Đã cập nhật cấu hình" ;;
+ --uninstall) uninstall_service ;;
+ *) echo "Usage: sudo $0 {--install|--update|--uninstall|--status|--run-once|--reconfigure}"; exit 2 ;;
+esac
