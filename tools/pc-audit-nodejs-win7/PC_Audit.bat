@@ -1,7 +1,7 @@
 @echo off
 rem Relaunch in a persistent console. This keeps startup and install errors visible.
 if /i not "%~1"=="__MSTAR_KEEP_OPEN__" (
-  start "MSTAR PC Audit - Console" "%ComSpec%" /k ""%~f0" __MSTAR_KEEP_OPEN__"
+  start "MSTAR PC Audit - Console" "%ComSpec%" /k call "%~f0" __MSTAR_KEEP_OPEN__"
   exit /b
 )
 setlocal EnableExtensions EnableDelayedExpansion
@@ -23,7 +23,7 @@ copy /y "%~f0" "%INSTALL_DIR%\PC_Audit.bat" >nul
 if errorlevel 1 goto COPY_FILES_FAILED
 if exist "%~dp0README-Windows7.txt" copy /y "%~dp0README-Windows7.txt" "%INSTALL_DIR%\README-Windows7.txt" >nul
 echo Files copied successfully.
-start "MSTAR PC Audit - Installed" "%ComSpec%" /k ""%INSTALL_DIR%\PC_Audit.bat" __MSTAR_KEEP_OPEN__
+start "MSTAR PC Audit - Installed" "%ComSpec%" /k call "%INSTALL_DIR%\PC_Audit.bat" __MSTAR_KEEP_OPEN__
 exit /b 0
 
 :INSTALL_DIR_FAILED
@@ -166,7 +166,7 @@ echo [6] Thoat
 echo.
 set "CHOICE="
 set /p CHOICE=Chon (1-6): 
-if "%CHOICE%"=="2" goto INSTALL_SERVICE
+if "%CHOICE%"=="2" call :INSTALL_SERVICE
 if "%CHOICE%"=="3" goto STOP_SERVICE
 if "%CHOICE%"=="4" goto REMOVE_SERVICE
 if "%CHOICE%"=="5" goto STATUS_SERVICE
