@@ -71,6 +71,26 @@ def collect(p):
    try:disks.append({"drive":"/","total_gb":round(int(a[1])/1048576,2),"used_gb":round(int(a[2])/1048576,2)})
    except Exception:pass
  fv=cmd(["/usr/bin/fdesetup","status"]); fw=cmd(["/usr/libexec/ApplicationFirewall/socketfilterfw","--getglobalstate"])
+ # Battery: use system_profiler power data; tolerate desktops/no battery.
+ battery=[]
+ try:
+  power=json.loads(cmd(["/usr/sbin/system_profiler","SPPowerDataType","-json"],60) or "{}")
+  for item in power.get("SPPowerDataType",[]):
+   if isinstance(item,dict):
+    name=item.get("device_name") or item.get("name") or item.get("sppower_battery_model")
+    status=item.get("battery_health") or item.get("condition") or item.get("state")
+    charge=item.get("charge") or item.get("state_of_charge") or item.get("sppower_battery_charge_level")
+    if name or status or charge is not None:
+     try: charge=int(str(charge).replace("%","")) if charge is not None else None
+     except Exception: charge=None
+     battery.append({"name":name or "Built-in battery","status":status,"charge_percent":charge})
+ except Exception: pass
+ # Network inventory without transmitting MAC/IP; network presence is collected only as adapter type/name.
+ network=[]
+ for iface in cmd(["/sbin/ifconfig","-l"]).split():
+  detail=cmd(["/sbin/ifconfig",iface])
+  if "status: active" in detail:
+   network.append({"type":"Wi-Fi" if iface.startswith("en") else "Network","name":iface,"description":"Active network interface","ipv4":None,"gateway":None,"mac":None,"dns":None,"dhcp":None,"connection_status":"Connected","link_speed":None})
  apps=[]
  if p.get("collect_app_inventory") is True:
   seen=set()
@@ -84,7 +104,7 @@ def collect(p):
  osver=sw.get("os_version") or sw.get("system_version") or platform.mac_ver()[0]
  return {"computer":{"computer_name":p["computer_id"],"manufacturer":"Apple","model":hw.get("machine_model") or hw.get("model_identifier") or "Mac","serial_number":None,"username":None,"domain":None},
  "mainboard":{"manufacturer":"Apple","product":hw.get("machine_model") or hw.get("model_identifier"),"serial_number":None},"bios":{"version":hw.get("boot_rom_version") or hw.get("system_firmware_version")},
- "cpu":[{"name":hw.get("chip") or hw.get("cpu_type") or platform.processor()}],"memory":[{"capacity_gb":mem,"capacity":str(mem)+" GB" if mem is not None else None}],"storage":disks,"monitors":[],"gpu":[],"battery":[],
+ "cpu":[{"name":hw.get("chip") or hw.get("cpu_type") or platform.processor()}],"memory":[{"capacity_gb":mem,"capacity":str(mem)+" GB" if mem is not None else None}],"storage":disks,"monitors":[],"gpu":[],"battery":battery,
  "windows":{"caption":"macOS "+str(osver),"version":platform.mac_ver()[0],"build":sw.get("kernel_version"),"architecture":platform.machine()},"windows_update":None,"network":[],
  "security":{"filevault":{"enabled":True if "FileVault is On" in fv else (False if "FileVault is Off" in fv else None),"raw_status":fv},"firewall":{"enabled":True if "enabled" in fw.lower() else (False if "disabled" in fw.lower() else None),"raw_status":fw},"secure_boot":None,"antivirus":[],"bitlocker":[],"tpm":None},
  "licenses":[],"software":apps,"other":{"platform":"macOS","macos_version":platform.mac_ver()[0],"architecture":platform.machine(),"collected_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}}
