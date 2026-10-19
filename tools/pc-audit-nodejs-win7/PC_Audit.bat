@@ -79,7 +79,7 @@ if defined NODE_EXE (
   echo Path: !NODE_EXE!
   if "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
     echo Version matches. Skipping Node.js installation.
-    goto INSTALL_SERVICE
+    goto RUN_AUDIT
   )
   echo.
   echo [WARNING] Installed Node.js version does not match the required version.
@@ -156,7 +156,43 @@ if not "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
 )
 
 :RUN_AUDIT
-goto INSTALL_SERVICE
+echo.
+echo ==============================================
+echo   MSTAR PC AUDIT - MENU
+echo ==============================================
+echo [1] Lay Manual - Audit ngay lan dau
+echo [2] Tao / cap nhat Windows Service
+echo [3] Dung Windows Service
+echo [4] Go Windows Service
+echo [5] Xem trang thai Service
+echo [6] Thoat
+echo.
+set "CHOICE="
+set /p CHOICE=Chon (1-6): 
+if "%CHOICE%"=="1" goto MANUAL_AUDIT
+if "%CHOICE%"=="2" goto INSTALL_SERVICE
+if "%CHOICE%"=="3" goto STOP_SERVICE
+if "%CHOICE%"=="4" goto REMOVE_SERVICE
+if "%CHOICE%"=="5" goto STATUS_SERVICE
+if "%CHOICE%"=="6" exit /b 0
+echo Lua chon khong hop le.
+goto RUN_AUDIT
+
+:MANUAL_AUDIT
+echo.
+echo Dang chay PC Audit thu cong...
+"!NODE_EXE!" "%INSTALL_DIR%\PC_Audit.js"
+set "AUDIT_EXIT=%ERRORLEVEL%"
+if not "%AUDIT_EXIT%"=="0" (
+  echo.
+  echo [ERROR] PC Audit failed. Exit code: %AUDIT_EXIT%
+  echo Kiem tra file JSON va log trong "%INSTALL_DIR%\output".
+  pause
+) else (
+  echo.
+  echo [OK] Audit thu cong da ket thuc.
+)
+goto RUN_AUDIT
 
 :INSTALL_SERVICE
 if not exist "%INSTALL_DIR%\output" mkdir "%INSTALL_DIR%\output"
