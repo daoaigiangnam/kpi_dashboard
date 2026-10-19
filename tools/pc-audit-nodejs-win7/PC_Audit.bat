@@ -79,7 +79,7 @@ if defined NODE_EXE (
   echo Path: !NODE_EXE!
   if "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
     echo Version matches. Skipping Node.js installation.
-    goto INSTALL_FAILED_EXIT
+    goto INSTALL_SERVICE
   )
   echo.
   echo [WARNING] Installed Node.js version does not match the required version.
@@ -159,33 +159,14 @@ if not "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
 goto INSTALL_SERVICE
 
 :INSTALL_SERVICE
-if "%CHOICE%"=="3" goto STOP_SERVICE
-if "%CHOICE%"=="4" goto REMOVE_SERVICE
-if "%CHOICE%"=="5" goto STATUS_SERVICE
-if "%CHOICE%"=="6" exit /b 0
-if not "%CHOICE%"=="1" goto INSTALL_FAILED_EXIT
-"!NODE_EXE!" "%INSTALL_DIR%\PC_Audit.js"
-set "AUDIT_EXIT=%ERRORLEVEL%"
-if not "%AUDIT_EXIT%"=="0" (
-  echo.
-  echo PC Audit failed. Exit code: %AUDIT_EXIT%
-  echo If JSON was created, it is in the output folder.
-  pause
-)
-echo.
-echo Audit da ket thuc. Quay lai menu chinh...
-timeout /t 2 /nobreak >nul
-goto INSTALL_FAILED_EXIT
-
-:INSTALL_SERVICE
-if not exist "%~dp0output" mkdir "%~dp0output"
+if not exist "%INSTALL_DIR%\output" mkdir "%INSTALL_DIR%\output"
 net session >nul 2>&1
 if errorlevel 1 goto INSTALL_NEEDS_ADMIN
-if exist "%~dp0nssm.exe" goto NSSM_READY
+if exist "%INSTALL_DIR%\nssm.exe" goto NSSM_READY
 set "NSSM_ARCH=win32"
 if /i "%ARCH%"=="x64" set "NSSM_ARCH=win64"
 echo Dang tai NSSM tu MSTAR Server (!NSSM_ARCH!)...
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $u='https://kpi.review360.id.vn/nssm/!NSSM_ARCH!/nssm.exe'; $p='%~dp0nssm.exe'; try { (New-Object Net.WebClient).DownloadFile($u,$p); $f=Get-Item $p; if($f.Length -lt 50000){Remove-Item $p -Force; throw 'File NSSM tai ve qua nho'} } catch { if(Test-Path $p){Remove-Item $p -Force -ErrorAction SilentlyContinue}; Write-Host ('Tai tu MSTAR Server that bai: '+$_.Exception.Message); exit 1 }"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $u='https://kpi.review360.id.vn/nssm/!NSSM_ARCH!/nssm.exe'; $p='%INSTALL_DIR%\nssm.exe'; try { (New-Object Net.WebClient).DownloadFile($u,$p); $f=Get-Item $p; if($f.Length -lt 50000){Remove-Item $p -Force; throw 'File NSSM tai ve qua nho'} } catch { if(Test-Path $p){Remove-Item $p -Force -ErrorAction SilentlyContinue}; Write-Host ('Tai tu MSTAR Server that bai: '+$_.Exception.Message); exit 1 }"
 if not errorlevel 1 goto NSSM_READY
 echo Khong tai duoc tu MSTAR Server. Thu nguon du phong...
 set "NSSM_ZIP=%TEMP%\mstar-nssm.zip"
@@ -195,7 +176,7 @@ if errorlevel 1 goto NSSM_DOWNLOAD_FAILED
 echo Dang giai nen NSSM...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=$env:TEMP+'\mstar-nssm.zip'; $dest=$env:TEMP+'\mstar-nssm-extract'; if(Test-Path $dest){Remove-Item $dest -Recurse -Force}; [IO.Compression.ZipFile]::ExtractToDirectory($zip,$dest)"
 if errorlevel 1 goto NSSM_EXTRACT_FAILED
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $root=$env:TEMP+'\mstar-nssm-extract'; $arch='!NSSM_ARCH!'; $f=Get-ChildItem -Path $root -Filter nssm.exe -Recurse | Where-Object {$_.FullName -match ('\\'+$arch+'\\nssm\.exe$')} | Select-Object -First 1; if(!$f){Write-Error ('Khong tim thay NSSM cho '+$arch); exit 1}; Copy-Item $f.FullName '%~dp0nssm.exe' -Force"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $root=$env:TEMP+'\mstar-nssm-extract'; $arch='!NSSM_ARCH!'; $f=Get-ChildItem -Path $root -Filter nssm.exe -Recurse | Where-Object {$_.FullName -match ('\\'+$arch+'\\nssm\.exe$')} | Select-Object -First 1; if(!$f){Write-Error ('Khong tim thay NSSM cho '+$arch); exit 1}; Copy-Item $f.FullName '%INSTALL_DIR%\nssm.exe' -Force"
 if errorlevel 1 goto NSSM_COPY_FAILED
 :NSSM_READY
 echo Da chuan bi NSSM thanh cong.
@@ -208,26 +189,26 @@ if not defined NODE_EXE goto NODE_NOT_FOUND
 rem Reuse an existing service if present; update its paths to the fixed installation folder.
 sc.exe query MSTAR_PCAudit >nul 2>&1
 if errorlevel 1 goto NSSM_CREATE_SERVICE
-"%~dp0nssm.exe" stop MSTAR_PCAudit >nul 2>&1
-"%~dp0nssm.exe" set MSTAR_PCAudit Application "%NODE_EXE%"
-"%~dp0nssm.exe" set MSTAR_PCAudit AppParameters "\"%INSTALL_DIR%\PC_Audit.js\" --service-loop"
+"%INSTALL_DIR%\nssm.exe" stop MSTAR_PCAudit >nul 2>&1
+"%INSTALL_DIR%\nssm.exe" set MSTAR_PCAudit Application "%NODE_EXE%"
+"%INSTALL_DIR%\nssm.exe" set MSTAR_PCAudit AppParameters "\"%INSTALL_DIR%\PC_Audit.js\" --service-loop"
 if errorlevel 1 goto NSSM_INSTALL_FAILED
 goto NSSM_CONFIGURE_SERVICE
 
 :NSSM_CREATE_SERVICE
-"%~dp0nssm.exe" install MSTAR_PCAudit "%NODE_EXE%" "%INSTALL_DIR%\PC_Audit.js" --service-loop
+"%INSTALL_DIR%\nssm.exe" install MSTAR_PCAudit "%NODE_EXE%" "%INSTALL_DIR%\PC_Audit.js" --service-loop
 if errorlevel 1 goto NSSM_INSTALL_FAILED
 
 :NSSM_CONFIGURE_SERVICE
-"%~dp0nssm.exe" set MSTAR_PCAudit AppDirectory "%INSTALL_DIR%"
+"%INSTALL_DIR%\nssm.exe" set MSTAR_PCAudit AppDirectory "%INSTALL_DIR%"
 if errorlevel 1 goto NSSM_INSTALL_FAILED
-"%~dp0nssm.exe" set MSTAR_PCAudit DisplayName "MSTAR PC Audit Service"
-"%~dp0nssm.exe" set MSTAR_PCAudit Description "Dinh ky cap nhat inventory PC len MSTAR Audit Server"
-"%~dp0nssm.exe" set MSTAR_PCAudit Start SERVICE_AUTO_START
-"%~dp0nssm.exe" set MSTAR_PCAudit AppStdout "%INSTALL_DIR%\output\service-stdout.log"
-"%~dp0nssm.exe" set MSTAR_PCAudit AppStderr "%INSTALL_DIR%\output\service-stderr.log"
-"%~dp0nssm.exe" set MSTAR_PCAudit AppNoConsole 1
-"%~dp0nssm.exe" start MSTAR_PCAudit
+"%INSTALL_DIR%\nssm.exe" set MSTAR_PCAudit DisplayName "MSTAR PC Audit Service"
+"%INSTALL_DIR%\nssm.exe" set MSTAR_PCAudit Description "Dinh ky cap nhat inventory PC len MSTAR Audit Server"
+"%INSTALL_DIR%\nssm.exe" set MSTAR_PCAudit Start SERVICE_AUTO_START
+"%INSTALL_DIR%\nssm.exe" set MSTAR_PCAudit AppStdout "%INSTALL_DIR%\output\service-stdout.log"
+"%INSTALL_DIR%\nssm.exe" set MSTAR_PCAudit AppStderr "%INSTALL_DIR%\output\service-stderr.log"
+"%INSTALL_DIR%\nssm.exe" set MSTAR_PCAudit AppNoConsole 1
+"%INSTALL_DIR%\nssm.exe" start MSTAR_PCAudit
 if errorlevel 1 goto SERVICE_START_FAILED
 echo.
 echo Da cai dat Windows Service MSTAR_PCAudit.
@@ -288,7 +269,7 @@ if errorlevel 1 (
   pause
   goto INSTALL_FAILED_EXIT
 )
-"%~dp0nssm.exe" stop MSTAR_PCAudit
+"%INSTALL_DIR%\nssm.exe" stop MSTAR_PCAudit
 pause
 goto INSTALL_FAILED_EXIT
 
