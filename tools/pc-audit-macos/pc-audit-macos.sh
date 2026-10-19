@@ -105,7 +105,7 @@ def collect(p):
  return {"computer":{"computer_name":p["computer_id"],"manufacturer":"Apple","model":hw.get("machine_model") or hw.get("model_identifier") or "Mac","serial_number":None,"username":None,"domain":None},
  "mainboard":{"manufacturer":"Apple","product":hw.get("machine_model") or hw.get("model_identifier"),"serial_number":None},"bios":{"version":hw.get("boot_rom_version") or hw.get("system_firmware_version")},
  "cpu":[{"name":hw.get("chip") or hw.get("cpu_type") or platform.processor()}],"memory":[{"capacity_gb":mem,"capacity":str(mem)+" GB" if mem is not None else None}],"storage":disks,"monitors":[],"gpu":[],"battery":battery,
- "windows":{"caption":"macOS "+str(osver),"version":platform.mac_ver()[0],"build":sw.get("kernel_version"),"architecture":platform.machine()},"windows_update":None,"network":[],
+ "windows":{"caption":"macOS "+str(osver),"version":platform.mac_ver()[0],"build":sw.get("kernel_version"),"architecture":platform.machine()},"windows_update":None,"network":network,
  "security":{"filevault":{"enabled":True if "FileVault is On" in fv else (False if "FileVault is Off" in fv else None),"raw_status":fv},"firewall":[{"profile":"macOS Application Firewall","enabled":True if "enabled" in fw.lower() else (False if "disabled" in fw.lower() else None)}] if fw else [],"secure_boot":None,"antivirus":[],"bitlocker":[],"tpm":None},
  "licenses":[],"software":apps,"other":{"platform":"macOS","macos_version":platform.mac_ver()[0],"architecture":platform.machine(),"collected_at":datetime.datetime.now(datetime.timezone.utc).isoformat()}}
 def once():
