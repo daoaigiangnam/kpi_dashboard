@@ -175,26 +175,65 @@ cat > "$PLIST" <<PLISTXML
 PLISTXML
 chown root:wheel "$PLIST"; chmod 644 "$PLIST"; plutil -lint "$PLIST" >/dev/null || die "Plist không hợp lệ"
 }
-install_service(){
- need_root; safe_dirs
- command -v /usr/bin/python3 >/dev/null 2>&1 || die "Thiếu Python hệ thống; bản này chưa phải executable tự chứa"
+ensure_agent(){
+ safe_dirs
+ command -v /usr/bin/python3 >/dev/null 2>&1 || die "Thiếu /usr/bin/python3; bản này hiện vẫn dùng Python."
  write_agent
+}
+ensure_config(){
  if [ ! -f "$CONFIG" ]; then write_config; else chown root:wheel "$CONFIG"; chmod 600 "$CONFIG"; fi
+}
+manual_detect(){
+ need_root
+ ensure_agent
+ ensure_config
+ echo
+ echo "=== MANUAL DETECT: thu thập và gửi Audit ngay, KHÔNG tạo Service ==="
+ /usr/bin/python3 "$BIN" --run-once || die "Manual Detect thất bại. Xem log: $LOGDIR/agent.log"
+ echo "Manual Detect hoàn tất. Chưa đăng ký LaunchDaemon."
+}
+install_service(){
+ need_root
+ ensure_agent
+ ensure_config
  write_plist
  launchctl bootout "$DOMAIN" >/dev/null 2>&1 || true
  launchctl bootstrap system "$PLIST" || die "launchctl bootstrap thất bại"
  launchctl kickstart -k "$DOMAIN" || die "Không khởi động được Service"
- log "Đã cài LaunchDaemon $LABEL"; launchctl print "$DOMAIN" | head -n 25
+ log "Đã cài LaunchDaemon $LABEL"
+ launchctl print "$DOMAIN" | head -n 25
 }
-status_service(){ launchctl print "$DOMAIN" || { echo "Service chưa cài; chạy sudo $0 --install"; exit 1; } }
+status_service(){ launchctl print "$DOMAIN" || { echo "Service chưa cài. Chọn mục 2 để tạo Service."; exit 1; } }
 uninstall_service(){ need_root; launchctl bootout "$DOMAIN" >/dev/null 2>&1 || true; rm -f "$PLIST"; echo "Đã gỡ Service; giữ cấu hình/log tại $ROOT"; }
-MODE="$1"
+menu(){
+ echo
+ echo "MSTAR PC Audit macOS"
+ echo "1. Manual Detect (chạy Audit ngay, không tạo Service)"
+ echo "2. Tạo Service riêng (LaunchDaemon chạy nền và sau reboot)"
+ echo "3. Kiểm tra Service"
+ echo "4. Chạy Manual Detect lại"
+ echo "5. Cấu hình lại Audit Code/thông tin nhân viên"
+ echo "6. Gỡ Service"
+ read -r -p "Chọn [1-6]: " choice
+ case "$choice" in
+  1) manual_detect ;;
+  2) install_service ;;
+  3) status_service ;;
+  4) manual_detect ;;
+  5) need_root; safe_dirs; ensure_agent; write_config; chown root:wheel "$CONFIG"; chmod 600 "$CONFIG"; echo "Đã lưu cấu hình." ;;
+  6) uninstall_service ;;
+  *) die "Lựa chọn không hợp lệ" ;;
+ esac
+}
+MODE="${1:---menu}"
 case "$MODE" in
- --install) install_service ;;
- --update) need_root; [ -f "$CONFIG" ] || die "Chưa cài"; install_service ;;
+ --menu|--install) menu ;;
+ --manual-detect) manual_detect ;;
+ --service-install) install_service ;;
+ --update) need_root; [ -f "$CONFIG" ] || die "Chưa cài cấu hình"; install_service ;;
  --status) status_service ;;
- --run-once) [ -x "$BIN" ] || die "Chưa cài"; /usr/bin/python3 "$BIN" --run-once ;;
- --reconfigure) need_root; safe_dirs; write_config; chown root:wheel "$CONFIG"; chmod 600 "$CONFIG"; launchctl kickstart -k "$DOMAIN" >/dev/null 2>&1 || true; log "Đã cập nhật cấu hình" ;;
+ --run-once) manual_detect ;;
+ --reconfigure) need_root; safe_dirs; ensure_agent; write_config; chown root:wheel "$CONFIG"; chmod 600 "$CONFIG"; echo "Đã cập nhật cấu hình" ;;
  --uninstall) uninstall_service ;;
- *) echo "Usage: sudo $0 {--install|--update|--uninstall|--status|--run-once|--reconfigure}"; exit 2 ;;
+ *) echo "Usage: sudo $0 {--menu|--manual-detect|--service-install|--update|--uninstall|--status|--reconfigure}"; exit 2 ;;
 esac
