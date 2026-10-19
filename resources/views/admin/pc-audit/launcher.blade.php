@@ -69,9 +69,15 @@
                 Máy đích cần kết nối HTTPS/TLS 1.2 tới máy chủ Audit. Website không thể tự chạy BAT trên máy người dùng do giới hạn bảo mật trình duyệt.
             </div>
             <div class="pc-launcher-actions">
-                <button type="submit" name="target_os" value="windows7" class="pc-launcher-submit">⬇ PowerShell — Windows 7</button>
-                <button type="submit" name="target_os" value="windows10" class="pc-launcher-submit">⬇ PowerShell — Windows 10/11+</button>
-                <button type="submit" name="target_os" value="nodejs" class="pc-launcher-submit" style="background:#1d4ed8">⬇ Node.js — Windows 7/10/11</button>
+                @if(auth()->user()?->hasPermission('pc_audit.package_windows7'))
+                    <button type="submit" name="target_os" value="windows7" class="pc-launcher-submit">⬇ PowerShell — Windows 7</button>
+                @endif
+                @if(auth()->user()?->hasPermission('pc_audit.package_windows10'))
+                    <button type="submit" name="target_os" value="windows10" class="pc-launcher-submit">⬇ PowerShell — Windows 10/11+</button>
+                @endif
+                @if(auth()->user()?->hasPermission('pc_audit.package_nodejs'))
+                    <button type="submit" name="target_os" value="nodejs" class="pc-launcher-submit" style="background:#1d4ed8">⬇ Node.js — Windows 7/10/11</button>
+                @endif
                 <a href="{{ route('admin.pc_audit.index') }}" style="color:#475569;font-size:13px;font-weight:700;text-decoration:none">Quay lại danh sách Audit</a>
             </div>
         </div>
