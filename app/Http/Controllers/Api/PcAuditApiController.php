@@ -282,6 +282,19 @@ class PcAuditApiController extends Controller
                 }
                 $item[$column] = $value;
             }
+            // Do not persist placeholder rows containing only NULL/empty values.
+            $hasMeaningfulValue = false;
+            foreach ($columns as $column) {
+                $candidate = $item[$column] ?? null;
+                if (is_array($candidate) || is_object($candidate)) {
+                    $candidate = json_encode($candidate, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                }
+                if ($candidate !== null && trim((string) $candidate) !== '') {
+                    $hasMeaningfulValue = true;
+                    break;
+                }
+            }
+            if (!$hasMeaningfulValue) continue;
             $insert[] = $item;
         }
         if ($insert) DB::table($table)->insert($insert);
