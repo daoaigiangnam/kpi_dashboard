@@ -62,11 +62,7 @@ class PcAuditAdminController extends Controller
             abort_unless(is_file($scriptPath), 500, 'Thiếu file nguồn PC Audit macOS: pc-audit-macos.sh');
 
             $macScript = (string) file_get_contents($scriptPath);
-            $macScript = str_replace(
-                'EMBEDDED_AUDIT_CODE="__MSTAR_AUDIT_CODE__"',
-                'EMBEDDED_AUDIT_CODE=' . escapeshellarg($auditCode->code),
-                $macScript
-            );
+            // macOS installer prompts for Audit Code on the target Mac; never embed customer codes in the ZIP.
 
             if (!class_exists(\ZipArchive::class)) {
                 return back()->withInput()->withErrors(['launcher' => 'PHP ZipArchive chưa được cài trên server. Vui lòng bật extension zip rồi thử lại.']);
@@ -81,7 +77,7 @@ class PcAuditAdminController extends Controller
                 return back()->withInput()->withErrors(['launcher' => 'Không thể tạo gói ZIP PC Audit macOS.']);
             }
             $zip->addFromString('Install-PC-Audit-macOS.command', $macScript);
-            $zip->addFromString('README-macOS.txt', "MSTAR PC Audit Agent for macOS\n\n1. Extract this ZIP.\n2. Open Terminal in the extracted folder.\n3. Run: chmod +x Install-PC-Audit-macOS.command && ./Install-PC-Audit-macOS.command\n4. Enter employee details when prompted.\n\nThe installer registers a per-user LaunchAgent and retrieves the schedule from the KPI Dashboard.\nLogs: ~/Library/Application Support/MSTAR/PCAudit/logs/agent.log\n");
+            $zip->addFromString('README-macOS.txt', "MSTAR PC Audit Agent for macOS\n\nIMPORTANT: This package installs a system LaunchDaemon and requires administrator permission.\n\n1. Extract this ZIP.\n2. Open Terminal in the extracted folder.\n3. Run: chmod +x Install-PC-Audit-macOS.command\n4. Run: sudo ./Install-PC-Audit-macOS.command --install\n5. Enter Audit Code and employee details when prompted.\n6. Check status: sudo ./Install-PC-Audit-macOS.command --status\n7. Run one audit: sudo ./Install-PC-Audit-macOS.command --run-once\n8. Reconfigure: sudo ./Install-PC-Audit-macOS.command --reconfigure\n9. Update: sudo ./Install-PC-Audit-macOS.command --update\n10. Uninstall: sudo ./Install-PC-Audit-macOS.command --uninstall\n\nService: system/vn.review360.pc-audit\nPlist: /Library/LaunchDaemons/vn.review360.pc-audit.plist\nLogs: /Library/Application Support/MSTAR/PCAudit/logs/agent.log\nThe current implementation uses /usr/bin/python3 and is not yet a self-contained executable.\n");
             $zip->close();
 
             $filename = 'PC_Audit_macOS_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $branch->code ?: $branch->name) . '_' . now()->format('Ymd_His') . '.zip';
