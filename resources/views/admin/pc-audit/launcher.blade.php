@@ -78,6 +78,9 @@
                 @if(auth()->user()?->hasPermission('pc_audit.package_nodejs'))
                     <button type="submit" name="target_os" value="nodejs" class="pc-launcher-submit" style="background:#1d4ed8">⬇ Node.js — Windows 7/10/11</button>
                 @endif
+                @if(auth()->user()?->hasPermission('pc_audit.package_macos'))
+                    <button type="submit" name="target_os" value="macos" class="pc-launcher-submit" style="background:#111827">⬇ Agent — macOS</button>
+                @endif
                 <a href="{{ route('admin.pc_audit.index') }}" style="color:#475569;font-size:13px;font-weight:700;text-decoration:none">Quay lại danh sách Audit</a>
             </div>
         </div>
