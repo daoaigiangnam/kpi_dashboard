@@ -21,7 +21,7 @@ copy /y "%~dp0PC_Audit.js" "%INSTALL_DIR%\PC_Audit.js" >nul
 if errorlevel 1 goto COPY_FILES_FAILED
 copy /y "%~f0" "%INSTALL_DIR%\PC_Audit.bat" >nul
 if errorlevel 1 goto COPY_FILES_FAILED
-if exist "%~dp0nssm.exe" copy /y "%~dp0nssm.exe" "%INSTALL_DIR%\nssm.exe" >nul
+if exist "%~dp0nssm\win32\nssm.exe" xcopy /e /i /y "%~dp0nssm" "%INSTALL_DIR%\nssm" >nul
 if exist "%~dp0README-Windows7.txt" copy /y "%~dp0README-Windows7.txt" "%INSTALL_DIR%\README-Windows7.txt" >nul
 echo Files copied successfully.
 start "MSTAR PC Audit - Installed" "%ComSpec%" /k call "%INSTALL_DIR%\PC_Audit.bat" __MSTAR_KEEP_OPEN__
@@ -200,8 +200,8 @@ if not exist "%INSTALL_DIR%\output" mkdir "%INSTALL_DIR%\output"
 net session >nul 2>&1
 if errorlevel 1 goto INSTALL_NEEDS_ADMIN
 if exist "%INSTALL_DIR%\nssm.exe" goto NSSM_READY
-if exist "%~dp0nssm.exe" (
-  copy /y "%~dp0nssm.exe" "%INSTALL_DIR%\nssm.exe" >nul
+if exist "%INSTALL_DIR%\nssm\!NSSM_ARCH!\nssm.exe" (
+  copy /y "%INSTALL_DIR%\nssm\!NSSM_ARCH!\nssm.exe" "%INSTALL_DIR%\nssm.exe" >nul
   if not errorlevel 1 goto NSSM_READY
 )
 set "NSSM_ARCH=win32"
