@@ -34,7 +34,23 @@ class User extends Authenticatable implements CanResetPasswordContract
 
     public function hasPermission(string $permission): bool
     {
-        return $this->is_active && ($this->isSuperAdmin() || ($this->group?->permissions()->where('code',$permission)->exists() ?? false));
+        if (!$this->is_active) {
+            return false;
+        }
+
+        // PC Audit package buttons are explicitly configurable even for Super Admin.
+        // All other permissions retain the existing Super Admin bypass.
+        $perButtonPermissions = [
+            'pc_audit.package_windows7',
+            'pc_audit.package_windows10',
+            'pc_audit.package_nodejs',
+        ];
+
+        if ($this->isSuperAdmin() && !in_array($permission, $perButtonPermissions, true)) {
+            return true;
+        }
+
+        return $this->group?->permissions()->where('code', $permission)->exists() ?? false;
     }
 
     public function isSuperAdmin(): bool { return $this->group?->name === 'Super Admin'; }
