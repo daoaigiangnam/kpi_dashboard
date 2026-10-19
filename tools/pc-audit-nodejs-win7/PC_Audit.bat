@@ -79,7 +79,7 @@ if defined NODE_EXE (
   echo Path: !NODE_EXE!
   if "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
     echo Version matches. Skipping Node.js installation.
-    goto RUN_AUDIT
+    goto INSTALL_FAILED_EXIT
   )
   echo.
   echo [WARNING] Installed Node.js version does not match the required version.
@@ -156,22 +156,14 @@ if not "!NODE_VERSION!"=="!NODE_VERSION_REQUIRED!" (
 )
 
 :RUN_AUDIT
-echo.
-echo [1] Chay Audit day du ngay bay gio (nen chay lan dau)
-echo [2] Cai dat Windows Service (lich lay tu Backend)
-echo [3] Dung Windows Service
-echo [4] Go Windows Service
-echo [5] Xem trang thai Service
-echo [6] Thoat
-echo.
-set "CHOICE="
-set /p CHOICE=Chon (1-6): 
-if "%CHOICE%"=="2" call :INSTALL_SERVICE
+goto INSTALL_SERVICE
+
+:INSTALL_SERVICE
 if "%CHOICE%"=="3" goto STOP_SERVICE
 if "%CHOICE%"=="4" goto REMOVE_SERVICE
 if "%CHOICE%"=="5" goto STATUS_SERVICE
 if "%CHOICE%"=="6" exit /b 0
-if not "%CHOICE%"=="1" goto RUN_AUDIT
+if not "%CHOICE%"=="1" goto INSTALL_FAILED_EXIT
 "!NODE_EXE!" "%INSTALL_DIR%\PC_Audit.js"
 set "AUDIT_EXIT=%ERRORLEVEL%"
 if not "%AUDIT_EXIT%"=="0" (
@@ -183,7 +175,7 @@ if not "%AUDIT_EXIT%"=="0" (
 echo.
 echo Audit da ket thuc. Quay lai menu chinh...
 timeout /t 2 /nobreak >nul
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
 :INSTALL_SERVICE
 if not exist "%~dp0output" mkdir "%~dp0output"
@@ -241,72 +233,78 @@ echo.
 echo Da cai dat Windows Service MSTAR_PCAudit.
 echo Schedule do Backend quan ly; Service lay cau hinh moi 5 phut. Log trong thu muc output.
 pause
-goto RUN_AUDIT
+exit /b 0
 
 :INSTALL_NEEDS_ADMIN
 echo [ERROR] Hay chay PC_Audit.bat bang Run as administrator.
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
 :NSSM_DOWNLOAD_FAILED
 echo [ERROR] Khong tai duoc NSSM tu MSTAR Server va nguon du phong.
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
 :NSSM_EXTRACT_FAILED
 echo [ERROR] Khong giai nen duoc file NSSM.
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
 :NSSM_COPY_FAILED
 echo [ERROR] Khong tim thay hoac sao chep duoc NSSM !NSSM_ARCH!.
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
 :SERVICE_CONFIG_FAILED
 echo [ERROR] Khong cau hinh duoc Service. Kiem tra Audit Code va ket noi Server.
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
 :NODE_NOT_FOUND
 echo [ERROR] Khong tim thay node.exe.
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
 :NSSM_INSTALL_FAILED
 echo [ERROR] NSSM khong tao duoc Service. Kiem tra Service da ton tai chua.
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
 :SERVICE_START_FAILED
 echo [ERROR] Da tao Service nhung khong khoi dong duoc. Kiem tra output\service-stderr.log.
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
+
+:INSTALL_FAILED_EXIT
+echo.
+echo [ERROR] Installation did not complete. Review the message above and retry as Administrator.
+pause
+exit /b 1
 
 :STOP_SERVICE
 net session >nul 2>&1
 if errorlevel 1 (
   echo [ERROR] Hay chay bang Run as administrator.
   pause
-  goto RUN_AUDIT
+  goto INSTALL_FAILED_EXIT
 )
 "%~dp0nssm.exe" stop MSTAR_PCAudit
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
 :REMOVE_SERVICE
 net session >nul 2>&1
 if errorlevel 1 (
   echo [ERROR] Hay chay bang Run as administrator.
   pause
-  goto RUN_AUDIT
+  goto INSTALL_FAILED_EXIT
 )
 "!NODE_EXE!" "%INSTALL_DIR%\PC_Audit.js" --remove-service
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
 :STATUS_SERVICE
 "!NODE_EXE!" "%INSTALL_DIR%\PC_Audit.js" --service-status
 pause
-goto RUN_AUDIT
+goto INSTALL_FAILED_EXIT
 
