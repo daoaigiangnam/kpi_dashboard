@@ -68,20 +68,20 @@ class PcAuditAdminController extends Controller
                 $macScript
             );
 
-            if (!class_exists(\\ZipArchive::class)) {
+            if (!class_exists(\ZipArchive::class)) {
                 return back()->withInput()->withErrors(['launcher' => 'PHP ZipArchive chưa được cài trên server. Vui lòng bật extension zip rồi thử lại.']);
             }
             $tmp = tempnam(sys_get_temp_dir(), 'pc-audit-macos-');
             if ($tmp === false) {
                 return back()->withInput()->withErrors(['launcher' => 'Không tạo được file tạm để đóng gói PC Audit macOS.']);
             }
-            $zip = new \\ZipArchive();
-            if ($zip->open($tmp, \\ZipArchive::OVERWRITE) !== true) {
+            $zip = new \ZipArchive();
+            if ($zip->open($tmp, \ZipArchive::OVERWRITE) !== true) {
                 @unlink($tmp);
                 return back()->withInput()->withErrors(['launcher' => 'Không thể tạo gói ZIP PC Audit macOS.']);
             }
             $zip->addFromString('Install-PC-Audit-macOS.command', $macScript);
-            $zip->addFromString('README-macOS.txt', "MSTAR PC Audit Agent for macOS\\n\\n1. Extract this ZIP.\\n2. Open Terminal in the extracted folder.\\n3. Run: chmod +x Install-PC-Audit-macOS.command && ./Install-PC-Audit-macOS.command\\n4. Enter employee details when prompted.\\n\\nThe installer registers a per-user LaunchAgent and retrieves the schedule from the KPI Dashboard.\\nLogs: ~/Library/Application Support/MSTAR/PCAudit/logs/agent.log\\n");
+            $zip->addFromString('README-macOS.txt', "MSTAR PC Audit Agent for macOS\n\n1. Extract this ZIP.\n2. Open Terminal in the extracted folder.\n3. Run: chmod +x Install-PC-Audit-macOS.command && ./Install-PC-Audit-macOS.command\n4. Enter employee details when prompted.\n\nThe installer registers a per-user LaunchAgent and retrieves the schedule from the KPI Dashboard.\nLogs: ~/Library/Application Support/MSTAR/PCAudit/logs/agent.log\n");
             $zip->close();
 
             $filename = 'PC_Audit_macOS_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $branch->code ?: $branch->name) . '_' . now()->format('Ymd_His') . '.zip';
