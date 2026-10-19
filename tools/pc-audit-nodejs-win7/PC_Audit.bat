@@ -199,13 +199,13 @@ goto RUN_AUDIT
 if not exist "%INSTALL_DIR%\output" mkdir "%INSTALL_DIR%\output"
 net session >nul 2>&1
 if errorlevel 1 goto INSTALL_NEEDS_ADMIN
+set "NSSM_ARCH=win32"
+if /i "%ARCH%"=="x64" set "NSSM_ARCH=win64"
 if exist "%INSTALL_DIR%\nssm.exe" goto NSSM_READY
 if exist "%INSTALL_DIR%\nssm\!NSSM_ARCH!\nssm.exe" (
   copy /y "%INSTALL_DIR%\nssm\!NSSM_ARCH!\nssm.exe" "%INSTALL_DIR%\nssm.exe" >nul
   if not errorlevel 1 goto NSSM_READY
 )
-set "NSSM_ARCH=win32"
-if /i "%ARCH%"=="x64" set "NSSM_ARCH=win64"
 echo Dang tai NSSM tu MSTAR Server (!NSSM_ARCH!)...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[System.Enum]::ToObject([System.Net.SecurityProtocolType],3072); $u='https://kpi.review360.id.vn/nssm/!NSSM_ARCH!/nssm.exe'; $p='%INSTALL_DIR%\nssm.exe'; try { (New-Object Net.WebClient).DownloadFile($u,$p); $f=Get-Item $p; if($f.Length -lt 50000){Remove-Item $p -Force; throw 'File NSSM tai ve qua nho'} } catch { if(Test-Path $p){Remove-Item $p -Force -ErrorAction SilentlyContinue}; Write-Host ('Tai tu MSTAR Server that bai: '+$_.Exception.Message); exit 1 }"
 if not errorlevel 1 goto NSSM_READY
