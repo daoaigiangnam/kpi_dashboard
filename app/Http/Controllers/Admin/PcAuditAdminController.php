@@ -27,7 +27,7 @@ class PcAuditAdminController extends Controller
         $data = $request->validate([
             'customer_id' => ['required', 'integer', 'exists:service_customers,id'],
             'branch_id' => ['required', 'integer', 'exists:customer_branches,id'],
-            'target_os' => ['required', 'in:windows7,windows10,nodejs'],
+            'target_os' => ['required', 'in:windows7,windows10,nodejs,macos'],
         ]);
 
         // Enforce the button-specific permission server-side as well as hiding the button in the UI.
@@ -35,6 +35,7 @@ class PcAuditAdminController extends Controller
             'windows7' => 'pc_audit.package_windows7',
             'windows10' => 'pc_audit.package_windows10',
             'nodejs' => 'pc_audit.package_nodejs',
+            'macos' => 'pc_audit.package_macos',
         ];
         abort_unless(
             auth()->user()?->hasPermission($buttonPermissions[$data['target_os']]),
@@ -53,6 +54,38 @@ class PcAuditAdminController extends Controller
                 for ($i = 0; $i < 6; $i++) { $code .= $alphabet[random_int(0, strlen($alphabet) - 1)]; }
             } while (PcAuditCode::query()->where('code', $code)->exists());
             $auditCode = PcAuditCode::create(['branch_id' => $branch->id, 'code' => $code, 'name' => 'PC Audit - ' . $branch->name, 'is_active' => true]);
+        }
+
+        if ($data['target_os'] === 'macos') {
+            $macToolPath = base_path('tools/pc-audit-macos');
+            $scriptPath = $macToolPath . DIRECTORY_SEPARATOR . 'pc-audit-macos.sh';
+            abort_unless(is_file($scriptPath), 500, 'Thiếu file nguồn PC Audit macOS: pc-audit-macos.sh');
+
+            $macScript = (string) file_get_contents($scriptPath);
+            $macScript = str_replace(
+                'EMBEDDED_AUDIT_CODE="__MSTAR_AUDIT_CODE__"',
+                'EMBEDDED_AUDIT_CODE=' . escapeshellarg($auditCode->code),
+                $macScript
+            );
+
+            if (!class_exists(\\ZipArchive::class)) {
+                return back()->withInput()->withErrors(['launcher' => 'PHP ZipArchive chưa được cài trên server. Vui lòng bật extension zip rồi thử lại.']);
+            }
+            $tmp = tempnam(sys_get_temp_dir(), 'pc-audit-macos-');
+            if ($tmp === false) {
+                return back()->withInput()->withErrors(['launcher' => 'Không tạo được file tạm để đóng gói PC Audit macOS.']);
+            }
+            $zip = new \\ZipArchive();
+            if ($zip->open($tmp, \\ZipArchive::OVERWRITE) !== true) {
+                @unlink($tmp);
+                return back()->withInput()->withErrors(['launcher' => 'Không thể tạo gói ZIP PC Audit macOS.']);
+            }
+            $zip->addFromString('Install-PC-Audit-macOS.command', $macScript);
+            $zip->addFromString('README-macOS.txt', "MSTAR PC Audit Agent for macOS\\n\\n1. Extract this ZIP.\\n2. Open Terminal in the extracted folder.\\n3. Run: chmod +x Install-PC-Audit-macOS.command && ./Install-PC-Audit-macOS.command\\n4. Enter employee details when prompted.\\n\\nThe installer registers a per-user LaunchAgent and retrieves the schedule from the KPI Dashboard.\\nLogs: ~/Library/Application Support/MSTAR/PCAudit/logs/agent.log\\n");
+            $zip->close();
+
+            $filename = 'PC_Audit_macOS_' . preg_replace('/[^A-Za-z0-9_-]+/', '_', $branch->code ?: $branch->name) . '_' . now()->format('Ymd_His') . '.zip';
+            return response()->download($tmp, $filename, ['Content-Type' => 'application/zip'])->deleteFileAfterSend(true);
         }
 
         if ($data['target_os'] === 'nodejs') {
