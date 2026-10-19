@@ -15,18 +15,30 @@ class PcAuditEngine
     {
         $security = is_array($data['security'] ?? null) ? $data['security'] : [];
         $windows = is_array($data['windows'] ?? null) ? $data['windows'] : [];
+        $other = is_array($data['other'] ?? null) ? $data['other'] : [];
+        $isMac = strtolower((string) ($other['platform'] ?? '')) === 'macos';
         $results = [];
 
-        $this->add($results, 'windows', 'Windows', $this->windowsResult($windows));
-        $this->add($results, 'windows_license', 'Windows License', $this->licenseResult($data['licenses']['windows'] ?? []));
-        $this->add($results, 'antivirus', 'Antivirus', $this->antivirusResult($security['antivirus'] ?? []));
-        $this->add($results, 'bitlocker', 'BitLocker', $this->bitlockerResult($security['bitlocker'] ?? []));
-        $this->add($results, 'firewall', 'Firewall', $this->firewallResult($security['firewall'] ?? []));
-        $this->add($results, 'tpm', 'TPM', $this->tpmResult($security['tpm'] ?? null));
-        $this->add($results, 'secure_boot', 'Secure Boot', $this->booleanResult($security['secure_boot'] ?? null, 'Secure Boot'));
-        $this->add($results, 'storage', 'Storage', $this->storageResult($data['storage'] ?? []));
-        $this->add($results, 'network', 'Network', $this->networkResult($data['network'] ?? []));
-        $this->add($results, 'uptime', 'Uptime', $this->uptimeResult($windows['uptime_hours'] ?? null));
+        if ($isMac) {
+            $this->add($results, 'operating_system', 'macOS', $this->windowsResult($windows));
+            $this->add($results, 'filevault', 'FileVault', $this->fileVaultResult($security['filevault'] ?? null));
+            $this->add($results, 'antivirus', 'Antivirus / Endpoint Protection', $this->review('Chưa có bộ thu thập antivirus đa nhà cung cấp cho macOS.'));
+            $this->add($results, 'firewall', 'macOS Firewall', $this->firewallResult($security['firewall'] ?? []));
+            $this->add($results, 'storage', 'Storage', $this->storageResult($data['storage'] ?? []));
+            $this->add($results, 'network', 'Network Adapter', $this->macNetworkResult($data['network'] ?? []));
+            $this->add($results, 'software_inventory', 'Ứng dụng đã cài', !empty($data['software']) ? $this->pass('Đã thu thập danh sách ứng dụng theo sự đồng ý.') : $this->review('Không thu thập danh sách ứng dụng hoặc chưa có dữ liệu.'));
+        } else {
+            $this->add($results, 'windows', 'Windows', $this->windowsResult($windows));
+            $this->add($results, 'windows_license', 'Windows License', $this->licenseResult($data['licenses']['windows'] ?? []));
+            $this->add($results, 'antivirus', 'Antivirus', $this->antivirusResult($security['antivirus'] ?? []));
+            $this->add($results, 'bitlocker', 'BitLocker', $this->bitlockerResult($security['bitlocker'] ?? []));
+            $this->add($results, 'firewall', 'Firewall', $this->firewallResult($security['firewall'] ?? []));
+            $this->add($results, 'tpm', 'TPM', $this->tpmResult($security['tpm'] ?? null));
+            $this->add($results, 'secure_boot', 'Secure Boot', $this->booleanResult($security['secure_boot'] ?? null, 'Secure Boot'));
+            $this->add($results, 'storage', 'Storage', $this->storageResult($data['storage'] ?? []));
+            $this->add($results, 'network', 'Network', $this->networkResult($data['network'] ?? []));
+            $this->add($results, 'uptime', 'Uptime', $this->uptimeResult($windows['uptime_hours'] ?? null));
+        }
 
         $pass = count(array_filter($results, fn ($r) => $r['status'] === 'PASS'));
         $review = count(array_filter($results, fn ($r) => $r['status'] === 'REVIEW'));
@@ -53,6 +65,23 @@ class PcAuditEngine
     {
         if (!$windows) return $this->review('Không thu thập được thông tin Windows.');
         return !empty($windows['caption']) ? $this->pass($windows['caption']) : $this->review('Thiếu tên hệ điều hành.');
+    }
+
+    private function fileVaultResult(mixed $filevault): array
+    {
+        if (!is_array($filevault) || !array_key_exists('enabled', $filevault) || $filevault['enabled'] === null) {
+            return $this->review('Không xác định được trạng thái FileVault.');
+        }
+        return $filevault['enabled'] === true
+            ? $this->pass('FileVault đang bật.')
+            : $this->fail('FileVault đang tắt.');
+    }
+
+    private function macNetworkResult(mixed $items): array
+    {
+        if (!is_array($items) || !$items) return $this->review('Không phát hiện adapter mạng đang hoạt động.');
+        $active = array_filter($items, fn ($x) => is_array($x) && (($x['connection_status'] ?? '') === 'Connected'));
+        return $active ? $this->pass('Đã phát hiện adapter mạng đang hoạt động; IP/MAC không được gửi theo chính sách quyền riêng tư.') : $this->review('Chưa xác định được adapter mạng đang hoạt động.');
     }
 
     private function licenseResult(mixed $licenses): array
