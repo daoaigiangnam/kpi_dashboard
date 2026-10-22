@@ -15,19 +15,37 @@
 </form><div class="actions" style="margin-top:14px">
 @if(auth()->user()->hasPermission('customer.assets.create'))<a class="btn" href="{{ route('customer.assets.create') }}">+ Tạo tài sản</a>@endif
 @if(auth()->user()->hasPermission('customer.assets.export'))
-<a class="btn secondary" href="{{ route('customer.assets.export',request()->query()) }}">Xuất Excel / CSV</a>
+<form id="asset-export-form" method="GET" action="{{ route('customer.assets.export') }}" class="actions" style="margin:0;align-items:center">
+@foreach(request()->query() as $key=>$value) @if(!is_array($value))<input type="hidden" name="{{ $key }}" value="{{ $value }}">@endif @endforeach
+<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="export-all-filtered" name="all_filtered" value="1"> Xuất toàn bộ kết quả theo bộ lọc</label>
+<button class="btn secondary" type="submit">Xuất CSV mở bằng Excel</button>
+</form>
 @else
 <span class="muted" title="Liên hệ quản trị viên để được cấp quyền xuất dữ liệu">Xuất Excel: chưa được cấp quyền</span>
 @endif
 </div></section>
 <section class="card"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px"><strong>Danh sách tài sản</strong><span class="muted">{{ number_format($assets->total()) }} bản ghi</span></div>
-<div class="table-wrap"><table><thead><tr><th>Tài sản</th><th>Asset Tag</th><th>Serial</th><th>Chi nhánh</th><th>Người sử dụng</th><th>Trạng thái</th><th>Ngày kiểm kê</th><th>Thao tác</th></tr></thead><tbody>
-@forelse($assets as $asset)<tr><td><strong>{{ $asset->computer_name ?: 'Chưa đặt tên' }}</strong><div class="muted">{{ $asset->manufacturer }} {{ $asset->model }}</div></td><td>{{ $asset->asset_tag ?: '—' }}</td><td>{{ $asset->serial_number ?: '—' }}</td><td>{{ $asset->auditCode?->branch?->name ?: '—' }}</td><td>{{ $asset->employee_name ?: '—' }}</td><td><span class="status">{{ $asset->audit_status ?: 'REVIEW' }}</span></td><td>{{ $asset->collected_at?->format('d/m/Y H:i') ?: '—' }}</td><td><div class="actions">
+<div class="table-wrap"><table><thead><tr><th><input type="checkbox" id="select-visible-assets" aria-label="Chọn tất cả trên trang"></th><th>Tài sản</th><th>Asset Tag</th><th>Serial</th><th>Chi nhánh</th><th>Người sử dụng</th><th>Trạng thái</th><th>Ngày kiểm kê</th><th>Thao tác</th></tr></thead><tbody>
+@forelse($assets as $asset)<tr><td><input type="checkbox" class="asset-select" value="{{ $asset->id }}" aria-label="Chọn tài sản"></td><td><strong>{{ $asset->computer_name ?: 'Chưa đặt tên' }}</strong><div class="muted">{{ $asset->manufacturer }} {{ $asset->model }}</div></td><td>{{ $asset->asset_tag ?: '—' }}</td><td>{{ $asset->serial_number ?: '—' }}</td><td>{{ $asset->auditCode?->branch?->name ?: '—' }}</td><td>{{ $asset->employee_name ?: '—' }}</td><td><span class="status">{{ $asset->audit_status ?: 'REVIEW' }}</span></td><td>{{ $asset->collected_at?->format('d/m/Y H:i') ?: '—' }}</td><td><div class="actions">
 <a class="btn small" href="{{ route('customer.assets.show',$asset->asset_lookup_token) }}">Chi tiết</a>
 @if(auth()->user()->hasPermission('customer.assets.qr'))<a class="btn small secondary" href="{{ route('customer.assets.qr',$asset->asset_lookup_token) }}">QR</a>@endif
 @if(auth()->user()->hasPermission('customer.assets.edit'))<a class="btn small secondary" href="{{ route('customer.assets.edit',$asset->asset_lookup_token) }}">Sửa</a>@endif
 @if(auth()->user()->hasPermission('customer.assets.delete'))<form method="POST" action="{{ route('customer.assets.destroy',$asset->asset_lookup_token) }}" onsubmit="return confirm('Xác nhận xóa tài sản này?')">@csrf @method('DELETE')<button class="btn small danger" type="submit">Xóa</button></form>@endif
 </div></td></tr>
-@empty<tr><td colspan="8" style="text-align:center;padding:30px">Không có tài sản phù hợp bộ lọc.</td></tr>@endforelse
+@empty<tr><td colspan="9" style="text-align:center;padding:30px">Không có tài sản phù hợp bộ lọc.</td></tr>@endforelse
 </tbody></table></div><div class="pagination">{{ $assets->links() }}</div></section>
-</main></body></html>
+</main><script>
+(function(){
+ const selectVisible=document.getElementById('select-visible-assets');
+ const allFiltered=document.getElementById('export-all-filtered');
+ const exportForm=document.getElementById('asset-export-form');
+ if(selectVisible) selectVisible.addEventListener('change',()=>document.querySelectorAll('.asset-select').forEach(cb=>cb.checked=selectVisible.checked));
+ if(exportForm) exportForm.addEventListener('submit',function(e){
+   exportForm.querySelectorAll('input[name="ids[]"]').forEach(el=>el.remove());
+   const all=allFiltered && allFiltered.checked;
+   const selected=Array.from(document.querySelectorAll('.asset-select:checked'));
+   if(!all && selected.length===0){e.preventDefault();alert('Hãy chọn ít nhất một tài sản hoặc chọn Xuất toàn bộ kết quả theo bộ lọc.');return;}
+   if(!all) selected.forEach(cb=>{const input=document.createElement('input');input.type='hidden';input.name='ids[]';input.value=cb.value;exportForm.appendChild(input);});
+ });
+})();
+</script></body></html>
