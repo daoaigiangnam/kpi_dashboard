@@ -9,6 +9,8 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\CustomerBranch;
 
 class User extends Authenticatable implements CanResetPasswordContract
 {
@@ -19,14 +21,14 @@ class User extends Authenticatable implements CanResetPasswordContract
         'join_date','department','location','department_id','unit_id','user_group_id',
         'job_title_id','notes','password','is_active','registration_status',
         'registration_reviewed_at','registration_reviewed_by','registration_rejection_reason',
-        'account_type','service_customer_id','can_view_assets','can_view_audit','can_download_qr',
+        'account_type','service_customer_id','can_view_assets','can_view_audit','can_download_qr','can_access_all_branches',
     ];
 
     protected $hidden = ['password','remember_token'];
     protected $casts = [
         'is_active'=>'boolean','date_of_birth'=>'date','join_date'=>'date',
         'registration_reviewed_at'=>'datetime','password'=>'hashed',
-        'can_view_assets'=>'boolean','can_view_audit'=>'boolean','can_download_qr'=>'boolean',
+        'can_view_assets'=>'boolean','can_view_audit'=>'boolean','can_download_qr'=>'boolean','can_access_all_branches'=>'boolean',
     ];
 
     public function group(): BelongsTo { return $this->belongsTo(UserGroup::class,'user_group_id'); }
@@ -36,6 +38,22 @@ class User extends Authenticatable implements CanResetPasswordContract
     public function registrationReviewer(): BelongsTo { return $this->belongsTo(self::class,'registration_reviewed_by'); }
     public function customer(): BelongsTo { return $this->belongsTo(ServiceCustomer::class,'service_customer_id'); }
     public function serviceCustomer(): BelongsTo { return $this->belongsTo(ServiceCustomer::class,'service_customer_id'); }
+
+    public function permittedBranches(): BelongsToMany
+    {
+        return $this->belongsToMany(CustomerBranch::class, 'customer_user_branches', 'user_id', 'customer_branch_id')->withTimestamps();
+    }
+
+    public function canAccessBranch(int $branchId): bool
+    {
+        if (!$this->isCustomerAccount()) {
+            return false;
+        }
+        if ($this->can_access_all_branches) {
+            return true;
+        }
+        return $this->permittedBranches()->where('customer_branches.id', $branchId)->exists();
+    }
 
     /** Customers for which this User is the assigned IT operations owner. */
     public function serviceCustomers(): HasMany
