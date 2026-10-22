@@ -57,11 +57,11 @@ $flatten = function($value, string $prefix = '', int $depth = 0) use (&$flatten)
 </div>@endforeach</div></div></details>@endforeach
 
 @if($asset->details)
-<section class="card"><h2>Chi tiết Audit bổ sung</h2><div class="grid">
+<details class="card audit-section"><summary><h2>Chi tiết Audit bổ sung</h2></summary><div class="section-body"><div class="grid">
 @foreach(['CPU'=>$asset->details->cpu,'Memory'=>$asset->details->memory,'Storage detail'=>$asset->details->storage,'Monitor detail'=>$asset->details->monitors,'GPU detail'=>$asset->details->gpu,'Battery detail'=>$asset->details->battery,'Windows detail'=>$asset->details->windows,'Network detail'=>$asset->details->network,'Security detail'=>$asset->details->security,'Licenses detail'=>$asset->details->licenses,'Software detail'=>$asset->details->software,'Other'=>$asset->details->other] as $label=>$value)
 <div class="field"><div class="label">{{ $label }}</div>@php $flat=$flatten($value); @endphp @if(count($flat))@foreach($flat as $k=>$v)<div class="value">{{ $k }}: {{ $v }}</div>@endforeach @else<div class="value">—</div>@endif</div>
 @endforeach
-</div></section>
+</div></div></details>
 @endif
 
 @foreach($collections as [$title,$items])
