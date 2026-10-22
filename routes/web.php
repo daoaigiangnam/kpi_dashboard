@@ -33,6 +33,8 @@ use App\Http\Controllers\Admin\ServiceMonitoringController;
 use App\Http\Controllers\Admin\ServiceToolsController;
 use App\Http\Controllers\Admin\CustomerAssetAccessController;
 use App\Http\Controllers\Customer\AssetController as CustomerAssetController;
+use App\Http\Controllers\Admin\CustomerAssetAccessController;
+use App\Http\Controllers\Customer\AssetController as CustomerAssetController;
 
 Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name('login');
 
