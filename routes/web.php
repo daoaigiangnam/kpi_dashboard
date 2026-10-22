@@ -93,6 +93,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::get('customer-assets/users/{user}/edit', [CustomerAssetAccessController::class, 'edit'])->middleware('permission:customer_accounts.manage')->name('customer_assets.users.edit');
     Route::put('customer-assets/users/{user}', [CustomerAssetAccessController::class, 'update'])->middleware('permission:customer_accounts.manage')->name('customer_assets.users.update');
     Route::patch('customer-assets/users/{user}/toggle', [CustomerAssetAccessController::class, 'toggle'])->middleware('permission:customer_accounts.manage')->name('customer_assets.users.toggle');
+    Route::post('customer-assets/users/{user}/send-setup-password', [CustomerAssetAccessController::class, 'sendSetupPassword'])->middleware('permission:customer_accounts.manage')->name('customer_assets.users.send_setup_password');
     Route::get('users',[UserController::class,'index'])->middleware('permission:users.view')->name('users.index');
     Route::get('users/pending',[UserController::class,'pending'])->middleware('permission:users.view')->name('users.pending');
     Route::post('users/{user}/approve',[UserController::class,'approve'])->middleware('permission:users.view')->name('users.approve');
