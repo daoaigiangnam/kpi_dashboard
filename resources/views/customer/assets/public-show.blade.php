@@ -1,78 +1,78 @@
 <!doctype html>
-<html lang="vi">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>Tra cứu tài sản | Review360</title>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Tra cứu tài sản | Review360</title>
 <style>
-:root{--green:#123b2a;--teal:#0f766e;--ink:#19372b;--muted:#6b7d73;--line:#dce8e1;--bg:#f2f7f4}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink)}
-.wrap{max-width:780px;margin:auto;padding:16px}.hero{background:linear-gradient(135deg,#123b2a,#0f766e);color:#fff;border-radius:18px;padding:24px;margin-bottom:14px}
-.kicker{font-size:12px;text-transform:uppercase;letter-spacing:.08em;opacity:.8;font-weight:700}.hero h1{font-size:25px;line-height:1.25;margin:8px 0}.hero p{margin:0;opacity:.9;font-size:14px}
-.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:18px;margin:14px 0;box-shadow:0 3px 12px #153b2a0a}
-.card h2{font-size:17px;margin:0 0 15px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field{min-width:0}.label{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.04em}.value{font-size:15px;font-weight:650;margin-top:4px;overflow-wrap:anywhere}.value.large{font-size:19px}.pill{display:inline-block;background:#fff1c7;color:#805400;padding:5px 10px;border-radius:30px;font-size:12px;font-weight:800}.pill.pass{background:#dcfce7;color:#166534}.pill.fail{background:#fee2e2;color:#991b1b}
-.person{display:flex;gap:13px;align-items:center}.avatar{width:48px;height:48px;display:grid;place-items:center;background:#dff4e9;color:#12634d;border-radius:14px;font-weight:800;font-size:20px;flex:none}.person .name{font-size:17px;font-weight:750}.person .sub{color:var(--muted);font-size:13px;margin-top:3px}
-.summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric{padding:12px;background:#f6faf7;border:1px solid #e4eee8;border-radius:10px}.metric .label{font-size:10px}.metric .value{font-size:14px}
-.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:700;background:var(--teal);color:#fff}.btn.secondary{background:#fff;color:var(--teal);border:1px solid #b8d6c7}
-.note{font-size:12px;line-height:1.55;color:var(--muted);margin:15px 2px 5px}.empty{color:var(--muted);font-size:13px}
-@media(max-width:480px){.wrap{padding:10px}.hero{padding:20px}.hero h1{font-size:23px}.card{padding:15px}.grid{grid-template-columns:1fr 1fr;gap:12px}.value{font-size:14px}.summary{grid-template-columns:1fr 1fr}}
-</style></head>
-<body><main class="wrap">
-<header class="hero"><div class="kicker">Review360 · Tra cứu bằng QR Code</div><h1>{{ $asset->computer_name ?: 'Thông tin tài sản' }}</h1><p>Trang tra cứu chỉ đọc · Không cần đăng nhập</p></header>
-
-<section class="card"><h2>Thông tin người sử dụng</h2>
-<div class="person"><div class="avatar">{{ mb_strtoupper(mb_substr(trim((string)($asset->employee_name ?: 'U')),0,1)) }}</div><div><div class="name">{{ $asset->employee_name ?: 'Chưa cập nhật người sử dụng' }}</div><div class="sub">{{ $asset->department ?: 'Chưa cập nhật phòng ban' }}</div></div></div>
-<div class="grid" style="margin-top:17px">
-<div class="field"><div class="label">Chi nhánh</div><div class="value">{{ $asset->auditCode?->branch?->name ?: '—' }}</div></div>
-<div class="field"><div class="label">Đơn vị quản lý</div><div class="value">{{ $asset->auditCode?->branch?->customer?->name ?: '—' }}</div></div>
-</div></section>
-
-<section class="card"><h2>Thông tin cơ bản của máy</h2><div class="summary">
-<div class="metric"><div class="label">Mã tài sản</div><div class="value">{{ $asset->asset_tag ?: 'Chưa có mã' }}</div></div>
-<div class="metric"><div class="label">Serial Number</div><div class="value">{{ $asset->serial_number ?: '—' }}</div></div>
-<div class="metric"><div class="label">Hãng sản xuất</div><div class="value">{{ $asset->manufacturer ?: '—' }}</div></div>
-<div class="metric"><div class="label">Model</div><div class="value">{{ $asset->model ?: '—' }}</div></div>
-<div class="metric"><div class="label">Hệ điều hành</div><div class="value">{{ is_array($os) ? ($os['caption'] ?? $os['name'] ?? $os['product_name'] ?? 'Đã kiểm kê') : ($os ?: '—') }}</div></div>
-<div class="metric"><div class="label">Lần kiểm kê gần nhất</div><div class="value">{{ $asset->collected_at?->format('d/m/Y H:i') ?: '—' }}</div></div>
-</div>
-<div class="grid" style="margin-top:15px"><div class="field"><div class="label">Trạng thái Audit</div><div class="value"><span class="pill {{ strtoupper((string)$asset->audit_status)==='PASS'?'pass':(strtoupper((string)$asset->audit_status)==='FAIL'?'fail':'') }}">{{ $asset->audit_status ?: 'REVIEW' }}</span></div></div><div class="field"><div class="label">Điểm Audit</div><div class="value large">{{ $asset->audit_score !== null ? $asset->audit_score : '—' }}</div></div></div>
-</section>
-
-@if($hardware)
-<section class="card"><h2>Tóm tắt cấu hình phần cứng</h2>
+:root{--green:#123b2a;--teal:#0f766e;--ink:#19372b;--muted:#6b7d73;--line:#dce8e1;--bg:#f2f7f4}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink)}.wrap{max-width:1000px;margin:auto;padding:14px}.hero{background:linear-gradient(135deg,#123b2a,#0f766e);color:#fff;border-radius:16px;padding:22px;margin-bottom:14px}.hero h1{font-size:24px;line-height:1.25;margin:8px 0}.muted{font-size:12px;color:var(--muted)}.hero .muted{color:#d9e9e1}.card{background:#fff;border:1px solid var(--line);border-radius:13px;padding:17px;margin:13px 0;box-shadow:0 3px 12px #153b2a0a}.card h2{font-size:17px;margin:0 0 13px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.field{min-width:0;padding:10px;background:#f7faf8;border:1px solid #e5eee8;border-radius:9px}.label{font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;color:var(--muted)}.value{font-size:14px;font-weight:650;margin-top:4px;overflow-wrap:anywhere;white-space:pre-wrap}.person{display:flex;gap:12px;align-items:center}.avatar{width:46px;height:46px;border-radius:12px;background:#dff4e9;display:grid;place-items:center;color:#12634d;font-size:20px;font-weight:800;flex:none}.person-name{font-size:17px;font-weight:750}.pill{display:inline-block;padding:5px 10px;border-radius:30px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:800}.pill.pass{background:#dcfce7;color:#166534}.pill.fail{background:#fee2e2;color:#991b1b}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:9px}table{width:100%;border-collapse:collapse;font-size:12px;min-width:500px}th,td{text-align:left;padding:9px;border-bottom:1px solid #e7eee9;vertical-align:top;overflow-wrap:anywhere}th{background:#f5f9f7;color:#52665b;font-size:10px;text-transform:uppercase;white-space:nowrap}tr:last-child td{border-bottom:0}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border-radius:9px;background:var(--teal);color:white;text-decoration:none;font-weight:700;font-size:13px}.note{font-size:12px;line-height:1.55;color:var(--muted);margin:14px 2px}
+@media(max-width:680px){.wrap{padding:9px}.hero{padding:18px}.hero h1{font-size:21px}.card{padding:12px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.field{padding:9px}.value{font-size:13px}.person-name{font-size:15px}.card h2{font-size:16px}}@media(max-width:370px){.grid{grid-template-columns:1fr}}
+</style></head><body><main class="wrap">
 @php
-$pick = function ($data, array $keys): array {
-    if (is_string($data)) { $decoded = json_decode($data, true); if (is_array($decoded)) $data = $decoded; }
-    if (!is_array($data)) return [];
+$systemFields = [
+ ['Thông tin hệ thống', ['Mainboard'=>$asset->mainboard,'BIOS'=>$asset->bios,'Operating System'=>$asset->operating_system,'Windows Update'=>$asset->windows_update,'Last Boot'=>$asset->last_boot,'Uptime'=>$asset->uptime,'TPM'=>$asset->tpm,'Secure Boot'=>$asset->secure_boot]],
+];
+$collections = [
+ ['RAM', $asset->memory], ['Storage', $asset->storage], ['Monitors', $asset->monitors], ['GPU', $asset->gpu],
+ ['Battery', $asset->batteries], ['Network', $asset->network], ['Antivirus', $asset->antivirus],
+ ['BitLocker', $asset->bitlocker], ['Firewall', $asset->firewall], ['Licenses', $asset->licenses], ['Software', $asset->software],
+];
+$flatten = function($value, string $prefix = '', int $depth = 0) use (&$flatten): array {
+    if (is_string($value)) { $decoded = json_decode($value, true); if (json_last_error() === JSON_ERROR_NONE && (is_array($decoded) || is_object($decoded))) $value = $decoded; }
+    if (!is_array($value)) return $value === null || $value === '' ? [] : [$prefix ?: 'Giá trị' => is_bool($value) ? ($value ? 'Có' : 'Không') : (string)$value];
     $rows = [];
-    $walk = function ($value, int $depth = 0) use (&$walk, &$rows, $keys): void {
-        if (count($rows) >= 8 || $depth > 3 || !is_array($value)) return;
-        foreach ($value as $key => $item) {
-            if (count($rows) >= 8) break;
-            if (is_string($key) && in_array(strtolower($key), $keys, true) && (is_scalar($item) || $item === null)) {
-                if ($item !== null && $item !== '') $rows[ucfirst(str_replace('_',' ',(string)$key))] = (string)$item;
-            } elseif (is_array($item)) { $walk($item, $depth + 1); }
+    foreach ($value as $key=>$item) {
+        if (in_array((string)$key, ['raw_payload','password','token','secret','credential'], true)) continue;
+        $label = $prefix === '' ? (string)$key : $prefix.' / '.(string)$key;
+        if (is_array($item)) {
+            if ($depth < 4) $rows += $flatten($item, $label, $depth + 1);
+            else $rows[$label] = '[Dữ liệu lồng nhau]';
+        } elseif (is_object($item)) {
+            $rows[$label] = '[Dữ liệu]';
+        } elseif ($item !== null && $item !== '') {
+            $rows[$label] = is_bool($item) ? ($item ? 'Có' : 'Không') : (string)$item;
         }
-    };
-    $walk($data);
+    }
     return $rows;
 };
-$cpuRows = $pick($cpu, ['name','model','manufacturer','cores','threads','max_clock','processorname']);
-$memoryRows = $pick($memory, ['capacity','size','speed','manufacturer','name','formfactor']);
-$storageRows = $pick($storage, ['model','name','size','capacity','media_type','interfacetype']);
 @endphp
-<div class="grid">
-@foreach([['CPU',$cpuRows],['RAM',$memoryRows],['Ổ lưu trữ',$storageRows]] as [$title,$rows])
-<div class="metric"><div class="label">{{ $title }}</div>
-@if(count($rows))@foreach($rows as $label=>$value)<div class="value">{{ $label }}: {{ $value }}</div>@endforeach
-@else<div class="value">Chưa có dữ liệu chi tiết</div>@endif
+<header class="hero"><div class="muted">REVIEW360 · TRA CỨU BẰNG QR CODE</div><h1>{{ $asset->computer_name ?: 'Thông tin tài sản' }}</h1><div class="muted">Chỉ đọc · Không cần đăng nhập</div></header>
+
+<section class="card"><h2>Thông tin người sử dụng</h2><div class="person"><div class="avatar">{{ mb_strtoupper(mb_substr(trim((string)($asset->employee_name ?: 'U')),0,1)) }}</div><div><div class="person-name">{{ $asset->employee_name ?: 'Chưa cập nhật người sử dụng' }}</div><div class="muted">{{ $asset->department ?: 'Chưa cập nhật phòng ban' }}</div></div></div>
+<div class="grid" style="margin-top:13px">
+@foreach(['Username'=>$asset->employee_username,'Email'=>$asset->employee_email,'Điện thoại'=>$asset->employee_mobile,'Domain'=>$asset->domain,'Đơn vị'=>$asset->auditCode?->branch?->customer?->name,'Chi nhánh'=>$asset->auditCode?->branch?->name] as $label=>$value)<div class="field"><div class="label">{{ $label }}</div><div class="value">{{ $value ?: '—' }}</div></div>@endforeach
+</div></section>
+
+<section class="card"><h2>Thông tin cơ bản của máy</h2><div class="grid">
+@foreach(['Computer Name'=>$asset->computer_name,'Asset Tag'=>$asset->asset_tag,'Serial Number'=>$asset->serial_number,'Manufacturer'=>$asset->manufacturer,'Model'=>$asset->model,'Audit Code'=>$asset->auditCode?->code,'Ngày kiểm kê'=>$asset->collected_at?->format('d/m/Y H:i:s'),'Trạng thái Audit'=>$asset->audit_status,'Điểm Audit'=>$asset->audit_score] as $label=>$value)<div class="field"><div class="label">{{ $label }}</div><div class="value">@if($label==='Trạng thái Audit')<span class="pill {{ strtoupper((string)$value)==='PASS'?'pass':(strtoupper((string)$value)==='FAIL'?'fail':'') }}">{{ $value ?: 'REVIEW' }}</span>@else{{ $value ?? '—' }}@endif</div></div>@endforeach
+</div></section>
+
+<section class="card"><h2>Kết quả Audit</h2>
+@php $auditResult=$asset->audit_results ?? []; $checks=$auditResult['results'] ?? []; $summary=$auditResult['summary'] ?? []; @endphp
+<div class="grid" style="margin-bottom:12px">
+@foreach(['PASS'=>$summary['pass'] ?? null,'REVIEW'=>$summary['review'] ?? null,'FAIL'=>$summary['fail'] ?? null] as $status=>$count)<div class="field"><div class="label">{{ $status }}</div><div class="value">{{ $count ?? '—' }}</div></div>@endforeach
 </div>
-@endforeach
-</div>
+@if(count($checks))<div class="tablewrap"><table><thead><tr><th>Tiêu chí</th><th>Kết quả</th><th>Ghi chú</th></tr></thead><tbody>@foreach($checks as $check)@if(is_array($check))<tr><td>{{ $check['label'] ?? $check['key'] ?? '—' }}</td><td><span class="pill {{ strtoupper((string)($check['status'] ?? ''))==='PASS'?'pass':(strtoupper((string)($check['status'] ?? ''))==='FAIL'?'fail':'') }}">{{ $check['status'] ?? 'REVIEW' }}</span></td><td>{{ $check['message'] ?? '' }}</td></tr>@endif @endforeach</tbody></table></div>@else<p class="muted">Không có tiêu chí Audit chi tiết.</p>@endif
 </section>
+
+@foreach($systemFields as [$title,$fields])<section class="card"><h2>{{ $title }}</h2><div class="grid">@foreach($fields as $label=>$value)<div class="field"><div class="label">{{ $label }}</div>
+@php $flat=$flatten($value); @endphp
+@if(count($flat))@foreach($flat as $k=>$v)<div class="value">{{ $k }}: {{ $v }}</div>@endforeach @else<div class="value">—</div>@endif
+</div>@endforeach</div></section>@endforeach
+
+@if($asset->details)
+<section class="card"><h2>Chi tiết Audit bổ sung</h2><div class="grid">
+@foreach(['CPU'=>$asset->details->cpu,'Memory'=>$asset->details->memory,'Storage detail'=>$asset->details->storage,'Monitor detail'=>$asset->details->monitors,'GPU detail'=>$asset->details->gpu,'Battery detail'=>$asset->details->battery,'Windows detail'=>$asset->details->windows,'Network detail'=>$asset->details->network,'Security detail'=>$asset->details->security,'Licenses detail'=>$asset->details->licenses,'Software detail'=>$asset->details->software,'Other'=>$asset->details->other] as $label=>$value)
+<div class="field"><div class="label">{{ $label }}</div>@php $flat=$flatten($value); @endphp @if(count($flat))@foreach($flat as $k=>$v)<div class="value">{{ $k }}: {{ $v }}</div>@endforeach @else<div class="value">—</div>@endif</div>
+@endforeach
+</div></section>
 @endif
 
-<section class="card"><h2>Xem chi tiết Audit</h2><p class="empty">Để bảo vệ dữ liệu nội bộ, cấu hình đầy đủ và các tiêu chí Audit chi tiết chỉ dành cho tài khoản được cấp quyền.</p>
-<div class="actions"><a class="btn" href="{{ route('customer.assets.show', $asset->asset_lookup_token) }}">Đăng nhập / Xem chi tiết tài sản</a></div>
+@foreach($collections as [$title,$items])
+<section class="card"><h2>{{ $title }} ({{ $items->count() }})</h2>
+@if($items->isEmpty())<p class="muted">Không có dữ liệu được thu thập.</p>
+@else<div class="tablewrap"><table><thead><tr>@foreach(array_keys($items->first()->toArray()) as $field)@if(!in_array($field,['id','pc_audit_id','created_at','updated_at']))<th>{{ str_replace('_',' ',$field) }}</th>@endif @endforeach</tr></thead><tbody>
+@foreach($items as $item)<tr>@foreach($item->toArray() as $field=>$value)@if(!in_array($field,['id','pc_audit_id','created_at','updated_at']))<td>@if(is_array($value)||is_object($value))@foreach($flatten($value) as $key=>$v)<div><strong>{{ $key }}:</strong> {{ $v }}</div>@endforeach @else{{ $value ?? '—' }}@endif</td>@endif @endforeach</tr>@endforeach
+</tbody></table></div>@endif
 </section>
-<p class="note">QR này chỉ cung cấp thông tin nhận diện tài sản và người sử dụng ở mức cơ bản. Người có đường dẫn QR có thể xem các thông tin trên. Không chia sẻ mã QR ra ngoài phạm vi cần thiết; quản trị viên nên thu hồi token nếu mã bị lộ.</p>
+@endforeach
+
+<section class="card"><h2>Xem trang chi tiết có đăng nhập</h2><p class="muted">Trang QR này chỉ đọc. Đăng nhập bằng tài khoản khách hàng được cấp quyền để mở cổng tài sản.</p><div class="actions"><a class="btn" href="{{ route('customer.assets.show', $asset->asset_lookup_token) }}">Đăng nhập / Xem chi tiết</a></div></section>
+<p class="note">Thông tin này có thể được xem bởi bất kỳ ai có đường dẫn QR. Không đưa mã QR ra ngoài phạm vi cần thiết. Nếu mã bị lộ, hãy thu hồi token và tạo QR mới. Các trường chưa được thiết bị thu thập sẽ hiển thị dấu gạch ngang.</p>
 </main></body></html>
