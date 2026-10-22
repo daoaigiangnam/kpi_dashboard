@@ -11,6 +11,11 @@ use App\Models\PcAuditCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class AssetController extends Controller
 {
@@ -80,42 +85,112 @@ class AssetController extends Controller
         $assets = $query->with(['auditCode.branch.customer','details','memory','storage','monitors','gpu','batteries','network','antivirus','bitlocker','firewall','licenses','software'])->orderBy('id')->get();
         abort_if($assets->isEmpty(), 404, 'Không có tài sản phù hợp để xuất.');
 
-        $text = static function ($v): string {
-            if (is_array($v) || is_object($v)) $v = json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            $v = $v === null ? '' : (string) $v;
-            return preg_match('/^[=+@\\-\\t\\r]/', $v) ? "'".$v : $v;
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Danh sách máy');
+        $headers = ['STT','Khách hàng','Chi nhánh','Phòng ban','Họ tên','Di động','Email','Username','Domain','Tên máy tính','Hãng','Model','Serial Number','Asset Tag','Audit Code','Trạng thái Audit','Điểm Audit','Ngày kiểm kê','CPU','RAM','Ổ đĩa','Hệ điều hành','IP','MAC','Antivirus','BitLocker','TPM','Secure Boot','Số phần mềm'];
+        $sheet->fromArray($headers, null, 'A1');
+        $detailSheet = $spreadsheet->createSheet();
+        $detailSheet->setTitle('Chi tiết cấu hình');
+        $detailSheet->fromArray(['Tên máy tính','Nhóm thông tin','Trường','Giá trị'], null, 'A1');
+
+        $display = static function ($value): string {
+            if (is_array($value) || is_object($value)) return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?: '';
+            if (is_bool($value)) return $value ? 'Có' : 'Không';
+            return $value === null ? '' : (string) $value;
         };
-        $many = static function ($items): string {
-            return $items->map(fn ($item) => collect($item->getAttributes())->except(['id','pc_audit_id','created_at','updated_at'])->map(fn ($v,$k) => str_replace('_',' ',$k).': '.(is_array($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : (string)$v))->implode(' | '))->filter()->implode("\n");
-        };
-        return response()->streamDownload(function () use ($assets, $text, $many): void {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Khách hàng','Chi nhánh','Phòng ban','Họ Tên','Di động','Email','Username','Domain','Tên máy tính','Manufacturer','Model','Serial Number','Asset Tag','Mainboard','BIOS','CPU','RAM','HDD','Monitor','VGA','Battery','OS','Windows Update','Last Boot','Uptime','LAN','WIFI','MODEM','IP','MAC','Gateway','DNS','DHCP','Connection Status','Link Speed','Antivirus','BitLocker','Firewall','TPM','Secure Boot','Windows Activation','Office Activation','Ngày thu thập','SOFTWARE']);
-            foreach ($assets as $x) {
-                $net = $x->network;
-                $netText = fn ($type) => $net->filter(fn ($n) => strtoupper((string)($n->type ?? '')) === $type)->map(fn ($n) => $many(collect([$n])))->filter()->implode("\n");
-                $field = fn ($items, $key) => $items->map(fn ($n) => $n->{$key} ?? null)->filter(fn ($v) => $v !== null && $v !== '')->unique()->implode("\n");
-                $licenses = $x->licenses;
-                $values = [
-                    $x->auditCode?->branch?->customer?->name, $x->auditCode?->branch?->name, $x->department,
-                    $x->employee_name, $x->employee_mobile, $x->employee_email, $x->employee_username, $x->domain,
-                    $x->computer_name, $x->manufacturer, $x->model, $x->serial_number, $x->asset_tag,
-                    $x->mainboard ?: ($x->details?->hardware ?? null), $x->bios, $x->details?->cpu, $many($x->memory),
-                    $many($x->storage), $many($x->monitors), $many($x->gpu), $many($x->batteries),
-                    $x->operating_system, $x->windows_update, $x->last_boot, $x->uptime,
-                    $netText('LAN'), $netText('WIFI'), $netText('MODEM'), $field($net,'ipv4'), $field($net,'mac'),
-                    $field($net,'gateway'), $field($net,'dns'), $field($net,'dhcp'), $field($net,'connection_status'),
-                    $field($net,'link_speed'), $many($x->antivirus), $many($x->bitlocker), $many($x->firewall),
-                    $x->tpm, $x->secure_boot,
-                    $many($licenses->filter(fn ($l) => stripos((string)($l->product_type ?? ''),'windows') !== false)),
-                    $many($licenses->filter(fn ($l) => stripos((string)($l->product_type ?? ''),'office') !== false)),
-                    $x->collected_at?->format('Y-m-d H:i:s'), $many($x->software),
-                ];
-                fputcsv($out, array_map($text, $values));
+        $flatten = static function ($value, string $prefix = '') use (&$flatten, $display): array {
+            if (is_string($value)) {
+                $decoded = json_decode($value, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) $value = $decoded;
             }
-            fclose($out);
-        }, 'PC_Audit_Inventory_'.now()->format('Ymd_His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+            if (!is_array($value)) return $value === null || $value === '' ? [] : [[$prefix ?: 'Giá trị', $display($value)]];
+            $rows = [];
+            foreach ($value as $key => $item) {
+                if (in_array((string) $key, ['raw_payload','password','token','secret','credential'], true)) continue;
+                $name = $prefix === '' ? (string) $key : $prefix.' / '.(string) $key;
+                if (is_array($item)) {
+                    foreach ($flatten($item, $name) as $row) $rows[] = $row;
+                } elseif ($item !== null && $item !== '') {
+                    $rows[] = [$name, $display($item)];
+                }
+            }
+            return $rows;
+        };
+        $row = 2;
+        $detailRow = 2;
+        foreach ($assets as $index => $asset) {
+            $net = $asset->network;
+            $networkValue = fn ($field) => $net->pluck($field)->filter(fn ($v) => $v !== null && $v !== '')->unique()->implode("\n");
+            $sheet->fromArray([[
+                $index + 1, $asset->auditCode?->branch?->customer?->name, $asset->auditCode?->branch?->name,
+                $asset->department, $asset->employee_name, $asset->employee_mobile, $asset->employee_email,
+                $asset->employee_username, $asset->domain, $asset->computer_name, $asset->manufacturer, $asset->model,
+                $asset->serial_number, $asset->asset_tag, $asset->auditCode?->code, $asset->audit_status,
+                $asset->audit_score, $asset->collected_at?->format('d/m/Y H:i:s'),
+                $display($asset->details?->cpu),
+                $net->isNotEmpty() ? $asset->memory->map(fn ($m) => ($m->capacity ?? '').' '.$m->unit.' / '.($m->speed ?? '').' MHz')->implode("\n") : $asset->memory->map(fn ($m) => $display($m->getAttributes()))->implode("\n"),
+                $asset->storage->map(fn ($s) => ($s->drive ?? '').' '.($s->used_gb ?? '').' / '.($s->total_gb ?? '').' GB')->implode("\n"),
+                $display($asset->operating_system), $networkValue('ipv4'), $networkValue('mac'),
+                $asset->antivirus->map(fn ($v) => $v->display_name ?? $display($v->getAttributes()))->implode("\n"),
+                $asset->bitlocker->map(fn ($v) => ($v->mount_point ?? '').': '.($v->protection_status ?? '').' / '.($v->encryption_percent ?? '').'%')->implode("\n"),
+                $display($asset->tpm), $display($asset->secure_boot), $asset->software->count(),
+            ]], null, 'A'.$row);
+            $detailGroups = [
+                'Thông tin người sử dụng' => ['Phòng ban'=>$asset->department,'Họ tên'=>$asset->employee_name,'Di động'=>$asset->employee_mobile,'Email'=>$asset->employee_email,'Username'=>$asset->employee_username,'Domain'=>$asset->domain],
+                'Thông tin máy' => ['Computer Name'=>$asset->computer_name,'Manufacturer'=>$asset->manufacturer,'Model'=>$asset->model,'Serial Number'=>$asset->serial_number,'Asset Tag'=>$asset->asset_tag,'Audit Code'=>$asset->auditCode?->code,'Ngày kiểm kê'=>$asset->collected_at?->format('d/m/Y H:i:s')],
+                'Thông tin hệ thống' => ['Mainboard'=>$asset->mainboard,'BIOS'=>$asset->bios,'Operating System'=>$asset->operating_system,'Windows Update'=>$asset->windows_update,'Last Boot'=>$asset->last_boot,'Uptime'=>$asset->uptime,'TPM'=>$asset->tpm,'Secure Boot'=>$asset->secure_boot],
+                'Kết quả Audit' => ['Trạng thái'=>$asset->audit_status,'Điểm'=>$asset->audit_score,'Kết quả'=>$asset->audit_results],
+                'RAM' => ['RAM'=>$asset->memory->map(fn ($v) => $v->getAttributes())->all()],
+                'Storage' => ['Storage'=>$asset->storage->map(fn ($v) => $v->getAttributes())->all()],
+                'Monitors' => ['Monitors'=>$asset->monitors->map(fn ($v) => $v->getAttributes())->all()],
+                'GPU' => ['GPU'=>$asset->gpu->map(fn ($v) => $v->getAttributes())->all()],
+                'Battery' => ['Battery'=>$asset->batteries->map(fn ($v) => $v->getAttributes())->all()],
+                'Network' => ['Network'=>$asset->network->map(fn ($v) => $v->getAttributes())->all()],
+                'Antivirus' => ['Antivirus'=>$asset->antivirus->map(fn ($v) => $v->getAttributes())->all()],
+                'BitLocker' => ['BitLocker'=>$asset->bitlocker->map(fn ($v) => $v->getAttributes())->all()],
+                'Firewall' => ['Firewall'=>$asset->firewall->map(fn ($v) => $v->getAttributes())->all()],
+                'Licenses' => ['Licenses'=>$asset->licenses->map(fn ($v) => $v->getAttributes())->all()],
+                'Software' => ['Software'=>$asset->software->map(fn ($v) => $v->getAttributes())->all()],
+                'Chi tiết Audit bổ sung' => $asset->details ? $asset->details->only(['hardware','cpu','memory','storage','monitors','gpu','battery','windows','network','security','licenses','software','other']) : [],
+            ];
+            foreach ($detailGroups as $group => $fields) {
+                foreach ($fields as $label => $value) {
+                    $flat = $flatten($value, $label);
+                    if (!$flat) $flat = [[$label, '']];
+                    foreach ($flat as [$field, $content]) {
+                        $detailSheet->fromArray([[$asset->computer_name, $group, $field, $content]], null, 'A'.$detailRow++);
+                    }
+                }
+            }
+            $row++;
+        }
+        foreach ([$sheet, $detailSheet] as $ws) {
+            $lastCol = $ws->getHighestDataColumn();
+            $lastRow = $ws->getHighestDataRow();
+            $ws->getStyle('A1:'.$lastCol.'1')->applyFromArray([
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '145A45']],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            ]);
+            $ws->getRowDimension(1)->setRowHeight(32);
+            $ws->freezePane('A2');
+            $ws->setAutoFilter('A1:'.$lastCol.$lastRow);
+            $ws->getStyle('A2:'.$lastCol.$lastRow)->getAlignment()->setVertical(Alignment::VERTICAL_TOP)->setWrapText(true);
+            $ws->getStyle('A1:'.$lastCol.$lastRow)->getBorders()->getBottom()->setBorderStyle(Border::BORDER_HAIR);
+            foreach (range('A', $lastCol) as $column) {
+                $ws->getColumnDimension($column)->setAutoSize(true);
+                if ($ws === $detailSheet && $column === 'D') $ws->getColumnDimension($column)->setWidth(65);
+            }
+            if ($ws === $sheet) {
+                foreach (['A'=>7,'B'=>28,'C'=>22,'D'=>18,'E'=>25,'F'=>17,'G'=>30,'H'=>20,'I'=>18,'J'=>23,'K'=>18,'L'=>18,'M'=>22,'N'=>18,'O'=>16,'P'=>16,'Q'=>13,'R'=>20,'S'=>28,'T'=>24,'U'=>24,'V'=>36,'W'=>22,'X'=>22,'Y'=>28,'Z'=>25,'AA'=>25,'AB'=>18,'AC'=>14] as $column => $width) $ws->getColumnDimension($column)->setWidth($width);
+            }
+        }
+        $filename = 'PC_Audit_Inventory_'.now()->format('Ymd_His').'.xlsx';
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     public function create(Request $request)
