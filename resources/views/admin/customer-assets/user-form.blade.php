@@ -34,10 +34,15 @@
 @if($branches->isEmpty())<p>Chưa có chi nhánh hoạt động được cấu hình.</p>@endif
 </div>
 <hr>
-<h3>Quyền chức năng</h3>
-<div class="field"><label><input type="checkbox" name="can_view_assets" value="1" @checked(old('can_view_assets',$user->can_view_assets))> Xem danh sách tài sản</label></div>
-<div class="field"><label><input type="checkbox" name="can_view_audit" value="1" @checked(old('can_view_audit',$user->can_view_audit))> Xem thông tin chi tiết Audit</label></div>
-<div class="field"><label><input type="checkbox" name="can_download_qr" value="1" @checked(old('can_download_qr',$user->can_download_qr))> Tạo/In QR Code tài sản</label></div>
+<h3>Phân quyền tài sản (CRUD)</h3>
+<p class="muted">Các quyền được kiểm tra ở phía máy chủ. Bỏ quyền xem sẽ tự động vô hiệu hóa các thao tác CRUD.</p>
+<div class="field"><label><input type="checkbox" name="can_view_assets" value="1" @checked(old('can_view_assets',$user->can_view_assets))> Xem danh sách và chi tiết tài sản (Read)</label></div>
+<div class="field"><label><input type="checkbox" name="can_create_assets" value="1" @checked(old('can_create_assets',$user->can_create_assets))> Tạo tài sản (Create)</label></div>
+<div class="field"><label><input type="checkbox" name="can_edit_assets" value="1" @checked(old('can_edit_assets',$user->can_edit_assets))> Sửa thông tin tài sản (Update)</label></div>
+<div class="field"><label><input type="checkbox" name="can_delete_assets" value="1" @checked(old('can_delete_assets',$user->can_delete_assets))> Xóa tài sản (Delete)</label></div>
+<div class="field"><label><input type="checkbox" name="can_export_assets" value="1" @checked(old('can_export_assets',$user->can_export_assets))> Xuất danh sách Excel/CSV</label></div>
+<div class="field"><label><input type="checkbox" name="can_view_audit" value="1" @checked(old('can_view_audit',$user->can_view_audit))> Xem kết quả Audit chi tiết</label></div>
+<div class="field"><label><input type="checkbox" name="can_download_qr" value="1" @checked(old('can_download_qr',$user->can_download_qr))> Tạo/In QR Code (quét mã công khai chỉ đọc)</label></div>
 <div class="field"><label><input type="checkbox" name="is_active" value="1" @checked(old('is_active',$user->exists ? $user->is_active : true))> Tài khoản hoạt động</label></div>
 <div class="actions"><button class="btn" type="submit">Lưu</button><a class="btn gray" href="{{ route('admin.customer_assets.users') }}">Hủy</a></div>
 </form>
