@@ -51,10 +51,10 @@ $flatten = function($value, string $prefix = '', int $depth = 0) use (&$flatten)
 @if(count($checks))<div class="tablewrap"><table><thead><tr><th>Tiêu chí</th><th>Kết quả</th><th>Ghi chú</th></tr></thead><tbody>@foreach($checks as $check)@if(is_array($check))<tr><td>{{ $check['label'] ?? $check['key'] ?? '—' }}</td><td><span class="pill {{ strtoupper((string)($check['status'] ?? ''))==='PASS'?'pass':(strtoupper((string)($check['status'] ?? ''))==='FAIL'?'fail':'') }}">{{ $check['status'] ?? 'REVIEW' }}</span></td><td>{{ $check['message'] ?? '' }}</td></tr>@endif @endforeach</tbody></table></div>@else<p class="muted">Không có tiêu chí Audit chi tiết.</p>@endif
 </section>
 
-@foreach($systemFields as [$title,$fields])<section class="card"><h2>{{ $title }}</h2><div class="grid">@foreach($fields as $label=>$value)<div class="field"><div class="label">{{ $label }}</div>
+@foreach($systemFields as [$title,$fields])<details class="card audit-section"><summary><h2>{{ $title }}</h2></summary><div class="section-body"><div class="grid">@foreach($fields as $label=>$value)<div class="field"><div class="label">{{ $label }}</div>
 @php $flat=$flatten($value); @endphp
 @if(count($flat))@foreach($flat as $k=>$v)<div class="value">{{ $k }}: {{ $v }}</div>@endforeach @else<div class="value">—</div>@endif
-</div>@endforeach</div></section>@endforeach
+</div>@endforeach</div></div></details>@endforeach
 
 @if($asset->details)
 <section class="card"><h2>Chi tiết Audit bổ sung</h2><div class="grid">
