@@ -10,6 +10,7 @@ use App\Models\PcAudit;
 use App\Models\PcAuditCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -73,7 +74,7 @@ class AssetController extends Controller
         return view('customer.assets.index', compact('assets', 'branches', 'statuses', 'manufacturers'));
     }
 
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request): BinaryFileResponse
     {
         $user = $request->user();
         abort_unless($user?->hasPermission('customer.assets.export'), 403);
@@ -179,18 +180,23 @@ class AssetController extends Controller
             $ws->getStyle('A2:'.$lastCol.$lastRow)->getAlignment()->setVertical(Alignment::VERTICAL_TOP)->setWrapText(true);
             $ws->getStyle('A1:'.$lastCol.$lastRow)->getBorders()->getBottom()->setBorderStyle(Border::BORDER_HAIR);
             foreach (range('A', $lastCol) as $column) {
-                $ws->getColumnDimension($column)->setAutoSize(true);
-                if ($ws === $detailSheet && $column === 'D') $ws->getColumnDimension($column)->setWidth(65);
+                $ws->getColumnDimension($column)->setWidth($ws === $detailSheet ? (['A'=>26,'B'=>24,'C'=>34,'D'=>58][$column] ?? 22) : (['A'=>7,'B'=>28,'C'=>22,'D'=>18,'E'=>25,'F'=>17,'G'=>30,'H'=>20,'I'=>18,'J'=>23,'K'=>18,'L'=>18,'M'=>22,'N'=>18,'O'=>16,'P'=>16,'Q'=>13,'R'=>20,'S'=>28,'T'=>24,'U'=>24,'V'=>36,'W'=>22,'X'=>22,'Y'=>28,'Z'=>25,'AA'=>25,'AB'=>18,'AC'=>14][$column] ?? 20));
             }
             if ($ws === $sheet) {
                 foreach (['A'=>7,'B'=>28,'C'=>22,'D'=>18,'E'=>25,'F'=>17,'G'=>30,'H'=>20,'I'=>18,'J'=>23,'K'=>18,'L'=>18,'M'=>22,'N'=>18,'O'=>16,'P'=>16,'Q'=>13,'R'=>20,'S'=>28,'T'=>24,'U'=>24,'V'=>36,'W'=>22,'X'=>22,'Y'=>28,'Z'=>25,'AA'=>25,'AB'=>18,'AC'=>14] as $column => $width) $ws->getColumnDimension($column)->setWidth($width);
             }
         }
         $filename = 'PC_Audit_Inventory_'.now()->format('Ymd_His').'.xlsx';
-        return response()->streamDownload(function () use ($spreadsheet): void {
-            $writer = new Xlsx($spreadsheet);
-            $writer->save('php://output');
-        }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+        $temporaryFile = tempnam(sys_get_temp_dir(), 'pc-audit-xlsx-');
+        abort_if($temporaryFile === false, 500, 'Không tạo được file Excel tạm thời.');
+        try {
+            (new Xlsx($spreadsheet))->save($temporaryFile);
+        } catch (\\Throwable $exception) {
+            @unlink($temporaryFile);
+            report($exception);
+            abort(500, 'Không thể tạo file Excel. Vui lòng kiểm tra log máy chủ.');
+        }
+        return response()->download($temporaryFile, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])->deleteFileAfterSend(true);
     }
 
     public function create(Request $request)
