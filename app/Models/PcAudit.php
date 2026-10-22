@@ -36,6 +36,33 @@ class PcAudit extends Model
                 $audit->asset_lookup_token = bin2hex(random_bytes(24));
             }
         });
+
+        // Preserve the existing internal PC Audit visibility rules. Customer
+        // portal queries are separately tenant-scoped in Customer\\AssetController.
+        static::addGlobalScope('pc_audit_responsible_group', function ($builder): void {
+            if (!function_exists('request') || !request()->routeIs('admin.pc_audit.*')) {
+                return;
+            }
+
+            $user = auth()->user();
+            if (!$user || $user->isSuperAdmin()) {
+                return;
+            }
+
+            $groupId = $user->user_group_id;
+            if (!$groupId) {
+                $builder->whereRaw('1 = 0');
+                return;
+            }
+
+            $builder->where(function ($query) use ($groupId): void {
+                $query->whereHas('auditCode.branch.customer.responsibleIt', function ($responsible) use ($groupId): void {
+                    $responsible->where('user_group_id', $groupId);
+                })->orWhereHas('auditCode.branch.customer.groups', function ($groups) use ($groupId): void {
+                    $groups->whereKey($groupId);
+                });
+            });
+        });
     }
 
     public function auditCode(): BelongsTo { return $this->belongsTo(PcAuditCode::class, 'pc_audit_code_id'); }
