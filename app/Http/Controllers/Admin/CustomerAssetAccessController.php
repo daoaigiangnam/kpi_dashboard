@@ -135,7 +135,7 @@ class CustomerAssetAccessController extends Controller
         try {
             $this->sendPasswordSetupEmail($user, false);
             return back()->with('success', 'Đã gửi email thiết lập/đặt lại mật khẩu tới '.$user->email.'.');
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             report($e);
             return back()->withErrors('Không gửi được email. Vui lòng kiểm tra cấu hình SMTP.');
         }
