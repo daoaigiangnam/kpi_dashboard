@@ -111,7 +111,7 @@ class CustomerAssetAccessController extends Controller
         abort_unless($user->account_type === 'customer', 404);
         $customers = ServiceCustomer::query()
             ->where(function ($query) use ($user): void {
-                $query->where('is_active', true)->orWhereKey($user->service_customer_id);
+                $query->where('is_active', true)->orWhere('id', $user->service_customer_id);
             })
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
