@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash as PasswordHash;
 use Illuminate\Support\Facades\Password;
 use App\Notifications\PasswordResetOtpNotification;
 
@@ -74,7 +73,7 @@ class CustomerAssetAccessController extends Controller
                 'success',
                 'Đã tạo tài khoản khách hàng và gửi email thiết lập mật khẩu tới '.$user->email.'.'
             );
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             report($e);
             return redirect()->route('admin.customer_assets.users')->with(
                 'warning',
@@ -149,7 +148,7 @@ class CustomerAssetAccessController extends Controller
         DB::table('password_reset_otps')->where('email', $user->email)->delete();
         DB::table('password_reset_otps')->insert([
             'email' => $user->email,
-            'otp_hash' => PasswordHash::make($otp),
+            'otp_hash' => Hash::make($otp),
             'expires_at' => now()->addMinutes(10),
             'attempts' => 0,
             'created_at' => now(),
