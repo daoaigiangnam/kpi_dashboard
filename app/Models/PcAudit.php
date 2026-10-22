@@ -31,36 +31,10 @@ class PcAudit extends Model
 
     protected static function booted(): void
     {
-        static::addGlobalScope('pc_audit_responsible_group', function ($builder): void {
-            // Only apply the responsible-IT visibility rule inside the PC Audit admin module.
-            // The Audit Agent API is intentionally not affected by this scope.
-            if (!function_exists('request') || !request()->routeIs('admin.pc_audit.*')) {
-                return;
+        static::creating(function (self $audit): void {
+            if (empty($audit->asset_lookup_token)) {
+                $audit->asset_lookup_token = bin2hex(random_bytes(24));
             }
-
-            $user = auth()->user();
-            if (!$user || $user->isSuperAdmin()) {
-                return;
-            }
-
-            $groupId = $user->user_group_id;
-            if (!$groupId) {
-                $builder->whereRaw('1 = 0');
-                return;
-            }
-
-            $builder->where(function ($query) use ($groupId): void {
-                // New rule: visibility follows the Customer's Responsible IT user's group.
-                $query->whereHas('auditCode.branch.customer.responsibleIt', function ($responsible) use ($groupId): void {
-                    $responsible->where('user_group_id', $groupId);
-                });
-
-                // Backward compatibility for existing Customers that have not yet been
-                // assigned a Responsible IT user: keep the previous Customer -> Group mapping.
-                $query->orWhereHas('auditCode.branch.customer.groups', function ($groups) use ($groupId): void {
-                    $groups->whereKey($groupId);
-                });
-            });
         });
     }
 
