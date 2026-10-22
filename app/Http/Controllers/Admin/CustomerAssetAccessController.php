@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\CustomerBranch;
-use App\Models\PcAudit;
 use App\Models\ServiceCustomer;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -88,7 +86,12 @@ class CustomerAssetAccessController extends Controller
     public function edit(User $user)
     {
         abort_unless($user->account_type === 'customer', 404);
-        $customers = ServiceCustomer::query()->where('is_active', true)->orWhereKey($user->service_customer_id)->orderBy('name')->get(['id', 'code', 'name']);
+        $customers = ServiceCustomer::query()
+            ->where(function ($query) use ($user): void {
+                $query->where('is_active', true)->orWhereKey($user->service_customer_id);
+            })
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
         return view('admin.customer-assets.user-form', compact('user', 'customers'));
     }
 
