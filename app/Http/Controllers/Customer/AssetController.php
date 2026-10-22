@@ -17,7 +17,12 @@ class AssetController extends Controller
         abort_unless($user->service_customer_id, 403);
 
         $assets = PcAudit::query()
-            ->whereHas('auditCode.branch', fn ($q) => $q->where('customer_id', $user->service_customer_id))
+            ->whereHas('auditCode.branch', function ($branchQuery) use ($user): void {
+                $branchQuery->where('customer_id', $user->service_customer_id);
+                if (!$user->can_access_all_branches) {
+                    $branchQuery->whereIn('customer_branches.id', $user->permittedBranches()->select('customer_branches.id'));
+                }
+            })
             ->when(!$user->hasPermission('customer.assets.view'), fn ($q) => $q->whereRaw('1 = 0'))
             ->with(['auditCode.branch.customer'])
             ->when(trim((string) $request->query('q')) !== '', function ($q) use ($request): void {
@@ -45,7 +50,12 @@ class AssetController extends Controller
 
         $asset = PcAudit::query()
             ->where('asset_lookup_token', $token)
-            ->whereHas('auditCode.branch', fn ($q) => $q->where('customer_id', $user->service_customer_id))
+            ->whereHas('auditCode.branch', function ($branchQuery) use ($user): void {
+                $branchQuery->where('customer_id', $user->service_customer_id);
+                if (!$user->can_access_all_branches) {
+                    $branchQuery->whereIn('customer_branches.id', $user->permittedBranches()->select('customer_branches.id'));
+                }
+            })
             ->when(!$user->hasPermission('customer.assets.view') && !$user->hasPermission('customer.audit.view'), fn ($q) => $q->whereRaw('1 = 0'))
             ->with([
                 'auditCode.branch.customer', 'details', 'memory', 'storage', 'monitors', 'gpu',
@@ -64,7 +74,12 @@ class AssetController extends Controller
 
         $asset = PcAudit::query()
             ->where('asset_lookup_token', $token)
-            ->whereHas('auditCode.branch', fn ($q) => $q->where('customer_id', $user->service_customer_id))
+            ->whereHas('auditCode.branch', function ($branchQuery) use ($user): void {
+                $branchQuery->where('customer_id', $user->service_customer_id);
+                if (!$user->can_access_all_branches) {
+                    $branchQuery->whereIn('customer_branches.id', $user->permittedBranches()->select('customer_branches.id'));
+                }
+            })
             ->with('auditCode.branch.customer')
             ->firstOrFail();
 
