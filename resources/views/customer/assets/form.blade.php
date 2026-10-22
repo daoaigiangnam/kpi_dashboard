@@ -7,7 +7,7 @@
 <form method="POST" action="{{ $asset->exists ? route('customer.assets.update',$asset->asset_lookup_token) : route('customer.assets.store') }}">
 @csrf @if($asset->exists) @method('PUT') @endif
 <div class="field"><label>Chi nhánh / Audit Code</label><select name="pc_audit_code_id" required><option value="">-- Chọn Audit Code thuộc phạm vi của bạn --</option>@foreach($branches as $branch)@foreach($branch->pcAuditCodes as $code)<option value="{{ $code->id }}" @selected((string)old('pc_audit_code_id',$asset->pc_audit_code_id)===(string)$code->id)>{{ $branch->name }} — {{ $code->code }}</option>@endforeach @endforeach</select><div class="muted">Chỉ hiển thị Audit Code thuộc khách hàng và chi nhánh đã được cấp quyền.</div></div>
-@foreach(['computer_name'=>'Tên máy / Computer Name','asset_tag'=>'Mã tài sản / Asset Tag','serial_number'=>'Serial Number','manufacturer'=>'Hãng sản xuất','model'=>'Model','employee_name'=>'Người sử dụng','department'=>'Phòng ban'] as $name=>$label)
+@foreach(['computer_name'=>'Tên máy / Computer Name','asset_tag'=>'Mã tài sản / Asset Tag','serial_number'=>'Serial Number','manufacturer'=>'Hãng sản xuất','model'=>'Model','employee_name'=>'Người sử dụng','employee_mobile'=>'Số di động người sử dụng','employee_email'=>'Email người sử dụng','department'=>'Phòng ban'] as $name=>$label)
 <div class="field"><label>{{ $label }}</label><input name="{{ $name }}" value="{{ old($name,$asset->{$name}) }}" @if($name==='computer_name') required @endif maxlength="255"></div>
 @endforeach
 <button class="btn" type="submit">Lưu</button> <a class="btn" href="{{ route('customer.assets.index') }}">Hủy</a>
