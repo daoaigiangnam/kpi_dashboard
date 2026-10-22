@@ -60,6 +60,23 @@ Route::middleware('auth')->group(function(){
     Route::put('/account/password',[AccountController::class,'updatePassword'])->name('account.password.update');
 });
 
+
+/*
+|--------------------------------------------------------------------------
+| Customer Asset Portal
+|--------------------------------------------------------------------------
+| Customer users have an explicit account type, per-feature flags, and a
+| customer_id scope enforced inside every query. Routes require authentication.
+*/
+Route::middleware('auth')->prefix('customer')->name('customer.')->group(function (): void {
+    Route::get('assets', [CustomerAssetController::class, 'index'])
+        ->middleware('permission:customer.assets.view')->name('assets.index');
+    Route::get('assets/qr/{token}', [CustomerAssetController::class, 'qr'])
+        ->middleware('permission:customer.assets.qr')->name('assets.qr');
+    Route::get('assets/{token}', [CustomerAssetController::class, 'show'])
+        ->middleware('permission:customer.assets.view')->name('assets.show');
+});
+
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::get('/',function(){
         if(auth()->user()->hasPermission('admin.view')) return redirect()->route('admin.dashboard');
@@ -67,6 +84,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     })->name('home');
 
     Route::get('dashboard',[DashboardController::class,'index'])->middleware('permission:admin.view')->name('dashboard');
+    Route::get('customer-assets/users', [CustomerAssetAccessController::class, 'index'])->middleware('permission:customer_accounts.manage')->name('customer_assets.users');
+    Route::get('customer-assets/users/create', [CustomerAssetAccessController::class, 'create'])->middleware('permission:customer_accounts.manage')->name('customer_assets.users.create');
+    Route::post('customer-assets/users', [CustomerAssetAccessController::class, 'store'])->middleware('permission:customer_accounts.manage')->name('customer_assets.users.store');
+    Route::get('customer-assets/users/{user}/edit', [CustomerAssetAccessController::class, 'edit'])->middleware('permission:customer_accounts.manage')->name('customer_assets.users.edit');
+    Route::put('customer-assets/users/{user}', [CustomerAssetAccessController::class, 'update'])->middleware('permission:customer_accounts.manage')->name('customer_assets.users.update');
+    Route::patch('customer-assets/users/{user}/toggle', [CustomerAssetAccessController::class, 'toggle'])->middleware('permission:customer_accounts.manage')->name('customer_assets.users.toggle');
+
     Route::get('users',[UserController::class,'index'])->middleware('permission:users.view')->name('users.index');
     Route::get('users/pending',[UserController::class,'pending'])->middleware('permission:users.view')->name('users.pending');
     Route::post('users/{user}/approve',[UserController::class,'approve'])->middleware('permission:users.view')->name('users.approve');
