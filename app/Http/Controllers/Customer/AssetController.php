@@ -191,7 +191,7 @@ class AssetController extends Controller
         abort_if($temporaryFile === false, 500, 'Không tạo được file Excel tạm thời.');
         try {
             (new Xlsx($spreadsheet))->save($temporaryFile);
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             @unlink($temporaryFile);
             report($exception);
             abort(500, 'Không thể tạo file Excel. Vui lòng kiểm tra log máy chủ.');
