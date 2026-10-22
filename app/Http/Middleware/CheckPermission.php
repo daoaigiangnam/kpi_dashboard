@@ -17,7 +17,15 @@ class CheckPermission
             return redirect()->route('login')->withErrors(['email' => 'Please sign in to continue.']);
         }
 
-        if (!$user->hasPermission($permission)) {
+        $alternatives = array_values(array_filter(explode(',', $permission)));
+        $allowed = false;
+        foreach ($alternatives as $requiredPermission) {
+            if ($user->hasPermission(trim($requiredPermission))) {
+                $allowed = true;
+                break;
+            }
+        }
+        if (!$allowed) {
             abort(403, 'You do not have permission to access this feature.');
         }
 
