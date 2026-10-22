@@ -14,7 +14,11 @@
 <button class="btn" type="submit">Lọc / Tìm kiếm</button><a class="btn secondary" href="{{ route('customer.assets.index') }}">Xóa lọc</a>
 </form><div class="actions" style="margin-top:14px">
 @if(auth()->user()->hasPermission('customer.assets.create'))<a class="btn" href="{{ route('customer.assets.create') }}">+ Tạo tài sản</a>@endif
-@if(auth()->user()->hasPermission('customer.assets.export'))<a class="btn secondary" href="{{ route('customer.assets.export',request()->query()) }}">Xuất Excel (CSV)</a>@endif
+@if(auth()->user()->hasPermission('customer.assets.export'))
+<a class="btn secondary" href="{{ route('customer.assets.export',request()->query()) }}">Xuất Excel / CSV</a>
+@else
+<span class="muted" title="Liên hệ quản trị viên để được cấp quyền xuất dữ liệu">Xuất Excel: chưa được cấp quyền</span>
+@endif
 </div></section>
 <section class="card"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px"><strong>Danh sách tài sản</strong><span class="muted">{{ number_format($assets->total()) }} bản ghi</span></div>
 <div class="table-wrap"><table><thead><tr><th>Tài sản</th><th>Asset Tag</th><th>Serial</th><th>Chi nhánh</th><th>Người sử dụng</th><th>Trạng thái</th><th>Ngày kiểm kê</th><th>Thao tác</th></tr></thead><tbody>
