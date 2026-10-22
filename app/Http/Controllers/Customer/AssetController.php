@@ -13,11 +13,12 @@ class AssetController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        abort_unless($user?->isCustomerAccount() && $user->hasPermission('customer.assets.view'), 403);
+        abort_unless($user?->isCustomerAccount() && ($user->hasPermission('customer.assets.view') || $user->hasPermission('customer.audit.view')), 403);
         abort_unless($user->service_customer_id, 403);
 
         $assets = PcAudit::query()
             ->whereHas('auditCode.branch', fn ($q) => $q->where('customer_id', $user->service_customer_id))
+            ->when(!$user->hasPermission('customer.assets.view'), fn ($q) => $q->whereRaw('1 = 0'))
             ->with(['auditCode.branch.customer'])
             ->when(trim((string) $request->query('q')) !== '', function ($q) use ($request): void {
                 $term = '%' . addcslashes(trim((string) $request->query('q')), '%_') . '%';
@@ -45,6 +46,7 @@ class AssetController extends Controller
         $asset = PcAudit::query()
             ->where('asset_lookup_token', $token)
             ->whereHas('auditCode.branch', fn ($q) => $q->where('customer_id', $user->service_customer_id))
+            ->when(!$user->hasPermission('customer.assets.view') && !$user->hasPermission('customer.audit.view'), fn ($q) => $q->whereRaw('1 = 0'))
             ->with([
                 'auditCode.branch.customer', 'details', 'memory', 'storage', 'monitors', 'gpu',
                 'batteries', 'network', 'antivirus', 'bitlocker', 'firewall', 'licenses', 'software',
