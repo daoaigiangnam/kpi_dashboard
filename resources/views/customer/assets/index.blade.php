@@ -18,7 +18,7 @@
 <form id="asset-export-form" method="GET" action="{{ route('customer.assets.export') }}" class="actions" style="margin:0;align-items:center">
 @foreach(request()->query() as $key=>$value) @if(!is_array($value))<input type="hidden" name="{{ $key }}" value="{{ $value }}">@endif @endforeach
 <label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="export-all-filtered" name="all_filtered" value="1"> Xuất toàn bộ kết quả theo bộ lọc</label>
-<button class="btn secondary" type="submit">Xuất CSV mở bằng Excel</button>
+<button class="btn secondary" type="submit">Xuất Excel (.xlsx)</button>
 </form>
 @else
 <span class="muted" title="Liên hệ quản trị viên để được cấp quyền xuất dữ liệu">Xuất Excel: chưa được cấp quyền</span>
@@ -46,6 +46,7 @@
    const selected=Array.from(document.querySelectorAll('.asset-select:checked'));
    if(!all && selected.length===0){e.preventDefault();alert('Hãy chọn ít nhất một tài sản hoặc chọn Xuất toàn bộ kết quả theo bộ lọc.');return;}
    if(!all) selected.forEach(cb=>{const input=document.createElement('input');input.type='hidden';input.name='ids[]';input.value=cb.value;exportForm.appendChild(input);});
+   const button=exportForm.querySelector('button[type=submit]'); if(button){button.disabled=true;button.textContent='Đang tạo file Excel…';}
  });
 })();
 </script></body></html>
