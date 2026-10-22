@@ -13,6 +13,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash as PasswordHash;
+use Illuminate\Support\Facades\Password;
+use App\Notifications\PasswordResetOtpNotification;
 
 class CustomerAssetAccessController extends Controller
 {
@@ -66,10 +70,19 @@ class CustomerAssetAccessController extends Controller
             'registration_status' => 'approved',
         ]);
 
-        return redirect()->route('admin.customer_assets.users')->with(
-            'success',
-            'Đã tạo tài khoản khách hàng. Tài khoản được liên kết với '.$customer->name.'. Hãy dùng chức năng đặt lại mật khẩu/gửi email thiết lập mật khẩu trước khi bàn giao.'
-        );
+        try {
+            $this->sendPasswordSetupEmail($user, true);
+            return redirect()->route('admin.customer_assets.users')->with(
+                'success',
+                'Đã tạo tài khoản khách hàng và gửi email thiết lập mật khẩu tới '.$user->email.'.'
+            );
+        } catch (\\Throwable $e) {
+            report($e);
+            return redirect()->route('admin.customer_assets.users')->with(
+                'warning',
+                'Tài khoản đã được tạo nhưng chưa gửi được email thiết lập mật khẩu. Vui lòng kiểm tra SMTP và thực hiện gửi lại.'
+            );
+        }
     }
 
     public function edit(User $user)
@@ -111,6 +124,35 @@ class CustomerAssetAccessController extends Controller
         ]);
 
         return redirect()->route('admin.customer_assets.users')->with('success', 'Đã cập nhật tài khoản và quyền khách hàng.');
+    }
+
+    public function sendSetupPassword(User $user)
+    {
+        abort_unless($user->account_type === 'customer', 404);
+        abort_unless($user->is_active, 422, 'Hãy kích hoạt tài khoản trước khi gửi email.');
+        try {
+            $this->sendPasswordSetupEmail($user, false);
+            return back()->with('success', 'Đã gửi email thiết lập/đặt lại mật khẩu tới '.$user->email.'.');
+        } catch (\\Throwable $e) {
+            report($e);
+            return back()->withErrors('Không gửi được email. Vui lòng kiểm tra cấu hình SMTP.');
+        }
+    }
+
+    private function sendPasswordSetupEmail(User $user, bool $initialSetup = false): void
+    {
+        $token = Password::broker()->createToken($user);
+        $otp = (string) random_int(100000, 999999);
+        DB::table('password_reset_otps')->where('email', $user->email)->delete();
+        DB::table('password_reset_otps')->insert([
+            'email' => $user->email,
+            'otp_hash' => PasswordHash::make($otp),
+            'expires_at' => now()->addMinutes(10),
+            'attempts' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $user->notify(new PasswordResetOtpNotification($token, $otp, $initialSetup));
     }
 
     public function toggle(User $user)
