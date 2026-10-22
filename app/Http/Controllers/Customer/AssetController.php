@@ -151,6 +151,8 @@ class AssetController extends Controller
             'manufacturer' => ['nullable', 'string', 'max:255'],
             'model' => ['nullable', 'string', 'max:255'],
             'employee_name' => ['nullable', 'string', 'max:255'],
+            'employee_mobile' => ['nullable', 'string', 'max:50'],
+            'employee_email' => ['nullable', 'email', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
         ]);
         $this->assertAuditCodeInScope($user, (int)$data['pc_audit_code_id']);
@@ -187,6 +189,8 @@ class AssetController extends Controller
             'manufacturer' => ['nullable', 'string', 'max:255'],
             'model' => ['nullable', 'string', 'max:255'],
             'employee_name' => ['nullable', 'string', 'max:255'],
+            'employee_mobile' => ['nullable', 'string', 'max:50'],
+            'employee_email' => ['nullable', 'email', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
         ]);
         $this->assertAuditCodeInScope($user, (int)$data['pc_audit_code_id']);
