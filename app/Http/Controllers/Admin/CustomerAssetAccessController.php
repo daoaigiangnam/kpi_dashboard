@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ServiceCustomer;
+use App\Models\CustomerBranch;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -35,7 +36,8 @@ class CustomerAssetAccessController extends Controller
     public function create()
     {
         $customers = ServiceCustomer::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']);
-        return view('admin.customer-assets.user-form', ['user' => new User(), 'customers' => $customers]);
+        $branches = CustomerBranch::query()->whereIn('customer_id', $customers->pluck('id'))->where('is_active', true)->orderBy('name')->get(['id', 'customer_id', 'code', 'name']);
+        return view('admin.customer-assets.user-form', ['user' => new User(), 'customers' => $customers, 'branches' => $branches, 'selectedBranchIds' => []]);
     }
 
     public function store(Request $request)
@@ -48,10 +50,21 @@ class CustomerAssetAccessController extends Controller
             'can_view_assets' => ['nullable', 'boolean'],
             'can_view_audit' => ['nullable', 'boolean'],
             'can_download_qr' => ['nullable', 'boolean'],
+            'can_access_all_branches' => ['nullable', 'boolean'],
+            'branch_ids' => ['nullable', 'array'],
+            'branch_ids.*' => ['integer', 'exists:customer_branches,id'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
         $customer = ServiceCustomer::query()->whereKey($data['service_customer_id'])->where('is_active', true)->firstOrFail();
+
+        $allBranches = $request->boolean('can_access_all_branches');
+        $branchIds = array_values(array_unique(array_map('intval', $data['branch_ids'] ?? [])));
+        abort_if(!$allBranches && count($branchIds) === 0, 422, 'Hãy chọn ít nhất một chi nhánh hoặc cấp quyền tất cả chi nhánh.');
+        if (!$allBranches) {
+            $validCount = CustomerBranch::query()->where('customer_id', $customer->id)->whereIn('id', $branchIds)->count();
+            abort_unless($validCount === count($branchIds), 422, 'Có chi nhánh không thuộc khách hàng đã chọn.');
+        }
 
         $user = User::create([
             'name' => trim($data['name']),
@@ -63,9 +76,12 @@ class CustomerAssetAccessController extends Controller
             'can_view_assets' => $request->boolean('can_view_assets'),
             'can_view_audit' => $request->boolean('can_view_audit'),
             'can_download_qr' => $request->boolean('can_download_qr'),
+            'can_access_all_branches' => $allBranches,
             'is_active' => $request->boolean('is_active', true),
             'registration_status' => 'approved',
         ]);
+
+        $user->permittedBranches()->sync($allBranches ? [] : $branchIds);
 
         try {
             $this->sendPasswordSetupEmail($user, true);
@@ -91,7 +107,9 @@ class CustomerAssetAccessController extends Controller
             })
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
-        return view('admin.customer-assets.user-form', compact('user', 'customers'));
+        $branches = CustomerBranch::query()->where('customer_id', $user->service_customer_id)->where('is_active', true)->orderBy('name')->get(['id', 'customer_id', 'code', 'name']);
+        $selectedBranchIds = $user->permittedBranches()->pluck('customer_branches.id')->map(fn ($id) => (int) $id)->all();
+        return view('admin.customer-assets.user-form', compact('user', 'customers', 'branches', 'selectedBranchIds'));
     }
 
     public function update(Request $request, User $user)
@@ -106,6 +124,9 @@ class CustomerAssetAccessController extends Controller
             'can_view_assets' => ['nullable', 'boolean'],
             'can_view_audit' => ['nullable', 'boolean'],
             'can_download_qr' => ['nullable', 'boolean'],
+            'can_access_all_branches' => ['nullable', 'boolean'],
+            'branch_ids' => ['nullable', 'array'],
+            'branch_ids.*' => ['integer', 'exists:customer_branches,id'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -113,6 +134,14 @@ class CustomerAssetAccessController extends Controller
             ->whereKey($data['service_customer_id'])
             ->where('is_active', true)
             ->firstOrFail();
+
+        $allBranches = $request->boolean('can_access_all_branches');
+        $branchIds = array_values(array_unique(array_map('intval', $data['branch_ids'] ?? [])));
+        abort_if(!$allBranches && count($branchIds) === 0, 422, 'Hãy chọn ít nhất một chi nhánh hoặc cấp quyền tất cả chi nhánh.');
+        if (!$allBranches) {
+            $validCount = CustomerBranch::query()->where('customer_id', (int) $data['service_customer_id'])->whereIn('id', $branchIds)->count();
+            abort_unless($validCount === count($branchIds), 422, 'Có chi nhánh không thuộc khách hàng đã chọn.');
+        }
 
         $user->update([
             'name' => trim($data['name']),
@@ -122,9 +151,11 @@ class CustomerAssetAccessController extends Controller
             'can_view_assets' => $request->boolean('can_view_assets'),
             'can_view_audit' => $request->boolean('can_view_audit'),
             'can_download_qr' => $request->boolean('can_download_qr'),
+            'can_access_all_branches' => $allBranches,
             'is_active' => $request->boolean('is_active'),
         ]);
 
+        $user->permittedBranches()->sync($allBranches ? [] : $branchIds);
         return redirect()->route('admin.customer_assets.users')->with('success', 'Đã cập nhật tài khoản và quyền khách hàng.');
     }
 
