@@ -70,7 +70,25 @@ Route::middleware('auth')->group(function(){
 | Customer Asset Portal
 |--------------------------------------------------------------------------
 */
+// Public, read-only lookup opened by scanning an asset QR code. The token is opaque and unguessable.
+Route::get('/asset/{token}', [CustomerAssetController::class, 'publicShow'])
+    ->where('token', '[A-Fa-f0-9]{48}')
+    ->middleware('throttle:60,1')
+    ->name('assets.public.show');
+
 Route::middleware('auth')->prefix('customer')->name('customer.')->group(function (): void {
+    Route::get('assets/export', [CustomerAssetController::class, 'export'])
+        ->middleware('permission:customer.assets.export')->name('assets.export');
+    Route::get('assets/create', [CustomerAssetController::class, 'create'])
+        ->middleware('permission:customer.assets.create')->name('assets.create');
+    Route::post('assets', [CustomerAssetController::class, 'store'])
+        ->middleware('permission:customer.assets.create')->name('assets.store');
+    Route::get('assets/{token}/edit', [CustomerAssetController::class, 'edit'])
+        ->middleware('permission:customer.assets.edit')->name('assets.edit');
+    Route::put('assets/{token}', [CustomerAssetController::class, 'update'])
+        ->middleware('permission:customer.assets.edit')->name('assets.update');
+    Route::delete('assets/{token}', [CustomerAssetController::class, 'destroy'])
+        ->middleware('permission:customer.assets.delete')->name('assets.destroy');
     Route::get('assets', [CustomerAssetController::class, 'index'])
         ->middleware('permission:customer.assets.view')->name('assets.index');
     Route::get('assets/qr/{token}', [CustomerAssetController::class, 'qr'])
