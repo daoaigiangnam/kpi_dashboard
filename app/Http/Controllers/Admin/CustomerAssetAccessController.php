@@ -7,13 +7,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CustomerBranch;
 use App\Models\PcAudit;
-use App\Models\PcAuditCode;
 use App\Models\ServiceCustomer;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class CustomerAssetAccessController extends Controller
 {
@@ -23,7 +21,7 @@ class CustomerAssetAccessController extends Controller
         $selectedCustomerId = $request->integer('customer_id');
         $users = User::query()
             ->where('account_type', 'customer')
-            ->with('serviceCustomer')
+            ->with('customer')
             ->when($selectedCustomerId, fn ($q) => $q->where('service_customer_id', $selectedCustomerId))
             ->orderBy('name')
             ->paginate(25)
