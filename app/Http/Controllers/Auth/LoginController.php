@@ -64,7 +64,7 @@ class LoginController extends Controller
             Cache::forget($lockKey);
             $request->session()->regenerate();
 
-            return redirect()->intended('/admin');
+            return redirect()->intended(auth()->user()->isCustomerAccount() ? route('customer.assets.index') : '/admin');
         }
 
         Cache::add($attemptKey, 0, now()->addMinutes($lockoutMinutes));
