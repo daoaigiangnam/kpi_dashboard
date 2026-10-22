@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CustomerAssetAccessController extends Controller
 {
@@ -93,7 +94,10 @@ class CustomerAssetAccessController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        ServiceCustomer::query()->whereKey($data['service_customer_id'])->where('is_active', true)->firstOrFail();
+        ServiceCustomer::query()
+            ->whereKey($data['service_customer_id'])
+            ->where('is_active', true)
+            ->firstOrFail();
 
         $user->update([
             'name' => trim($data['name']),
