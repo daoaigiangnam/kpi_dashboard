@@ -217,17 +217,14 @@ class AssetController extends Controller
     {
         $asset = PcAudit::query()->where('asset_lookup_token', $token)
             ->whereHas('auditCode.branch.customer', fn ($q) => $q->where('is_active', true))
-            ->with(['auditCode.branch.customer', 'details'])
+            ->with([
+                'auditCode.branch.customer', 'details', 'memory', 'storage', 'monitors', 'gpu',
+                'batteries', 'network', 'antivirus', 'bitlocker', 'firewall', 'licenses', 'software',
+            ])
             ->firstOrFail();
 
-        // Public QR exposes a curated, read-only asset summary; never serialize raw audit payloads.
-        $hardware = $asset->details;
-        $os = $asset->operating_system;
-        $cpu = $hardware?->cpu;
-        $memory = $hardware?->memory;
-        $storage = $hardware?->storage;
-
-        return response()->view('customer.assets.public-show', compact('asset', 'hardware', 'os', 'cpu', 'memory', 'storage'))
+        // QR is read-only. Do not expose raw_payload or credential material.
+        return response()->view('customer.assets.public-show', compact('asset'))
             ->header('Cache-Control', 'no-store, private')
             ->header('X-Robots-Tag', 'noindex, nofollow');
     }
