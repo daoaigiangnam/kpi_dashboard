@@ -75,8 +75,7 @@ Route::middleware('auth')->prefix('customer')->name('customer.')->group(function
         ->middleware('permission:customer.assets.view')->name('assets.index');
     Route::get('assets/qr/{token}', [CustomerAssetController::class, 'qr'])
         ->middleware('permission:customer.assets.qr')->name('assets.qr');
-    Route::get('assets/{token}', [CustomerAssetController::class, 'show'])
-        ->middleware('auth')->name('assets.show');
+    Route::get('assets/{token}', [CustomerAssetController::class, 'show'])->name('assets.show');
 });
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
