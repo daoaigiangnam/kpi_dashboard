@@ -31,6 +31,8 @@ use App\Http\Controllers\Admin\ServiceAlertPolicyController;
 use App\Http\Controllers\Admin\ServiceAlertEventController;
 use App\Http\Controllers\Admin\ServiceMonitoringController;
 use App\Http\Controllers\Admin\ServiceToolsController;
+use App\Http\Controllers\Admin\CustomerAssetAccessController;
+use App\Http\Controllers\Customer\AssetController as CustomerAssetController;
 
 Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name('login');
 
