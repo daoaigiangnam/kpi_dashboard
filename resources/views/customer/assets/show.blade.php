@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chi tiết tài sản</title><style>body{font-family:Arial,sans-serif;margin:0;background:#f3f7f5;color:#163328}.wrap{max-width:1100px;margin:auto;padding:22px}.head{padding:22px;background:#123b2a;color:white;border-radius:14px}.card{background:white;border:1px solid #dfe9e3;border-radius:12px;padding:18px;margin-top:16px}.btn{display:inline-block;padding:9px 13px;background:#0f766e;color:white;text-decoration:none;border-radius:7px}table{width:100%;border-collapse:collapse}td,th{text-align:left;border-bottom:1px solid #e6ede9;padding:10px;vertical-align:top}th{width:230px;color:#53695d}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style></head>
+<body><main class="wrap"><header class="head"><h1>{{ $asset->computer_name ?: 'Chi tiết tài sản' }}</h1><div>{{ $asset->auditCode?->branch?->customer?->name }} / {{ $asset->auditCode?->branch?->name }}</div><p><a class="btn" href="{{ route('customer.assets.index') }}">← Danh sách tài sản</a></p></header>
+<section class="card"><h2>Thông tin tài sản</h2><table><tbody>
+@foreach(['Computer Name'=>$asset->computer_name,'Asset Tag'=>$asset->asset_tag,'Serial Number'=>$asset->serial_number,'Nhà sản xuất'=>$asset->manufacturer,'Model'=>$asset->model,'Người sử dụng'=>$asset->employee_name,'Phòng ban'=>$asset->department,'Ngày Audit'=>$asset->collected_at?->format('d/m/Y H:i:s'),'Trạng thái Audit'=>$asset->audit_status,'Điểm Audit'=>$asset->audit_score] as $label=>$value)<tr><th>{{ $label }}</th><td>{{ $value ?: '—' }}</td></tr>@endforeach
+</tbody></table></section>
+@if(auth()->user()->hasPermission('customer.audit.view'))
+<section class="card"><h2>Kết quả kiểm tra</h2><table><thead><tr><th>Tiêu chí</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead><tbody>
+@foreach(($asset->audit_results['results'] ?? []) as $check)<tr><td>{{ $check['label'] ?? $check['key'] ?? '' }}</td><td>{{ $check['status'] ?? 'REVIEW' }}</td><td>{{ $check['message'] ?? '' }}</td></tr>@endforeach
+</tbody></table><h3>Thông tin phần cứng/hệ thống</h3><pre>{{ json_encode(['details'=>$asset->details,'memory'=>$asset->memory,'storage'=>$asset->storage,'monitors'=>$asset->monitors,'gpu'=>$asset->gpu,'network'=>$asset->network,'antivirus'=>$asset->antivirus,'bitlocker'=>$asset->bitlocker,'firewall'=>$asset->firewall,'licenses'=>$asset->licenses,'software'=>$asset->software], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre></section>
+@endif
+</main></body></html>
