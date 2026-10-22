@@ -107,7 +107,7 @@ class CustomerAssetAccessController extends Controller
             })
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
-        $branches = CustomerBranch::query()->where('customer_id', $user->service_customer_id)->where('is_active', true)->orderBy('name')->get(['id', 'customer_id', 'code', 'name']);
+        $branches = CustomerBranch::query()->whereHas('customer', fn ($q) => $q->where('is_active', true))->where('is_active', true)->orderBy('name')->get(['id', 'customer_id', 'code', 'name']);
         $selectedBranchIds = $user->permittedBranches()->pluck('customer_branches.id')->map(fn ($id) => (int) $id)->all();
         return view('admin.customer-assets.user-form', compact('user', 'customers', 'branches', 'selectedBranchIds'));
     }
