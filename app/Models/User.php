@@ -35,6 +35,7 @@ class User extends Authenticatable implements CanResetPasswordContract
     public function unit(): BelongsTo { return $this->belongsTo(Unit::class,'unit_id'); }
     public function registrationReviewer(): BelongsTo { return $this->belongsTo(self::class,'registration_reviewed_by'); }
     public function customer(): BelongsTo { return $this->belongsTo(ServiceCustomer::class,'service_customer_id'); }
+    public function serviceCustomer(): BelongsTo { return $this->belongsTo(ServiceCustomer::class,'service_customer_id'); }
 
     /** Customers for which this User is the assigned IT operations owner. */
     public function serviceCustomers(): HasMany
