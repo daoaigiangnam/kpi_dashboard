@@ -15,7 +15,7 @@ return new class extends Migration {
             $table->boolean('can_view_assets')->default(false)->after('service_customer_id');
             $table->boolean('can_view_audit')->default(false)->after('can_view_assets');
             $table->boolean('can_download_qr')->default(false)->after('can_view_audit');
-            $table->index(['account_type', 'service_customer_id']);
+            $table->index('service_customer_id');
         });
 
         Schema::table('pc_audits', function (Blueprint $table): void {
@@ -44,7 +44,7 @@ return new class extends Migration {
         });
 
         Schema::table('users', function (Blueprint $table): void {
-            $table->dropIndex(['account_type', 'service_customer_id']);
+            $table->dropIndex(['service_customer_id']);
             $table->dropConstrainedForeignId('service_customer_id');
             $table->dropColumn(['account_type', 'can_view_assets', 'can_view_audit', 'can_download_qr']);
         });
