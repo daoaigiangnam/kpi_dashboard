@@ -24,7 +24,7 @@ class CustomerAssetAccessController extends Controller
         $selectedCustomerId = $request->integer('customer_id');
         $users = User::query()
             ->where('account_type', 'customer')
-            ->with('customer')
+            ->with(['customer', 'permittedBranches'])
             ->when($selectedCustomerId, fn ($q) => $q->where('service_customer_id', $selectedCustomerId))
             ->orderBy('name')
             ->paginate(25)
