@@ -38,6 +38,9 @@ Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name(
 
 Route::get('/', function () {
     if (auth()->check()) {
+        if (auth()->user()->isCustomerAccount()) {
+            return redirect()->route('customer.assets.index');
+        }
         return redirect()->route('admin.home');
     }
 
