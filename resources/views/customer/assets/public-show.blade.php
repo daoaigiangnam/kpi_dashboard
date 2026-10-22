@@ -51,28 +51,9 @@ $flatten = function($value, string $prefix = '', int $depth = 0) use (&$flatten)
 @if(count($checks))<div class="tablewrap"><table><thead><tr><th>Tiêu chí</th><th>Kết quả</th><th>Ghi chú</th></tr></thead><tbody>@foreach($checks as $check)@if(is_array($check))<tr><td>{{ $check['label'] ?? $check['key'] ?? '—' }}</td><td><span class="pill {{ strtoupper((string)($check['status'] ?? ''))==='PASS'?'pass':(strtoupper((string)($check['status'] ?? ''))==='FAIL'?'fail':'') }}">{{ $check['status'] ?? 'REVIEW' }}</span></td><td>{{ $check['message'] ?? '' }}</td></tr>@endif @endforeach</tbody></table></div>@else<p class="muted">Không có tiêu chí Audit chi tiết.</p>@endif
 </section>
 
-@foreach($systemFields as [$title,$fields])<details class="card audit-section"><summary><h2>{{ $title }}</h2></summary><div class="section-body"><div class="grid">@foreach($fields as $label=>$value)<div class="field"><div class="label">{{ $label }}</div>
-@php $flat=$flatten($value); @endphp
-@if(count($flat))@foreach($flat as $k=>$v)<div class="value">{{ $k }}: {{ $v }}</div>@endforeach @else<div class="value">—</div>@endif
-</div>@endforeach</div></div></details>@endforeach
-
-@if($asset->details)
-<details class="card audit-section"><summary><h2>Chi tiết Audit bổ sung</h2></summary><div class="section-body"><div class="grid">
-@foreach(['CPU'=>$asset->details->cpu,'Memory'=>$asset->details->memory,'Storage detail'=>$asset->details->storage,'Monitor detail'=>$asset->details->monitors,'GPU detail'=>$asset->details->gpu,'Battery detail'=>$asset->details->battery,'Windows detail'=>$asset->details->windows,'Network detail'=>$asset->details->network,'Security detail'=>$asset->details->security,'Licenses detail'=>$asset->details->licenses,'Software detail'=>$asset->details->software,'Other'=>$asset->details->other] as $label=>$value)
-<div class="field"><div class="label">{{ $label }}</div>@php $flat=$flatten($value); @endphp @if(count($flat))@foreach($flat as $k=>$v)<div class="value">{{ $k }}: {{ $v }}</div>@endforeach @else<div class="value">—</div>@endif</div>
-@endforeach
-</div></div></details>
-@endif
-
-@foreach($collections as [$title,$items])
-<details class="card audit-section"><summary><h2>{{ $title }} <span class="muted">({{ $items->count() }} bản ghi)</span></h2></summary><div class="section-body">
-@if($items->isEmpty())<p class="muted">Không có dữ liệu được thu thập.</p>
-@else<div class="tablewrap"><table><thead><tr>@foreach(array_keys($items->first()->toArray()) as $field)@if(!in_array($field,['id','pc_audit_id','created_at','updated_at']))<th>{{ str_replace('_',' ',$field) }}</th>@endif @endforeach</tr></thead><tbody>
-@foreach($items as $item)<tr>@foreach($item->toArray() as $field=>$value)@if(!in_array($field,['id','pc_audit_id','created_at','updated_at']))<td>@if(is_array($value)||is_object($value))@foreach($flatten($value) as $key=>$v)<div><strong>{{ $key }}:</strong> {{ $v }}</div>@endforeach @else{{ $value ?? '—' }}@endif</td>@endif @endforeach</tr>@endforeach
-</tbody></table></div>@endif
-</div></details>
-@endforeach
-
-<section class="card"><h2>Xem trang chi tiết có đăng nhập</h2><p class="muted">Trang QR này chỉ đọc. Đăng nhập bằng tài khoản khách hàng được cấp quyền để mở cổng tài sản.</p><div class="actions"><a class="btn" href="{{ route('customer.assets.show', $asset->asset_lookup_token) }}">Đăng nhập / Xem chi tiết</a></div></section>
+<section class="card">
+<h2>Thông tin bổ sung</h2>
+<p class="muted">Để dễ xem trên điện thoại, trang QR chỉ hiển thị thông tin người sử dụng, thông tin cơ bản của máy và kết quả Audit. Dữ liệu cấu hình kỹ thuật chi tiết được ẩn khỏi trang tra cứu công khai.</p>
+</section>
 <p class="note">Thông tin này có thể được xem bởi bất kỳ ai có đường dẫn QR. Không đưa mã QR ra ngoài phạm vi cần thiết. Nếu mã bị lộ, hãy thu hồi token và tạo QR mới. Các trường chưa được thiết bị thu thập sẽ hiển thị dấu gạch ngang.</p>
 </main></body></html>
