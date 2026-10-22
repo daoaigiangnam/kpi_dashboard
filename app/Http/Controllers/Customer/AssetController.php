@@ -100,7 +100,7 @@ class AssetController extends Controller
         $branches = CustomerBranch::query()->where('customer_id', $user->service_customer_id)
             ->where('is_active', true)
             ->when(!$user->can_access_all_branches, fn ($q) => $q->whereIn('id', $user->permittedBranches()->select('customer_branches.id')))
-            ->with(['auditCodes' => fn ($q) => $q->orderBy('code')])->orderBy('name')->get();
+            ->with(['pcAuditCodes' => fn ($q) => $q->orderBy('code')])->orderBy('name')->get();
         return view('customer.assets.form', ['asset' => new PcAudit(), 'branches' => $branches]);
     }
 
@@ -135,7 +135,7 @@ class AssetController extends Controller
         $branches = CustomerBranch::query()->where('customer_id', $user->service_customer_id)
             ->where('is_active', true)
             ->when(!$user->can_access_all_branches, fn ($q) => $q->whereIn('id', $user->permittedBranches()->select('customer_branches.id')))
-            ->with(['auditCodes' => fn ($q) => $q->orderBy('code')])->orderBy('name')->get();
+            ->with(['pcAuditCodes' => fn ($q) => $q->orderBy('code')])->orderBy('name')->get();
         return view('customer.assets.form', compact('asset', 'branches'));
     }
 
