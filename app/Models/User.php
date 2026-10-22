@@ -21,14 +21,14 @@ class User extends Authenticatable implements CanResetPasswordContract
         'join_date','department','location','department_id','unit_id','user_group_id',
         'job_title_id','notes','password','is_active','registration_status',
         'registration_reviewed_at','registration_reviewed_by','registration_rejection_reason',
-        'account_type','service_customer_id','can_view_assets','can_view_audit','can_download_qr','can_access_all_branches',
+        'account_type','service_customer_id','can_view_assets','can_create_assets','can_edit_assets','can_delete_assets','can_export_assets','can_view_audit','can_download_qr','can_access_all_branches',
     ];
 
     protected $hidden = ['password','remember_token'];
     protected $casts = [
         'is_active'=>'boolean','date_of_birth'=>'date','join_date'=>'date',
         'registration_reviewed_at'=>'datetime','password'=>'hashed',
-        'can_view_assets'=>'boolean','can_view_audit'=>'boolean','can_download_qr'=>'boolean','can_access_all_branches'=>'boolean',
+        'can_view_assets'=>'boolean','can_create_assets'=>'boolean','can_edit_assets'=>'boolean','can_delete_assets'=>'boolean','can_export_assets'=>'boolean','can_view_audit'=>'boolean','can_download_qr'=>'boolean','can_access_all_branches'=>'boolean',
     ];
 
     public function group(): BelongsTo { return $this->belongsTo(UserGroup::class,'user_group_id'); }
@@ -76,6 +76,10 @@ class User extends Authenticatable implements CanResetPasswordContract
         if ($this->account_type === 'customer') {
             return match ($permission) {
                 'customer.assets.view' => $this->can_view_assets,
+                'customer.assets.create' => $this->can_view_assets && $this->can_create_assets,
+                'customer.assets.edit' => $this->can_view_assets && $this->can_edit_assets,
+                'customer.assets.delete' => $this->can_view_assets && $this->can_delete_assets,
+                'customer.assets.export' => $this->can_view_assets && $this->can_export_assets,
                 'customer.audit.view' => $this->can_view_audit,
                 'customer.assets.qr' => $this->can_view_assets && $this->can_download_qr,
                 default => false,
