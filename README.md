@@ -54,3 +54,24 @@ See **[deployment/NEW_SERVER_SETUP.md](deployment/NEW_SERVER_SETUP.md)** for the
 
 ### Next KPI phase
 The Admin/RBAC core is intentionally independent from KPI calculation. The next layer can add Employee Master/Mapping, Job Titles, Ticket RAW Excel import, KPI configuration, calculation and reporting. Bitrix API can later become another data provider without replacing the KPI engine.
+
+## Customer Asset Portal and QR lookup
+
+Customer portal accounts are distinct from internal staff accounts. A customer account is bound to one existing IT Service Customer and receives only the explicitly selected permissions:
+- `customer.assets.view`: view that customer's PC Audit asset list.
+- `customer.audit.view`: view detailed audit information on accessible asset records.
+- `customer.assets.qr`: generate/print asset QR labels (also requires asset-list access).
+- `customer_accounts.manage`: internal permission for managing customer portal accounts; assigned to Super Admin by the migration.
+
+Asset queries in the customer portal are scoped by `users.service_customer_id` against `customer_branches.customer_id`. The QR label contains an opaque random lookup token, not the sequential database ID or asset details. The destination requires authentication and re-checks the logged-in user's customer scope, so scanning a QR does not grant public access.
+
+### Deploy the customer asset portal
+1. Review the branch `feature/customer-asset-portal-qrcode` and test it in staging.
+2. Back up the production database and deploy code.
+3. Run `php artisan migrate --force`.
+4. Confirm SMTP/queue workers are operational; customer account creation sends the password setup email using the existing OTP and secure-link mechanism.
+5. Sign in as Super Admin, open **Tài khoản khách hàng**, create a customer account, choose the exact customer and permission flags, then confirm the setup email is delivered.
+6. Test with two different customer accounts: each account must see only assets associated with its own customer. Test that denied permissions return HTTP 403.
+7. Print a QR label and scan it on a phone. The user should be asked to sign in if unauthenticated; after authentication they must only see asset information within their assigned customer scope.
+
+Do not make QR destinations publicly accessible unless a separate public, minimal asset-information policy is intentionally designed and security-reviewed.
