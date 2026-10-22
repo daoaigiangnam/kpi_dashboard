@@ -72,20 +72,55 @@ class AssetController extends Controller
     {
         $user = $request->user();
         abort_unless($user?->hasPermission('customer.assets.export'), 403);
-        $assets = $this->filteredAssets($request, $user)->with('auditCode.branch.customer')->orderBy('id')->get();
+
+        $allFiltered = $request->boolean('all_filtered');
+        $ids = collect($request->input('ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->take(5000)
+            ->values();
+
+        abort_if(!$allFiltered && $ids->isEmpty(), 422, 'Hãy chọn ít nhất một tài sản hoặc chọn xuất toàn bộ kết quả theo bộ lọc.');
+
+        $query = $allFiltered
+            ? $this->filteredAssets($request, $user)
+            : $this->scopedAssets($user)->whereIn('id', $ids);
+
+        $assets = $query->with(['auditCode.branch.customer'])->orderBy('id')->get();
+        abort_if($assets->isEmpty(), 404, 'Không có tài sản phù hợp để xuất.');
 
         return response()->streamDownload(function () use ($assets): void {
             $out = fopen('php://output', 'w');
-            // UTF-8 BOM makes Vietnamese text display correctly in desktop Excel.
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Mã tài sản', 'Tên máy', 'Hãng', 'Model', 'Serial', 'Người sử dụng', 'Phòng ban', 'Khách hàng', 'Chi nhánh', 'Trạng thái Audit', 'Điểm Audit', 'Ngày kiểm kê']);
+            fputcsv($out, [
+                'Khách hàng', 'Chi nhánh', 'Audit Code', 'Phòng ban', 'Họ tên', 'Điện thoại',
+                'Email', 'Username', 'Domain', 'Computer Name', 'Manufacturer', 'Model',
+                'Serial Number', 'Asset Tag', 'Mainboard', 'BIOS', 'Operating System',
+                'Windows Update', 'Last Boot', 'Uptime', 'TPM', 'Secure Boot',
+                'Trạng thái Audit', 'Điểm Audit', 'Kết quả Audit', 'Ngày kiểm kê',
+            ]);
             foreach ($assets as $asset) {
-                fputcsv($out, [
-                    $asset->asset_tag, $asset->computer_name, $asset->manufacturer, $asset->model,
-                    $asset->serial_number, $asset->employee_name, $asset->department,
-                    $asset->auditCode?->branch?->customer?->name, $asset->auditCode?->branch?->name,
-                    $asset->audit_status, $asset->audit_score, $asset->collected_at?->format('Y-m-d H:i:s'),
-                ]);
+                $values = [
+                    $asset->auditCode?->branch?->customer?->name,
+                    $asset->auditCode?->branch?->name,
+                    $asset->auditCode?->code,
+                    $asset->department, $asset->employee_name, $asset->employee_mobile,
+                    $asset->employee_email, $asset->employee_username, $asset->domain,
+                    $asset->computer_name, $asset->manufacturer, $asset->model,
+                    $asset->serial_number, $asset->asset_tag,
+                    $asset->mainboard, $asset->bios, $asset->operating_system,
+                    $asset->windows_update, $asset->last_boot, $asset->uptime,
+                    $asset->tpm, $asset->secure_boot, $asset->audit_status,
+                    $asset->audit_score, $asset->audit_results,
+                    $asset->collected_at?->format('Y-m-d H:i:s'),
+                ];
+                fputcsv($out, array_map(function ($value): string {
+                    if (is_array($value) || is_object($value)) {
+                        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
+                    }
+                    return $value === null ? '' : (string) $value;
+                }, $values));
             }
             fclose($out);
         }, 'danh-sach-tai-san-' . now()->format('Ymd-His') . '.csv', [
