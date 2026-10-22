@@ -72,60 +72,50 @@ class AssetController extends Controller
     {
         $user = $request->user();
         abort_unless($user?->hasPermission('customer.assets.export'), 403);
-
         $allFiltered = $request->boolean('all_filtered');
-        $ids = collect($request->input('ids', []))
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
-            ->unique()
-            ->take(5000)
-            ->values();
+        $ids = collect($request->input('ids', []))->map(fn ($id) => (int) $id)->filter(fn ($id) => $id > 0)->unique()->take(5000)->values();
+        abort_if(!$allFiltered && $ids->isEmpty(), 422, 'Hãy chọn tài sản hoặc chọn xuất toàn bộ kết quả theo bộ lọc.');
 
-        abort_if(!$allFiltered && $ids->isEmpty(), 422, 'Hãy chọn ít nhất một tài sản hoặc chọn xuất toàn bộ kết quả theo bộ lọc.');
-
-        $query = $allFiltered
-            ? $this->filteredAssets($request, $user)
-            : $this->scopedAssets($user)->whereIn('id', $ids);
-
-        $assets = $query->with(['auditCode.branch.customer'])->orderBy('id')->get();
+        $query = $allFiltered ? $this->filteredAssets($request, $user) : $this->scopedAssets($user)->whereIn('id', $ids);
+        $assets = $query->with(['auditCode.branch.customer','details','memory','storage','monitors','gpu','batteries','network','antivirus','bitlocker','firewall','licenses','software'])->orderBy('id')->get();
         abort_if($assets->isEmpty(), 404, 'Không có tài sản phù hợp để xuất.');
 
-        return response()->streamDownload(function () use ($assets): void {
+        $text = static function ($v): string {
+            if (is_array($v) || is_object($v)) $v = json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $v = $v === null ? '' : (string) $v;
+            return preg_match('/^[=+@\\-\\t\\r]/', $v) ? "'".$v : $v;
+        };
+        $many = static function ($items): string {
+            return $items->map(fn ($item) => collect($item->getAttributes())->except(['id','pc_audit_id','created_at','updated_at'])->map(fn ($v,$k) => str_replace('_',' ',$k).': '.(is_array($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : (string)$v))->implode(' | '))->filter()->implode("\n");
+        };
+        return response()->streamDownload(function () use ($assets, $text, $many): void {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, [
-                'Khách hàng', 'Chi nhánh', 'Audit Code', 'Phòng ban', 'Họ tên', 'Điện thoại',
-                'Email', 'Username', 'Domain', 'Computer Name', 'Manufacturer', 'Model',
-                'Serial Number', 'Asset Tag', 'Mainboard', 'BIOS', 'Operating System',
-                'Windows Update', 'Last Boot', 'Uptime', 'TPM', 'Secure Boot',
-                'Trạng thái Audit', 'Điểm Audit', 'Kết quả Audit', 'Ngày kiểm kê',
-            ]);
-            foreach ($assets as $asset) {
+            fputcsv($out, ['Khách hàng','Chi nhánh','Phòng ban','Họ Tên','Di động','Email','Username','Domain','Tên máy tính','Manufacturer','Model','Serial Number','Asset Tag','Mainboard','BIOS','CPU','RAM','HDD','Monitor','VGA','Battery','OS','Windows Update','Last Boot','Uptime','LAN','WIFI','MODEM','IP','MAC','Gateway','DNS','DHCP','Connection Status','Link Speed','Antivirus','BitLocker','Firewall','TPM','Secure Boot','Windows Activation','Office Activation','Ngày thu thập','SOFTWARE']);
+            foreach ($assets as $x) {
+                $net = $x->network;
+                $netText = fn ($type) => $net->filter(fn ($n) => strtoupper((string)($n->type ?? '')) === $type)->map(fn ($n) => $many(collect([$n])))->filter()->implode("\n");
+                $field = fn ($items, $key) => $items->map(fn ($n) => $n->{$key} ?? null)->filter(fn ($v) => $v !== null && $v !== '')->unique()->implode("\n");
+                $licenses = $x->licenses;
                 $values = [
-                    $asset->auditCode?->branch?->customer?->name,
-                    $asset->auditCode?->branch?->name,
-                    $asset->auditCode?->code,
-                    $asset->department, $asset->employee_name, $asset->employee_mobile,
-                    $asset->employee_email, $asset->employee_username, $asset->domain,
-                    $asset->computer_name, $asset->manufacturer, $asset->model,
-                    $asset->serial_number, $asset->asset_tag,
-                    $asset->mainboard, $asset->bios, $asset->operating_system,
-                    $asset->windows_update, $asset->last_boot, $asset->uptime,
-                    $asset->tpm, $asset->secure_boot, $asset->audit_status,
-                    $asset->audit_score, $asset->audit_results,
-                    $asset->collected_at?->format('Y-m-d H:i:s'),
+                    $x->auditCode?->branch?->customer?->name, $x->auditCode?->branch?->name, $x->department,
+                    $x->employee_name, $x->employee_mobile, $x->employee_email, $x->employee_username, $x->domain,
+                    $x->computer_name, $x->manufacturer, $x->model, $x->serial_number, $x->asset_tag,
+                    $x->mainboard ?: ($x->details?->hardware ?? null), $x->bios, $x->details?->cpu, $many($x->memory),
+                    $many($x->storage), $many($x->monitors), $many($x->gpu), $many($x->batteries),
+                    $x->operating_system, $x->windows_update, $x->last_boot, $x->uptime,
+                    $netText('LAN'), $netText('WIFI'), $netText('MODEM'), $field($net,'ipv4'), $field($net,'mac'),
+                    $field($net,'gateway'), $field($net,'dns'), $field($net,'dhcp'), $field($net,'connection_status'),
+                    $field($net,'link_speed'), $many($x->antivirus), $many($x->bitlocker), $many($x->firewall),
+                    $x->tpm, $x->secure_boot,
+                    $many($licenses->filter(fn ($l) => stripos((string)($l->product_type ?? ''),'windows') !== false)),
+                    $many($licenses->filter(fn ($l) => stripos((string)($l->product_type ?? ''),'office') !== false)),
+                    $x->collected_at?->format('Y-m-d H:i:s'), $many($x->software),
                 ];
-                fputcsv($out, array_map(function ($value): string {
-                    if (is_array($value) || is_object($value)) {
-                        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
-                    }
-                    return $value === null ? '' : (string) $value;
-                }, $values));
+                fputcsv($out, array_map($text, $values));
             }
             fclose($out);
-        }, 'danh-sach-tai-san-' . now()->format('Ymd-His') . '.csv', [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        }, 'PC_Audit_Inventory_'.now()->format('Ymd_His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function create(Request $request)
