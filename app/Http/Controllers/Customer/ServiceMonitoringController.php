@@ -30,7 +30,7 @@ class ServiceMonitoringController extends Controller
             'total' => $services->count(),
             'online' => $services->where('monitor_status', 'online')->count(),
             'offline' => $services->where('monitor_status', 'offline')->count(),
-            'unknown' => $services->filter(fn ($s) => in_array($s->monitor_status, [null, '', 'pending', 'unknown'], true))->count(),
+            'unknown' => $services->filter(fn ($s) => in_array($s->monitor_check_method, ['ping', 'port'], true) && $s->monitor_target && in_array($s->monitor_status, [null, '', 'pending', 'unknown'], true))->count(),
             'not_configured' => $services->filter(fn ($s) => !in_array($s->monitor_check_method, ['ping', 'port'], true) || !$s->monitor_target)->count(),
         ];
 
