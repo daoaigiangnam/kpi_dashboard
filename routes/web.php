@@ -77,6 +77,7 @@ Route::get('/asset/{token}', [CustomerAssetController::class, 'publicShow'])
     ->name('assets.public.show');
 
 Route::middleware('auth')->prefix('customer')->name('customer.')->group(function (): void {
+    Route::get('service-monitoring', [CustomerServiceMonitoringController::class, 'index'])->name('service_monitoring.index');
     Route::get('assets/export', [CustomerAssetController::class, 'export'])
         ->middleware('permission:customer.assets.export')->name('assets.export');
     Route::get('assets/create', [CustomerAssetController::class, 'create'])
