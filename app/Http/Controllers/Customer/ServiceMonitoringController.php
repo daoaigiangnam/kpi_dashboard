@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Customer;
+namespace App\Http\Controllers\Customer;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\Service;
-use App\\Models\\ServiceAlertEvent;
-use App\\Models\\ServiceMonitorEvent;
-use Illuminate\\Http\\Request;
+use App\Http\Controllers\Controller;
+use App\Models\Service;
+use App\Models\ServiceAlertEvent;
+use App\Models\ServiceMonitorEvent;
+use Illuminate\Http\Request;
 
 class ServiceMonitoringController extends Controller
 {
