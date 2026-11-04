@@ -33,7 +33,7 @@ use App\Http\Controllers\Admin\ServiceMonitoringController;
 use App\Http\Controllers\Admin\ServiceToolsController;
 use App\Http\Controllers\Admin\CustomerAssetAccessController;
 use App\Http\Controllers\Customer\AssetController as CustomerAssetController;
-use App\Http\Controllers\Customer\ServiceMonitoringController as CustomerServiceMonitoringController;
+use App\Http\Controllers\Customer\ServiceMonitoringController;
 
 Route::get('/login',[LoginController::class,'show'])->middleware('guest')->name('login');
 
@@ -78,7 +78,7 @@ Route::get('/asset/{token}', [CustomerAssetController::class, 'publicShow'])
     ->name('assets.public.show');
 
 Route::middleware('auth')->prefix('customer')->name('customer.')->group(function (): void {
-    Route::get('service-monitoring', [CustomerServiceMonitoringController::class, 'index'])->name('service_monitoring.index');
+    Route::get('service-monitoring', [\App\Http\Controllers\Customer\ServiceMonitoringController::class, 'index'])->name('service_monitoring.index');
     Route::get('assets/export', [CustomerAssetController::class, 'export'])
         ->middleware('permission:customer.assets.export')->name('assets.export');
     Route::get('assets/create', [CustomerAssetController::class, 'create'])
