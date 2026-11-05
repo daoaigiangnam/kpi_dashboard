@@ -36,6 +36,12 @@ class PcAuditConfigController extends Controller
             'code' => $code->code,
             'server_time' => now()->toIso8601String(),
             'enabled' => (bool) $setting->enabled,
+            'api_base_url' => rtrim((string) $setting->api_base_url, '/'),
+            'tool_version' => (string) ($setting->tool_version ?? '1.0.0'),
+            'minimum_tool_version' => (string) ($setting->minimum_tool_version ?? '1.0.0'),
+            'download_url' => $setting->download_url,
+            'disabled_message' => $setting->disabled_message,
+            'config_version' => optional($setting->updated_at)->toIso8601String(),
             'schedule' => [
                 'enabled' => (bool) ($setting->agent_schedule_enabled ?? true),
                 'interval_minutes' => (int) ($setting->agent_interval_minutes ?? 360),
