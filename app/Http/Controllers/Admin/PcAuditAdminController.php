@@ -92,11 +92,19 @@ class PcAuditAdminController extends Controller
             }
 
             $nodeScript = (string) file_get_contents($nodeToolPath . '/PC_Audit.js');
+            // Bootstrap URL comes from Web Admin PC Audit settings. Runtime settings are fetched from this endpoint.
+            // Never embed the branch Audit Code in shared JavaScript.
+            $setting = PcAuditSetting::query()->first();
+            abort_unless($setting && filter_var($setting->api_base_url, FILTER_VALIDATE_URL), 422, 'Hãy cấu hình API Base URL tại PC Audit > Cấu hình trước khi tạo gói.');
+            $apiBase = rtrim((string) $setting->api_base_url, '/');
+            abort_unless(str_starts_with(strtolower($apiBase), 'https://'), 422, 'PC Audit chỉ hỗ trợ API HTTPS.');
+            $bootstrapUrl = $apiBase . '/pc-audit/config';
             $nodeScript = str_replace(
-                "var EMBEDDED_AUDIT_CODE='__MSTAR_AUDIT_CODE__';",
-                'var EMBEDDED_AUDIT_CODE=' . json_encode($auditCode->code, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';',
+                "var CONFIG_ENDPOINT='';",
+                'var CONFIG_ENDPOINT=' . json_encode($bootstrapUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';',
                 $nodeScript
             );
+            abort_unless(!str_contains($nodeScript, "var CONFIG_ENDPOINT='';"), 500, 'Không thể tạo Config URL cho PC Audit Node.js.');
             $nodeBat = (string) file_get_contents($nodeToolPath . '/PC_Audit.bat');
             $nodeReadme = (string) file_get_contents($nodeToolPath . '/README-Windows7.txt');
 
