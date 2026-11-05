@@ -96,7 +96,10 @@ class PcAuditAdminController extends Controller
             // Never embed the branch Audit Code in shared JavaScript.
             $setting = PcAuditSetting::query()->first();
             abort_unless($setting && filter_var($setting->api_base_url, FILTER_VALIDATE_URL), 422, 'Hãy cấu hình API Base URL tại PC Audit > Cấu hình trước khi tạo gói.');
-            $apiBase = rtrim((string) $setting->api_base_url, '/');
+            $apiBase = trim((string) $setting->api_base_url);
+            // Normalize accidental repeated slashes in the path without changing https://.
+            $apiBase = preg_replace('#(?<!:)//+#', '/', $apiBase) ?? $apiBase;
+            $apiBase = rtrim($apiBase, '/');
             abort_unless(str_starts_with(strtolower($apiBase), 'https://'), 422, 'PC Audit chỉ hỗ trợ API HTTPS.');
             $bootstrapUrl = $apiBase . '/pc-audit/config';
             // Inject the bootstrap endpoint from the saved Backend setting into each generated package.
@@ -108,11 +111,22 @@ class PcAuditAdminController extends Controller
                 'var CONFIG_ENDPOINT=' . json_encode($bootstrapUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';',
                 $nodeScript
             );
+            // The ZIP is generated for the selected branch, so embed that branch's active Audit Code.
+            // Users running the package do not need to type or look up the code again.
+            $codePlaceholder = "var AUDIT_CODE='';";
+            abort_unless(str_contains($nodeScript, $codePlaceholder), 500, 'File nguồn PC_Audit.js thiếu placeholder AUDIT_CODE.');
+            $nodeScript = str_replace(
+                $codePlaceholder,
+                'var AUDIT_CODE=' . json_encode(strtoupper((string) $auditCode->code), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';',
+                $nodeScript
+            );
             abort_unless(
                 !str_contains($nodeScript, $configPlaceholder)
-                    && str_contains($nodeScript, 'var CONFIG_ENDPOINT=' . json_encode($bootstrapUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';'),
+                    && !str_contains($nodeScript, $codePlaceholder)
+                    && str_contains($nodeScript, 'var CONFIG_ENDPOINT=' . json_encode($bootstrapUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';')
+                    && str_contains($nodeScript, 'var AUDIT_CODE=' . json_encode(strtoupper((string) $auditCode->code), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';'),
                 500,
-                'Không thể nhúng Config URL từ cấu hình PC Audit Backend.'
+                'Không thể nhúng Config URL hoặc Audit Code từ cấu hình Backend.'
             );
             $nodeBat = (string) file_get_contents($nodeToolPath . '/PC_Audit.bat');
             $nodeReadme = (string) file_get_contents($nodeToolPath . '/README-Windows7.txt');
