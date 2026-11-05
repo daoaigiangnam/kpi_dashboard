@@ -1,8 +1,7 @@
 'use strict';
 /* MSTAR PC Audit Tool shared by Windows 7/10/11; built-in modules only. */
 var os=require('os'),fs=require('fs'),path=require('path'),https=require('https'),cp=require('child_process'),readline=require('readline');
-var EMBEDDED_AUDIT_CODE='__MSTAR_AUDIT_CODE__';
-var CONFIG_ENDPOINT='https://services.mstarcorp.vn/api/pc-audit/config';
+var CONFIG_ENDPOINT='';
 function ask(rl,q){return new Promise(function(resolve){rl.question(q,function(v){resolve(String(v||'').trim());});});}
 function txt(v){return v===undefined||v===null?'':String(v).trim();}
 function stage(title){console.log('\n[THU THAP] '+title);}
@@ -175,13 +174,15 @@ async function collect(){
 function reqJson(url,method,payload){return new Promise(function(resolve,reject){var u;try{u=new URL(url);}catch(e){reject(new Error('URL API khong hop le'));return;}if(u.protocol!=='https:'){reject(new Error('Chi chap nhan HTTPS'));return;}var body=payload===undefined?null:Buffer.from(JSON.stringify(payload),'utf8'),headers={Accept:'application/json'};if(body){headers['Content-Type']='application/json; charset=utf-8';headers['Content-Length']=body.length;}var req=https.request({hostname:u.hostname,port:u.port||443,path:u.pathname+u.search,method:method,headers:headers},function(res){var raw='';res.setEncoding('utf8');res.on('data',function(c){raw+=c;});res.on('end',function(){var data={};try{data=raw?JSON.parse(raw):{};}catch(e){reject(new Error('May chu tra ve JSON khong hop le (HTTP '+res.statusCode+')'));return;}if(res.statusCode<200||res.statusCode>=300){var detail=data.message||('HTTP '+res.statusCode);if(data.errors)detail=Object.keys(data.errors).map(function(k){return k+': '+[].concat(data.errors[k]).join('; ');}).join(' | ');reject(new Error(detail));return;}resolve(data);});});req.setTimeout(120000,function(){req.destroy(new Error('Het thoi gian cho ket noi Audit API'));});req.on('error',reject);if(body)req.write(body);req.end();});}
 function saveJson(payload){var dir=path.join(__dirname,'output');if(!fs.existsSync(dir))fs.mkdirSync(dir);var name=String(payload.data.computer.computer_name||os.hostname()).replace(/[^A-Za-z0-9_-]/g,'_'),stamp=new Date().toISOString().replace(/[:.]/g,'-'),file=path.join(dir,'pc-audit-'+name+'-'+stamp+'.json');fs.writeFileSync(file,JSON.stringify(payload,null,2),'utf8');return file;}
 
+function getConfigEndpoint(){var endpoint=String(CONFIG_ENDPOINT||'').trim();if(!/^https:\/\//i.test(endpoint))throw new Error('Goi cai dat chua co Config URL HTTPS do Web Admin cap.');return endpoint;}
+async function loadPublicConfig(){var conf=await reqJson(getConfigEndpoint(),'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');var base=String(conf.api_base_url||'').replace(/\\/+$/,'');if(!/^https:\/\//i.test(base))throw new Error('API Base URL trong System Settings khong hop le.');return conf;}
 var SCHEDULE_TASK_NAME='MSTAR_PC_AUDIT_SCHEDULE';
 var SCHEDULE_CONFIG=path.join(__dirname,'pc-audit-schedule.json');
 function logScheduled(message){var dir=path.join(__dirname,'output');if(!fs.existsSync(dir))fs.mkdirSync(dir);fs.appendFileSync(path.join(dir,'scheduled.log'),'['+new Date().toISOString()+'] '+message+'\r\n','utf8');}
 async function scheduledRun(){
  var profile;
  try{profile=JSON.parse(fs.readFileSync(SCHEDULE_CONFIG,'utf8'));}catch(e){throw new Error('Chua co cau hinh lich. Chay PC_Audit.bat va chon cai dat lich truoc.');}
- var conf=await reqJson(CONFIG_ENDPOINT,'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');
+ var conf=await reqJson(getConfigEndpoint(),'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');
  var base=String(conf.api_base_url||'').replace(/\/+$/,'');if(!/^https:\/\//i.test(base))throw new Error('API Base URL khong hop le.');
  var code=String(profile.code||'').toUpperCase();if(!code)throw new Error('Thieu Audit Code trong cau hinh lich.');
  var v=await reqJson(base+'/pc-audit/validate-code','POST',{code:code});if(v.ok!==true)throw new Error(v.message||'Audit Code khong hop le');
@@ -195,9 +196,9 @@ async function setupSchedule(){
  var rl=readline.createInterface({input:process.stdin,output:process.stdout});
  try{
   console.log('=== CAU HINH PC AUDIT TU DONG ===');
-  var code=(EMBEDDED_AUDIT_CODE==='__MSTAR_AUDIT_CODE__'?(await ask(rl,'Audit Code: ')):EMBEDDED_AUDIT_CODE).toUpperCase();
+  var code=((await ask(rl,'Audit Code: '))).toUpperCase();
   if(!code)throw new Error('Audit Code khong duoc de trong.');
-  var conf=await reqJson(CONFIG_ENDPOINT,'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');
+  var conf=await reqJson(getConfigEndpoint(),'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');
   var base=String(conf.api_base_url||'').replace(/\/+$/,'');
   var v=await reqJson(base+'/pc-audit/validate-code','POST',{code:code});if(v.ok!==true)throw new Error(v.message||'Audit Code khong hop le');
   console.log('Khach hang: '+v.data.customer.name+' | Chi nhanh: '+v.data.branch.name);
@@ -244,8 +245,7 @@ var SERVICE_NAME='MSTAR_PCAudit';
 var SERVICE_CONFIG=SCHEDULE_CONFIG;
 function sleep(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});}
 async function readAgentSchedule(profile){
- var url=CONFIG_ENDPOINT.slice(0, CONFIG_ENDPOINT.lastIndexOf('/config'))+'/agent-config?code='+encodeURIComponent(String(profile.code||''));
- return await reqJson(url,'GET');
+ var conf=await loadPublicConfig();var base=String(conf.api_base_url).replace(/\\/+$/,'');return await reqJson(base+'/pc-audit/agent-config?code='+encodeURIComponent(String(profile.code||'')),'GET');
 }
 async function serviceLoop(){
  var profile;
@@ -289,9 +289,9 @@ async function setupService(){
  var rl=readline.createInterface({input:process.stdin,output:process.stdout});
  try{
   console.log('=== CAU HINH WINDOWS SERVICE PC AUDIT ===');
-  var code=(EMBEDDED_AUDIT_CODE==='__MSTAR_AUDIT_CODE__'?(await ask(rl,'Audit Code: ')):EMBEDDED_AUDIT_CODE).toUpperCase();
+  var code=((await ask(rl,'Audit Code: '))).toUpperCase();
   if(!code)throw new Error('Audit Code khong duoc de trong.');
-  var conf=await reqJson(CONFIG_ENDPOINT,'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');
+  var conf=await reqJson(getConfigEndpoint(),'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');
   var base=String(conf.api_base_url||'').replace(/\/+$/,'');
   var v=await reqJson(base+'/pc-audit/validate-code','POST',{code:code});if(v.ok!==true)throw new Error(v.message||'Audit Code khong hop le');
   console.log('Khach hang: '+v.data.customer.name+' | Chi nhanh: '+v.data.branch.name);
@@ -329,5 +329,5 @@ async function main(){
  if(process.argv.indexOf('--scheduled')>=0){try{await scheduledRun();}catch(e){try{logScheduled('ERROR '+(e&&e.message?e.message:String(e)));}catch(ignore){}console.error('[SCHEDULED AUDIT ERROR] '+(e&&e.message?e.message:String(e)));process.exitCode=1;}return;}
  if(process.argv.indexOf('--setup-schedule')>=0){await setupSchedule();return;}
  if(process.argv.indexOf('--remove-schedule')>=0){await removeSchedule();return;}
- var rl=readline.createInterface({input:process.stdin,output:process.stdout});try{console.log('==============================================');console.log(' MSTAR PC AUDIT TOOL - WINDOWS 7 / NODE.JS');console.log(' Runtime: '+process.version+' / '+process.arch);console.log('==============================================');console.log('Dang lay cau hinh may chu...');var conf=await reqJson(CONFIG_ENDPOINT,'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');var base=String(conf.api_base_url||'').replace(/\/+$/,'');if(!/^https:\/\//i.test(base))throw new Error('API Base URL khong hop le.');var code=EMBEDDED_AUDIT_CODE==='__MSTAR_AUDIT_CODE__'?(await ask(rl,'Audit Code: ')).toUpperCase():EMBEDDED_AUDIT_CODE.toUpperCase();if(!code)throw new Error('Audit Code khong duoc de trong.');console.log('Dang xac thuc Audit Code...');var v=await reqJson(base+'/pc-audit/validate-code','POST',{code:code});if(v.ok!==true)throw new Error(v.message||'Audit Code khong hop le');var customer=v.data.customer.name,branch=v.data.branch.name;console.log('Khach hang: '+customer);console.log('Chi nhanh : '+branch);var def=os.userInfo().username||process.env.USERNAME||'Unknown',employee=(await ask(rl,'Ho ten nguoi su dung (Enter = '+def+'): '))||def;if(!employee)throw new Error('Khong xac dinh duoc nguoi su dung');var department=(await ask(rl,'Phong ban (Enter = bo qua): '))||null,mobile=(await ask(rl,'Di dong (Enter = bo qua): '))||null,email=(await ask(rl,'Email (Enter = bo qua): '))||null;if(!/^y$/i.test(await ask(rl,'Tiep tuc Audit may nay? (Y/N): '))){console.log('Da huy.');return;}console.log('\\n==============================================');console.log(' BAT DAU THU THAP - GIA TRI THUC TE SE HIEN THI');console.log('==============================================');var data=await collect(),payload={code:code,employee_name:employee,department:department,employee_mobile:mobile,employee_email:email,data:data},jsonFile=saveJson(payload);console.log('Da luu JSON: '+jsonFile);console.log('So phan mem thu duoc: '+data.software.length);console.log('Dang gui du lieu len Server...');var resp=await reqJson(base+'/pc-audit/submit','POST',payload);if(resp.ok!==true)throw new Error(resp.message||'Server tu choi du lieu');try{var mail=await reqJson(base+'/pc-audit/send-mail','POST',{code:code,subject:'PC Audit - '+data.computer.computer_name+' - '+customer+' - '+branch,body:JSON.stringify(payload,null,2)});console.log(mail.ok?'Email bao cao da gui.':'Audit da luu, email chua gui.');}catch(e){console.log('Audit da luu, email chua gui: '+e.message);}console.log('\n==============================================');console.log(' AUDIT HOAN TAT - DU LIEU DA DUOC LUU');console.log(' Khach hang: '+customer);console.log(' Chi nhanh : '+branch);console.log(' Nguoi dung: '+employee);console.log(' Diem Audit: '+String(resp.audit_score));console.log(' Trang thai: '+String(resp.audit_status));console.log('==============================================');}finally{rl.close();}}
+ var rl=readline.createInterface({input:process.stdin,output:process.stdout});try{console.log('==============================================');console.log(' MSTAR PC AUDIT TOOL - WINDOWS 7 / NODE.JS');console.log(' Runtime: '+process.version+' / '+process.arch);console.log('==============================================');console.log('Dang lay cau hinh may chu...');var conf=await reqJson(getConfigEndpoint(),'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');var base=String(conf.api_base_url||'').replace(/\/+$/,'');if(!/^https:\/\//i.test(base))throw new Error('API Base URL khong hop le.');var code=(await ask(rl,'Audit Code: ')).toUpperCase();if(!code)throw new Error('Audit Code khong duoc de trong.');console.log('Dang xac thuc Audit Code...');var v=await reqJson(base+'/pc-audit/validate-code','POST',{code:code});if(v.ok!==true)throw new Error(v.message||'Audit Code khong hop le');var customer=v.data.customer.name,branch=v.data.branch.name;console.log('Khach hang: '+customer);console.log('Chi nhanh : '+branch);var def=os.userInfo().username||process.env.USERNAME||'Unknown',employee=(await ask(rl,'Ho ten nguoi su dung (Enter = '+def+'): '))||def;if(!employee)throw new Error('Khong xac dinh duoc nguoi su dung');var department=(await ask(rl,'Phong ban (Enter = bo qua): '))||null,mobile=(await ask(rl,'Di dong (Enter = bo qua): '))||null,email=(await ask(rl,'Email (Enter = bo qua): '))||null;if(!/^y$/i.test(await ask(rl,'Tiep tuc Audit may nay? (Y/N): '))){console.log('Da huy.');return;}console.log('\\n==============================================');console.log(' BAT DAU THU THAP - GIA TRI THUC TE SE HIEN THI');console.log('==============================================');var data=await collect(),payload={code:code,employee_name:employee,department:department,employee_mobile:mobile,employee_email:email,data:data},jsonFile=saveJson(payload);console.log('Da luu JSON: '+jsonFile);console.log('So phan mem thu duoc: '+data.software.length);console.log('Dang gui du lieu len Server...');var resp=await reqJson(base+'/pc-audit/submit','POST',payload);if(resp.ok!==true)throw new Error(resp.message||'Server tu choi du lieu');try{var mail=await reqJson(base+'/pc-audit/send-mail','POST',{code:code,subject:'PC Audit - '+data.computer.computer_name+' - '+customer+' - '+branch,body:JSON.stringify(payload,null,2)});console.log(mail.ok?'Email bao cao da gui.':'Audit da luu, email chua gui.');}catch(e){console.log('Audit da luu, email chua gui: '+e.message);}console.log('\n==============================================');console.log(' AUDIT HOAN TAT - DU LIEU DA DUOC LUU');console.log(' Khach hang: '+customer);console.log(' Chi nhanh : '+branch);console.log(' Nguoi dung: '+employee);console.log(' Diem Audit: '+String(resp.audit_score));console.log(' Trang thai: '+String(resp.audit_status));console.log('==============================================');}finally{rl.close();}}
 main().catch(function(e){console.error('\\n[PC AUDIT ERROR] '+(e&&e.message?e.message:String(e)));process.exitCode=1;});
