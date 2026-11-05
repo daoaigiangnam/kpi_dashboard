@@ -99,12 +99,21 @@ class PcAuditAdminController extends Controller
             $apiBase = rtrim((string) $setting->api_base_url, '/');
             abort_unless(str_starts_with(strtolower($apiBase), 'https://'), 422, 'PC Audit chỉ hỗ trợ API HTTPS.');
             $bootstrapUrl = $apiBase . '/pc-audit/config';
+            // Inject the bootstrap endpoint from the saved Backend setting into each generated package.
+            // The shared source file must never contain a fixed production hostname.
+            $configPlaceholder = "var CONFIG_ENDPOINT='';";
+            abort_unless(str_contains($nodeScript, $configPlaceholder), 500, 'File nguồn PC_Audit.js thiếu placeholder CONFIG_ENDPOINT.');
             $nodeScript = str_replace(
-                "var CONFIG_ENDPOINT='';",
+                $configPlaceholder,
                 'var CONFIG_ENDPOINT=' . json_encode($bootstrapUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';',
                 $nodeScript
             );
-            abort_unless(!str_contains($nodeScript, "var CONFIG_ENDPOINT='';"), 500, 'Không thể tạo Config URL cho PC Audit Node.js.');
+            abort_unless(
+                !str_contains($nodeScript, $configPlaceholder)
+                    && str_contains($nodeScript, 'var CONFIG_ENDPOINT=' . json_encode($bootstrapUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';'),
+                500,
+                'Không thể nhúng Config URL từ cấu hình PC Audit Backend.'
+            );
             $nodeBat = (string) file_get_contents($nodeToolPath . '/PC_Audit.bat');
             $nodeReadme = (string) file_get_contents($nodeToolPath . '/README-Windows7.txt');
 
