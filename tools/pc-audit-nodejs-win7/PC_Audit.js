@@ -175,7 +175,7 @@ function reqJson(url,method,payload){return new Promise(function(resolve,reject)
 function saveJson(payload){var dir=path.join(__dirname,'output');if(!fs.existsSync(dir))fs.mkdirSync(dir);var name=String(payload.data.computer.computer_name||os.hostname()).replace(/[^A-Za-z0-9_-]/g,'_'),stamp=new Date().toISOString().replace(/[:.]/g,'-'),file=path.join(dir,'pc-audit-'+name+'-'+stamp+'.json');fs.writeFileSync(file,JSON.stringify(payload,null,2),'utf8');return file;}
 
 function getConfigEndpoint(){var endpoint=String(CONFIG_ENDPOINT||'').trim();if(!/^https:\/\//i.test(endpoint))throw new Error('Goi cai dat chua co Config URL HTTPS do Web Admin cap.');return endpoint;}
-async function loadPublicConfig(){var conf=await reqJson(getConfigEndpoint(),'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');var base=String(conf.api_base_url||'').replace(/\\/+$/,'');if(!/^https:\/\//i.test(base))throw new Error('API Base URL trong System Settings khong hop le.');return conf;}
+async function loadPublicConfig(){var conf=await reqJson(getConfigEndpoint(),'GET');if(conf.enabled!==true)throw new Error(conf.disabled_message||'He thong Audit dang tam ngung.');var base=String(conf.api_base_url||'').replace(/\/+$/,'');if(!/^https:\/\//i.test(base))throw new Error('API Base URL trong System Settings khong hop le.');return conf;}
 var SCHEDULE_TASK_NAME='MSTAR_PC_AUDIT_SCHEDULE';
 var SCHEDULE_CONFIG=path.join(__dirname,'pc-audit-schedule.json');
 function logScheduled(message){var dir=path.join(__dirname,'output');if(!fs.existsSync(dir))fs.mkdirSync(dir);fs.appendFileSync(path.join(dir,'scheduled.log'),'['+new Date().toISOString()+'] '+message+'\r\n','utf8');}
@@ -245,7 +245,7 @@ var SERVICE_NAME='MSTAR_PCAudit';
 var SERVICE_CONFIG=SCHEDULE_CONFIG;
 function sleep(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});}
 async function readAgentSchedule(profile){
- var conf=await loadPublicConfig();var base=String(conf.api_base_url).replace(/\\/+$/,'');return await reqJson(base+'/pc-audit/agent-config?code='+encodeURIComponent(String(profile.code||'')),'GET');
+ var conf=await loadPublicConfig();var base=String(conf.api_base_url).replace(/\/+$/,'');return await reqJson(base+'/pc-audit/agent-config?code='+encodeURIComponent(String(profile.code||'')),'GET');
 }
 async function serviceLoop(){
  var profile;
