@@ -1,7 +1,7 @@
 'use strict';
 /* MSTAR PC Audit Tool shared by Windows 7/10/11; built-in modules only. */
 var os=require('os'),fs=require('fs'),path=require('path'),https=require('https'),cp=require('child_process'),readline=require('readline');
-var CONFIG_ENDPOINT='https://services.mstarcorp.vn/api/pc-audit/config';
+var CONFIG_ENDPOINT='';
 function ask(rl,q){return new Promise(function(resolve){rl.question(q,function(v){resolve(String(v||'').trim());});});}
 function txt(v){return v===undefined||v===null?'':String(v).trim();}
 function stage(title){console.log('\n[THU THAP] '+title);}
