@@ -15,8 +15,17 @@ use Illuminate\Support\Str;
 
 class PcAuditAdminController extends Controller
 {
-    public function launcher()
+    public function launcher(Request $request)
     {
+        $user = $request->user();
+        if ($user?->isCustomerAccount()) {
+            abort_unless($user->hasPermission('customer.pc_audit.launcher'), 403);
+            $customer = ServiceCustomer::query()->whereKey($user->service_customer_id)->where('is_active', true)->firstOrFail();
+            $branches = CustomerBranch::query()->where('customer_id', $customer->id)->where('is_active', true)
+                ->when(!$user->can_access_all_branches, fn ($q) => $q->whereIn('id', $user->permittedBranches()->select('customer_branches.id')))
+                ->orderBy('name')->get(['id', 'customer_id', 'name']);
+            return view('customer.pc-audit.launcher', compact('customer', 'branches'));
+        }
         $customers = ServiceCustomer::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']);
         $branches = CustomerBranch::query()->where('is_active', true)->whereHas('customer', fn ($q) => $q->where('is_active', true))->orderBy('customer_id')->orderBy('name')->get(['id', 'customer_id', 'name']);
         return view('admin.pc-audit.launcher', compact('customers', 'branches'));
@@ -37,14 +46,20 @@ class PcAuditAdminController extends Controller
             'nodejs' => 'pc_audit.package_nodejs',
             'macos' => 'pc_audit.package_macos',
         ];
-        abort_unless(
-            auth()->user()?->hasPermission($buttonPermissions[$data['target_os']]),
-            403,
-            'Bạn không có quyền tạo gói PC Audit cho hệ điều hành đã chọn.'
-        );
-
+        $user = $request->user();
+        if ($user?->isCustomerAccount()) {
+            abort_unless($data['target_os'] === 'nodejs', 403, 'Khách hàng chỉ được tạo gói PC Audit Node.js.');
+            abort_unless($user->hasPermission('customer.pc_audit.launcher'), 403);
+            abort_unless((int) $data['customer_id'] === (int) $user->service_customer_id, 403, 'Không được tạo Audit cho khách hàng khác.');
+        } else {
+            abort_unless($user?->hasPermission($buttonPermissions[$data['target_os']]), 403, 'Bạn không có quyền tạo gói PC Audit cho hệ điều hành đã chọn.');
+        }
         $customer = ServiceCustomer::query()->whereKey($data['customer_id'])->where('is_active', true)->firstOrFail();
-        $branch = CustomerBranch::query()->whereKey($data['branch_id'])->where('customer_id', $customer->id)->where('is_active', true)->firstOrFail();
+        $branchQuery = CustomerBranch::query()->whereKey($data['branch_id'])->where('customer_id', $customer->id)->where('is_active', true);
+        if ($user?->isCustomerAccount() && !$user->can_access_all_branches) {
+            $branchQuery->whereIn('id', $user->permittedBranches()->select('customer_branches.id'));
+        }
+        $branch = $branchQuery->firstOrFail();
 
         $auditCode = PcAuditCode::query()->where('branch_id', $branch->id)->where('is_active', true)->orderBy('id')->first();
         if (!$auditCode) {
