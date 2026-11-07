@@ -81,6 +81,7 @@ class User extends Authenticatable implements CanResetPasswordContract
                 'customer.assets.delete' => $this->can_view_assets && $this->can_delete_assets,
                 'customer.assets.export' => $this->can_view_assets && $this->can_export_assets,
                 'customer.audit.view' => $this->can_view_audit,
+                'customer.pc_audit.launcher' => $this->can_view_audit,
                 'customer.assets.qr' => $this->can_view_assets && $this->can_download_qr,
                 default => false,
             };
