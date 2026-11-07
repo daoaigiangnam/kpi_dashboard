@@ -79,6 +79,8 @@ Route::get('/asset/{token}', [CustomerAssetController::class, 'publicShow'])
 
 Route::middleware('auth')->prefix('customer')->name('customer.')->group(function (): void {
     Route::get('service-monitoring', [\App\Http\Controllers\Customer\ServiceMonitoringController::class, 'index'])->name('service_monitoring.index');
+    Route::get('pc-audit/launcher', [\App\Http\Controllers\Admin\PcAuditAdminController::class, 'launcher'])->middleware('permission:customer.pc_audit.launcher')->name('pc_audit.launcher');
+    Route::post('pc-audit/launcher', [\App\Http\Controllers\Admin\PcAuditAdminController::class, 'generateLauncher'])->middleware('permission:customer.pc_audit.launcher')->name('pc_audit.launcher.generate');
     Route::get('assets/export', [CustomerAssetController::class, 'export'])
         ->middleware('permission:customer.assets.export')->name('assets.export');
     Route::get('assets/create', [CustomerAssetController::class, 'create'])
