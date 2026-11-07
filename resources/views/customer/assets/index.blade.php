@@ -14,6 +14,7 @@
 <button class="btn" type="submit">Lọc / Tìm kiếm</button><a class="btn secondary" href="{{ route('customer.assets.index') }}">Xóa lọc</a>
 </form><div class="actions" style="margin-top:14px">
 <a class="btn secondary" href="{{ route('customer.service_monitoring.index') }}">Monitoring dịch vụ</a>
+@if(auth()->user()->hasPermission('customer.pc_audit.launcher'))<a class="btn" href="{{ route('customer.pc_audit.launcher') }}">🖥️ Tạo bộ PC Audit</a>@endif
 @if(auth()->user()->hasPermission('customer.assets.create'))<a class="btn" href="{{ route('customer.assets.create') }}">+ Tạo tài sản</a>@endif
 @if(auth()->user()->hasPermission('customer.assets.export'))
 <form id="asset-export-form" method="GET" action="{{ route('customer.assets.export') }}" class="actions" style="margin:0;align-items:center">
