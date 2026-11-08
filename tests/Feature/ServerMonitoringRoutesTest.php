@@ -41,7 +41,7 @@ class ServerMonitoringRoutesTest extends TestCase
 
     public function test_agent_token_middleware_alias_is_registered(): void
     {
-        $aliases = app('router')->getMiddleware();
+        $aliases = app(\Illuminate\Contracts\Http\Kernel::class)->getMiddlewareAliases();
 
         $this->assertArrayHasKey('agent.token', $aliases);
         $this->assertSame(
