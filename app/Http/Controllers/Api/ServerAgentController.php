@@ -79,8 +79,12 @@ class ServerAgentController extends Controller
                     $query->where('status', 'queued')
                         ->orWhere(function ($retry) use ($now) {
                             $retry->where('status', 'delivered')
-                                ->whereNotNull('lease_expires_at')
-                                ->where('lease_expires_at', '<=', $now);
+                                ->where(function ($lease) use ($now) {
+                                    // Legacy deliveries created before leases have NULL here;
+                                    // make them eligible for one safe re-delivery.
+                                    $lease->whereNull('lease_expires_at')
+                                        ->orWhere('lease_expires_at', '<=', $now);
+                                });
                         });
                 })
                 ->where(function ($query) use ($now) {
@@ -163,6 +167,8 @@ class ServerAgentController extends Controller
                 'completed_at' => in_array($next, ['completed', 'failed'], true)
                     ? ($command->completed_at ?? now())
                     : null,
+                // ACK ends the delivery lease; executing commands are no longer redelivered.
+                'lease_expires_at' => null,
             ])->save();
 
             if (in_array($next, ['completed', 'failed'], true)) {
