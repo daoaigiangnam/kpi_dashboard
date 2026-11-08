@@ -313,6 +313,55 @@ class ServerAgentApiTest extends TestCase
         $this->assertTrue($server->fresh()->audit_enabled);
     }
 
+    public function test_agent_can_flush_final_audit_events_while_session_is_stopping(): void
+    {
+        [$server, $token] = $this->createServer();
+        $sessionId = (string) Str::uuid();
+        $session = $server->auditSessions()->create([
+            'session_id' => $sessionId,
+            'status' => 'stopping',
+            'event_count' => 0,
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/audit/events', [
+            'session_id' => $sessionId,
+            'events' => [[
+                'event_key' => 'final-spool-event',
+                'event_time' => now()->toIso8601String(),
+                'executable' => '/usr/bin/id',
+            ]],
+        ])->assertOk()->assertJsonPath('accepted', 1);
+
+        $this->assertSame(1, $session->fresh()->event_count);
+    }
+
+    public function test_failed_audit_report_does_not_fabricate_stop_time_or_clear_enabled_flag(): void
+    {
+        [$server, $token] = $this->createServer();
+        $server->forceFill(['audit_enabled' => true])->save();
+        $sessionId = (string) Str::uuid();
+        $session = $server->auditSessions()->create([
+            'session_id' => $sessionId,
+            'status' => 'stopping',
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/audit/report', [
+            'session_id' => $sessionId,
+            'status' => 'failed',
+            'event_count' => 0,
+        ])->assertOk();
+
+        $this->assertSame('failed', $session->fresh()->status);
+        $this->assertNull($session->fresh()->stopped_at);
+        $this->assertTrue($server->fresh()->audit_enabled);
+    }
+
     public function test_failed_audit_start_ack_does_not_fabricate_started_or_stopped_times(): void
     {
         [$server, $token] = $this->createServer();
