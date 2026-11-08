@@ -104,7 +104,7 @@ class MailBackupManagerController extends Controller
             return $batch;
         });
 
-        $this->audit('BATCH_IMPORTED', 'batch', $batch->id, [
+        $this->recordAudit('BATCH_IMPORTED', 'batch', $batch->id, [
             'batch_code' => $batch->batch_code, 'valid_accounts' => count($accounts),
             'skipped_rows' => count($issues), 'date_from' => $batch->date_from->toDateString(),
             'date_to' => $batch->date_to->toDateString(), 'scope' => $batch->mail_scope,
@@ -147,7 +147,7 @@ class MailBackupManagerController extends Controller
             $locked->batch->refreshCounters();
             return $locked;
         });
-        $this->audit('RETRY_JOB', 'job', $job->id, ['email' => $job->email]);
+        $this->recordAudit('RETRY_JOB', 'job', $job->id, ['email' => $job->email]);
         return back()->with('success', 'Đã đưa job về queue. Job hoàn tất không bị chạy lại.');
     }
 
@@ -169,11 +169,11 @@ class MailBackupManagerController extends Controller
             $batch->refreshCounters();
             return $jobs->count();
         });
-        $this->audit('RETRY_FAILED_JOBS', 'batch', $batch->id, ['retried_jobs' => $retried]);
+        $this->recordAudit('RETRY_FAILED_JOBS', 'batch', $batch->id, ['retried_jobs' => $retried]);
         return back()->with('success', "Đã đưa {$retried} job FAILED về queue.");
     }
 
-    private function audit(string $action, string $entityType, ?int $entityId, array $details = []): void
+    private function recordAudit(string $action, string $entityType, ?int $entityId, array $details = []): void
     {
         MailBackupAuditLog::create([
             'actor_id' => auth()->id(), 'action' => $action, 'entity_type' => $entityType,
