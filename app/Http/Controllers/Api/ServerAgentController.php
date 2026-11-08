@@ -176,7 +176,11 @@ class ServerAgentController extends Controller
                                 'stopped_at' => now(),
                             ])->save();
 
-                            $server->forceFill(['audit_enabled' => false])->save();
+                            // A failed STOP does not prove that audit collection stopped.
+                            // Keep the server marked enabled until a successful STOP is confirmed.
+                            if ($next === 'completed') {
+                                $server->forceFill(['audit_enabled' => false])->save();
+                            }
                         }
                     }
                 }
@@ -255,7 +259,8 @@ class ServerAgentController extends Controller
         $data = $request->validate([
             'session_id' => ['required', 'uuid'],
             'status' => ['required', 'in:completed,failed'],
-            'event_count' => ['required', 'integer', 'min:0'],
+            // Event counts are maintained by Central from accepted, deduplicated events.
+            'event_count' => ['sometimes', 'integer', 'min:0'],
             'report_sha256' => ['nullable', 'regex:/^[a-fA-F0-9]{64}$/'],
             'report_name' => ['nullable', 'string', 'max:190'],
         ]);
@@ -268,23 +273,34 @@ class ServerAgentController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (! in_array($session->status, ['stopping', 'running'], true)) {
+            if (! in_array($session->status, ['stopping', 'running', 'completed'], true)) {
                 throw ValidationException::withMessages([
                     'session_id' => 'Session is not in a reportable state.',
                 ]);
             }
 
+            // Do not trust an Agent-supplied count; Central's deduplicated event
+            // ingestion is the source of truth for the session count.
+            $centralEventCount = DB::table('command_audit_events')
+                ->where('server_id', $server->id)
+                ->where('session_id', $session->session_id)
+                ->count();
+
             $session->forceFill([
                 'status' => $data['status'],
                 'stopped_at' => now(),
-                'event_count' => max((int) $session->event_count, (int) $data['event_count']),
+                'event_count' => $centralEventCount,
                 'metadata' => array_merge($session->metadata ?? [], [
                     'report_sha256' => $data['report_sha256'] ?? null,
                     'report_name' => $data['report_name'] ?? null,
                 ]),
             ])->save();
 
-            $server->forceFill(['audit_enabled' => false])->save();
+            // A failed report leaves collection state uncertain; only a successful
+            // completion report is allowed to clear the enabled flag.
+            if ($data['status'] === 'completed') {
+                $server->forceFill(['audit_enabled' => false])->save();
+            }
         });
 
         return response()->json(['ok' => true]);
