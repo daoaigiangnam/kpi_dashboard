@@ -287,3 +287,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function(){
     Route::put('mail-backup/settings/values',[\App\Http\Controllers\Admin\MailBackupSettingController::class,'updateValues'])->middleware('permission:mail_backup.settings')->name('mail_backup.settings.values');
     Route::put('mail-backup/settings/definitions/{definition}',[\App\Http\Controllers\Admin\MailBackupSettingController::class,'updateDefinition'])->middleware('permission:mail_backup.settings')->name('mail_backup.settings.definition.update');
 });
+
+
+// Server Monitoring admin routes.
+require __DIR__.'/server-monitoring-admin.php';
