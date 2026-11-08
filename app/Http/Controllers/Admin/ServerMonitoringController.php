@@ -133,14 +133,26 @@ class ServerMonitoringController extends Controller
         DB::transaction(function () use ($server) {
             $locked = MonitoredServer::whereKey($server->id)->lockForUpdate()->firstOrFail();
             // Disabling Central access does not stop a local auditd process.
-            // Preserve the last known audit flag instead of claiming collection stopped.
-            $locked->forceFill(['status' => 'disabled'])->save();
+            // Keep active/stopping sessions intact and never fabricate stopped_at.
+            $mayStillBeCollecting = $locked->audit_enabled
+                || $locked->auditSessions()->whereIn('status', ['running', 'stopping'])->exists()
+                || $locked->commands()
+                    ->where('type', 'AUDIT_START')
+                    ->whereIn('status', ['delivered', 'executing', 'completed'])
+                    ->exists();
+
+            $locked->forceFill([
+                'status' => 'disabled',
+                'audit_enabled' => $mayStillBeCollecting,
+            ])->save();
 
             $locked->commands()->whereIn('status', ['queued', 'delivered', 'executing'])
                 ->update(['status' => 'cancelled', 'updated_at' => now()]);
 
-            $locked->auditSessions()->whereIn('status', ['queued', 'running', 'stopping'])
-                ->update(['status' => 'failed', 'stopped_at' => now(), 'updated_at' => now()]);
+            // A queued session with no confirmed START is no longer actionable.
+            // Mark it failed, but leave stopped_at null because no STOP was confirmed.
+            $locked->auditSessions()->where('status', 'queued')
+                ->update(['status' => 'failed', 'updated_at' => now()]);
         });
 
         return back()->with('success', 'Server đã được disable tại Central; Agent sẽ không xác thực được các request tiếp theo.');
