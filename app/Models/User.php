@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -14,7 +15,7 @@ use App\Models\CustomerBranch;
 
 class User extends Authenticatable implements CanResetPasswordContract
 {
-    use Notifiable, SoftDeletes, CanResetPasswordTrait;
+    use HasFactory, Notifiable, SoftDeletes, CanResetPasswordTrait;
 
     protected $fillable = [
         'employee_code','external_id','name','email','phone','date_of_birth','gender',
