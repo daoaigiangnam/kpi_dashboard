@@ -1,0 +1,9 @@
+@extends('layouts.admin')
+@section('title','Server Monitoring')
+@section('content')
+<div class="top"><div><h1>Server Monitoring</h1><p class="muted">Quản lý Ubuntu Server và điều khiển Command Audit.</p></div><a class="btn" href="{{ route('admin.server_monitoring.create') }}">+ Đăng ký Server</a></div>
+<div class="grid" style="margin-bottom:18px"><div class="card"><div class="muted">Tổng Server</div><h2>{{ $stats['total'] }}</h2></div><div class="card"><div class="muted">Online (2 phút)</div><h2>{{ $stats['online'] }}</h2></div><div class="card"><div class="muted">Phiên Audit đang chạy</div><h2>{{ $stats['audit_running'] }}</h2></div><div class="card"><div class="muted">Resource Monitor</div><h2>Giai đoạn 2</h2></div></div>
+<div class="card"><div class="table-wrap"><table class="table"><thead><tr><th>Server</th><th>Hostname</th><th>Agent ID</th><th>Trạng thái</th><th>Audit</th><th>Last Seen</th><th></th></tr></thead><tbody>
+@forelse($servers as $s)<tr><td><strong>{{ $s->name }}</strong><br><small>{{ $s->server_code }}</small></td><td>{{ $s->hostname ?: '—' }}</td><td><small>{{ $s->agent_id }}</small></td><td>{{ $s->status==='active' && $s->last_seen_at && $s->last_seen_at->gt(now()->subMinutes(2)) ? '🟢 Online' : ($s->status==='disabled'?'Disabled':'⚪ Offline') }}</td><td>{{ $s->audit_enabled ? 'Enabled' : 'Disabled' }}</td><td>{{ $s->last_seen_at?->diffForHumans() ?? 'Chưa kết nối' }}</td><td><a class="btn gray" href="{{ route('admin.server_monitoring.show',$s) }}">Chi tiết</a></td></tr>@empty<tr><td colspan="7">Chưa có Server.</td></tr>@endforelse
+</tbody></table></div>{{ $servers->links() }}</div>
+@endsection
