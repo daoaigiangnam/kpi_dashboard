@@ -298,6 +298,44 @@ class ServerAgentApiTest extends TestCase
         $this->assertSame('original', $storedResult['output']);
     }
 
+    public function test_replayed_executing_ack_does_not_overwrite_first_ack_data(): void
+    {
+        [$server, $token] = $this->createServer();
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'CUSTOM',
+            'payload' => [],
+            'status' => 'delivered',
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        $headers = [
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ];
+
+        $this->withHeaders($headers)->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'executing',
+            'result' => ['phase' => 'started'],
+            'error' => null,
+        ])->assertOk();
+
+        $this->withHeaders($headers)->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'executing',
+            'result' => ['phase' => 'replayed'],
+            'error' => 'late retry payload',
+        ])->assertOk();
+
+        $fresh = $command->fresh();
+        $this->assertSame('executing', $fresh->status);
+        $this->assertSame('started', $fresh->result['phase']);
+        $this->assertNull($fresh->error);
+        $this->assertNull($fresh->lease_expires_at);
+        $this->assertNull($fresh->completed_at);
+    }
+
     public function test_expired_command_ack_is_rejected_and_persisted_as_expired(): void
     {
         [$server, $token] = $this->createServer();
