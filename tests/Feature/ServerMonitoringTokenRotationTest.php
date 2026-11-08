@@ -1,14 +1,14 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Http\\Controllers\\Admin\\ServerMonitoringController;
-use App\\Models\\MonitoredServer;
-use App\\Models\\User;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Str;
-use Tests\\TestCase;
+use App\Http\Controllers\Admin\ServerMonitoringController;
+use App\Models\MonitoredServer;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Tests\TestCase;
 
 class ServerMonitoringTokenRotationTest extends TestCase
 {
