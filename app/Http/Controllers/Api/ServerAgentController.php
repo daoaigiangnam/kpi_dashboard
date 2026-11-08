@@ -286,6 +286,12 @@ class ServerAgentController extends Controller
                 ]);
             }
 
+            if ($session->status === 'completed' && $data['status'] !== 'completed') {
+                throw ValidationException::withMessages([
+                    'status' => 'A completed audit session cannot be changed to failed.',
+                ]);
+            }
+
             // Do not trust an Agent-supplied count; Central's deduplicated event
             // ingestion is the source of truth for the session count.
             $centralEventCount = DB::table('command_audit_events')
