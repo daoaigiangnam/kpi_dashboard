@@ -25,13 +25,13 @@ return new class extends Migration {
             }
         }
 
-        if (!DB::select("SHOW INDEX FROM users WHERE Key_name = 'users_employee_code_unique'")) {
+        if (!Schema::hasIndex('users', 'users_employee_code_unique', 'unique')) {
             Schema::table('users', function (Blueprint $t) {
                 $t->unique('employee_code');
             });
         }
 
-        if (!DB::select("SHOW INDEX FROM users WHERE Key_name = 'users_department_is_active_index'")) {
+        if (!Schema::hasIndex('users', 'users_department_is_active_index', 'index')) {
             Schema::table('users', function (Blueprint $t) {
                 $t->index(['department', 'is_active']);
             });
