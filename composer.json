@@ -11,7 +11,8 @@
   "require-dev": {
     "fakerphp/faker": "^1.24",
     "laravel/pint": "^1.30",
-    "phpunit/phpunit": "^10.5"
+    "phpunit/phpunit": "^10.5",
+    "nunomaduro/collision": "^8.6"
   },
   "autoload": {
     "psr-4": {
