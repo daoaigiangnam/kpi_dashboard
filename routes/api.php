@@ -16,3 +16,7 @@ Route::prefix('pc-audit')->group(function () {
     Route::post('/mail-config', [PcAuditMailConfigController::class, 'show'])->middleware('throttle:20,1');
     Route::post('/send-mail', [PcAuditMailController::class, 'send'])->middleware('throttle:10,1');
 });
+
+
+// Common Server Agent API.
+require __DIR__.'/server-monitoring-agent.php';
