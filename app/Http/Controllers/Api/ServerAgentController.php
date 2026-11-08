@@ -296,6 +296,22 @@ class ServerAgentController extends Controller
                 ]);
             }
 
+            // A report is not proof that auditd stopped. Require a successful
+            // AUDIT_STOP command ACK before accepting a completed report.
+            if ($data['status'] === 'completed') {
+                $stopConfirmed = $server->commands()
+                    ->where('type', 'AUDIT_STOP')
+                    ->where('status', 'completed')
+                    ->where('payload->session_id', $session->session_id)
+                    ->exists();
+
+                if (! $stopConfirmed) {
+                    throw ValidationException::withMessages([
+                        'status' => 'A completed report requires a successful AUDIT_STOP acknowledgement.',
+                    ]);
+                }
+            }
+
             // Do not trust an Agent-supplied count; Central's deduplicated event
             // ingestion is the source of truth for the session count.
             $centralEventCount = DB::table('command_audit_events')
