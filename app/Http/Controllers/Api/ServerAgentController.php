@@ -163,7 +163,8 @@ class ServerAgentController extends Controller
                             $session->forceFill([
                                 'status' => $next === 'completed' ? 'running' : 'failed',
                                 'started_at' => $next === 'completed' ? now() : null,
-                                'stopped_at' => $next === 'failed' ? now() : null,
+                                // A failed START is not evidence of a STOP.
+                                'stopped_at' => null,
                             ])->save();
 
                             if ($next === 'completed') {
@@ -172,7 +173,8 @@ class ServerAgentController extends Controller
                         } elseif ($command->type === 'AUDIT_STOP' && $session->status === 'stopping') {
                             $session->forceFill([
                                 'status' => $next === 'completed' ? 'completed' : 'failed',
-                                'stopped_at' => now(),
+                                // Only a successful STOP ACK confirms the stop time.
+                                'stopped_at' => $next === 'completed' ? now() : null,
                             ])->save();
 
                             // A failed STOP does not prove that audit collection stopped.
