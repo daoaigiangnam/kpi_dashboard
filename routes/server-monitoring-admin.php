@@ -8,5 +8,6 @@ Route::middleware(['auth'])->prefix('admin/server-monitoring')->name('admin.serv
  Route::get('/{server}',[ServerMonitoringController::class,'show'])->middleware('permission:server_monitoring.view,server_monitoring.manage')->name('show');
  Route::post('/{server}/audit/start',[ServerMonitoringController::class,'startAudit'])->middleware('permission:server_monitoring.audit')->name('audit.start');
  Route::post('/{server}/audit/stop',[ServerMonitoringController::class,'stopAudit'])->middleware('permission:server_monitoring.audit')->name('audit.stop');
+ Route::post('/{server}/rotate-token',[ServerMonitoringController::class,'rotateToken'])->middleware('permission:server_monitoring.manage')->name('rotate_token');
  Route::post('/{server}/disable',[ServerMonitoringController::class,'disable'])->middleware('permission:server_monitoring.manage')->name('disable');
 });
