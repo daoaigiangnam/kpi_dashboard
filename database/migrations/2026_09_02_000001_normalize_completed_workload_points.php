@@ -19,13 +19,27 @@ return new class extends Migration
             ->update(['workload_point' => 0]);
 
         // Recalculate completed tickets from the current Priority catalog.
-        if (Schema::hasTable('kpi_sla_priorities')) {
-            DB::table('tickets as t')
-                ->join('kpi_sla_priorities as p', function ($join) {
-                    $join->on('p.code', '=', 't.priority');
+        // A correlated subquery works on both SQLite (CI) and MySQL (production).
+        if (
+            Schema::hasTable('kpi_sla_priorities')
+            && Schema::hasColumn('tickets', 'priority')
+            && Schema::hasColumn('tickets', 'finished_on')
+            && Schema::hasColumn('tickets', 'workload_point')
+            && Schema::hasColumn('kpi_sla_priorities', 'code')
+            && Schema::hasColumn('kpi_sla_priorities', 'workload_point')
+        ) {
+            DB::table('tickets')
+                ->whereNotNull('finished_on')
+                ->whereExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('kpi_sla_priorities as p')
+                        ->whereColumn('p.code', 'tickets.priority');
                 })
-                ->whereNotNull('t.finished_on')
-                ->update(['t.workload_point' => DB::raw('p.workload_point')]);
+                ->update([
+                    'workload_point' => DB::raw(
+                        '(SELECT p.workload_point FROM kpi_sla_priorities AS p WHERE p.code = tickets.priority LIMIT 1)'
+                    ),
+                ]);
         }
     }
 
