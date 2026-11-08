@@ -21,8 +21,15 @@
     }
   },
   "scripts": {
-    "post-autoload-dump": ["@php artisan package:discover --ansi"]
+    "post-autoload-dump": [
+      "@php artisan package:discover --ansi"
+    ]
   },
   "minimum-stability": "stable",
-  "prefer-stable": true
+  "prefer-stable": true,
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  }
 }
