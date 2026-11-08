@@ -1,0 +1,14 @@
+@extends('layouts.admin')
+@section('title','Chi tiết Server')
+@section('content')
+<div class="top"><div><h1>{{ $server->name }}</h1><p class="muted">{{ $server->server_code }} · Agent {{ $server->agent_id }}</p></div><a class="btn gray" href="{{ route('admin.server_monitoring.index') }}">Quay lại</a></div>
+@if(session('success'))<div class="alert">{{ session('success') }}</div>@endif
+@if(session('issued_agent_token'))<div class="warning"><strong>Agent Token – chỉ hiển thị lần này.</strong><input class="input" readonly value="{{ session('issued_agent_token') }}" onclick="this.select()"><p class="muted">Lưu token an toàn, không commit vào Git.</p></div>@endif
+<div class="grid" style="margin-bottom:18px"><div class="card"><div class="muted">Trạng thái</div><h2>{{ $server->status }}</h2></div><div class="card"><div class="muted">Last Seen</div><h2 style="font-size:16px">{{ $server->last_seen_at?->diffForHumans() ?? 'Chưa kết nối' }}</h2></div><div class="card"><div class="muted">Audit</div><h2>{{ $server->audit_enabled?'Enabled':'Disabled' }}</h2></div><div class="card"><div class="muted">Agent Version</div><p>{{ $server->agent_version ?: 'Chưa có Agent' }}</p></div></div>
+<div class="card" style="margin-bottom:18px"><h3>Command Audit</h3><p class="muted">Lệnh được đưa vào queue để Agent nhận qua HTTPS.</p><div class="actions">
+<form method="POST" action="{{ route('admin.server_monitoring.audit.start',$server) }}">@csrf<button class="btn" type="submit" onclick="return confirm('Bật Command Audit trên Server này?')">START Audit</button></form>
+<form method="POST" action="{{ route('admin.server_monitoring.audit.stop',$server) }}">@csrf<button class="btn red" type="submit" onclick="return confirm('Dừng phiên Audit hiện tại?')">STOP Audit</button></form>
+<form method="POST" action="{{ route('admin.server_monitoring.disable',$server) }}">@csrf<button class="btn gray" type="submit" onclick="return confirm('Disable Agent này?')">Disable Server</button></form></div></div>
+<div class="card"><h3>Audit Events</h3><div class="table-wrap"><table class="table"><thead><tr><th>Time</th><th>Session</th><th>User</th><th>Command</th><th>PID</th><th>Serial</th></tr></thead><tbody>
+@forelse($events as $e)<tr><td>{{ $e->event_time }}</td><td><small>{{ $e->session_id }}</small></td><td>{{ $e->username ?? '—' }}</td><td><code>{{ $e->executable }} {{ implode(' ', $e->arguments ?? []) }}</code></td><td>{{ $e->pid ?? '—' }}</td><td>{{ $e->audit_serial ?? '—' }}</td></tr>@empty<tr><td colspan="6">Chưa có sự kiện.</td></tr>@endforelse</tbody></table></div>{{ $events->links() }}</div>
+@endsection
