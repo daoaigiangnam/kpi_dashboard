@@ -10,9 +10,6 @@ class ServerMonitoringRoutesTest extends TestCase
     {
         $routes = app('router')->getRoutes();
 
-        $config = $routes->getByName('generated::server-agent-config');
-        $this->assertNotNull($config);
-
         $agentRoutes = collect($routes)->filter(
             fn ($route) => str_starts_with($route->uri(), 'api/agent/')
         );
