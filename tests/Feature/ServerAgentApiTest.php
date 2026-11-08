@@ -128,4 +128,129 @@ class ServerAgentApiTest extends TestCase
         $this->assertSame('Ubuntu', $server->fresh()->os_info['name']);
     }
 
+    public function test_agent_acknowledgement_enforces_command_state_transitions(): void
+    {
+        [$server, $token] = $this->createServer();
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'AUDIT_START',
+            'payload' => [],
+            'status' => 'delivered',
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        $headers = [
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ];
+
+        $this->withHeaders($headers)->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'executing',
+        ])->assertOk();
+
+        $this->withHeaders($headers)->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'completed',
+            'result' => ['exit_code' => 0],
+        ])->assertOk();
+
+        $this->assertSame('completed', $command->fresh()->status);
+        $this->assertSame(0, $command->fresh()->result['exit_code']);
+    }
+
+    public function test_expired_command_ack_is_rejected_and_persisted_as_expired(): void
+    {
+        [$server, $token] = $this->createServer();
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'AUDIT_START',
+            'payload' => [],
+            'status' => 'delivered',
+            'expires_at' => now()->subMinute(),
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'completed',
+        ])->assertUnprocessable();
+
+        $this->assertSame('expired', $command->fresh()->status);
+    }
+
+    public function test_audit_event_ingestion_deduplicates_events_and_counts_on_central(): void
+    {
+        [$server, $token] = $this->createServer();
+        $sessionId = (string) Str::uuid();
+        $session = $server->auditSessions()->create([
+            'session_id' => $sessionId,
+            'status' => 'running',
+            'event_count' => 0,
+        ]);
+
+        $headers = [
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ];
+        $event = [
+            'event_key' => 'audit-serial-1001',
+            'event_time' => now()->toIso8601String(),
+            'username' => 'ubuntu',
+            'uid' => 1000,
+            'pid' => 1234,
+            'executable' => '/usr/bin/id',
+            'arguments' => ['id', '-u'],
+        ];
+
+        $this->withHeaders($headers)->postJson('/api/agent/audit/events', [
+            'session_id' => $sessionId,
+            'events' => [$event, $event],
+        ])->assertOk()->assertJsonPath('accepted', 1);
+
+        $this->withHeaders($headers)->postJson('/api/agent/audit/events', [
+            'session_id' => $sessionId,
+            'events' => [$event],
+        ])->assertOk()->assertJsonPath('accepted', 0);
+
+        $this->assertDatabaseCount('command_audit_events', 1);
+        $this->assertSame(1, $session->fresh()->event_count);
+    }
+
+    public function test_completed_report_uses_central_event_count_not_agent_supplied_count(): void
+    {
+        [$server, $token] = $this->createServer();
+        $sessionId = (string) Str::uuid();
+        $session = $server->auditSessions()->create([
+            'session_id' => $sessionId,
+            'status' => 'stopping',
+            'event_count' => 0,
+        ]);
+        $server->forceFill(['audit_enabled' => true])->save();
+
+        foreach (['event-a', 'event-b'] as $key) {
+            \Illuminate\Support\Facades\DB::table('command_audit_events')->insert([
+                'server_id' => $server->id,
+                'session_id' => $sessionId,
+                'event_key' => $key,
+                'event_time' => now(),
+                'created_at' => now(),
+            ]);
+        }
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/audit/report', [
+            'session_id' => $sessionId,
+            'status' => 'completed',
+            'event_count' => 999999,
+        ])->assertOk();
+
+        $this->assertSame(2, $session->fresh()->event_count);
+        $this->assertFalse($server->fresh()->audit_enabled);
+    }
+
 }
