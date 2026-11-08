@@ -290,10 +290,12 @@ class ServerAgentApiTest extends TestCase
             'result' => ['exit_code' => 99, 'output' => 'replayed'],
         ])->assertOk();
 
-        $this->assertSame(
-            ['exit_code' => 0, 'output' => 'original'],
-            $command->fresh()->result
-        );
+        $storedResult = $command->fresh()->result;
+
+        // MySQL JSON columns may return object keys in a different order.
+        // Assert each value independently; key order is not part of the contract.
+        $this->assertSame(0, $storedResult['exit_code']);
+        $this->assertSame('original', $storedResult['output']);
     }
 
     public function test_expired_command_ack_is_rejected_and_persisted_as_expired(): void
