@@ -137,6 +137,34 @@ class ServerAgentApiTest extends TestCase
         $this->assertTrue($fresh->lease_expires_at->isFuture());
     }
 
+    public function test_legacy_delivered_command_without_lease_is_recovered(): void
+    {
+        [$server, $token] = $this->createServer();
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'AUDIT_START',
+            'payload' => ['session_id' => (string) Str::uuid()],
+            'status' => 'delivered',
+            'delivered_at' => now()->subMinutes(5),
+            'lease_expires_at' => null,
+            'delivery_attempts' => 1,
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/agent/commands')
+            ->assertOk()
+            ->assertJsonCount(1, 'commands')
+            ->assertJsonPath('commands.0.command_id', $command->command_id)
+            ->assertJsonPath('commands.0.delivery_attempt', 2);
+
+        $fresh = $command->fresh();
+        $this->assertSame(2, $fresh->delivery_attempts);
+        $this->assertTrue($fresh->lease_expires_at->isFuture());
+    }
+
     public function test_executing_command_can_be_completed_after_start_deadline(): void
     {
         [$server, $token] = $this->createServer();
