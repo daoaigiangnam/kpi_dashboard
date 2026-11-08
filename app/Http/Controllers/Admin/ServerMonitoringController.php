@@ -1,18 +1,135 @@
 <?php
-namespace App\Http\Controllers\Admin;
-use App\Http\Controllers\Controller;
-use App\Models\AgentCommand;
-use App\Models\CommandAuditSession;
-use App\Models\MonitoredServer;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-class ServerMonitoringController extends Controller {
- public function index(){ $servers=MonitoredServer::withCount(['auditSessions','auditEvents'])->latest()->paginate(25);$stats=['total'=>MonitoredServer::count(),'online'=>MonitoredServer::where('last_seen_at','>=',now()->subMinutes(2))->count(),'audit_running'=>CommandAuditSession::where('status','running')->count()];return view('admin.server-monitoring.index',compact('servers','stats')); }
- public function create(){return view('admin.server-monitoring.create');}
- public function store(Request $r){$d=$r->validate(['name'=>'required|string|max:150','hostname'=>'nullable|string|max:190','server_code'=>'required|string|max:80|alpha_dash|unique:monitored_servers,server_code']);$agentId=(string)Str::uuid();$token=Str::random(64);$s=MonitoredServer::create($d+['agent_id'=>$agentId,'token_hash'=>hash('sha256',$token),'status'=>'active','audit_enabled'=>false]);return redirect()->route('admin.server_monitoring.show',$s)->with('issued_agent_token',$token);}
- public function show(MonitoredServer $server){$server->load(['auditSessions'=>fn($q)=>$q->latest()->limit(20)]);$events=$server->auditEvents()->latest('event_time')->paginate(50);return view('admin.server-monitoring.show',compact('server','events'));}
- public function startAudit(Request $r,MonitoredServer $server){abort_unless($server->status==='active',422);abort_if($server->auditSessions()->whereIn('status',['running','queued'])->exists(),409);$sid=(string)Str::uuid();CommandAuditSession::create(['server_id'=>$server->id,'session_id'=>$sid,'status'=>'queued','started_by'=>$r->user()->id]);$this->queue($server,'AUDIT_START',['session_id'=>$sid],$r->user()->id);$server->update(['audit_enabled'=>true]);return back()->with('success','Audit start command queued. Session: '.$sid);}
- public function stopAudit(Request $r,MonitoredServer $server){$session=$server->auditSessions()->whereIn('status',['running','queued'])->latest()->firstOrFail();$this->queue($server,'AUDIT_STOP',['session_id'=>$session->session_id],$r->user()->id);return back()->with('success','Audit stop command queued.');}
- public function disable(Request $r,MonitoredServer $server){$server->update(['status'=>'disabled','audit_enabled'=>false]);return back()->with('success','Server disabled.');}
- private function queue(MonitoredServer $s,string $type,array $payload,int $uid):void{AgentCommand::create(['server_id'=>$s->id,'command_id'=>(string)Str::uuid(),'type'=>$type,'payload'=>$payload,'status'=>'queued','requested_by'=>$uid,'requested_at'=>now(),'expires_at'=>now()->addMinutes(15)]);}
+
+declare(strict_types=1);
+
+namespace App\\Http\\Controllers\\Admin;
+
+use App\\Http\\Controllers\\Controller;
+use App\\Models\\AgentCommand;
+use App\\Models\\CommandAuditSession;
+use App\\Models\\MonitoredServer;
+use Illuminate\\Http\\Request;
+use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Str;
+
+class ServerMonitoringController extends Controller
+{
+    public function index()
+    {
+        $servers = MonitoredServer::withCount(['auditSessions', 'auditEvents'])
+            ->latest()
+            ->paginate(25);
+
+        $stats = [
+            'total' => MonitoredServer::count(),
+            'online' => MonitoredServer::where('status', 'active')
+                ->where('last_seen_at', '>=', now()->subMinutes(2))->count(),
+            'audit_running' => CommandAuditSession::whereIn('status', ['running', 'stopping'])->count(),
+        ];
+
+        return view('admin.server-monitoring.index', compact('servers', 'stats'));
+    }
+
+    public function create()
+    {
+        return view('admin.server-monitoring.create');
+    }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'hostname' => ['nullable', 'string', 'max:190'],
+            'server_code' => ['required', 'string', 'max:80', 'alpha_dash', 'unique:monitored_servers,server_code'],
+        ]);
+
+        $token = Str::random(64);
+        $server = MonitoredServer::create($data + [
+            'agent_id' => (string) Str::uuid(),
+            'token_hash' => hash('sha256', $token),
+            'status' => 'active',
+            'audit_enabled' => false,
+        ]);
+
+        return redirect()->route('admin.server_monitoring.show', $server)
+            ->with('issued_agent_token', $token);
+    }
+
+    public function show(MonitoredServer $server)
+    {
+        $server->load(['auditSessions' => fn ($query) => $query->latest()->limit(20)]);
+        $events = $server->auditEvents()->latest('event_time')->paginate(50);
+
+        return view('admin.server-monitoring.show', compact('server', 'events'));
+    }
+
+    public function startAudit(Request $request, MonitoredServer $server)
+    {
+        abort_unless($server->status === 'active', 422, 'Server is disabled.');
+        abort_if($server->auditSessions()->whereIn('status', ['queued', 'running', 'stopping'])->exists(), 409, 'An audit session is already active.');
+
+        DB::transaction(function () use ($request, $server) {
+            $lockedServer = MonitoredServer::whereKey($server->id)->lockForUpdate()->firstOrFail();
+            abort_unless($lockedServer->status === 'active', 422);
+
+            $sessionId = (string) Str::uuid();
+            CommandAuditSession::create([
+                'server_id' => $lockedServer->id,
+                'session_id' => $sessionId,
+                'status' => 'queued',
+                'started_by' => $request->user()->id,
+            ]);
+
+            $this->queue($lockedServer, 'AUDIT_START', ['session_id' => $sessionId], $request->user()->id);
+        });
+
+        return back()->with('success', 'Đã đưa yêu cầu START vào hàng đợi. Chờ Agent xác nhận mới chuyển sang Running.');
+    }
+
+    public function stopAudit(Request $request, MonitoredServer $server)
+    {
+        DB::transaction(function () use ($request, $server) {
+            $session = $server->auditSessions()
+                ->whereIn('status', ['queued', 'running'])
+                ->latest()
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_if($session->status === 'stopping', 409, 'Audit session is already stopping.');
+
+            $session->forceFill(['status' => 'stopping'])->save();
+            $this->queue($server, 'AUDIT_STOP', ['session_id' => $session->session_id], $request->user()->id);
+        });
+
+        return back()->with('success', 'Đã đưa yêu cầu STOP vào hàng đợi. Chờ Agent xác nhận kết thúc.');
+    }
+
+    public function disable(Request $request, MonitoredServer $server)
+    {
+        DB::transaction(function () use ($server) {
+            $locked = MonitoredServer::whereKey($server->id)->lockForUpdate()->firstOrFail();
+            $locked->forceFill(['status' => 'disabled', 'audit_enabled' => false])->save();
+
+            $locked->commands()->whereIn('status', ['queued', 'delivered', 'executing'])
+                ->update(['status' => 'cancelled', 'updated_at' => now()]);
+
+            $locked->auditSessions()->whereIn('status', ['queued', 'running', 'stopping'])
+                ->update(['status' => 'failed', 'stopped_at' => now(), 'updated_at' => now()]);
+        });
+
+        return back()->with('success', 'Server đã được disable tại Central; Agent sẽ không xác thực được các request tiếp theo.');
+    }
+
+    private function queue(MonitoredServer $server, string $type, array $payload, int $userId): AgentCommand
+    {
+        return $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => $type,
+            'payload' => $payload,
+            'status' => 'queued',
+            'requested_by' => $userId,
+            'requested_at' => now(),
+            'expires_at' => now()->addMinutes(15),
+        ]);
+    }
 }
