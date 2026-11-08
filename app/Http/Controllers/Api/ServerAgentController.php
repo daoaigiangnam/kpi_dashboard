@@ -222,7 +222,9 @@ class ServerAgentController extends Controller
         $accepted = DB::transaction(function () use ($data, $server) {
             $session = $server->auditSessions()
                 ->where('session_id', $data['session_id'])
-                ->where('status', 'running')
+                // The Agent must flush its durable spool after STOP is requested
+                // and before it ACKs STOP; accept that final batch while stopping.
+                ->whereIn('status', ['running', 'stopping'])
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -303,7 +305,10 @@ class ServerAgentController extends Controller
 
             $session->forceFill([
                 'status' => $data['status'],
-                'stopped_at' => now(),
+                // A failed report does not prove that local audit collection stopped.
+                'stopped_at' => $data['status'] === 'completed'
+                    ? ($session->stopped_at ?? now())
+                    : null,
                 'event_count' => $centralEventCount,
                 'metadata' => array_merge($session->metadata ?? [], [
                     'report_sha256' => $data['report_sha256'] ?? null,
