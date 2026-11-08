@@ -65,12 +65,16 @@ class ServerMonitoringController extends Controller
 
     public function startAudit(Request $request, MonitoredServer $server)
     {
-        abort_unless($server->status === 'active', 422, 'Server is disabled.');
-        abort_if($server->auditSessions()->whereIn('status', ['queued', 'running', 'stopping'])->exists(), 409, 'An audit session is already active.');
-
         DB::transaction(function () use ($request, $server) {
+            // Serialize START/STOP operations per server before checking active sessions.
             $lockedServer = MonitoredServer::whereKey($server->id)->lockForUpdate()->firstOrFail();
-            abort_unless($lockedServer->status === 'active', 422);
+            abort_unless($lockedServer->status === 'active', 422, 'Server is disabled.');
+
+            $hasActiveSession = $lockedServer->auditSessions()
+                ->whereIn('status', ['queued', 'running', 'stopping'])
+                ->exists();
+
+            abort_if($hasActiveSession, 409, 'An audit session is already active.');
 
             $sessionId = (string) Str::uuid();
             CommandAuditSession::create([
@@ -89,16 +93,21 @@ class ServerMonitoringController extends Controller
     public function stopAudit(Request $request, MonitoredServer $server)
     {
         DB::transaction(function () use ($request, $server) {
-            $session = $server->auditSessions()
+            $lockedServer = MonitoredServer::whereKey($server->id)->lockForUpdate()->firstOrFail();
+
+            $isAlreadyStopping = $lockedServer->auditSessions()
+                ->where('status', 'stopping')
+                ->exists();
+            abort_if($isAlreadyStopping, 409, 'Audit session is already stopping.');
+
+            $session = $lockedServer->auditSessions()
                 ->whereIn('status', ['queued', 'running'])
                 ->latest()
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            abort_if($session->status === 'stopping', 409, 'Audit session is already stopping.');
-
             $session->forceFill(['status' => 'stopping'])->save();
-            $this->queue($server, 'AUDIT_STOP', ['session_id' => $session->session_id], $request->user()->id);
+            $this->queue($lockedServer, 'AUDIT_STOP', ['session_id' => $session->session_id], $request->user()->id);
         });
 
         return back()->with('success', 'Đã đưa yêu cầu STOP vào hàng đợi. Chờ Agent xác nhận kết thúc.');
