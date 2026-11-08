@@ -1,31 +1,292 @@
 <?php
-namespace App\Http\Controllers\Api;
-use App\Http\Controllers\Controller;
-use App\Models\CommandAuditEvent;
-use App\Models\MonitoredServer;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-class ServerAgentController extends Controller {
- private function server(Request $r):MonitoredServer{return $r->attributes->get('monitored_server');}
- public function heartbeat(Request $r){
-  $d=$r->validate(['agent_version'=>'nullable|string|max:40','hostname'=>'nullable|string|max:190','os_info'=>'nullable|array','metadata'=>'nullable|array']);$s=$this->server($r);
-  $s->update(['last_seen_at'=>now(),'agent_version'=>$d['agent_version']??$s->agent_version,'hostname'=>$d['hostname']??$s->hostname,'os_info'=>$d['os_info']??$s->os_info,'metadata'=>$d['metadata']??$s->metadata,'status'=>'active']);
-  return response()->json(['ok'=>true,'server_code'=>$s->server_code,'server_time'=>now()->toIso8601String()]);
- }
- public function config(Request $r){$s=$this->server($r);return response()->json(['config_version'=>1,'modules'=>['command_audit'=>['enabled'=>(bool)$s->audit_enabled],'resource_monitor'=>['enabled'=>false]],'poll_interval_seconds'=>10]);}
- public function commands(Request $r){$s=$this->server($r);$rows=$s->commands()->where('status','queued')->where(fn($q)=>$q->whereNull('expires_at')->orWhere('expires_at','>',now()))->orderBy('id')->limit(10)->get();foreach($rows as $c)$c->update(['status'=>'delivered','delivered_at'=>now()]);return response()->json(['commands'=>$rows->map(fn($c)=>['command_id'=>$c->command_id,'type'=>$c->type,'payload'=>$c->payload])->values()]);}
- public function acknowledge(Request $r){
-  $d=$r->validate(['command_id'=>'required|uuid','status'=>'required|in:executing,completed,failed','result'=>'nullable|array','error'=>'nullable|string|max:2000']);
-  $c=$this->server($r)->commands()->where('command_id',$d['command_id'])->firstOrFail();$c->update(['status'=>$d['status'],'result'=>$d['result']??null,'error'=>$d['error']??null,'completed_at'=>in_array($d['status'],['completed','failed'],true)?now():null]);return response()->json(['ok'=>true]);
- }
- public function auditEvents(Request $r){
-  $d=$r->validate(['session_id'=>'required|uuid','events'=>'required|array|max:500','events.*.event_key'=>'required|string|max:190','events.*.event_time'=>'required|date','events.*.username'=>'nullable|string|max:190','events.*.uid'=>'nullable|integer','events.*.auid'=>'nullable|integer','events.*.pid'=>'nullable|integer','events.*.ppid'=>'nullable|integer','events.*.executable'=>'nullable|string|max:1024','events.*.arguments'=>'nullable|array','events.*.audit_serial'=>'nullable|string|max:100','events.*.source_ip'=>'nullable|ip','events.*.raw_event'=>'nullable|array']);
-  $s=$this->server($r);$session=$s->auditSessions()->where('session_id',$d['session_id'])->where('status','running')->firstOrFail();$n=0;
-  DB::transaction(function()use($d,$s,$session,&$n){foreach($d['events'] as $e){$row=['server_id'=>$s->id,'session_id'=>$session->session_id,'event_key'=>$e['event_key'],'event_time'=>$e['event_time'],'username'=>$e['username']??null,'uid'=>$e['uid']??null,'auid'=>$e['auid']??null,'pid'=>$e['pid']??null,'ppid'=>$e['ppid']??null,'executable'=>$e['executable']??null,'arguments'=>$e['arguments']??null,'audit_serial'=>$e['audit_serial']??null,'source_ip'=>$e['source_ip']??null,'raw_event'=>$e['raw_event']??null,'created_at'=>now()];$created=CommandAuditEvent::firstOrCreate(['server_id'=>$s->id,'event_key'=>$e['event_key']],$row);if($created->wasRecentlyCreated)$n++;}$session->increment('event_count',$n);});
-  return response()->json(['ok'=>true,'accepted'=>$n]);
- }
- public function report(Request $r){
-  $d=$r->validate(['session_id'=>'required|uuid','status'=>'required|in:completed,failed','event_count'=>'required|integer|min:0','report_sha256'=>'nullable|string|size:64','report_name'=>'nullable|string|max:190']);$s=$this->server($r);$session=$s->auditSessions()->where('session_id',$d['session_id'])->firstOrFail();
-  $session->update(['status'=>$d['status'],'stopped_at'=>now(),'event_count'=>max($session->event_count,$d['event_count']),'metadata'=>array_merge($session->metadata??[],['report_sha256'=>$d['report_sha256']??null,'report_name'=>$d['report_name']??null])]);return response()->json(['ok'=>true]);
- }
+
+declare(strict_types=1);
+
+namespace App\\Http\\Controllers\\Api;
+
+use App\\Http\\Controllers\\Controller;
+use App\\Models\\CommandAuditSession;
+use App\\Models\\MonitoredServer;
+use Illuminate\\Http\\Request;
+use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Validation\\ValidationException;
+
+class ServerAgentController extends Controller
+{
+    private function server(Request $request): MonitoredServer
+    {
+        /** @var MonitoredServer $server */
+        $server = $request->attributes->get('monitored_server');
+        return $server;
+    }
+
+    public function heartbeat(Request $request)
+    {
+        $data = $request->validate([
+            'agent_version' => ['nullable', 'string', 'max:40'],
+            'hostname' => ['nullable', 'string', 'max:190'],
+            'os_info' => ['nullable', 'array'],
+            'metadata' => ['nullable', 'array'],
+        ]);
+
+        $server = $this->server($request);
+        $server->forceFill([
+            'last_seen_at' => now(),
+            'agent_version' => $data['agent_version'] ?? $server->agent_version,
+            'hostname' => $data['hostname'] ?? $server->hostname,
+            'os_info' => $data['os_info'] ?? $server->os_info,
+            'metadata' => $data['metadata'] ?? $server->metadata,
+        ])->save();
+
+        return response()->json([
+            'ok' => true,
+            'server_code' => $server->server_code,
+            'server_time' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function config(Request $request)
+    {
+        $server = $this->server($request);
+
+        return response()->json([
+            'config_version' => 1,
+            'modules' => [
+                'command_audit' => ['enabled' => (bool) $server->audit_enabled],
+                'resource_monitor' => ['enabled' => false],
+            ],
+            'poll_interval_seconds' => 10,
+        ]);
+    }
+
+    public function commands(Request $request)
+    {
+        $server = $this->server($request);
+
+        $commands = DB::transaction(function () use ($server) {
+            $now = now();
+
+            $server->commands()
+                ->where('status', 'queued')
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '<=', $now)
+                ->update(['status' => 'expired', 'updated_at' => $now]);
+
+            $rows = $server->commands()
+                ->where('status', 'queued')
+                ->where(function ($query) use ($now) {
+                    $query->whereNull('expires_at')->orWhere('expires_at', '>', $now);
+                })
+                ->orderBy('id')
+                ->limit(10)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($rows as $command) {
+                $command->forceFill([
+                    'status' => 'delivered',
+                    'delivered_at' => $now,
+                ])->save();
+            }
+
+            return $rows;
+        });
+
+        return response()->json([
+            'commands' => $commands->map(fn ($command) => [
+                'command_id' => $command->command_id,
+                'type' => $command->type,
+                'payload' => $command->payload,
+                'expires_at' => $command->expires_at?->toIso8601String(),
+            ])->values(),
+        ]);
+    }
+
+    public function acknowledge(Request $request)
+    {
+        $data = $request->validate([
+            'command_id' => ['required', 'uuid'],
+            'status' => ['required', 'in:executing,completed,failed'],
+            'result' => ['nullable', 'array'],
+            'error' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        DB::transaction(function () use ($data, $request) {
+            $server = $this->server($request);
+            $command = $server->commands()
+                ->where('command_id', $data['command_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($command->expires_at && $command->expires_at->isPast()) {
+                if ($command->status !== 'expired') {
+                    $command->update(['status' => 'expired']);
+                }
+                throw ValidationException::withMessages([
+                    'command_id' => 'Command has expired and must not be executed.',
+                ]);
+            }
+
+            $current = $command->status;
+            $next = $data['status'];
+            $allowed = [
+                'delivered' => ['executing', 'completed', 'failed'],
+                'executing' => ['completed', 'failed'],
+                'completed' => ['completed'],
+                'failed' => ['failed'],
+            ];
+
+            if (! in_array($next, $allowed[$current] ?? [], true)) {
+                throw ValidationException::withMessages([
+                    'status' => "Invalid command state transition: {$current} -> {$next}.",
+                ]);
+            }
+
+            $command->forceFill([
+                'status' => $next,
+                'result' => $data['result'] ?? $command->result,
+                'error' => $data['error'] ?? $command->error,
+                'completed_at' => in_array($next, ['completed', 'failed'], true)
+                    ? ($command->completed_at ?? now())
+                    : null,
+            ])->save();
+
+            if (in_array($next, ['completed', 'failed'], true)) {
+                $sessionId = $command->payload['session_id'] ?? null;
+                if ($sessionId && in_array($command->type, ['AUDIT_START', 'AUDIT_STOP'], true)) {
+                    $session = $server->auditSessions()
+                        ->where('session_id', $sessionId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($session) {
+                        if ($command->type === 'AUDIT_START' && $session->status === 'queued') {
+                            $session->forceFill([
+                                'status' => $next === 'completed' ? 'running' : 'failed',
+                                'started_at' => $next === 'completed' ? now() : null,
+                                'stopped_at' => $next === 'failed' ? now() : null,
+                            ])->save();
+
+                            if ($next === 'completed') {
+                                $server->forceFill(['audit_enabled' => true])->save();
+                            }
+                        } elseif ($command->type === 'AUDIT_STOP' && $session->status === 'stopping') {
+                            $session->forceFill([
+                                'status' => $next === 'completed' ? 'completed' : 'failed',
+                                'stopped_at' => now(),
+                            ])->save();
+
+                            $server->forceFill(['audit_enabled' => false])->save();
+                        }
+                    }
+                }
+            }
+        });
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function auditEvents(Request $request)
+    {
+        $data = $request->validate([
+            'session_id' => ['required', 'uuid'],
+            'events' => ['required', 'array', 'max:500'],
+            'events.*.event_key' => ['required', 'string', 'max:190'],
+            'events.*.event_time' => ['required', 'date'],
+            'events.*.username' => ['nullable', 'string', 'max:190'],
+            'events.*.uid' => ['nullable', 'integer', 'min:0'],
+            'events.*.auid' => ['nullable', 'integer', 'min:0'],
+            'events.*.pid' => ['nullable', 'integer', 'min:0'],
+            'events.*.ppid' => ['nullable', 'integer', 'min:0'],
+            'events.*.executable' => ['nullable', 'string', 'max:1024'],
+            'events.*.arguments' => ['nullable', 'array', 'max:256'],
+            'events.*.audit_serial' => ['nullable', 'string', 'max:100'],
+            'events.*.source_ip' => ['nullable', 'ip'],
+            'events.*.raw_event' => ['nullable', 'array'],
+        ]);
+
+        $server = $this->server($request);
+        $accepted = DB::transaction(function () use ($data, $server) {
+            $session = $server->auditSessions()
+                ->where('session_id', $data['session_id'])
+                ->where('status', 'running')
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $now = now();
+            $rows = [];
+            foreach ($data['events'] as $event) {
+                $rows[] = [
+                    'server_id' => $server->id,
+                    'session_id' => $session->session_id,
+                    'event_key' => $event['event_key'],
+                    'event_time' => $event['event_time'],
+                    'username' => $event['username'] ?? null,
+                    'uid' => $event['uid'] ?? null,
+                    'auid' => $event['auid'] ?? null,
+                    'pid' => $event['pid'] ?? null,
+                    'ppid' => $event['ppid'] ?? null,
+                    'executable' => $event['executable'] ?? null,
+                    'arguments' => isset($event['arguments']) ? json_encode($event['arguments']) : null,
+                    'audit_serial' => $event['audit_serial'] ?? null,
+                    'source_ip' => $event['source_ip'] ?? null,
+                    'raw_event' => isset($event['raw_event']) ? json_encode($event['raw_event']) : null,
+                    'created_at' => $now,
+                ];
+            }
+
+            $inserted = 0;
+            foreach (array_chunk($rows, 100) as $chunk) {
+                $inserted += DB::table('command_audit_events')->insertOrIgnore($chunk);
+            }
+
+            if ($inserted > 0) {
+                $session->increment('event_count', $inserted);
+            }
+
+            return $inserted;
+        });
+
+        return response()->json(['ok' => true, 'accepted' => $accepted]);
+    }
+
+    public function report(Request $request)
+    {
+        $data = $request->validate([
+            'session_id' => ['required', 'uuid'],
+            'status' => ['required', 'in:completed,failed'],
+            'event_count' => ['required', 'integer', 'min:0'],
+            'report_sha256' => ['nullable', 'regex:/^[a-fA-F0-9]{64}$/'],
+            'report_name' => ['nullable', 'string', 'max:190'],
+        ]);
+
+        $server = $this->server($request);
+
+        DB::transaction(function () use ($data, $server) {
+            $session = $server->auditSessions()
+                ->where('session_id', $data['session_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! in_array($session->status, ['stopping', 'running'], true)) {
+                throw ValidationException::withMessages([
+                    'session_id' => 'Session is not in a reportable state.',
+                ]);
+            }
+
+            $session->forceFill([
+                'status' => $data['status'],
+                'stopped_at' => now(),
+                'event_count' => max((int) $session->event_count, (int) $data['event_count']),
+                'metadata' => array_merge($session->metadata ?? [], [
+                    'report_sha256' => $data['report_sha256'] ?? null,
+                    'report_name' => $data['report_name'] ?? null,
+                ]),
+            ])->save();
+
+            $server->forceFill(['audit_enabled' => false])->save();
+        });
+
+        return response()->json(['ok' => true]);
+    }
 }
