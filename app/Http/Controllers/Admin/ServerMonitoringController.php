@@ -128,6 +128,27 @@ class ServerMonitoringController extends Controller
         return back()->with('success', 'Đã đưa yêu cầu STOP vào hàng đợi. Chờ Agent xác nhận kết thúc.');
     }
 
+    public function rotateToken(Request $request, MonitoredServer $server)
+    {
+        $token = Str::random(64);
+
+        DB::transaction(function () use ($server, $token, $request) {
+            $locked = MonitoredServer::whereKey($server->id)->lockForUpdate()->firstOrFail();
+            $locked->forceFill(['token_hash' => hash('sha256', $token)])->save();
+        });
+
+        // Never write the plaintext credential to application logs.
+        logger()->notice('Server monitoring agent token rotated', [
+            'server_id' => $server->id,
+            'server_code' => $server->server_code,
+            'actor_id' => $request->user()?->id,
+        ]);
+
+        return redirect()->route('admin.server_monitoring.show', $server)
+            ->with('issued_agent_token', $token)
+            ->with('success', 'Agent token đã được đổi. Token cũ mất hiệu lực ngay lập tức.');
+    }
+
     public function disable(Request $request, MonitoredServer $server)
     {
         DB::transaction(function () use ($server) {
