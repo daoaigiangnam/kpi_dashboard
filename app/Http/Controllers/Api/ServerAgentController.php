@@ -72,6 +72,23 @@ class ServerAgentController extends Controller
                 ->where('expires_at', '<=', $now)
                 ->update(['status' => 'expired', 'lease_expires_at' => null, 'updated_at' => $now]);
 
+            // Stop retrying commands that exhausted the delivery budget.
+            // This avoids an infinite poll/re-delivery loop for an offline or broken Agent.
+            $server->commands()
+                ->where('status', 'delivered')
+                ->where('delivery_attempts', '>=', 5)
+                ->where(function ($query) use ($now) {
+                    $query->whereNull('lease_expires_at')
+                        ->orWhere('lease_expires_at', '<=', $now);
+                })
+                ->update([
+                    'status' => 'failed',
+                    'lease_expires_at' => null,
+                    'error' => 'Delivery retry limit exceeded without acknowledgement.',
+                    'completed_at' => $now,
+                    'updated_at' => $now,
+                ]);
+
             // Re-deliver an unacknowledged command after its 60-second delivery
             // lease expires. Keep the same command_id so the Agent can deduplicate.
             $rows = $server->commands()
