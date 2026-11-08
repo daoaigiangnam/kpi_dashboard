@@ -309,7 +309,39 @@ class ServerAgentApiTest extends TestCase
         ])->assertOk();
 
         $this->assertSame('failed', $session->fresh()->status);
+        $this->assertNull($session->fresh()->stopped_at);
         $this->assertTrue($server->fresh()->audit_enabled);
+    }
+
+    public function test_failed_audit_start_ack_does_not_fabricate_started_or_stopped_times(): void
+    {
+        [$server, $token] = $this->createServer();
+        $sessionId = (string) Str::uuid();
+        $session = $server->auditSessions()->create([
+            'session_id' => $sessionId,
+            'status' => 'queued',
+        ]);
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'AUDIT_START',
+            'payload' => ['session_id' => $sessionId],
+            'status' => 'delivered',
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'failed',
+            'error' => 'audit rule installation failed',
+        ])->assertOk();
+
+        $this->assertSame('failed', $session->fresh()->status);
+        $this->assertNull($session->fresh()->started_at);
+        $this->assertNull($session->fresh()->stopped_at);
+        $this->assertFalse($server->fresh()->audit_enabled);
     }
 
 }
