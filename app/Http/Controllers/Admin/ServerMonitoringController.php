@@ -74,7 +74,11 @@ class ServerMonitoringController extends Controller
                 ->whereIn('status', ['queued', 'running', 'stopping'])
                 ->exists();
 
-            abort_if($hasActiveSession, 409, 'An audit session is already active.');
+            abort_if(
+                $hasActiveSession || $lockedServer->audit_enabled,
+                409,
+                'An audit session is active or its stop state is unconfirmed.'
+            );
 
             $sessionId = (string) Str::uuid();
             CommandAuditSession::create([
@@ -117,7 +121,9 @@ class ServerMonitoringController extends Controller
     {
         DB::transaction(function () use ($server) {
             $locked = MonitoredServer::whereKey($server->id)->lockForUpdate()->firstOrFail();
-            $locked->forceFill(['status' => 'disabled', 'audit_enabled' => false])->save();
+            // Disabling Central access does not stop a local auditd process.
+            // Preserve the last known audit flag instead of claiming collection stopped.
+            $locked->forceFill(['status' => 'disabled'])->save();
 
             $locked->commands()->whereIn('status', ['queued', 'delivered', 'executing'])
                 ->update(['status' => 'cancelled', 'updated_at' => now()]);
