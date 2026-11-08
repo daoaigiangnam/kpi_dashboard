@@ -67,13 +67,22 @@ class ServerAgentController extends Controller
             $now = now();
 
             $server->commands()
-                ->where('status', 'queued')
+                ->whereIn('status', ['queued', 'delivered'])
                 ->whereNotNull('expires_at')
                 ->where('expires_at', '<=', $now)
-                ->update(['status' => 'expired', 'updated_at' => $now]);
+                ->update(['status' => 'expired', 'lease_expires_at' => null, 'updated_at' => $now]);
 
+            // Re-deliver an unacknowledged command after its 60-second delivery
+            // lease expires. Keep the same command_id so the Agent can deduplicate.
             $rows = $server->commands()
-                ->where('status', 'queued')
+                ->where(function ($query) use ($now) {
+                    $query->where('status', 'queued')
+                        ->orWhere(function ($retry) use ($now) {
+                            $retry->where('status', 'delivered')
+                                ->whereNotNull('lease_expires_at')
+                                ->where('lease_expires_at', '<=', $now);
+                        });
+                })
                 ->where(function ($query) use ($now) {
                     $query->whereNull('expires_at')->orWhere('expires_at', '>', $now);
                 })
@@ -86,6 +95,8 @@ class ServerAgentController extends Controller
                 $command->forceFill([
                     'status' => 'delivered',
                     'delivered_at' => $now,
+                    'lease_expires_at' => $now->copy()->addMinute(),
+                    'delivery_attempts' => (int) $command->delivery_attempts + 1,
                 ])->save();
             }
 
@@ -98,6 +109,7 @@ class ServerAgentController extends Controller
                 'type' => $command->type,
                 'payload' => $command->payload,
                 'expires_at' => $command->expires_at?->toIso8601String(),
+                'delivery_attempt' => (int) $command->delivery_attempts,
             ])->values(),
         ]);
     }
@@ -118,15 +130,18 @@ class ServerAgentController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($command->expires_at && $command->expires_at->isPast()) {
-                if ($command->status !== 'expired') {
-                    $command->update(['status' => 'expired']);
+            $current = $command->status;
+
+            // Expiry prevents starting an unacknowledged command; once the Agent
+            // has ACKed "executing", allow its terminal ACK even past expires_at.
+            if ($command->expires_at && $command->expires_at->isPast()
+                && in_array($current, ['queued', 'delivered'], true)) {
+                if ($current !== 'expired') {
+                    $command->forceFill(['status' => 'expired', 'lease_expires_at' => null])->save();
                 }
 
                 return false;
             }
-
-            $current = $command->status;
             $next = $data['status'];
             $allowed = [
                 'delivered' => ['executing', 'completed', 'failed'],
