@@ -111,7 +111,7 @@ class ServerAgentController extends Controller
             'error' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        DB::transaction(function () use ($data, $request) {
+        $acknowledged = DB::transaction(function () use ($data, $request) {
             $server = $this->server($request);
             $command = $server->commands()
                 ->where('command_id', $data['command_id'])
@@ -122,9 +122,8 @@ class ServerAgentController extends Controller
                 if ($command->status !== 'expired') {
                     $command->update(['status' => 'expired']);
                 }
-                throw ValidationException::withMessages([
-                    'command_id' => 'Command has expired and must not be executed.',
-                ]);
+
+                return false;
             }
 
             $current = $command->status;
@@ -185,7 +184,15 @@ class ServerAgentController extends Controller
                     }
                 }
             }
+
+            return true;
         });
+
+        if (! $acknowledged) {
+            throw ValidationException::withMessages([
+                'command_id' => 'Command has expired and must not be executed.',
+            ]);
+        }
 
         return response()->json(['ok' => true]);
     }
@@ -273,7 +280,7 @@ class ServerAgentController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (! in_array($session->status, ['stopping', 'running', 'completed'], true)) {
+            if (! in_array($session->status, ['stopping', 'completed'], true)) {
                 throw ValidationException::withMessages([
                     'session_id' => 'Session is not in a reportable state.',
                 ]);
