@@ -165,9 +165,9 @@ class ServerAgentController extends Controller
             }
             $next = $data['status'];
 
-            // Replayed terminal ACKs are idempotent: never let a retry rewrite
-            // the result/error recorded by the first terminal acknowledgement.
-            if (in_array($current, ['completed', 'failed'], true) && $current === $next) {
+            // Replayed ACKs are idempotent: never let a retry rewrite data
+            // recorded by the first ACK for the current execution state.
+            if ($current === $next && in_array($current, ['executing', 'completed', 'failed'], true)) {
                 return true;
             }
 
