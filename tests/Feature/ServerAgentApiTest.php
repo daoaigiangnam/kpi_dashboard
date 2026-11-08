@@ -219,6 +219,31 @@ class ServerAgentApiTest extends TestCase
         $this->assertSame(1, $session->fresh()->event_count);
     }
 
+    public function test_audit_event_batch_rejects_payload_larger_than_one_megabyte(): void
+    {
+        [$server, $token] = $this->createServer();
+        $sessionId = (string) Str::uuid();
+        $server->auditSessions()->create([
+            'session_id' => $sessionId,
+            'status' => 'running',
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/audit/events', [
+            'session_id' => $sessionId,
+            'events' => [[
+                'event_key' => 'oversized-event',
+                'event_time' => now()->toIso8601String(),
+                'raw_event' => ['payload' => str_repeat('x', 1_048_577)],
+            ]],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('events');
+
+        $this->assertDatabaseCount('command_audit_events', 0);
+    }
+
     public function test_completed_report_uses_central_event_count_not_agent_supplied_count(): void
     {
         [$server, $token] = $this->createServer();
