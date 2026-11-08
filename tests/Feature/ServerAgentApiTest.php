@@ -239,6 +239,34 @@ class ServerAgentApiTest extends TestCase
         $this->assertSame(0, $command->fresh()->result['exit_code']);
     }
 
+    public function test_replayed_terminal_ack_does_not_overwrite_original_result(): void
+    {
+        [$server, $token] = $this->createServer();
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'CUSTOM',
+            'payload' => [],
+            'status' => 'completed',
+            'result' => ['exit_code' => 0, 'output' => 'original'],
+            'error' => null,
+            'expires_at' => now()->subMinute(),
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'completed',
+            'result' => ['exit_code' => 99, 'output' => 'replayed'],
+        ])->assertOk();
+
+        $this->assertSame(
+            ['exit_code' => 0, 'output' => 'original'],
+            $command->fresh()->result
+        );
+    }
+
     public function test_expired_command_ack_is_rejected_and_persisted_as_expired(): void
     {
         [$server, $token] = $this->createServer();
