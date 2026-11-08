@@ -253,4 +253,63 @@ class ServerAgentApiTest extends TestCase
         $this->assertFalse($server->fresh()->audit_enabled);
     }
 
+    public function test_successful_audit_start_ack_marks_session_running_and_enabled(): void
+    {
+        [$server, $token] = $this->createServer();
+        $sessionId = (string) Str::uuid();
+        $session = $server->auditSessions()->create([
+            'session_id' => $sessionId,
+            'status' => 'queued',
+        ]);
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'AUDIT_START',
+            'payload' => ['session_id' => $sessionId],
+            'status' => 'delivered',
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'completed',
+        ])->assertOk();
+
+        $this->assertSame('running', $session->fresh()->status);
+        $this->assertNotNull($session->fresh()->started_at);
+        $this->assertTrue($server->fresh()->audit_enabled);
+    }
+
+    public function test_failed_audit_stop_ack_keeps_collection_marked_enabled(): void
+    {
+        [$server, $token] = $this->createServer();
+        $server->forceFill(['audit_enabled' => true])->save();
+        $sessionId = (string) Str::uuid();
+        $session = $server->auditSessions()->create([
+            'session_id' => $sessionId,
+            'status' => 'stopping',
+        ]);
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'AUDIT_STOP',
+            'payload' => ['session_id' => $sessionId],
+            'status' => 'delivered',
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'failed',
+            'error' => 'auditd still running',
+        ])->assertOk();
+
+        $this->assertSame('failed', $session->fresh()->status);
+        $this->assertTrue($server->fresh()->audit_enabled);
+    }
+
 }
