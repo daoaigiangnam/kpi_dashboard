@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Admin;
+namespace App\Http\Controllers\Admin;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\AgentCommand;
-use App\\Models\\CommandAuditSession;
-use App\\Models\\MonitoredServer;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Str;
+use App\Http\Controllers\Controller;
+use App\Models\AgentCommand;
+use App\Models\CommandAuditSession;
+use App\Models\MonitoredServer;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ServerMonitoringController extends Controller
 {
