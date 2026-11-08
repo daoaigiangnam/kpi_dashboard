@@ -213,10 +213,20 @@ class ServerAgentController extends Controller
             'events.*.ppid' => ['nullable', 'integer', 'min:0'],
             'events.*.executable' => ['nullable', 'string', 'max:1024'],
             'events.*.arguments' => ['nullable', 'array', 'max:256'],
+            'events.*.arguments.*' => ['string', 'max:2048'],
             'events.*.audit_serial' => ['nullable', 'string', 'max:100'],
             'events.*.source_ip' => ['nullable', 'ip'],
             'events.*.raw_event' => ['nullable', 'array'],
         ]);
+
+        // Bound the serialized event batch, including nested raw audit records.
+        // Count limits alone do not prevent a single oversized JSON payload.
+        $eventPayload = json_encode($data['events'], JSON_THROW_ON_ERROR);
+        if (strlen($eventPayload) > 1_048_576) {
+            throw ValidationException::withMessages([
+                'events' => 'Audit event batch exceeds the 1 MiB limit.',
+            ]);
+        }
 
         $server = $this->server($request);
         $accepted = DB::transaction(function () use ($data, $server) {
