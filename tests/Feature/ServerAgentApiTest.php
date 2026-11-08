@@ -229,6 +229,13 @@ class ServerAgentApiTest extends TestCase
             'event_count' => 0,
         ]);
         $server->forceFill(['audit_enabled' => true])->save();
+        $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'AUDIT_STOP',
+            'payload' => ['session_id' => $sessionId],
+            'status' => 'completed',
+            'expires_at' => now()->addMinutes(5),
+        ]);
 
         foreach (['event-a', 'event-b'] as $key) {
             \Illuminate\Support\Facades\DB::table('command_audit_events')->insert([
@@ -336,6 +343,29 @@ class ServerAgentApiTest extends TestCase
         ])->assertOk()->assertJsonPath('accepted', 1);
 
         $this->assertSame(1, $session->fresh()->event_count);
+    }
+
+    public function test_completed_report_is_rejected_without_successful_stop_ack(): void
+    {
+        [$server, $token] = $this->createServer();
+        $server->forceFill(['audit_enabled' => true])->save();
+        $sessionId = (string) Str::uuid();
+        $session = $server->auditSessions()->create([
+            'session_id' => $sessionId,
+            'status' => 'stopping',
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/audit/report', [
+            'session_id' => $sessionId,
+            'status' => 'completed',
+        ])->assertUnprocessable();
+
+        $this->assertSame('stopping', $session->fresh()->status);
+        $this->assertNull($session->fresh()->stopped_at);
+        $this->assertTrue($server->fresh()->audit_enabled);
     }
 
     public function test_failed_audit_report_does_not_fabricate_stop_time_or_clear_enabled_flag(): void
