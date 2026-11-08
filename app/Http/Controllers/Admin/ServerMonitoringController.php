@@ -108,7 +108,18 @@ class ServerMonitoringController extends Controller
                 ->whereIn('status', ['queued', 'running'])
                 ->latest()
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+
+            // A failed STOP leaves audit_enabled=true; allow an operator to retry STOP.
+            if (! $session && $lockedServer->audit_enabled) {
+                $session = $lockedServer->auditSessions()
+                    ->where('status', 'failed')
+                    ->latest()
+                    ->lockForUpdate()
+                    ->first();
+            }
+
+            abort_if(! $session, 404, 'No active or recoverable audit session was found.');
 
             $session->forceFill(['status' => 'stopping'])->save();
             $this->queue($lockedServer, 'AUDIT_STOP', ['session_id' => $session->session_id], $request->user()->id);
