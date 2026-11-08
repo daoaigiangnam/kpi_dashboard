@@ -108,6 +108,58 @@ class ServerAgentApiTest extends TestCase
         $this->assertSame('expired', $expired->fresh()->status);
         $this->assertSame('delivered', $queued->fresh()->status);
     }
+    public function test_unacknowledged_delivered_command_is_redelivered_after_lease_with_same_id(): void
+    {
+        [$server, $token] = $this->createServer();
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'AUDIT_START',
+            'payload' => ['session_id' => (string) Str::uuid()],
+            'status' => 'delivered',
+            'delivered_at' => now()->subMinutes(2),
+            'lease_expires_at' => now()->subMinute(),
+            'delivery_attempts' => 1,
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/agent/commands')
+            ->assertOk()
+            ->assertJsonCount(1, 'commands')
+            ->assertJsonPath('commands.0.command_id', $command->command_id)
+            ->assertJsonPath('commands.0.delivery_attempt', 2);
+
+        $fresh = $command->fresh();
+        $this->assertSame('delivered', $fresh->status);
+        $this->assertSame(2, $fresh->delivery_attempts);
+        $this->assertTrue($fresh->lease_expires_at->isFuture());
+    }
+
+    public function test_executing_command_can_be_completed_after_start_deadline(): void
+    {
+        [$server, $token] = $this->createServer();
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'AUDIT_START',
+            'payload' => [],
+            'status' => 'executing',
+            'expires_at' => now()->subMinute(),
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'completed',
+            'result' => ['exit_code' => 0],
+        ])->assertOk();
+
+        $this->assertSame('completed', $command->fresh()->status);
+    }
+
     public function test_authenticated_heartbeat_updates_agent_metadata(): void
     {
         [$server, $token] = $this->createServer();
