@@ -72,7 +72,8 @@ return new class extends Migration {
             $table->string('source_ip', 45)->nullable();
             $table->json('raw_event')->nullable();
             $table->timestamp('created_at');
-            $table->unique(['server_id', 'event_key']);
+            // An audit serial/event key may be reused in a later session.
+            $table->unique(['server_id', 'session_id', 'event_key']);
             $table->index(['server_id', 'session_id', 'event_time']);
         });
 
