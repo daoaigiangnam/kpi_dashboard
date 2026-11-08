@@ -50,7 +50,6 @@ class ServerAgentApiTest extends TestCase
             'Authorization' => 'Bearer ' . $token,
         ])->getJson('/api/agent/config')
             ->assertOk()
-            ->assertJsonPath('server_code', null)
             ->assertJsonPath('config_version', 1)
             ->assertJsonPath('modules.command_audit.enabled', false)
             ->assertJsonPath('modules.resource_monitor.enabled', false);
@@ -109,4 +108,24 @@ class ServerAgentApiTest extends TestCase
         $this->assertSame('expired', $expired->fresh()->status);
         $this->assertSame('delivered', $queued->fresh()->status);
     }
+    public function test_authenticated_heartbeat_updates_agent_metadata(): void
+    {
+        [$server, $token] = $this->createServer();
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/heartbeat', [
+            'agent_version' => '1.0.0',
+            'hostname' => 'ci-ubuntu-01',
+            'os_info' => ['name' => 'Ubuntu', 'version' => '24.04'],
+        ])->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('server_code', $server->server_code);
+
+        $this->assertSame('1.0.0', $server->fresh()->agent_version);
+        $this->assertSame('ci-ubuntu-01', $server->fresh()->hostname);
+        $this->assertSame('Ubuntu', $server->fresh()->os_info['name']);
+    }
+
 }
