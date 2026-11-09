@@ -12,6 +12,7 @@ from typing import Any
 
 from central_client import CentralClient
 from command_journal import CommandJournal, TERMINAL_STATES
+from event_spool import EventSpool
 
 
 class AgentWorker:
@@ -32,6 +33,20 @@ class AgentWorker:
             return expires > datetime.now(timezone.utc)
         except (TypeError, ValueError):
             return False
+
+    def flush_events(self, spool: EventSpool, session_id: str,
+                     batch_size: int = 100) -> int:
+        """Upload one batch and delete it locally only after explicit Central success."""
+        events = spool.peek_batch(session_id, batch_size)
+        if not events:
+            return 0
+        response = self.client.upload_events({"session_id": session_id, "events": events})
+        if response.get("ok") is not True:
+            raise RuntimeError("Central did not confirm audit event batch")
+        # Central uses insertOrIgnore; ok=true means every item was processed,
+        # including duplicates already stored. It is therefore safe to clear
+        # this exact batch, not merely the number newly inserted.
+        return spool.acknowledge_batch(session_id, events)
 
     def run_once(self) -> dict[str, int]:
         heartbeat = self.client.heartbeat({
