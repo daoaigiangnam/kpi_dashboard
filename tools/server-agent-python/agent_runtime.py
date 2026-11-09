@@ -55,20 +55,23 @@ class AgentRuntime:
                 active_session_id,
                 max_bytes=self.read_max_bytes,
             )
-        # Flush the configured/previous session spool even after STOP. Never
-        # read new audit records while no session is actively running.
-        uploaded = self.worker.flush_events(
-            self.spool,
-            active_session_id,
-            batch_size=self.upload_batch_size,
-        )
+        # Drain every durable session queue, including sessions stopped before
+        # a process restart. Never read new records unless a session is running.
+        pending_sessions = self.spool.pending_sessions()
+        uploaded = 0
+        for pending_session_id in pending_sessions:
+            uploaded += self.worker.flush_events(
+                self.spool,
+                pending_session_id,
+                batch_size=self.upload_batch_size,
+            )
         return {
             "control": control,
             "audit": ingestion,
             "uploaded": uploaded,
             "session_active": should_ingest,
-            "session_id": active_session_id,
-            "pending": self.spool.pending_count(active_session_id),
+            "session_id": active_session_id if should_ingest else None,
+            "pending": self.spool.pending_count(),
         }
 
     def close(self) -> None:
