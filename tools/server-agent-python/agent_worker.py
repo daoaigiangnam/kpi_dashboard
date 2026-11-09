@@ -41,6 +41,24 @@ class AgentWorker:
         events = AuditdRawParser().parse(lines, session_id)
         return sum(1 for event in events if spool.enqueue(session_id, event))
 
+    def ingest_audit_log_batch(self, reader: Any, spool: EventSpool,
+                              session_id: str, max_bytes: int = 262144) -> dict[str, int]:
+        """Read, parse and durably spool a batch before advancing its file cursor.
+
+        If parsing or any spool write fails, the cursor is not committed. A retry
+        may see earlier events again; the spool's (session_id, event_key) primary
+        key makes that replay idempotent.
+        """
+        lines, next_cursor = reader.read_batch(max_bytes=max_bytes)
+        inserted = self.ingest_auditd_raw(lines, session_id, spool) if lines else 0
+        reader.commit(next_cursor)
+        return {"lines": len(lines), "events_inserted": inserted}
+
+    @staticmethod
+    def complete_audit_log_rotation(reader: Any, spool_cursor: dict) -> dict:
+        """Return the next-file cursor only after the caller has committed spool data."""
+        return reader.complete_rotation(spool_cursor)
+
     def flush_events(self, spool: EventSpool, session_id: str,
                      batch_size: int = 100) -> int:
         """Upload one batch and delete it locally only after explicit Central success."""
