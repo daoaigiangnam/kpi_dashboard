@@ -71,3 +71,12 @@ The supervisor does not itself install signal handlers, open privileged audit lo
 `agent_service.py` wires `AgentWorker.run_once()` into `AgentSupervisor` and maps SIGTERM/SIGINT to a cooperative stop request. The signal handler only sets the supervisor stop event; it does not perform network calls, file I/O, or privileged cleanup. Previous process signal handlers are restored when the service exits.
 
 This is the service lifecycle entry-point foundation, not yet a complete installable daemon. A deployment CLI still needs validated configuration loading, secret-file permissions, construction of the Central client/journal/spool, audit session and reader lifecycle, and systemd unit packaging. Do not start a privileged audit reader until its ownership, rotation coordination, and failure-alerting behavior are reviewed.
+
+
+## Composed Agent runtime cycle
+
+`agent_runtime.py` composes the existing worker and durable audit components into one supervised cycle: Central heartbeat/command intake, bounded audit-log read, parse + durable SQLite spool, HTTPS event upload, and pending-count reporting. It deliberately requires an explicit active `session_id`; it does not guess a session or enable audit collection itself. The runtime can be passed to `AgentService` as the worker-like object because it exposes `run_once()`.
+
+The caller must construct the Central client, command journal, audit reader and spool from validated configuration, obtain/validate the active audit session, then construct `AgentRuntime`. After `AgentService.run()` returns, the bootstrap must call `runtime.close()` in its own `finally` block. A Central failure or spool failure raises to the Supervisor; reader cursor commit remains after durable spool only, and spool deletion remains after Central confirmation.
+
+Rotation transition, audit session start/stop orchestration, privileged auditd rule ownership, config reload, installer and systemd packaging remain separate deployment work. This runtime is not yet a production-ready Ubuntu daemon.
