@@ -57,4 +57,10 @@ class AgentRuntime:
 
     def close(self) -> None:
         """Close local durable resources; caller invokes after supervisor exits."""
-        self.spool.close()
+        try:
+            self.spool.close()
+        finally:
+            journal = getattr(self.worker, "journal", None)
+            close = getattr(journal, "close", None)
+            if callable(close):
+                close()
