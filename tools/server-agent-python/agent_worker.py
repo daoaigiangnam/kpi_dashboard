@@ -13,6 +13,7 @@ from typing import Any
 from central_client import CentralClient
 from command_journal import CommandJournal, TERMINAL_STATES
 from event_spool import EventSpool
+from auditd_collector import AuditdRawParser
 
 
 class AgentWorker:
@@ -33,6 +34,12 @@ class AgentWorker:
             return expires > datetime.now(timezone.utc)
         except (TypeError, ValueError):
             return False
+
+    def ingest_auditd_raw(self, lines: list[str], session_id: str,
+                          spool: EventSpool) -> int:
+        """Parse complete auditd raw records and durably enqueue execution events."""
+        events = AuditdRawParser().parse(lines, session_id)
+        return sum(1 for event in events if spool.enqueue(session_id, event))
 
     def flush_events(self, spool: EventSpool, session_id: str,
                      batch_size: int = 100) -> int:
