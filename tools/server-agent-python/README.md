@@ -29,3 +29,10 @@ The service integration must add a single-writer process lock, expiry validation
 `auditd_collector.py` parses raw audit records supplied by a trusted reader. It groups SYSCALL, EXECVE and PROCTITLE records by Audit Serial and emits normalized process-execution events. Failed exec attempts are retained as events; an audit record is not interpreted as proof that a command succeeded.
 
 `AgentWorker.ingest_auditd_raw()` parses records and inserts them into the durable SQLite event spool. Re-reading the same serial within a session is deduplicated. This stage does not execute `ausearch`, change audit rules, or read privileged log files; a separately hardened reader/service integration is still required.
+
+
+## Auditd rule management
+
+`auditd_rules.py` renders a deterministic desired-state rule file for process execution auditing (`execve` and `execveat`) on selected Linux architectures. The default excludes records with an unset login UID (`auid=-1)); set `include_unset_login_uid=True` only when daemon/service executions must also be audited, since this can substantially increase event volume.
+
+The manager only renders content and identifies the target path `/etc/audit/rules.d/50-server-monitoring.rules`. It does not write privileged files, invoke `auditctl`, or reload auditd. Those actions belong to a separately reviewed installer with explicit privilege boundaries.
