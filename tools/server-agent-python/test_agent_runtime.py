@@ -32,6 +32,8 @@ class AgentRuntimeTests(unittest.TestCase):
             "control": {"received": 0},
             "audit": {"lines": 2, "events_inserted": 1},
             "uploaded": 1,
+            "session_active": True,
+            "session_id": "session-1",
             "pending": 0,
         }, result)
 
@@ -57,6 +59,41 @@ class AgentRuntimeTests(unittest.TestCase):
             AgentRuntime(self.worker, self.reader, self.spool, "s", read_max_bytes=0)
         with self.assertRaises(ValueError):
             AgentRuntime(self.worker, self.reader, self.spool, "s", upload_batch_size=501)
+
+
+    def test_stopped_session_does_not_ingest_but_flushes_pending_spool(self):
+        sessions = Mock()
+        sessions.status.return_value = {"state": "stopped", "session_id": None}
+        runtime = AgentRuntime(
+            self.worker, self.reader, self.spool, "session-previous",
+            session_manager=sessions,
+        )
+        result = runtime.run_once()
+
+        self.worker.ingest_audit_log_batch.assert_not_called()
+        self.worker.flush_events.assert_called_once_with(
+            self.spool, "session-previous", batch_size=100
+        )
+        self.assertEqual(0, result["audit"]["lines"])
+        self.assertFalse(result["session_active"])
+        self.assertEqual("session-previous", result["session_id"])
+
+    def test_running_session_uses_session_manager_identity(self):
+        sessions = Mock()
+        sessions.status.return_value = {"state": "running", "session_id": "session-active"}
+        runtime = AgentRuntime(
+            self.worker, self.reader, self.spool, "session-configured",
+            session_manager=sessions,
+        )
+        result = runtime.run_once()
+
+        self.worker.ingest_audit_log_batch.assert_called_once_with(
+            self.reader, self.spool, "session-active", max_bytes=262144
+        )
+        self.worker.flush_events.assert_called_once_with(
+            self.spool, "session-active", batch_size=100
+        )
+        self.assertEqual("session-active", result["session_id"])
 
     def test_close_closes_spool(self):
         runtime = AgentRuntime(self.worker, self.reader, self.spool, "session-1")
