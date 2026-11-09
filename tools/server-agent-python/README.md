@@ -57,3 +57,10 @@ The reader follows the checkpointed device/inode into a renamed sibling such as 
 `AgentWorker.ingest_audit_log_batch(reader, spool, session_id)` now reads one bounded batch, parses complete audit records, inserts normalized execution events into SQLite, and commits the reader cursor only after spool writes succeed. If parsing or a spool write fails, the cursor remains unchanged; replayed records are safe because the spool deduplicates by `(session_id, event_key)`.
 
 For rotation, continue reading the checkpointed inode until drained, commit the final batch cursor, call `complete_audit_log_rotation(reader, drained_cursor)`, and commit the returned cursor before processing the new active file. The service loop must serialize these operations with a single-writer lock. This pipeline is a library integration; it does not yet open privileged audit logs or run as a systemd service.
+
+
+## Agent service supervisor
+
+`agent_supervisor.py` provides the process-lifecycle foundation for a long-running Linux Agent. It acquires a non-blocking `flock` on a dedicated lock file, records the owning PID for diagnostics, runs one supplied service cycle at a time, waits between normal cycles, and applies bounded exponential backoff after transient cycle failures. The lock is released in a `finally` block, including when the service exits unexpectedly.
+
+The supervisor does not itself install signal handlers, open privileged audit logs, start/stop audit sessions, or execute queued commands. The future systemd entry point must translate SIGTERM/SIGINT into `request_stop()`, provide a cycle that safely coordinates heartbeat, audit ingestion and spool upload, and configure systemd restart policy. Do not run multiple independent readers for the same audit log/cursor.
