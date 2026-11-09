@@ -81,6 +81,35 @@ class AuditCommandExecutorTests(unittest.TestCase):
         self.assertEqual([self.session_id], self.disabled)
         self.assertEqual("stopped", self.sessions.status()["state"])
 
+    def test_transient_host_failure_stays_executing_and_recovers(self):
+        calls = []
+        def fail_once(session):
+            calls.append(session)
+            if len(calls) == 1:
+                raise OSError("auditd temporarily unavailable")
+
+        state_path = Path(self.tmp.name) / "recoverable-session.json"
+        self.sessions = AuditSessionManager(
+            state_path, fail_once, lambda _session: None
+        )
+        self.executor = AuditCommandExecutor(self.journal, self.sessions, self.client)
+
+        with self.assertRaises(OSError):
+            self.executor.execute(self.command)
+        row, _ = self.journal.record_received(self.command)
+        self.assertEqual("executing", row["state"])
+        self.assertEqual("starting", self.sessions.status()["state"])
+
+        recovered = AuditSessionManager(
+            state_path, lambda session: calls.append(session), lambda _session: None
+        )
+        self.sessions = recovered
+        self.executor = AuditCommandExecutor(self.journal, recovered, self.client)
+        row = self.executor.execute(self.command)
+        self.assertEqual("completed", row["state"])
+        self.assertEqual("running", recovered.status()["state"])
+        self.assertEqual([self.session_id, self.session_id], calls)
+
     def test_failed_transition_is_terminal_and_acknowledged(self):
         # STOP is intentionally idempotent when already stopped. Create a
         # different active session so this command exercises a true conflict.
