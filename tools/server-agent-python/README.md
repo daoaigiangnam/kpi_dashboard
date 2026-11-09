@@ -22,3 +22,10 @@ python3 -m unittest -v
 - No shell command or arbitrary executable is accepted.
 
 The service integration must add a single-writer process lock, expiry validation, audit-rule desired-state reconciliation, HTTPS transport, and ACK retry loop before this can be installed on servers.
+
+
+## Auditd event parsing
+
+`auditd_collector.py` parses raw audit records supplied by a trusted reader. It groups SYSCALL, EXECVE and PROCTITLE records by Audit Serial and emits normalized process-execution events. Failed exec attempts are retained as events; an audit record is not interpreted as proof that a command succeeded.
+
+`AgentWorker.ingest_auditd_raw()` parses records and inserts them into the durable SQLite event spool. Re-reading the same serial within a session is deduplicated. This stage does not execute `ausearch`, change audit rules, or read privileged log files; a separately hardened reader/service integration is still required.
