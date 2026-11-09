@@ -171,6 +171,13 @@ class ServerAgentController extends Controller
                 return true;
             }
 
+            // A delayed retry of the non-terminal "executing" ACK may arrive
+            // after a terminal ACK. Accept it without ever moving the command
+            // backwards from completed/failed.
+            if (in_array($current, ['completed', 'failed'], true) && $next === 'executing') {
+                return true;
+            }
+
             $allowed = [
                 'delivered' => ['executing', 'completed', 'failed'],
                 'executing' => ['completed', 'failed'],
