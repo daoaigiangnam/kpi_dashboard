@@ -82,6 +82,38 @@ class AgentWorkerTests(unittest.TestCase):
         })
         self.assertEqual(1, result["terminal_ack_replays"])
 
+    def test_flush_events_deletes_batch_only_after_central_success(self):
+        import tempfile
+        from pathlib import Path
+        from event_spool import EventSpool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            spool = EventSpool(Path(tmp) / "spool.sqlite3")
+            event = {"event_key": "evt-1", "event_time": "2026-11-09T10:00:00Z"}
+            spool.enqueue("session-1", event)
+            self.client.upload_events.return_value = {"ok": True, "accepted": 1}
+            removed = self.worker.flush_events(spool, "session-1")
+            self.assertEqual(1, removed)
+            self.assertEqual(0, spool.pending_count("session-1"))
+            self.client.upload_events.assert_called_once_with({
+                "session_id": "session-1", "events": [event]
+            })
+            spool.close()
+
+    def test_flush_events_retains_batch_when_central_does_not_confirm(self):
+        import tempfile
+        from pathlib import Path
+        from event_spool import EventSpool
+
+        with tempfile.TemporaryDirectory() as tmp:
+            spool = EventSpool(Path(tmp) / "spool.sqlite3")
+            spool.enqueue("session-1", {"event_key": "evt-2"})
+            self.client.upload_events.return_value = {"ok": False}
+            with self.assertRaises(RuntimeError):
+                self.worker.flush_events(spool, "session-1")
+            self.assertEqual(1, spool.pending_count("session-1"))
+            spool.close()
+
     def test_heartbeat_must_be_confirmed(self):
         self.client.heartbeat.return_value = {"ok": False}
         with self.assertRaises(RuntimeError):
