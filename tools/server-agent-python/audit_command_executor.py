@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from audit_session import AuditSessionManager
+from audit_session import AuditSessionConflict, AuditSessionManager
 from command_journal import CommandJournal, TERMINAL_STATES
 
 
@@ -65,11 +65,13 @@ class AuditCommandExecutor:
                 "session_state": effect["state"],
             }
             row = self.journal.finish(row["command_id"], "completed", result=result)
-        except Exception as exc:
-            # Do not leak arbitrary exception strings, paths or host details to Central.
+        except (AuditSessionConflict, ValueError) as exc:
+            # Deterministic validation/state conflicts are terminal. Operational
+            # failures (I/O, permissions, auditd unavailable) remain executing so
+            # restart/re-delivery can reconcile the durable transition intent.
             row = self.journal.finish(
                 row["command_id"], "failed",
-                error=f"{type(exc).__name__}: audit session transition failed",
+                error=f"{type(exc).__name__}: audit session transition rejected",
             )
         self._ack(row)
         return row
