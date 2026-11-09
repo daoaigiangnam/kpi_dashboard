@@ -82,6 +82,9 @@ class AuditCommandExecutorTests(unittest.TestCase):
         self.assertEqual("stopped", self.sessions.status()["state"])
 
     def test_failed_transition_is_terminal_and_acknowledged(self):
+        # STOP is intentionally idempotent when already stopped. Create a
+        # different active session so this command exercises a true conflict.
+        self.executor.execute(self.command)
         bad = {
             "command_id": str(uuid.uuid4()),
             "type": "AUDIT_STOP",
