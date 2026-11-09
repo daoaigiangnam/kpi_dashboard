@@ -45,7 +45,7 @@ class AgentServiceTests(unittest.TestCase):
             service.supervisor.run = Mock(return_value={
                 "attempted": 1, "successful": 1, "failed": 0
             })
-            with patch("agent_service.signal.getsignal", return_value=signal.SIG_DFL), \\
+            with patch("agent_service.signal.getsignal", return_value=signal.SIG_DFL), \
                  patch("agent_service.signal.signal"):
                 service.run()
             worker.close.assert_called_once_with()
@@ -58,7 +58,7 @@ class AgentServiceTests(unittest.TestCase):
             service.supervisor.run = Mock(return_value={
                 "attempted": 1, "successful": 1, "failed": 0
             })
-            with patch("agent_service.signal.getsignal", return_value=signal.SIG_DFL), \\
+            with patch("agent_service.signal.getsignal", return_value=signal.SIG_DFL), \
                  patch("agent_service.signal.signal") as signal_set:
                 with self.assertRaises(RuntimeError):
                     service.run()
