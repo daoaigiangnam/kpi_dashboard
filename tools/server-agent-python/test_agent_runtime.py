@@ -15,6 +15,7 @@ class AgentRuntimeTests(unittest.TestCase):
         self.reader = Mock()
         self.spool = Mock()
         self.spool.pending_count.return_value = 0
+        self.spool.pending_sessions.return_value = ["session-1"]
 
     def test_runtime_runs_control_ingestion_and_upload_in_order(self):
         runtime = AgentRuntime(self.worker, self.reader, self.spool, "session-1")
@@ -27,11 +28,13 @@ class AgentRuntimeTests(unittest.TestCase):
         self.worker.flush_events.assert_called_once_with(
             self.spool, "session-1", batch_size=100
         )
-        self.spool.pending_count.assert_called_once_with("session-1")
+        self.spool.pending_count.assert_called_once_with()
         self.assertEqual({
             "control": {"received": 0},
             "audit": {"lines": 2, "events_inserted": 1},
             "uploaded": 1,
+            "session_active": True,
+            "session_id": "session-1",
             "session_active": True,
             "session_id": "session-1",
             "pending": 0,
@@ -64,6 +67,7 @@ class AgentRuntimeTests(unittest.TestCase):
     def test_stopped_session_does_not_ingest_but_flushes_pending_spool(self):
         sessions = Mock()
         sessions.status.return_value = {"state": "stopped", "session_id": None}
+        self.spool.pending_sessions.return_value = ["session-previous"]
         runtime = AgentRuntime(
             self.worker, self.reader, self.spool, "session-previous",
             session_manager=sessions,
@@ -76,11 +80,12 @@ class AgentRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(0, result["audit"]["lines"])
         self.assertFalse(result["session_active"])
-        self.assertEqual("session-previous", result["session_id"])
+        self.assertIsNone(result["session_id"])
 
     def test_running_session_uses_session_manager_identity(self):
         sessions = Mock()
         sessions.status.return_value = {"state": "running", "session_id": "session-active"}
+        self.spool.pending_sessions.return_value = ["session-active"]
         runtime = AgentRuntime(
             self.worker, self.reader, self.spool, "session-configured",
             session_manager=sessions,
@@ -94,6 +99,28 @@ class AgentRuntimeTests(unittest.TestCase):
             self.spool, "session-active", batch_size=100
         )
         self.assertEqual("session-active", result["session_id"])
+
+
+    def test_flushes_all_pending_sessions_after_restart(self):
+        sessions = Mock()
+        sessions.status.return_value = {"state": "stopped", "session_id": None}
+        self.spool.pending_sessions.return_value = ["old-session", "newer-session"]
+        runtime = AgentRuntime(
+            self.worker, self.reader, self.spool, "configured-session",
+            session_manager=sessions,
+        )
+        result = runtime.run_once()
+
+        self.worker.ingest_audit_log_batch.assert_not_called()
+        self.assertEqual(2, self.worker.flush_events.call_count)
+        self.worker.flush_events.assert_any_call(
+            self.spool, "old-session", batch_size=100
+        )
+        self.worker.flush_events.assert_any_call(
+            self.spool, "newer-session", batch_size=100
+        )
+        self.assertEqual(2, result["uploaded"])
+        self.spool.pending_count.assert_called_once_with()
 
     def test_close_closes_spool(self):
         runtime = AgentRuntime(self.worker, self.reader, self.spool, "session-1")
