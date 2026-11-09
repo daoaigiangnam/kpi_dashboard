@@ -110,3 +110,10 @@ Set the file owner to the dedicated Agent service account (or root if the servic
 `audit_session.py` adds a crash-recoverable local START/STOP state machine with durable `stopped → starting → running → stopping → stopped` transitions. It writes transition intent before invoking injected desired-state callbacks, uses atomic fsync-backed state replacement with mode 0600, and can replay an interrupted transition after restart through `reconcile()`. Repeated START for the same running session and repeated STOP while stopped are idempotent; STOP for a different active session is rejected.
 
 The callbacks `ensure_enabled(session_id)` and `ensure_disabled(session_id)` must themselves be idempotent and must implement desired state rather than toggle state. This module deliberately does not invoke shell commands, write auditd rules, or enable/disable kernel auditing. A reviewed privileged adapter and Central command/ACK integration are still required before this manager is connected to the live Agent Runtime. The current Bootstrap still accepts a configured session ID; dynamic session acquisition is not yet implemented.
+
+
+## Durable audit command execution
+
+`audit_command_executor.py` coordinates the local command journal, audit session state machine, and Central ACKs for the allowlisted `AUDIT_START` and `AUDIT_STOP` command types. It records the command before processing, sends the `executing` ACK before applying the desired state, persists the terminal result before its terminal ACK, and retries terminal ACKs without repeating the host-side effect. A process restart can replay an `executing` command; the session manager's durable state and idempotent desired-state callbacks are the recovery boundary.
+
+`AgentWorker` accepts an optional command executor. Bootstrap intentionally does not supply one yet: no privileged auditd adapter is approved or connected. Until that adapter exists, the default worker continues durable command intake without executing host operations. This separation prevents a test callback or no-op implementation from being mistaken for real audit enforcement.
