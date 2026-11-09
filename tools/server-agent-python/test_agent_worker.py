@@ -64,6 +64,24 @@ class AgentWorkerTests(unittest.TestCase):
         self.assertEqual(1, result["expired"])
         self.journal.record_received.assert_not_called()
 
+    def test_existing_executing_command_retries_executing_ack(self):
+        command = {
+            "command_id": str(uuid.uuid4()),
+            "type": "AUDIT_START",
+            "payload": {"session_id": str(uuid.uuid4())},
+            "expires_at": None,
+        }
+        self.client.poll_commands.return_value = {"commands": [command]}
+        self.journal.record_received.return_value = (
+            {"command_id": command["command_id"], "state": "executing",
+             "result_json": None, "error": None}, False
+        )
+        result = self.worker.run_once()
+        self.client.acknowledge.assert_called_once_with({
+            "command_id": command["command_id"], "status": "executing"
+        })
+        self.assertEqual(1, result["terminal_ack_replays"])
+
     def test_heartbeat_must_be_confirmed(self):
         self.client.heartbeat.return_value = {"ok": False}
         with self.assertRaises(RuntimeError):
