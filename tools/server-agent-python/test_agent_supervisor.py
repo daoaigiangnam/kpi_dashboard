@@ -53,7 +53,7 @@ class AgentSupervisorTest(unittest.TestCase):
             result = supervisor.run(max_cycles=3)
 
             self.assertEqual({"attempted": 3, "successful": 1, "failed": 2}, result)
-            self.assertEqual([2, 4, 12], wait.delays)
+            self.assertEqual([2, 4, 15], wait.delays)
 
     def test_second_supervisor_cannot_acquire_same_lock(self):
         with tempfile.TemporaryDirectory() as tmp:
