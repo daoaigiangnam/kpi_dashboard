@@ -98,7 +98,7 @@ class AgentWorkerTests(unittest.TestCase):
             event = spool.peek_batch("session-1")[0]
             self.assertEqual("audit:9010", event["event_key"])
             self.assertEqual("/usr/bin/id", event["exe"])
-            self.assertEqual(1, self.worker.ingest_auditd_raw(lines, "session-1", spool))
+            self.assertEqual(0, self.worker.ingest_auditd_raw(lines, "session-1", spool))
             self.assertEqual(1, spool.pending_count("session-1"))
             spool.close()
 
