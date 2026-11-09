@@ -49,14 +49,41 @@ The Agent must not start an expired command. It must ACK `executing` before perf
 
 ### ACK state transitions
 
-Allowed transitions:
+Central accepts these transitions:
 
 - `delivered -> executing | completed | failed`
 - `executing -> completed | failed`
-- `completed -> completed` (idempotent retry)
-- `failed -> failed` (idempotent retry)
+- `executing -> executing` (idempotent retry; first ACK data is retained)
+- `completed -> completed` and `failed -> failed` (idempotent terminal retry)
+- A delayed `executing` retry received after `completed` or `failed` is acknowledged as stale and ignored. It must never move the command backwards or overwrite terminal data.
 
-A repeated terminal ACK must not repeat side effects. An expired command is rejected; Central records it as expired.
+A terminal ACK is immutable: retries must not replace its result, error, or completion timestamp. An expired command is rejected if it has not entered `executing`; a command already executing may finish and report its terminal ACK after the start deadline.
+
+### Durable Agent command journal and duplicate prevention
+
+The Agent implementation must use a local SQLite journal (or an equivalently durable transactional store) keyed by `command_id`. An in-memory set is not sufficient.
+
+Minimum journal fields:
+
+- `command_id` (primary key), `type`, canonical payload/hash, `session_id`
+- `state`: `received`, `executing`, `completed`, `failed`
+- `received_at`, `started_at`, `finished_at`, `last_ack_at`
+- `result_json`, `error`, `attempt_count`
+
+Processing rules:
+
+1. Acquire a process-wide lock before polling/dispatching so two workers cannot execute the same command concurrently.
+2. Validate the command UUID, expiry, exact allowlisted type, and payload schema. Reject unknown types; never pass a Central-supplied string to a shell.
+3. In one SQLite transaction, insert the command as `received`. If the ID already exists, compare type and canonical payload hash. A mismatch is a security/protocol error; never replace the stored command.
+4. If the journal says `completed` or `failed`, do not run the operation again; resend the stored terminal ACK.
+5. Persist `executing` and commit before performing any host operation. Then send the `executing` ACK. If the ACK request fails, continue using the journal and retry delivery; do not discard the command.
+6. Implement `AUDIT_START` and `AUDIT_STOP` as idempotent desired-state reconciliation, not blind imperative shell scripts. START checks whether this Agent's uniquely tagged audit rules are already installed before adding them. STOP removes only rules owned by this Agent and treats an already-absent owned rule set as stopped.
+7. Persist the terminal result before sending the terminal ACK. Retry ACK delivery from the journal until Central confirms it. A duplicate poll or lost HTTP response must not repeat host side effects.
+8. On restart with a journal entry in `executing`, reconcile actual audit-rule state against the command's desired state, then persist the outcome. Do not assume the operation did not run merely because the terminal ACK was not recorded.
+
+This provides durable deduplication and convergent recovery for the approved audit operations; it does not claim mathematically exactly-once execution across arbitrary host failures. Host-side reconciliation and explicit ownership markers are required to close the crash-after-side-effect window.
+
+SQLite journal, database directory, audit-rule ownership metadata, and spool must be root-owned and inaccessible to unprivileged users. Use restrictive file modes, SQLite transactions, and a single-writer lock. Never log bearer tokens or sensitive command payloads.
 
 ## Audit session lifecycle
 
