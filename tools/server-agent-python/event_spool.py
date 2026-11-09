@@ -24,10 +24,11 @@ class EventSpool:
         self._db.execute("PRAGMA synchronous=FULL")
         self._db.execute("""
             CREATE TABLE IF NOT EXISTS audit_event_spool (
-                event_key TEXT PRIMARY KEY,
+                event_key TEXT NOT NULL,
                 session_id TEXT NOT NULL,
                 event_json TEXT NOT NULL,
-                queued_at TEXT NOT NULL
+                queued_at TEXT NOT NULL,
+                PRIMARY KEY(session_id, event_key)
             )
         """)
 
@@ -42,7 +43,7 @@ class EventSpool:
             self._db.execute("BEGIN IMMEDIATE")
             try:
                 exists = self._db.execute(
-                    "SELECT 1 FROM audit_event_spool WHERE event_key=?", (key,)
+                    "SELECT 1 FROM audit_event_spool WHERE session_id=? AND event_key=?", (session_id, key)
                 ).fetchone()
                 if exists:
                     self._db.execute("COMMIT")
