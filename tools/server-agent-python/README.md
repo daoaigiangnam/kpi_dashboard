@@ -50,3 +50,10 @@ The manager only renders content and identifies the target path `/etc/audit/rule
 ### Rename rotation recovery
 
 The reader follows the checkpointed device/inode into a renamed sibling such as `audit.log.1`, drains complete records from that same inode, and refuses to switch while unread bytes remain. The caller must commit the drained cursor, call `complete_rotation()`, then commit the returned cursor before reading the new active file. Missing rotated files, truncation, or inode mismatches fail closed. Compressed rotations are not followed; configure audit log rotation to retain the uncompressed renamed file until the Agent drains it. The integration layer must also coordinate with auditd's reopen/rotation procedure and alert on a blocked rotation rather than deleting old logs.
+
+
+## Reader → Parser → SQLite Spool pipeline
+
+`AgentWorker.ingest_audit_log_batch(reader, spool, session_id)` now reads one bounded batch, parses complete audit records, inserts normalized execution events into SQLite, and commits the reader cursor only after spool writes succeed. If parsing or a spool write fails, the cursor remains unchanged; replayed records are safe because the spool deduplicates by `(session_id, event_key)`.
+
+For rotation, continue reading the checkpointed inode until drained, commit the final batch cursor, call `complete_audit_log_rotation(reader, drained_cursor)`, and commit the returned cursor before processing the new active file. The service loop must serialize these operations with a single-writer lock. This pipeline is a library integration; it does not yet open privileged audit logs or run as a systemd service.
