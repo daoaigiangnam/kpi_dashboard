@@ -82,6 +82,26 @@ class AgentWorkerTests(unittest.TestCase):
         })
         self.assertEqual(1, result["terminal_ack_replays"])
 
+    def test_ingest_auditd_raw_parses_and_spools_execution_event(self):
+        import tempfile
+        from pathlib import Path
+        from event_spool import EventSpool
+
+        lines = [
+            'type=SYSCALL msg=audit(1794225600.123:9010): syscall=59 success=yes exit=0 pid=20 ppid=10 auid=1000 uid=1000 comm="id" exe="/usr/bin/id"',
+            'type=EXECVE msg=audit(1794225600.123:9010): argc=1 a0="id"',
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            spool = EventSpool(Path(tmp) / "spool.sqlite3")
+            count = self.worker.ingest_auditd_raw(lines, "session-1", spool)
+            self.assertEqual(1, count)
+            event = spool.peek_batch("session-1")[0]
+            self.assertEqual("audit:9010", event["event_key"])
+            self.assertEqual("/usr/bin/id", event["exe"])
+            self.assertEqual(1, self.worker.ingest_auditd_raw(lines, "session-1", spool))
+            self.assertEqual(1, spool.pending_count("session-1"))
+            spool.close()
+
     def test_flush_events_deletes_batch_only_after_central_success(self):
         import tempfile
         from pathlib import Path
