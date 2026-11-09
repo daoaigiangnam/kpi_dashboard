@@ -102,6 +102,45 @@ class AgentWorkerTests(unittest.TestCase):
             self.assertEqual(1, spool.pending_count("session-1"))
             spool.close()
 
+    def test_reader_parser_spool_pipeline_commits_cursor_after_durable_enqueue(self):
+        import tempfile
+        from pathlib import Path
+        from audit_log_reader import AuditLogReader
+        from event_spool import EventSpool
+
+        raw = (
+            'type=SYSCALL msg=audit(1794225600.123:9011): syscall=59 success=yes exit=0 pid=20 ppid=10 auid=1000 uid=1000 comm="id" exe="/usr/bin/id"\\n'
+            'type=EXECVE msg=audit(1794225600.123:9011): argc=1 a0="id"\\n'
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            log = root / "audit.log"
+            log.write_text(raw, encoding="utf-8")
+            reader = AuditLogReader(log, root / "state" / "cursor.json")
+            spool = EventSpool(root / "spool.sqlite3")
+
+            result = self.worker.ingest_audit_log_batch(reader, spool, "session-pipeline")
+            self.assertEqual({"lines": 2, "events_inserted": 1}, result)
+            self.assertEqual(1, spool.pending_count("session-pipeline"))
+            self.assertEqual("audit:9011", spool.peek_batch("session-pipeline")[0]["event_key"])
+
+            replay = self.worker.ingest_audit_log_batch(reader, spool, "session-pipeline")
+            self.assertEqual({"lines": 0, "events_inserted": 0}, replay)
+            self.assertEqual(1, spool.pending_count("session-pipeline"))
+            spool.close()
+
+    def test_reader_cursor_is_not_committed_when_spooling_fails(self):
+        from unittest.mock import Mock
+        reader = Mock()
+        reader.read_batch.return_value = ([
+            'type=SYSCALL msg=audit(1794225600.123:9012): syscall=59 success=yes exit=0 pid=20 ppid=10 auid=1000 uid=1000 comm="id" exe="/usr/bin/id"'
+        ], {"device": 1, "inode": 2, "offset": 100, "source_path": "/var/log/audit/audit.log"})
+        spool = Mock()
+        spool.enqueue.side_effect = OverflowError("spool full")
+        with self.assertRaises(OverflowError):
+            self.worker.ingest_audit_log_batch(reader, spool, "session-failure")
+        reader.commit.assert_not_called()
+
     def test_flush_events_deletes_batch_only_after_central_success(self):
         import tempfile
         from pathlib import Path
