@@ -67,9 +67,9 @@ class AgentWorker:
             else:
                 duplicates += 1
 
-            # Terminal entries are never re-executed. Re-send the durable
-            # terminal ACK so Central can recover from a lost prior response.
-            if row["state"] in TERMINAL_STATES:
+            # Retry durable ACKs after a lost HTTP response. A received command
+            # is deliberately not ACKed as executing until a real executor exists.
+            if row["state"] in TERMINAL_STATES or row["state"] == "executing":
                 payload: dict[str, Any] = {
                     "command_id": row["command_id"],
                     "status": row["state"],
