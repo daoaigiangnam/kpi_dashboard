@@ -130,5 +130,5 @@ class AuditdAdapter:
                 raise AuditdAdapterError("managed audit rules path must be a regular file")
             self.rule_path.unlink()
         loaded = self._load_and_list().splitlines()
-        if any("key=server_monitor_exec" in line for line in loaded):
+        if any(f"key={self.config.key}" in line for line in loaded):
             raise AuditdAdapterError("managed execution rules remain active after removal")
