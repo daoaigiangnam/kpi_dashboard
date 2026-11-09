@@ -103,3 +103,10 @@ Example configuration (replace all example values deliberately):
 ```
 
 Set the file owner to the dedicated Agent service account (or root if the service runs as root) and mode 0600. The bootstrap creates a dedicated data directory with mode 0700 and constructs the HTTPS client, command journal, event spool, checkpointed audit reader, runtime and supervisor. It does not install auditd rules, grant capabilities, start an audit session, or create a systemd unit. The configured session ID must already be valid and active in Central; do not invent one. This is a construction/bootstrap layer, not yet an installable or production-ready daemon.
+
+
+## Audit session lifecycle state machine
+
+`audit_session.py` adds a crash-recoverable local START/STOP state machine with durable `stopped → starting → running → stopping → stopped` transitions. It writes transition intent before invoking injected desired-state callbacks, uses atomic fsync-backed state replacement with mode 0600, and can replay an interrupted transition after restart through `reconcile()`. Repeated START for the same running session and repeated STOP while stopped are idempotent; STOP for a different active session is rejected.
+
+The callbacks `ensure_enabled(session_id)` and `ensure_disabled(session_id)` must themselves be idempotent and must implement desired state rather than toggle state. This module deliberately does not invoke shell commands, write auditd rules, or enable/disable kernel auditing. A reviewed privileged adapter and Central command/ACK integration are still required before this manager is connected to the live Agent Runtime. The current Bootstrap still accepts a configured session ID; dynamic session acquisition is not yet implemented.
