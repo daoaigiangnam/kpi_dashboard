@@ -18,10 +18,11 @@ from auditd_collector import AuditdRawParser
 
 class AgentWorker:
     def __init__(self, client: CentralClient, journal: CommandJournal,
-                 agent_version: str = "0.1.0"):
+                 agent_version: str = "0.1.0", command_executor: Any | None = None):
         self.client = client
         self.journal = journal
         self.agent_version = agent_version
+        self.command_executor = command_executor
 
     @staticmethod
     def _not_expired(value: str | None) -> bool:
@@ -109,6 +110,10 @@ class AgentWorker:
 
             # Retry durable ACKs after a lost HTTP response. A received command
             # is deliberately not ACKed as executing until a real executor exists.
+            if self.command_executor is not None:
+                self.command_executor.execute(command)
+                continue
+
             if row["state"] in TERMINAL_STATES or row["state"] == "executing":
                 payload: dict[str, Any] = {
                     "command_id": row["command_id"],
