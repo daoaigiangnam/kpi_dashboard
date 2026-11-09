@@ -64,3 +64,10 @@ For rotation, continue reading the checkpointed inode until drained, commit the 
 `agent_supervisor.py` provides the process-lifecycle foundation for a long-running Linux Agent. It acquires a non-blocking `flock` on a dedicated lock file, records the owning PID for diagnostics, runs one supplied service cycle at a time, waits between normal cycles, and applies bounded exponential backoff after transient cycle failures. The lock is released in a `finally` block, including when the service exits unexpectedly.
 
 The supervisor does not itself install signal handlers, open privileged audit logs, start/stop audit sessions, or execute queued commands. The future systemd entry point must translate SIGTERM/SIGINT into `request_stop()`, provide a cycle that safely coordinates heartbeat, audit ingestion and spool upload, and configure systemd restart policy. Do not run multiple independent readers for the same audit log/cursor.
+
+
+## Signal-aware service entry point
+
+`agent_service.py` wires `AgentWorker.run_once()` into `AgentSupervisor` and maps SIGTERM/SIGINT to a cooperative stop request. The signal handler only sets the supervisor stop event; it does not perform network calls, file I/O, or privileged cleanup. Previous process signal handlers are restored when the service exits.
+
+This is the service lifecycle entry-point foundation, not yet a complete installable daemon. A deployment CLI still needs validated configuration loading, secret-file permissions, construction of the Central client/journal/spool, audit session and reader lifecycle, and systemd unit packaging. Do not start a privileged audit reader until its ownership, rotation coordination, and failure-alerting behavior are reviewed.
