@@ -45,3 +45,8 @@ The manager only renders content and identifies the target path `/etc/audit/rule
 ## Audit log reader
 
 `audit_log_reader.py` reads complete newline-terminated records from the configured audit log and persists a cursor atomically. The caller must commit the returned cursor only after records have been durably accepted by the local spool. It fails closed if the file is truncated or its inode changes; it does not silently reset the cursor. Rotation recovery (draining the renamed inode and switching to the new file) is intentionally a separate step and must be implemented before unattended production use.
+
+
+### Rename rotation recovery
+
+The reader follows the checkpointed device/inode into a renamed sibling such as `audit.log.1`, drains complete records from that same inode, and refuses to switch while unread bytes remain. The caller must commit the drained cursor, call `complete_rotation()`, then commit the returned cursor before reading the new active file. Missing rotated files, truncation, or inode mismatches fail closed. Compressed rotations are not followed; configure audit log rotation to retain the uncompressed renamed file until the Agent drains it. The integration layer must also coordinate with auditd's reopen/rotation procedure and alert on a blocked rotation rather than deleting old logs.
