@@ -36,3 +36,12 @@ The service integration must add a single-writer process lock, expiry validation
 `auditd_rules.py` renders a deterministic desired-state rule file for process execution auditing (`execve` and `execveat`) on selected Linux architectures. The default excludes records with an unset login UID (`auid=-1)); set `include_unset_login_uid=True` only when daemon/service executions must also be audited, since this can substantially increase event volume.
 
 The manager only renders content and identifies the target path `/etc/audit/rules.d/50-server-monitoring.rules`. It does not write privileged files, invoke `auditctl`, or reload auditd. Those actions belong to a separately reviewed installer with explicit privilege boundaries.
+
+
+## Auditd rule manager
+
+`auditd_rules.py` renders a deterministic desired-state rule file for process execution auditing (`execve` and `execveat`) on selected Linux architectures. The default excludes records with an unset login UID (`auid=-1`); include them only when daemon/service executions must be audited, as event volume can increase substantially. The manager only renders content; it does not write privileged files or reload auditd.
+
+## Audit log reader
+
+`audit_log_reader.py` reads complete newline-terminated records from the configured audit log and persists a cursor atomically. The caller must commit the returned cursor only after records have been durably accepted by the local spool. It fails closed if the file is truncated or its inode changes; it does not silently reset the cursor. Rotation recovery (draining the renamed inode and switching to the new file) is intentionally a separate step and must be implemented before unattended production use.
