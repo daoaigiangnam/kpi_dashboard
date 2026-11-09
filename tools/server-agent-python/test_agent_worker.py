@@ -37,6 +37,24 @@ class AgentWorkerTests(unittest.TestCase):
         self.journal.record_received.assert_called_once_with(command)
         self.client.acknowledge.assert_not_called()
 
+    def test_optional_command_executor_receives_durable_command(self):
+        command = {
+            "command_id": str(uuid.uuid4()),
+            "type": "AUDIT_START",
+            "payload": {"session_id": str(uuid.uuid4())},
+            "expires_at": None,
+        }
+        self.client.poll_commands.return_value = {"commands": [command]}
+        self.journal.record_received.return_value = (
+            {"command_id": command["command_id"], "state": "received"}, True
+        )
+        executor = Mock()
+        worker = AgentWorker(self.client, self.journal, command_executor=executor)
+        result = worker.run_once()
+        executor.execute.assert_called_once_with(command)
+        self.client.acknowledge.assert_not_called()
+        self.assertEqual(1, result["received"])
+
     def test_duplicate_command_is_not_treated_as_new(self):
         command = {
             "command_id": str(uuid.uuid4()),
