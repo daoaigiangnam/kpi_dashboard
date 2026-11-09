@@ -20,6 +20,7 @@ class AgentRuntime:
         session_id: str,
         read_max_bytes: int = 262144,
         upload_batch_size: int = 100,
+        session_manager: Any | None = None,
     ):
         if not isinstance(session_id, str) or not session_id.strip():
             raise ValueError("an active audit session_id is required")
@@ -33,26 +34,41 @@ class AgentRuntime:
         self.session_id = session_id
         self.read_max_bytes = read_max_bytes
         self.upload_batch_size = upload_batch_size
+        self.session_manager = session_manager
 
     def run_once(self) -> dict[str, Any]:
         """Run one supervised cycle; cursor advances only after durable spool."""
         control = self.worker.run_once()
-        ingestion = self.worker.ingest_audit_log_batch(
-            self.reader,
-            self.spool,
-            self.session_id,
-            max_bytes=self.read_max_bytes,
-        )
+        active_session_id = self.session_id
+        should_ingest = True
+        if self.session_manager is not None:
+            state = self.session_manager.status()
+            should_ingest = state["state"] == "running"
+            if should_ingest:
+                active_session_id = state["session_id"]
+
+        ingestion = {"lines": 0, "events_inserted": 0}
+        if should_ingest:
+            ingestion = self.worker.ingest_audit_log_batch(
+                self.reader,
+                self.spool,
+                active_session_id,
+                max_bytes=self.read_max_bytes,
+            )
+        # Flush the configured/previous session spool even after STOP. Never
+        # read new audit records while no session is actively running.
         uploaded = self.worker.flush_events(
             self.spool,
-            self.session_id,
+            active_session_id,
             batch_size=self.upload_batch_size,
         )
         return {
             "control": control,
             "audit": ingestion,
             "uploaded": uploaded,
-            "pending": self.spool.pending_count(self.session_id),
+            "session_active": should_ingest,
+            "session_id": active_session_id,
+            "pending": self.spool.pending_count(active_session_id),
         }
 
     def close(self) -> None:
