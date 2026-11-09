@@ -37,6 +37,34 @@ class AgentServiceTests(unittest.TestCase):
             registered = [call.args[0] for call in signal_set.call_args_list[:2]]
             self.assertEqual([signal.SIGTERM, signal.SIGINT], registered)
 
+
+    def test_service_closes_runtime_after_supervisor_exits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            worker = Mock()
+            service = AgentService(worker, Path(tmp) / "agent.lock")
+            service.supervisor.run = Mock(return_value={
+                "attempted": 1, "successful": 1, "failed": 0
+            })
+            with patch("agent_service.signal.getsignal", return_value=signal.SIG_DFL), \\
+                 patch("agent_service.signal.signal"):
+                service.run()
+            worker.close.assert_called_once_with()
+
+    def test_service_restores_signals_even_if_runtime_close_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            worker = Mock()
+            worker.close.side_effect = RuntimeError("close failed")
+            service = AgentService(worker, Path(tmp) / "agent.lock")
+            service.supervisor.run = Mock(return_value={
+                "attempted": 1, "successful": 1, "failed": 0
+            })
+            with patch("agent_service.signal.getsignal", return_value=signal.SIG_DFL), \\
+                 patch("agent_service.signal.signal") as signal_set:
+                with self.assertRaises(RuntimeError):
+                    service.run()
+            restored = [call.args[0] for call in signal_set.call_args_list[-2:]]
+            self.assertEqual([signal.SIGTERM, signal.SIGINT], restored)
+
     def test_signal_handlers_require_main_thread(self):
         with tempfile.TemporaryDirectory() as tmp:
             service = AgentService(Mock(), Path(tmp) / "agent.lock")
