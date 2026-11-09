@@ -35,8 +35,7 @@ def build_service(config: AgentConfig) -> tuple[AgentService, AgentRuntime]:
     reader = AuditLogReader(config.audit_log_path, data_dir / "audit-reader.cursor.json")
     runtime = AgentRuntime(worker, reader, spool, config.session_id)
 
-    # Runtime owns both SQLite connections and closes both on service shutdown.
-    runtime._owned_journal = journal
+    # Runtime closes the worker's command journal and the event spool on shutdown.
     service = AgentService(
         runtime,
         data_dir / "agent.lock",
