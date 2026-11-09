@@ -109,8 +109,8 @@ class AgentWorkerTests(unittest.TestCase):
         from event_spool import EventSpool
 
         raw = (
-            'type=SYSCALL msg=audit(1794225600.123:9011): syscall=59 success=yes exit=0 pid=20 ppid=10 auid=1000 uid=1000 comm="id" exe="/usr/bin/id"\\n'
-            'type=EXECVE msg=audit(1794225600.123:9011): argc=1 a0="id"\\n'
+            'type=SYSCALL msg=audit(1794225600.123:9011): syscall=59 success=yes exit=0 pid=20 ppid=10 auid=1000 uid=1000 comm="id" exe="/usr/bin/id"\n'
+            'type=EXECVE msg=audit(1794225600.123:9011): argc=1 a0="id"\n'
         )
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
