@@ -35,8 +35,6 @@ class AgentRuntimeTests(unittest.TestCase):
             "uploaded": 1,
             "session_active": True,
             "session_id": "session-1",
-            "session_active": True,
-            "session_id": "session-1",
             "pending": 0,
         }, result)
 
