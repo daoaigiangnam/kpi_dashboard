@@ -89,3 +89,18 @@ jobs:
 
       - name: Run automated tests on MySQL
         run: php artisan test --display-warnings --display-deprecations --display-phpunit-deprecations
+
+  python-agent-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Agent Core unit tests
+        working-directory: tools/server-agent-python
+        run: python -m unittest -v
