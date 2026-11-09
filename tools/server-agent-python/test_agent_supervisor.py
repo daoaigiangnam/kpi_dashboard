@@ -73,7 +73,7 @@ class AgentSupervisorTest(unittest.TestCase):
             stop = threading.Event()
             def cycle():
                 raise RuntimeError("transient")
-            wait = FakeWait(stop)
+            wait = lambda seconds: stop.set()
             first = AgentSupervisor(cycle, lock, stop_event=stop, wait_fn=wait)
             result = first.run()
             self.assertEqual(1, result["failed"])
