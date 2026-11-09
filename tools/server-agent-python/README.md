@@ -77,7 +77,7 @@ This is the service lifecycle entry-point foundation, not yet a complete install
 
 `agent_runtime.py` composes the existing worker and durable audit components into one supervised cycle: Central heartbeat/command intake, bounded audit-log read, parse + durable SQLite spool, HTTPS event upload, and pending-count reporting. It deliberately requires an explicit active `session_id`; it does not guess a session or enable audit collection itself. The runtime can be passed to `AgentService` as the worker-like object because it exposes `run_once()`.
 
-The caller must construct the Central client, command journal, audit reader and spool from validated configuration, obtain/validate the active audit session, then construct `AgentRuntime`. After `AgentService.run()` returns, the bootstrap must call `runtime.close()` in its own `finally` block. A Central failure or spool failure raises to the Supervisor; reader cursor commit remains after durable spool only, and spool deletion remains after Central confirmation.
+The Bootstrap constructs the Central client, command journal, audit reader, spool, session manager, allowlisted command executor and runtime from validated configuration. The runtime consults the durable session manager on every cycle: it reads new audit records only while a session is `running`, uses the manager's active session ID (not a stale configured ID) for ingestion, and continues flushing the previous session's durable spool after STOP. `AgentService` closes the runtime after the supervisor exits. A Central failure or spool failure raises to the Supervisor; reader cursor commit remains after durable spool only, and spool deletion remains after Central confirmation.
 
 Rotation transition, audit session start/stop orchestration, privileged auditd rule ownership, config reload, installer and systemd packaging remain separate deployment work. This runtime is not yet a production-ready Ubuntu daemon.
 
@@ -116,14 +116,14 @@ The callbacks `ensure_enabled(session_id)` and `ensure_disabled(session_id)` mus
 
 `audit_command_executor.py` coordinates the local command journal, audit session state machine, and Central ACKs for the allowlisted `AUDIT_START` and `AUDIT_STOP` command types. It records the command before processing, sends the `executing` ACK before applying the desired state, persists the terminal result before its terminal ACK, and retries terminal ACKs without repeating the host-side effect. A process restart can replay an `executing` command; the session manager's durable state and idempotent desired-state callbacks are the recovery boundary.
 
-`AgentWorker` accepts an optional command executor. Bootstrap intentionally does not supply one yet: no privileged auditd adapter is approved or connected. Until that adapter exists, the default worker continues durable command intake without executing host operations. This separation prevents a test callback or no-op implementation from being mistaken for real audit enforcement.
+Bootstrap supplies this executor to `AgentWorker` and injects the constrained `AuditdAdapter` callbacks into the durable session manager. This wiring is CI-tested, but actual Ubuntu package paths, auditd behavior, privileges and rule coexistence still require staging validation.
 
 
 ## Privileged auditd adapter boundary
 
 `auditd_adapter.py` is the narrowly scoped privileged adapter for the dedicated `/etc/audit/rules.d/50-server-monitoring.rules` file. It uses fixed executable paths and argument arrays with `shell=False`, bounded timeouts, an atomic mode-0640 file replacement, `augenrules --load`, and `auditctl -l` verification. It refuses symlink/non-regular managed paths and refuses changes when the kernel audit subsystem is immutable (`enabled 2`). Disable removes only the dedicated managed file and verifies that the configured managed key is no longer loaded; it does not flush unrelated audit rules or stop the audit daemon.
 
-This adapter is not connected to Bootstrap or the live service yet. It must be run only by a reviewed privileged service account with ownership of the dedicated rules directory. Ubuntu package-specific binary paths, auditd configuration, rule ordering, immutable mode, and interaction with pre-existing local rules must be verified on a disposable Ubuntu staging VM before activation. The adapter changes process-execution rules only; it does not collect keystrokes or prove command success.
+Bootstrap now connects this adapter to the durable command executor through the session manager. It must be run only by a reviewed privileged service account with ownership of the dedicated rules directory. Ubuntu package-specific binary paths, auditd configuration, rule ordering, immutable mode, and interaction with pre-existing local rules must be verified on a disposable Ubuntu staging VM before activation. The adapter changes process-execution rules only; it does not collect keystrokes or prove command success.
 
 
 ## Privileged adapter wiring
