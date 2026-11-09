@@ -66,7 +66,7 @@ class AuditLogReader:
         with source.open("rb") as stream:
             stream.seek(cursor["offset"])
             raw = stream.read(max_bytes)
-        complete_end = raw.rfind(b"\\n") + 1
+        complete_end = raw.rfind(b"\n") + 1
         complete = raw[:complete_end]
         next_cursor = {
             "device": stat.st_dev,
