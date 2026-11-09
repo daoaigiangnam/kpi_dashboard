@@ -50,7 +50,7 @@ def build_service(config: AgentConfig) -> tuple[AgentService, AgentRuntime]:
     executor = AuditCommandExecutor(journal, sessions, client)
     worker = AgentWorker(client, journal, command_executor=executor)
     reader = AuditLogReader(config.audit_log_path, data_dir / "audit-reader.cursor.json")
-    runtime = AgentRuntime(worker, reader, spool, config.session_id)
+    runtime = AgentRuntime(worker, reader, spool, config.session_id, session_manager=sessions)
 
     # Runtime closes the worker's command journal and the event spool on shutdown.
     service = AgentService(
