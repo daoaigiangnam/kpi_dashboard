@@ -80,3 +80,26 @@ This is the service lifecycle entry-point foundation, not yet a complete install
 The caller must construct the Central client, command journal, audit reader and spool from validated configuration, obtain/validate the active audit session, then construct `AgentRuntime`. After `AgentService.run()` returns, the bootstrap must call `runtime.close()` in its own `finally` block. A Central failure or spool failure raises to the Supervisor; reader cursor commit remains after durable spool only, and spool deletion remains after Central confirmation.
 
 Rotation transition, audit session start/stop orchestration, privileged auditd rule ownership, config reload, installer and systemd packaging remain separate deployment work. This runtime is not yet a production-ready Ubuntu daemon.
+
+
+## Agent configuration and bootstrap
+
+`agent_config.py` loads a strict JSON configuration and rejects symlink/non-regular config files, permissions broader than 0600, unknown keys, non-HTTPS Central URLs, embedded URL credentials, and unsafe timing/spool limits. Keep the token only in this root/service-owned file; never put it in command-line arguments or logs.
+
+Example configuration (replace all example values deliberately):
+
+```json
+{
+  "central_url": "https://monitor.example.com",
+  "agent_id": "ISSUED_AGENT_ID",
+  "token": "ISSUED_AGENT_TOKEN",
+  "session_id": "ACTIVE_AUDIT_SESSION_UUID",
+  "data_dir": "/var/lib/server-monitoring-agent",
+  "audit_log_path": "/var/log/audit/audit.log",
+  "interval_seconds": 15,
+  "request_timeout": 15,
+  "max_spool_events": 100000
+}
+```
+
+Set the file owner to the dedicated Agent service account (or root if the service runs as root) and mode 0600. The bootstrap creates a dedicated data directory with mode 0700 and constructs the HTTPS client, command journal, event spool, checkpointed audit reader, runtime and supervisor. It does not install auditd rules, grant capabilities, start an audit session, or create a systemd unit. The configured session ID must already be valid and active in Central; do not invent one. This is a construction/bootstrap layer, not yet an installable or production-ready daemon.
