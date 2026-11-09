@@ -53,8 +53,8 @@ class AuditLogReaderTests(unittest.TestCase):
         rotated = self.log.with_name("audit.log.1")
         self.log.rename(rotated)
         with rotated.open("a", encoding="utf-8") as stream:
-            stream.write("\\n")
-        self.log.write_text("new active line\\n", encoding="utf-8")
+            stream.write("\n")
+        self.log.write_text("new active line\n", encoding="utf-8")
 
         old_lines, old_cursor = self.reader.read_batch()
         self.assertEqual(["partial"], old_lines)
@@ -74,11 +74,11 @@ class AuditLogReaderTests(unittest.TestCase):
         self.reader.commit(cursor)
         rotated = self.log.with_name("audit.log.1")
         self.log.rename(rotated)
-        self.log.write_text("new active\\n", encoding="utf-8")
+        self.log.write_text("new active\n", encoding="utf-8")
 
         _, rotated_cursor = self.reader.read_batch()
         with rotated.open("a", encoding="utf-8") as stream:
-            stream.write("late rotated record\\n")
+            stream.write("late rotated record\n")
         with self.assertRaises(AuditLogIdentityChanged):
             self.reader.complete_rotation(rotated_cursor)
 
@@ -87,7 +87,7 @@ class AuditLogReaderTests(unittest.TestCase):
         self.reader.commit(cursor)
         rotated = self.log.with_name("audit.log.1")
         self.log.rename(rotated)
-        self.log.write_text("new active\\n", encoding="utf-8")
+        self.log.write_text("new active\n", encoding="utf-8")
         rotated.unlink()
         with self.assertRaises(AuditLogIdentityChanged):
             self.reader.read_batch()
