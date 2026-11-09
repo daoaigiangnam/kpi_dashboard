@@ -52,6 +52,17 @@ class EventSpoolTests(unittest.TestCase):
         self.spool = EventSpool(Path(self.tmp.name) / "spool.sqlite3")
         self.assertEqual("evt-persist", self.spool.peek_batch(self.session)[0]["event_key"])
 
+
+    def test_pending_sessions_lists_only_sessions_with_unacknowledged_events(self):
+        self.spool.enqueue("session-old", self.event("evt-old"))
+        self.spool.enqueue("session-new", self.event("evt-new"))
+        self.assertEqual(
+            ["session-old", "session-new"],
+            self.spool.pending_sessions(),
+        )
+        self.spool.acknowledge_batch("session-old", [self.event("evt-old")])
+        self.assertEqual(["session-new"], self.spool.pending_sessions())
+
     def test_rejects_invalid_event_key(self):
         with self.assertRaises(ValueError):
             self.spool.enqueue(self.session, {"event_key": ""})
