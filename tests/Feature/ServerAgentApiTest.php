@@ -345,6 +345,7 @@ class ServerAgentApiTest extends TestCase
             'payload' => [],
             'status' => 'completed',
             'result' => ['exit_code' => 0],
+            'completed_at' => now()->subMinute(),
             'expires_at' => now()->subMinute(),
         ]);
 
