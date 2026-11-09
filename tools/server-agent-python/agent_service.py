@@ -56,4 +56,9 @@ class AgentService:
         try:
             return self.supervisor.run()
         finally:
-            self.restore_signal_handlers()
+            try:
+                close = getattr(self.worker, "close", None)
+                if callable(close):
+                    close()
+            finally:
+                self.restore_signal_handlers()
