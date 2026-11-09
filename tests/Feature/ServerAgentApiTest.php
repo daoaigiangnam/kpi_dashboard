@@ -336,6 +336,33 @@ class ServerAgentApiTest extends TestCase
         $this->assertNull($fresh->completed_at);
     }
 
+    public function test_delayed_executing_ack_after_terminal_ack_is_accepted_without_regression(): void
+    {
+        [$server, $token] = $this->createServer();
+        $command = $server->commands()->create([
+            'command_id' => (string) Str::uuid(),
+            'type' => 'CUSTOM',
+            'payload' => [],
+            'status' => 'completed',
+            'result' => ['exit_code' => 0],
+            'expires_at' => now()->subMinute(),
+        ]);
+
+        $this->withHeaders([
+            'X-Agent-ID' => $server->agent_id,
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/agent/ack', [
+            'command_id' => $command->command_id,
+            'status' => 'executing',
+            'result' => ['phase' => 'delayed-retry'],
+        ])->assertOk();
+
+        $fresh = $command->fresh();
+        $this->assertSame('completed', $fresh->status);
+        $this->assertSame(0, $fresh->result['exit_code']);
+        $this->assertNotNull($fresh->completed_at);
+    }
+
     public function test_expired_command_ack_is_rejected_and_persisted_as_expired(): void
     {
         [$server, $token] = $this->createServer();
