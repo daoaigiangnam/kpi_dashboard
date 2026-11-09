@@ -101,6 +101,15 @@ class EventSpool:
             ).fetchone()
         return int(row["n"])
 
+
+    def pending_sessions(self) -> list[str]:
+        """Return distinct sessions with durable events awaiting Central ACK."""
+        rows = self._db.execute("""
+            SELECT session_id FROM audit_event_spool
+            GROUP BY session_id ORDER BY MIN(queued_at), session_id
+        """).fetchall()
+        return [str(row["session_id"]) for row in rows]
+
     def close(self) -> None:
         with self._lock:
             self._db.close()
