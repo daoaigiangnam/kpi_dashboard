@@ -52,6 +52,8 @@ class AuditLogReaderTests(unittest.TestCase):
         self.reader.commit(cursor)
         rotated = self.log.with_name("audit.log.1")
         self.log.rename(rotated)
+        with rotated.open("a", encoding="utf-8") as stream:
+            stream.write("\\n")
         self.log.write_text("new active line\\n", encoding="utf-8")
 
         old_lines, old_cursor = self.reader.read_batch()
