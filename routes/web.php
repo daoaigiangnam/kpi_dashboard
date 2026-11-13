@@ -73,6 +73,10 @@ Route::middleware('auth')->group(function(){
 Route::middleware('auth')->prefix('customer')->name('customer.')->group(function (): void {
     Route::get('assets', [CustomerAssetController::class, 'index'])
         ->middleware('permission:customer.assets.view')->name('assets.index');
+    Route::get('assets/{token}/edit', [CustomerAssetController::class, 'edit'])
+        ->middleware('permission:customer.assets.edit')->name('assets.edit');
+    Route::put('assets/{token}', [CustomerAssetController::class, 'update'])
+        ->middleware('permission:customer.assets.edit')->name('assets.update');
     Route::get('assets/qr/{token}', [CustomerAssetController::class, 'qr'])
         ->middleware('permission:customer.assets.qr')->name('assets.qr');
     Route::get('assets/{token}', [CustomerAssetController::class, 'show'])->name('assets.show');
