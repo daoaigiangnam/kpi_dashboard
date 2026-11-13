@@ -66,6 +66,52 @@ class AssetController extends Controller
         return view('customer.assets.show', compact('asset'));
     }
 
+
+    public function edit(Request $request, string $token)
+    {
+        $user = $request->user();
+        abort_unless($user?->isCustomerAccount() && $user->hasPermission('customer.assets.edit'), 403);
+        abort_unless($user->service_customer_id, 403);
+
+        $asset = PcAudit::query()
+            ->where('asset_lookup_token', $token)
+            ->whereHas('auditCode.branch', function ($branchQuery) use ($user): void {
+                $branchQuery->where('customer_id', $user->service_customer_id);
+                if (!$user->can_access_all_branches) {
+                    $branchQuery->whereIn('customer_branches.id', $user->permittedBranches()->select('customer_branches.id'));
+                }
+            })
+            ->firstOrFail();
+
+        return view('customer.assets.edit', compact('asset'));
+    }
+
+    public function update(Request $request, string $token)
+    {
+        $user = $request->user();
+        abort_unless($user?->isCustomerAccount() && $user->hasPermission('customer.assets.edit'), 403);
+        abort_unless($user->service_customer_id, 403);
+
+        $validated = $request->validate([
+            'asset_condition' => ['required', 'string', 'in:Đang sử dụng,Dự phòng,Hỏng,Đang sửa chữa,Thanh lý,Mất'],
+        ]);
+
+        $asset = PcAudit::query()
+            ->where('asset_lookup_token', $token)
+            ->whereHas('auditCode.branch', function ($branchQuery) use ($user): void {
+                $branchQuery->where('customer_id', $user->service_customer_id);
+                if (!$user->can_access_all_branches) {
+                    $branchQuery->whereIn('customer_branches.id', $user->permittedBranches()->select('customer_branches.id'));
+                }
+            })
+            ->firstOrFail();
+
+        $asset->update($validated);
+
+        return redirect()->route('customer.assets.show', ['token' => $asset->asset_lookup_token])
+            ->with('success', 'Đã cập nhật tình trạng tài sản.');
+    }
+
     public function qr(Request $request, string $token)
     {
         $user = $request->user();
