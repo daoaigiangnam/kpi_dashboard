@@ -74,3 +74,8 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 ## 12. Schema Review – Batch 3
 
 - [12 – Schema Review Batch 3](./12-schema-review-batch-3-draft.md): rà soát 8 bảng cuối, gồm Environment Logs, Approval, Attachment, Audit, hai pivot và hai bảng phân quyền Customer User.
+
+
+## 13. Final Schema Decision Register
+
+- [13 – Final Schema Decision Register](./13-final-schema-decision-register-draft.md): tổng hợp các quyết định còn mở từ ba đợt Schema Review, kèm đề xuất và mức ưu tiên P0/P1.
