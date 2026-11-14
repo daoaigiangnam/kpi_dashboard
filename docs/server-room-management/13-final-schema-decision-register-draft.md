@@ -32,7 +32,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 
 | ID | Nội dung cần quyết định | Đề xuất của thầy | Ảnh hưởng chính |
 |---|---|---|---|
-| B01 | Access Log entry_at | entry_at là giờ check-in thực tế; bổ sung scheduled_entry_at nếu có đăng ký trước. | Access log columns, UI, report |
+| B01 | Access Log entry_at | **APPROVED – `entry_at` là thời điểm check-in thực tế; bổ sung `scheduled_entry_at` để lưu thời điểm đăng ký trước (nếu có). Không dùng giờ đăng ký thay cho giờ thực tế; báo cáo có thể đối chiếu hai thời điểm.** | Access log columns, UI, report |
 | B02 | Visitor không có access_person | Cho phép access_person_id NULL nhưng bắt buộc visitor_name, purpose và approver/exception authorization; ghi exception_reason khi đi theo ngoại lệ. | Validation, access policy, audit |
 | B03 | Inspection review_return | Dùng correction_required, không quay về draft; giữ nguyên kết quả đã submit và tạo correction revision/audit. | Status, revision behavior, UI |
 | B04 | Inspection result multi_select/boolean | Không hỗ trợ multi_select ở phiên bản đầu; bỏ boolean_value, dùng result cho yes/no; numeric/text/date dùng cột tương ứng. | Result schema, validation |
@@ -106,7 +106,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
 | A – Batch 1 | 11 | 11 | 0 |
-| B – Batch 2 | 16 | 0 | 16 |
+| B – Batch 2 | 16 | 1 | 15 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
 
@@ -135,6 +135,9 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 ## Lịch sử xác nhận
+
+- **B01 – APPROVED (2026-11-14):** `entry_at` ghi nhận giờ check-in thực tế; `scheduled_entry_at` lưu giờ đăng ký trước nếu có; không dùng giờ đăng ký thay cho giờ thực tế.
+
 
 - **A11 – APPROVED (2026-11-14):** `archived`, `retired`, `inactive` là trạng thái nghiệp vụ riêng; `deleted_at` chỉ là Soft Delete kỹ thuật. Mỗi bảng định nghĩa trạng thái phù hợp, không dùng thay thế nhau.
 
