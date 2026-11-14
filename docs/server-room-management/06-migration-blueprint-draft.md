@@ -158,7 +158,8 @@ Không tự suy đoán các nội dung sau trong migration:
 - [x] Thứ tự migration sơ bộ.
 - [x] Nguyên tắc tenant integrity và composite FK.
 - [x] Column-level schema batch 1: 7 bảng nền tảng (đang chờ chủ dự án xác nhận các điểm nghiệp vụ).
-- [ ] Column-level schema cho 15 bảng còn lại.
+- [x] Column-level schema batch 2: 7 bảng nghiệp vụ (đang chờ chủ dự án xác nhận các điểm nghiệp vụ).
+- [ ] Column-level schema cho 8 bảng còn lại.
 - [ ] Chốt toàn bộ FK/unique/index/delete rule.
 - [ ] Phê duyệt các quyết định nghiệp vụ còn mở.
 - [ ] Viết Laravel migrations.
