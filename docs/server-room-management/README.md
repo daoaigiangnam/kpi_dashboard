@@ -5,12 +5,12 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 ## Trạng thái
 
 - Kiến trúc nghiệp vụ: đã thống nhất ở mức định hướng.
-- Data Dictionary: bản nháp, đang hoàn thiện.
-- ERD chi tiết và ràng buộc FK/index: chưa chốt.
+- Data Dictionary: đã mô tả sơ bộ đủ 18/18 bảng; còn các quyết định FK/index/delete rule và các điểm nghiệp vụ cần chốt.
+- ERD chi tiết và ràng buộc FK/index: đang rà soát; chưa chốt.
 - Laravel migrations và code ứng dụng: chưa triển khai.
 - Không chạy migration hoặc thay đổi dữ liệu production trong giai đoạn thiết kế.
 
-## Tài liệu
+## Tiến độ cập nhật gần nhất\n\n- Hoàn thành mô tả sơ bộ 10 bảng còn lại trong Data Dictionary: Inspections, Inspection Results, Incidents, Incident Actions, Maintenance Requests, Equipment Movements, Environment Logs, Approvals, Attachments và Audit Logs.\n- Tổng cộng đã có mô tả sơ bộ cho 18/18 bảng.\n- Các điểm còn mở được ghi rõ trong Data Dictionary; chưa tạo Migration.\n\n## Tài liệu
 
 1. [Kiến trúc và các quyết định đã thống nhất](./01-architecture-and-decisions.md)
 2. [Data Dictionary – bản nháp](./02-data-dictionary-draft.md)
