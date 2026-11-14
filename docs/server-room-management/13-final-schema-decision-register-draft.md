@@ -40,7 +40,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | B06 | Incident pivot asset scope | **APPROVED – Một Incident có thể liên kết nhiều Asset qua `server_room_incident_assets`. Các Asset phải cùng `customer_id` với Incident; được phép ở Server Room khác nhau trong cùng tenant khi sự cố có phạm vi liên phòng. Phải ghi rõ vai trò Asset trong sự cố (ví dụ `affected`, `related`, `cause`) và Service phải kiểm tra tenant cùng quyền truy cập trước khi liên kết.** | Pivot validation, UI |
 | B07 | Incident Action verification | **APPROVED – Khi Action chuyển `completed`, bắt buộc có `completed_at` và `completion_note`. Khi chuyển `verified`, bắt buộc có `verified_by`, `verified_at`, `verification_note`. Người xác minh phải khác người hoàn tất (SoD); không cho `verified` nếu thiếu thông tin xác minh.** | Action validation, SoD policy |
 | B08 | Emergency Maintenance | **APPROVED – Phiên bản SRM đầu tiên chưa triển khai Emergency Bypass; mọi Maintenance Request phải đi qua Approval Workflow tiêu chuẩn, không được tự ý bỏ qua bước phê duyệt. Có thể bổ sung Emergency Maintenance sau với quyền riêng, lý do khẩn cấp bắt buộc, ghi nhận người thực hiện/thời điểm và hậu kiểm/phê duyệt bổ sung.** | Maintenance status/columns, approval |
-| B09 | Maintenance asset scope | Asset phải cùng customer; cho phép ở room khác chỉ khi request ghi rõ phạm vi đa phòng. Nếu request chỉ bảo trì một room, asset phải ở room đó tại thời điểm thực hiện. | Pivot service validation |
+| B09 | Maintenance asset scope | **APPROVED – Maintenance Request liên kết Asset qua `server_room_maintenance_assets`. Asset phải cùng `customer_id` với Request. Nếu Request chỉ áp dụng cho một Server Room, Asset phải thuộc Room đó tại thời điểm thực hiện; nếu bảo trì nhiều Room, Request phải khai báo rõ phạm vi đa phòng. Khi thực hiện, Service phải kiểm tra lại vị trí thực tế của Asset.** | Pivot service validation |
 | B10 | Maintenance personnel JSON | Chỉ lưu snapshot tối thiểu: tên, đơn vị/vendor, vai trò; không lưu số giấy tờ/PII nhạy cảm nếu không có căn cứ nghiệp vụ. | JSON contract, privacy |
 | B11 | Movement timestamps | Tách requested_at và executed_at; movement_at không dùng chung hai nghĩa. | Column schema, SLA/report |
 | B12 | Movement status/lifecycle | Bắt buộc status draft/pending_approval/approved/rejected/completed/cancelled; approved_by/approved_at khi approved; performed_by/executed_at khi completed. | State machine, migration |
@@ -106,7 +106,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
 | A – Batch 1 | 11 | 11 | 0 |
-| B – Batch 2 | 16 | 8 | 8 |
+| B – Batch 2 | 16 | 9 | 7 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
 
@@ -135,6 +135,9 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 ## Lịch sử xác nhận
+
+- **B09 – APPROVED (2026-11-14):** Maintenance Request liên kết Asset cùng tenant; phạm vi một Room phải khớp vị trí Asset lúc thực hiện; phạm vi nhiều Room phải khai báo rõ; Service kiểm tra lại vị trí thực tế.
+
 
 - **B08 – APPROVED (2026-11-14):** Phiên bản đầu không có Emergency Bypass; mọi Maintenance Request qua Approval Workflow tiêu chuẩn. Emergency Maintenance chỉ xem xét ở phiên bản sau với quyền riêng, lý do bắt buộc và hậu kiểm.
 
