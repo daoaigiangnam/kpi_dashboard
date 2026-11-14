@@ -179,7 +179,7 @@ Hành vi xóa cuối cùng phải đối chiếu với soft-delete và chính s�
 - 2 bảng liên kết đề xuất: server_room_incident_assets, server_room_maintenance_assets.
 - Rack chưa cần bảng riêng; dùng self-reference trên server_room_assets.
 
-Tổng dự kiến: 20 bảng (18 core + 2 pivot), chưa tính các bảng danh mục dùng chung nếu phân tích sau này chứng minh cần thiết.
+Tổng dự kiến: 22 bảng (18 core + 2 pivot + 2 access-control).
 
 
 ---
@@ -209,3 +209,10 @@ Ràng buộc:
 - Cấp/thu hồi quyền và assignment phải được audit.
 
 Tổng số bảng dự kiến: 22 (18 core + 2 pivots + 2 access-control).
+
+
+## 13. Chuẩn hóa số lượng bảng và quan hệ Movement
+
+Danh mục ERD phải được hiểu thống nhất là 22 bảng: 18 core, 2 pivot (`server_room_incident_assets`, `server_room_maintenance_assets`) và 2 access-control (`customer_user_srm_permissions`, `customer_user_server_rooms`).
+
+Equipment Movement dùng `from_server_room_id` và `to_server_room_id`; điều kiện bắt buộc theo `movement_type` được quy định tại Data Integrity & State Machines. Cả hai đầu quan hệ, cùng asset (nếu có), phải thuộc cùng `customer_id`.
