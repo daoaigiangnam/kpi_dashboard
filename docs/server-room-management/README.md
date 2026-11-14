@@ -6,23 +6,25 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 
 - Kiến trúc nghiệp vụ: đã thống nhất ở mức định hướng.
 - Data Dictionary: mô tả sơ bộ 18 bảng cốt lõi; đang rà soát quan hệ và bảng liên kết.
-- ERD logic: đã có bản nháp; chưa chốt FK/index/delete rules.
+- ERD logic: bản nháp đã có; chưa chốt FK/index/delete rules.
+- Phân quyền và workflow: đã có bản đề xuất; chờ chốt cách cấp quyền customer accounts và phạm vi user/phòng.
 - Laravel migrations và code ứng dụng: chưa triển khai.
 - Không chạy migration hoặc thay đổi dữ liệu production trong giai đoạn thiết kế.
 
 ## Tiến độ cập nhật gần nhất
 
-- Đã mô tả sơ bộ 18 bảng cốt lõi.
-- Đã rà soát ERD logic: đề xuất thêm 2 bảng pivot cho quan hệ nhiều-nhiều giữa sự cố/bảo trì và tài sản.
-- Đã đề xuất mô hình Rack bằng self-reference trên server_room_assets; movement có vị trí nguồn/đích.
-- Tổng dự kiến: 20 bảng (18 core + 2 pivot), chưa phải schema được duyệt.
-- Migration và code ứng dụng chưa triển khai.
+- Hoàn thành rà soát RBAC hiện hữu: user_groups, permissions, group_permissions, users.user_group_id, account_type và service_customer_id.
+- Đề xuất tái sử dụng RBAC hiện hữu cho internal users; không tạo RBAC thứ hai.
+- Đề xuất quyền SRM tách biệt cho customer accounts, giữ nguyên nguyên tắc customer không kế thừa quyền quản trị nội bộ.
+- Đã soạn ma trận vai trò, permission codes, tenant scope, SoD và workflow phê duyệt.
+- Chưa tạo permission seed, migration hoặc code authorization.
 
 ## Tài liệu
 
 1. [Kiến trúc và các quyết định đã thống nhất](./01-architecture-and-decisions.md)
 2. [Data Dictionary – bản nháp](./02-data-dictionary-draft.md)
 3. [ERD và quan hệ dữ liệu – bản nháp](./03-erd-and-relationships-draft.md)
+4. [Ma trận phân quyền và luồng phê duyệt – bản đề xuất](./04-permissions-and-approval-workflows-draft.md)
 
 ## Phạm vi
 
@@ -30,6 +32,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 ## Nguyên tắc
 
-- Tôn trọng schema hiện hữu của KPI Dashboard; tái sử dụng service_customers, customer_branches, users.
+- Tôn trọng schema hiện hữu của KPI Dashboard; tái sử dụng service_customers, customer_branches, users và RBAC hiện có.
 - Cô lập dữ liệu theo khách hàng ở cả tầng truy vấn, policy và ràng buộc dữ liệu phù hợp.
-- Chỉ bắt đầu migrations sau khi hoàn tất Data Dictionary, ERD và rà soát schema thực tế.
+- Chỉ bắt đầu migrations sau khi hoàn tất Data Dictionary, ERD, quyền và rà soát schema thực tế.
