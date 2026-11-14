@@ -34,7 +34,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 |---|---|---|---|
 | B01 | Access Log entry_at | **APPROVED – `entry_at` là thời điểm check-in thực tế; bổ sung `scheduled_entry_at` để lưu thời điểm đăng ký trước (nếu có). Không dùng giờ đăng ký thay cho giờ thực tế; báo cáo có thể đối chiếu hai thời điểm.** | Access log columns, UI, report |
 | B02 | Visitor không có access_person | **APPROVED – Cho phép `access_person_id = NULL`, nhưng bắt buộc có `visitor_name`, `purpose` và người phê duyệt hoặc quyền ngoại lệ hợp lệ. Nếu đi theo ngoại lệ, bắt buộc ghi `exception_reason`; toàn bộ thao tác phải được Audit.** | Validation, access policy, audit |
-| B03 | Inspection review_return | Dùng correction_required, không quay về draft; giữ nguyên kết quả đã submit và tạo correction revision/audit. | Status, revision behavior, UI |
+| B03 | Inspection review_return | **APPROVED – Khi Review yêu cầu bổ sung/chỉnh sửa, chuyển Inspection sang `correction_required`, không quay về `draft`. Giữ nguyên kết quả đã Submit; mọi chỉnh sửa tạo Correction Revision mới. Ghi nhận người yêu cầu, thời điểm và lý do; bảo toàn lịch sử Submit/Review để Audit.** | Status, revision behavior, UI |
 | B04 | Inspection result multi_select/boolean | Không hỗ trợ multi_select ở phiên bản đầu; bỏ boolean_value, dùng result cho yes/no; numeric/text/date dùng cột tương ứng. | Result schema, validation |
 | B05 | Incident status | Chốt open/in_progress/resolved/closed/cancelled; không dùng investigating hoặc verified như status riêng. verified_by/verified_at lưu bước xác minh trước close. | Status allowlist, workflow, reports |
 | B06 | Incident pivot asset scope | Asset phải cùng customer; ưu tiên cho phép asset ở room khác trong cùng tenant nếu sự cố liên phòng, nhưng ghi rõ relationship/impact và xác thực tenant. | Pivot validation, UI |
@@ -106,7 +106,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
 | A – Batch 1 | 11 | 11 | 0 |
-| B – Batch 2 | 16 | 2 | 14 |
+| B – Batch 2 | 16 | 3 | 13 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
 
@@ -135,6 +135,9 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 ## Lịch sử xác nhận
+
+- **B03 – APPROVED (2026-11-14):** Review yêu cầu chỉnh sửa thì chuyển `correction_required`, không quay về `draft`; giữ kết quả đã Submit, tạo Correction Revision mới và lưu lịch sử người yêu cầu, thời điểm, lý do.
+
 
 - **B02 – APPROVED (2026-11-14):** Visitor có thể không có `access_person_id`; bắt buộc có tên, mục đích và phê duyệt hoặc quyền ngoại lệ hợp lệ; ngoại lệ phải có lý do và được Audit.
 
