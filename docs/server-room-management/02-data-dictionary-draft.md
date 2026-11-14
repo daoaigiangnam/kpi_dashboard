@@ -208,45 +208,274 @@ Mục đích: nhật ký đăng ký/ghi nhận người ra vào phòng.
 
 Index dự kiến: `(server_room_id, entry_at)`, `(customer_id, status)`. Cần hỗ trợ trường hợp khách/nhà thầu không có user account.
 
-### 2.9 `server_room_inspections` – CHƯA ĐẶC TẢ ĐỦ
+### 2.9 `server_room_inspections`
 
-Khung nghiệp vụ: phiếu kiểm tra gắn với phòng Server và một phiên bản Checklist. Cần chốt mã phiếu, ngày/giờ, người kiểm tra, trạng thái, kết luận, người rà soát, snapshot phiên bản template, xử lý tái kiểm tra và lịch sử đóng phiếu.
+Mục đích: phiếu kiểm tra một phòng Server theo một phiên bản Checklist đã được phê duyệt.
 
-### 2.10 `server_room_inspection_results` – CHƯA ĐẶC TẢ ĐỦ
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| server_room_id | BIGINT UNSIGNED | NO | FK phòng, cùng tenant |
+| template_id | BIGINT UNSIGNED | NO | FK template |
+| template_version | INT UNSIGNED | NO | Snapshot phiên bản |
+| inspection_code | VARCHAR(60) | NO | Mã phiếu |
+| inspection_date | DATE | NO | Ngày kiểm tra |
+| started_at | DATETIME | YES | Bắt đầu |
+| completed_at | DATETIME | YES | Hoàn tất |
+| frequency | VARCHAR(30) | YES | Tần suất áp dụng tại lần kiểm tra |
+| inspector_id | BIGINT UNSIGNED | YES | FK users |
+| inspector_name | VARCHAR(150) | NO | Snapshot người kiểm tra |
+| conclusion | VARCHAR(40) | YES | pass/corrective_action_required/emergency |
+| status | VARCHAR(30) | NO | draft/submitted/reviewed/closed/cancelled |
+| general_remarks | TEXT | YES | Nhận xét chung |
+| submitted_at | DATETIME | YES | Thời điểm gửi |
+| reviewed_by | BIGINT UNSIGNED | YES | FK users |
+| reviewed_at | DATETIME | YES | Thời điểm rà soát |
+| closed_by | BIGINT UNSIGNED | YES | FK users |
+| closed_at | DATETIME | YES | Thời điểm đóng |
+| created_by | BIGINT UNSIGNED | YES | FK users |
+| created_at | TIMESTAMP | YES | |
+| updated_at | TIMESTAMP | YES | |
 
-Khung nghiệp vụ: kết quả từng hạng mục trong phiếu. Bắt buộc thiết kế snapshot item_code, item_name, response_type và giá trị thực tế tại thời điểm kiểm tra. Cần chốt mô hình dữ liệu cho câu trả lời số/văn bản/pass-fail/yes-no/date; cân nhắc cột typed hoặc `value_json`, tránh thiết kế khiến lọc/báo cáo khó khăn.
+Unique dự kiến: `(customer_id, inspection_code)`. Index: `(customer_id, server_room_id, inspection_date)`, `(customer_id, status)`, `(template_id, template_version)`. Phiếu phải tham chiếu đúng template thuộc cùng khách hàng. Không cho sửa template/version của phiếu đã submit; việc chỉnh sửa sau đó phải theo quy trình trả về/reopen có audit.
 
-### 2.11 `server_room_incidents` – CHƯA ĐẶC TẢ ĐỦ
+### 2.10 `server_room_inspection_results`
 
-Khung nghiệp vụ: sự cố phòng Server. Cần chốt mã sự cố, loại, mức độ, thời điểm phát hiện, người báo cáo, mô tả, ảnh hưởng, hành động tức thời, nguyên nhân gốc, trạng thái, thời gian xử lý/đóng và liên kết tài sản nếu có.
+Mục đích: kết quả từng hạng mục, lưu snapshot để lịch sử không đổi khi Checklist được sửa.
 
-### 2.12 `server_room_incident_actions` – CHƯA ĐẶC TẢ ĐỦ
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| inspection_id | BIGINT UNSIGNED | NO | FK phiếu kiểm tra |
+| checklist_item_id | BIGINT UNSIGNED | YES | FK item gốc; nullable để giữ lịch sử khi item được archive |
+| item_code_snapshot | VARCHAR(50) | NO | Mã tại thời điểm kiểm tra |
+| item_name_snapshot | VARCHAR(200) | NO | Tên tại thời điểm kiểm tra |
+| description_snapshot | TEXT | YES | Hướng dẫn tại thời điểm kiểm tra |
+| response_type_snapshot | VARCHAR(30) | NO | Kiểu câu trả lời |
+| result | VARCHAR(30) | YES | pass/fail/na hoặc yes/no tùy response_type |
+| numeric_value | DECIMAL(18,4) | YES | Kết quả dạng số |
+| text_value | TEXT | YES | Kết quả dạng văn bản |
+| date_value | DATE | YES | Kết quả dạng ngày |
+| boolean_value | BOOLEAN | YES | Kết quả dạng đúng/sai |
+| remarks | TEXT | YES | Ghi chú |
+| corrective_action | TEXT | YES | Hành động khắc phục |
+| sort_order | INT | NO | Thứ tự snapshot |
+| created_at | TIMESTAMP | YES | |
+| updated_at | TIMESTAMP | YES | |
 
-Khung nghiệp vụ: hành động khắc phục/phòng ngừa của sự cố; cần chốt người phụ trách, hạn xử lý, trạng thái, bằng chứng hoàn thành và xác minh.
+Index: `(customer_id, inspection_id)`, `checklist_item_id`. Unique dự kiến: `(inspection_id, item_code_snapshot)` nếu mỗi item chỉ xuất hiện một lần trong một phiếu. Quy tắc validation phải bảo đảm chỉ ghi đúng cột giá trị tương ứng với response_type; không nhận đồng thời các kiểu giá trị xung đột. Ảnh/chứng cứ liên kết qua attachments. Cần xác nhận có cần câu trả lời nhiều lựa chọn hay không trước khi chốt kiểu dữ liệu.
 
-### 2.13 `server_room_maintenance_requests` – CHƯA ĐẶC TẢ ĐỦ
+### 2.11 `server_room_incidents`
 
-Khung nghiệp vụ: yêu cầu/công việc bảo trì. Cần chốt loại công việc, lịch dự kiến/thực tế, đơn vị/nhân sự thực hiện, thiết bị liên quan, phạm vi, ảnh hưởng, rollback, kết quả sau bảo trì, phê duyệt và xác minh.
+Mục đích: ghi nhận sự cố xảy ra tại phòng Server.
 
-### 2.14 `server_room_equipment_movements` – CHƯA ĐẶC TẢ ĐỦ
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| server_room_id | BIGINT UNSIGNED | NO | FK phòng |
+| incident_code | VARCHAR(60) | NO | Mã sự cố |
+| incident_type | VARCHAR(50) | NO | Nhóm sự cố |
+| severity | VARCHAR(20) | NO | low/medium/high/critical |
+| title | VARCHAR(200) | NO | Tiêu đề |
+| detected_at | DATETIME | NO | Thời điểm phát hiện |
+| reported_at | DATETIME | YES | Thời điểm báo cáo |
+| reported_by | BIGINT UNSIGNED | YES | FK users |
+| reporter_name | VARCHAR(150) | YES | Snapshot người báo nếu ngoài hệ thống |
+| description | TEXT | NO | Mô tả |
+| initial_impact | TEXT | YES | Ảnh hưởng ban đầu |
+| immediate_action | TEXT | YES | Xử lý tức thời |
+| root_cause | TEXT | YES | Nguyên nhân gốc |
+| status | VARCHAR(30) | NO | open/investigating/in_progress/resolved/verified/closed |
+| resolved_at | DATETIME | YES | Thời điểm xử lý |
+| verified_by | BIGINT UNSIGNED | YES | FK users |
+| verified_at | DATETIME | YES | Thời điểm xác minh |
+| closed_by | BIGINT UNSIGNED | YES | FK users |
+| closed_at | DATETIME | YES | Thời điểm đóng |
+| created_by | BIGINT UNSIGNED | YES | FK users |
+| created_at | TIMESTAMP | YES | |
+| updated_at | TIMESTAMP | YES | |
 
-Khung nghiệp vụ: ghi nhận thiết bị đưa vào/đưa ra/di chuyển giữa vị trí. Cần định nghĩa rõ movement_type, vị trí nguồn/đích, phê duyệt, người thực hiện, thời điểm và snapshot thông tin thiết bị khi cần.
+Unique: `(customer_id, incident_code)`. Index: `(customer_id, server_room_id, detected_at)`, `(customer_id, severity, status)`. Thiết bị liên quan nên quản lý qua bảng liên kết riêng nếu một sự cố có thể ảnh hưởng nhiều tài sản; không nhồi một `asset_id` đơn vào bảng này.
 
-### 2.15 `server_room_environment_logs` – CHƯA ĐẶC TẢ ĐỦ
+### 2.12 `server_room_incident_actions`
 
-Khung nghiệp vụ: ghi nhận nhiệt độ, độ ẩm, điều hòa, UPS, nguồn điện và ghi chú. Cần chốt đơn vị đo, ngưỡng cảnh báo có cấu hình theo phòng hay không, nguồn dữ liệu thủ công/tự động và thời điểm ghi nhận.
+Mục đích: theo dõi hành động khắc phục và phòng ngừa thuộc một sự cố.
 
-### 2.16 `server_room_approvals` – CHƯA ĐẶC TẢ ĐỦ
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| incident_id | BIGINT UNSIGNED | NO | FK sự cố, cùng tenant |
+| action_type | VARCHAR(30) | NO | corrective/preventive |
+| description | TEXT | NO | Nội dung hành động |
+| assigned_to | BIGINT UNSIGNED | YES | FK users |
+| assigned_name | VARCHAR(150) | YES | Snapshot người/đơn vị ngoài |
+| due_at | DATETIME | YES | Hạn hoàn thành |
+| started_at | DATETIME | YES | Bắt đầu |
+| completed_at | DATETIME | YES | Hoàn thành |
+| status | VARCHAR(30) | NO | pending/in_progress/completed/verified/cancelled |
+| completion_note | TEXT | YES | Kết quả |
+| verification_note | TEXT | YES | Xác minh |
+| verified_by | BIGINT UNSIGNED | YES | FK users |
+| verified_at | DATETIME | YES | |
+| created_by | BIGINT UNSIGNED | YES | FK users |
+| created_at | TIMESTAMP | YES | |
+| updated_at | TIMESTAMP | YES | |
 
-Khung nghiệp vụ: luồng phê duyệt cho các đối tượng SRM. Cần chốt đa cấp, thứ tự bước, người duyệt/nhóm duyệt, quyền ủy quyền, trạng thái, comment, thời điểm và chính sách không tự phê duyệt yêu cầu của chính mình. Quan hệ polymorphic cần xem xét kỹ tenant integrity và FK.
+Index: `(customer_id, incident_id)`, `(assigned_to, status, due_at)`. Hành động không được xóa vật lý khi sự cố đã đóng; dùng trạng thái hủy và audit.
 
-### 2.17 `server_room_attachments` – CHƯA ĐẶC TẢ ĐỦ
+### 2.13 `server_room_maintenance_requests`
 
-Khung nghiệp vụ: file/hình ảnh gắn với các đối tượng SRM. Cần chốt disk, path, tên gốc, MIME, kích thước, checksum, người tải lên, quy tắc truy cập riêng theo tenant và vòng đời file. Không lưu binary trực tiếp trong bảng nếu không có lý do cụ thể.
+Mục đích: quản lý yêu cầu và công việc bảo trì phòng Server.
 
-### 2.18 `server_room_audit_logs` – CHƯA ĐẶC TẢ ĐỦ
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| server_room_id | BIGINT UNSIGNED | NO | FK phòng |
+| request_code | VARCHAR(60) | NO | Mã yêu cầu |
+| title | VARCHAR(200) | NO | Tiêu đề |
+| work_type | VARCHAR(40) | NO | preventive/corrective/upgrade/inspection/other |
+| requested_by | BIGINT UNSIGNED | YES | FK users |
+| requested_at | DATETIME | NO | Thời điểm yêu cầu |
+| work_start_at | DATETIME | YES | Lịch bắt đầu |
+| work_end_at | DATETIME | YES | Lịch kết thúc |
+| actual_start_at | DATETIME | YES | Bắt đầu thực tế |
+| actual_end_at | DATETIME | YES | Kết thúc thực tế |
+| vendor_name | VARCHAR(150) | YES | Nhà thầu/đơn vị |
+| personnel | JSON | YES | Danh sách nhân sự nếu cần lưu snapshot |
+| equipment_description | TEXT | YES | Thiết bị/phạm vi liên quan |
+| work_description | TEXT | NO | Mô tả công việc |
+| expected_impact | TEXT | YES | Ảnh hưởng dự kiến |
+| rollback_plan | TEXT | YES | Phương án khôi phục |
+| post_work_result | TEXT | YES | Kết quả sau công việc |
+| status | VARCHAR(30) | NO | draft/pending_approval/approved/rejected/in_progress/completed/verified/cancelled |
+| verified_by | BIGINT UNSIGNED | YES | FK users |
+| verified_at | DATETIME | YES | |
+| created_by | BIGINT UNSIGNED | YES | FK users |
+| created_at | TIMESTAMP | YES | |
+| updated_at | TIMESTAMP | YES | |
 
-Khung nghiệp vụ: log thao tác tạo/sửa/xóa/duyệt/chuyển trạng thái. Cần chốt actor, action, entity, old/new JSON, IP, user-agent, request/correlation ID, retention và quyền truy cập. Audit log nên append-only ở tầng ứng dụng.
+Unique: `(customer_id, request_code)`. Index: `(customer_id, server_room_id, status)`, `(work_start_at, work_end_at)`. Nhiều thiết bị liên quan cần bảng pivot riêng hoặc mô hình quan hệ rõ ràng; không dùng chuỗi ID trong JSON làm FK.
+
+### 2.14 `server_room_equipment_movements`
+
+Mục đích: ghi nhận đưa thiết bị vào/ra phòng hoặc chuyển vị trí.
+
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| server_room_id | BIGINT UNSIGNED | NO | FK phòng liên quan |
+| asset_id | BIGINT UNSIGNED | YES | FK `server_room_assets.id`; có thể NULL với thiết bị ngoài danh mục |
+| movement_code | VARCHAR(60) | NO | Mã phiếu |
+| movement_type | VARCHAR(30) | NO | check_in/check_out/relocate |
+| asset_tag_snapshot | VARCHAR(100) | YES | Snapshot mã thiết bị |
+| equipment_name | VARCHAR(150) | NO | Tên thiết bị |
+| serial_number | VARCHAR(150) | YES | Serial |
+| source_location | VARCHAR(200) | YES | Vị trí đi |
+| destination_location | VARCHAR(200) | YES | Vị trí đến |
+| movement_at | DATETIME | NO | Thời điểm |
+| reason | TEXT | NO | Lý do |
+| performed_by | BIGINT UNSIGNED | YES | FK users |
+| approved_by | BIGINT UNSIGNED | YES | FK users |
+| approved_at | DATETIME | YES | |
+| notes | TEXT | YES | |
+| created_by | BIGINT UNSIGNED | YES | FK users |
+| created_at | TIMESTAMP | YES | |
+| updated_at | TIMESTAMP | YES | |
+
+Unique: `(customer_id, movement_code)`. Index: `(customer_id, server_room_id, movement_at)`, `asset_id`. Cần xác định movement relocate có thể chuyển giữa hai phòng Server; nếu có, nên thay `server_room_id` bằng `from_server_room_id` và `to_server_room_id` nullable/có quy tắc bắt buộc theo movement_type. Đây là điểm cần chốt trước migration.
+
+### 2.15 `server_room_environment_logs`
+
+Mục đích: nhật ký điều kiện môi trường và trạng thái hạ tầng phụ trợ.
+
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| server_room_id | BIGINT UNSIGNED | NO | FK phòng |
+| recorded_at | DATETIME | NO | Thời điểm đo |
+| temperature_c | DECIMAL(5,2) | YES | Nhiệt độ °C |
+| humidity_percent | DECIMAL(5,2) | YES | Độ ẩm % |
+| air_conditioning_status | VARCHAR(30) | YES | Trạng thái điều hòa |
+| ups_status | VARCHAR(30) | YES | Trạng thái UPS |
+| power_status | VARCHAR(30) | YES | Trạng thái nguồn |
+| source_type | VARCHAR(20) | NO | manual/device/import |
+| source_reference | VARCHAR(150) | YES | Mã cảm biến/nguồn |
+| remarks | TEXT | YES | Ghi chú |
+| recorded_by | BIGINT UNSIGNED | YES | FK users |
+| created_at | TIMESTAMP | YES | |
+
+Index: `(customer_id, server_room_id, recorded_at)`, `(source_type, source_reference)`. Cần kiểm tra miền giá trị (humidity 0–100), đơn vị và timezone. Ngưỡng cảnh báo nên cấu hình riêng, không hard-code vào log.
+
+### 2.16 `server_room_approvals`
+
+Mục đích: ghi nhận từng bước phê duyệt cho các yêu cầu SRM.
+
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| approvable_type | VARCHAR(100) | NO | Loại đối tượng |
+| approvable_id | BIGINT UNSIGNED | NO | ID đối tượng |
+| approval_step | SMALLINT UNSIGNED | NO | Thứ tự bước |
+| approver_id | BIGINT UNSIGNED | YES | FK users |
+| approver_group | VARCHAR(100) | YES | Nhóm duyệt nếu hỗ trợ |
+| status | VARCHAR(20) | NO | pending/approved/rejected/skipped |
+| comments | TEXT | YES | Ý kiến |
+| assigned_at | DATETIME | YES | Giao duyệt |
+| decided_at | DATETIME | YES | Quyết định |
+| created_at | TIMESTAMP | YES | |
+| updated_at | TIMESTAMP | YES | |
+
+Index: `(customer_id, approvable_type, approvable_id)`, `(approver_id, status)`. Đây là quan hệ polymorphic nên DB không thể tạo FK trực tiếp đến mọi bảng nghiệp vụ. Bắt buộc kiểm tra tenant và đối tượng tồn tại ở service layer; cần quyết định có bảng approval workflow/requests riêng hay không. Cấm người tạo tự duyệt nếu quy trình nghiệp vụ yêu cầu phân tách nhiệm vụ.
+
+### 2.17 `server_room_attachments`
+
+Mục đích: metadata của file đính kèm; file lưu tại disk/object storage, không lưu binary trong DB.
+
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| attachable_type | VARCHAR(100) | NO | Loại đối tượng |
+| attachable_id | BIGINT UNSIGNED | NO | ID đối tượng |
+| original_name | VARCHAR(255) | NO | Tên file gốc |
+| storage_disk | VARCHAR(50) | NO | Disk cấu hình |
+| file_path | VARCHAR(500) | NO | Đường dẫn lưu |
+| mime_type | VARCHAR(150) | YES | MIME |
+| file_size | BIGINT UNSIGNED | NO | Kích thước byte |
+| checksum_sha256 | CHAR(64) | YES | Kiểm tra toàn vẹn |
+| uploaded_by | BIGINT UNSIGNED | YES | FK users |
+| created_at | TIMESTAMP | YES | |
+
+Index: `(customer_id, attachable_type, attachable_id)`, `(uploaded_by)`. Download phải qua authorization kiểm tra tenant/object, không public trực tiếp. Cần chính sách giới hạn MIME, dung lượng, quét malware, retention và xóa file khi hồ sơ được lưu trữ/xóa theo quy định. Polymorphic relation không có FK trực tiếp đến mọi bảng.
+
+### 2.18 `server_room_audit_logs`
+
+Mục đích: lịch sử thao tác nghiệp vụ, ưu tiên append-only.
+
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| auditable_type | VARCHAR(100) | NO | Loại đối tượng |
+| auditable_id | BIGINT UNSIGNED | NO | ID đối tượng |
+| action | VARCHAR(50) | NO | created/updated/deleted/approved/status_changed/... |
+| old_values | JSON | YES | Giá trị trước |
+| new_values | JSON | YES | Giá trị sau |
+| performed_by | BIGINT UNSIGNED | YES | FK users |
+| ip_address | VARCHAR(45) | YES | IPv4/IPv6 |
+| user_agent | VARCHAR(500) | YES | Client |
+| request_id | VARCHAR(100) | YES | Correlation/request ID |
+| created_at | TIMESTAMP | NO | Thời điểm |
+
+Index: `(customer_id, auditable_type, auditable_id, created_at)`, `(performed_by, created_at)`, `(action, created_at)`. Không cho sửa/xóa audit log qua giao diện thông thường. Cần chính sách retention và quyền truy cập log riêng.
 
 ## 3. Các quyết định phải hoàn tất trước khi tạo Migration
 
@@ -262,4 +491,4 @@ Khung nghiệp vụ: log thao tác tạo/sửa/xóa/duyệt/chuyển trạng th�
 
 ## 4. Lưu ý
 
-Bản nháp trước đó từng mô tả một số cột/index cho nhóm bảng sau. Những nội dung đó chưa được xác minh đầy đủ với nghiệp vụ và schema thực tế; cần hoàn thiện, không xem là đặc tả đã chốt.
+Các kiểu dữ liệu, cột và index trong tài liệu là đề xuất thiết kế. Các điểm ghi rõ "cần chốt" phải được giải quyết trước khi migration; không được xem bản nháp là schema đã phê duyệt.
