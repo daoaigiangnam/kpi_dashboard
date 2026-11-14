@@ -59,3 +59,8 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 ## 09. Column-level Schema – Batch 3
 
 - [09 – Column-level Schema, Batch 3](./09-column-schema-batch-3-draft.md): chuẩn hóa 8 bảng còn lại, hoàn tất thiết kế cột sơ bộ cho register 22 bảng.
+
+
+## 10. Schema Review – Batch 1
+
+- [10 – Schema Review Batch 1](./10-schema-review-batch-1-draft.md): rà soát 7 bảng nền tảng, tenant integrity, Rack/U-position, soft delete và checklist versioning.
