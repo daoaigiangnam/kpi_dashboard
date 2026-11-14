@@ -169,3 +169,12 @@ Không tự suy đoán các nội dung sau trong migration:
 
 - Tài liệu chi tiết: [09 – Column-level Schema Batch 3](./09-column-schema-batch-3-draft.md).
 - Đã có column-level draft cho toàn bộ 22 bảng; chưa phê duyệt schema cuối và chưa tạo Laravel migrations.
+
+
+## Schema Review Progress
+
+- [x] Review Batch 1: 7 bảng nền tảng; đã ghi nhận các ràng buộc tenant, Rack/U-position, soft delete, user ownership và checklist versioning.
+- [ ] Chủ dự án xác nhận các quyết định mở trong tài liệu 10.
+- [ ] Review Batch 2: 7 bảng nghiệp vụ.
+- [ ] Review Batch 3: 8 bảng còn lại.
+- Tài liệu review: [10 – Schema Review Batch 1](./10-schema-review-batch-1-draft.md).
