@@ -37,7 +37,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | B03 | Inspection review_return | **APPROVED – Khi Review yêu cầu bổ sung/chỉnh sửa, chuyển Inspection sang `correction_required`, không quay về `draft`. Giữ nguyên kết quả đã Submit; mọi chỉnh sửa tạo Correction Revision mới. Ghi nhận người yêu cầu, thời điểm và lý do; bảo toàn lịch sử Submit/Review để Audit.** | Status, revision behavior, UI |
 | B04 | Inspection result multi_select/boolean | **APPROVED – Phiên bản đầu không hỗ trợ `multi_select` và không dùng `boolean_value`. Kết quả Yes/No lưu trong `result`; dữ liệu Numeric, Text, Date lưu ở cột tương ứng. Mỗi `response_type` phải có validation riêng và không chấp nhận dữ liệu sai kiểu.** | Result schema, validation |
 | B05 | Incident status | **APPROVED – Incident dùng các trạng thái `open`, `in_progress`, `resolved`, `closed`, `cancelled`. Không dùng `investigating` hoặc `verified` làm status riêng. `verified_by` và `verified_at` ghi nhận bước xác minh; chỉ chuyển sang `closed` sau khi hoàn tất xác minh.** | Status allowlist, workflow, reports |
-| B06 | Incident pivot asset scope | Asset phải cùng customer; ưu tiên cho phép asset ở room khác trong cùng tenant nếu sự cố liên phòng, nhưng ghi rõ relationship/impact và xác thực tenant. | Pivot validation, UI |
+| B06 | Incident pivot asset scope | **APPROVED – Một Incident có thể liên kết nhiều Asset qua `server_room_incident_assets`. Các Asset phải cùng `customer_id` với Incident; được phép ở Server Room khác nhau trong cùng tenant khi sự cố có phạm vi liên phòng. Phải ghi rõ vai trò Asset trong sự cố (ví dụ `affected`, `related`, `cause`) và Service phải kiểm tra tenant cùng quyền truy cập trước khi liên kết.** | Pivot validation, UI |
 | B07 | Incident Action verification | completed bắt buộc completed_at/completion_note; verified bắt buộc verified_by/verified_at/verification_note. Người xác minh phải khác người hoàn tất nếu workflow yêu cầu SoD; đề xuất mặc định khác người. | Action validation, SoD policy |
 | B08 | Emergency Maintenance | Chưa triển khai emergency bypass ở phiên bản đầu; mọi công việc đi qua approval chuẩn. Có thể bổ sung sau với quyền riêng và hậu kiểm. | Maintenance status/columns, approval |
 | B09 | Maintenance asset scope | Asset phải cùng customer; cho phép ở room khác chỉ khi request ghi rõ phạm vi đa phòng. Nếu request chỉ bảo trì một room, asset phải ở room đó tại thời điểm thực hiện. | Pivot service validation |
@@ -106,7 +106,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
 | A – Batch 1 | 11 | 11 | 0 |
-| B – Batch 2 | 16 | 5 | 11 |
+| B – Batch 2 | 16 | 6 | 10 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
 
@@ -135,6 +135,9 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 ## Lịch sử xác nhận
+
+- **B06 – APPROVED (2026-11-14):** Incident liên kết nhiều Asset; Asset phải cùng tenant, có thể ở nhiều Room trong tenant nếu sự cố liên phòng; lưu vai trò Asset và kiểm tra tenant/quyền trước khi liên kết.
+
 
 - **B05 – APPROVED (2026-11-14):** Incident dùng `open`, `in_progress`, `resolved`, `closed`, `cancelled`; xác minh lưu ở `verified_by`/`verified_at`; chỉ đóng sau xác minh.
 
