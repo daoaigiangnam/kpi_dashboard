@@ -1,6 +1,6 @@
 # SRM – Ma trận phân quyền và luồng phê duyệt (bản đề xuất)
 
-> Trạng thái: DRAFT. Tài liệu dựa trên cấu trúc RBAC hiện hữu của nhánh feature/admin-foundation. Chưa thêm permission, migration hoặc code. Các quyền khách hàng cần được chủ dự án duyệt trước khi triển khai.
+> Trạng thái: DRAFT. Tài liệu dựa trên cấu trúc RBAC hiện hữu của nhánh feature/admin-foundation. Chưa thêm permission, migration hoặc code. Các quyết định phân quyền nền tảng đã được chủ dự án chốt.
 
 ## 1. Hiện trạng RBAC đã kiểm tra trong repository
 
@@ -95,7 +95,7 @@ Ví dụ `can_view_srm`, `can_manage_srm`, `can_approve_srm`, `can_view_srm_audi
 
 Ưu điểm: đơn giản, gần với cách cấp quyền khách hàng hiện tại. Nhược điểm: nhanh chóng phình bảng users; khó phân tách chi tiết theo module/action; không thuận tiện mở rộng.
 
-### Phương án B – Bảng quyền riêng cho customer account (khuyến nghị để mở rộng)
+### Phương án B – Bảng quyền riêng cho customer account (ĐÃ CHỌN)
 
 Bảng đề xuất `customer_user_srm_permissions`:
 
@@ -119,7 +119,7 @@ Ràng buộc nghiệp vụ:
 - Không cấp `srm.platform.*` cho customer account.
 - `hasPermission()` hoặc service authorization phải kiểm tra đúng tenant và trạng thái user.
 
-Phương án B linh hoạt hơn nhưng là bảng bổ sung ngoài 20 bảng nghiệp vụ SRM; cần thống nhất trước migration. Không triển khai đồng thời cả A và B.
+Phương án B đã được chủ dự án chọn. Không triển khai phương án A.
 
 ## 6. Phạm vi dữ liệu (scope)
 
@@ -132,12 +132,26 @@ Phương án B linh hoạt hơn nhưng là bảng bổ sung ngoài 20 bảng ngh
 - Bắt buộc `account_type='customer'`.
 - Bắt buộc `service_customer_id` khác NULL.
 - Mọi query SRM phải thêm điều kiện `customer_id = auth()->user()->service_customer_id`.
-- Nếu tài khoản có phạm vi phòng cụ thể, cần bổ sung mapping user ↔ phòng; không lấy `can_access_all_branches` làm quyền truy cập tất cả phòng Server vì đây là cờ nghiệp vụ chi nhánh hiện hữu.
+- Customer user chỉ truy cập các phòng được gán trong customer_user_server_rooms.
+- Không lấy can_access_all_branches làm quyền truy cập tất cả phòng Server.
+- Phòng được gán phải thuộc đúng service_customer_id của user.
 - Không cho khách hàng đổi tenant bằng cách sửa request parameter.
 
 ### Visitor/Contractor
 - Không cần tạo user đăng nhập chỉ để ghi nhật ký ra vào.
 - Lưu thông tin snapshot người vào, tổ chức, mục đích, người bảo lãnh/giám sát và thời gian.
+
+### Quyền quản trị user Customer (đã chốt)
+
+Customer IT Admin được cấp/thu hồi quyền SRM và gán phòng Server cho user thuộc cùng tenant, với các giới hạn:
+- User đích phải có account_type=customer và service_customer_id trùng tenant.
+- Chỉ được gán permission_code thuộc allowlist quyền SRM customer.
+- Không cấp quyền platform/internal hoặc Super Admin.
+- Chỉ gán phòng thuộc cùng tenant.
+- Ghi audit người cấp/thu hồi, thời điểm và thay đổi.
+- Đề xuất permission quản trị: srm.customer_users.manage; không được tự cấp quyền này cho user khác.
+
+Bảng customer_user_server_rooms lưu customer_id, user_id, server_room_id, granted_by, revoked_by, revoked_at và timestamps. Không có assignment thì deny by default.
 
 ## 7. Luồng phê duyệt đề xuất
 
@@ -197,17 +211,12 @@ Phương án B linh hoạt hơn nhưng là bảng bổ sung ngoài 20 bảng ngh
 
 ## 10. Bảng cần bổ sung hay không?
 
-Nếu chọn phương án B, dự kiến thêm một bảng `customer_user_srm_permissions`. Tổng thiết kế lúc đó là:
-- 18 bảng SRM cốt lõi.
-- 2 bảng pivot liên kết sự cố/bảo trì với tài sản.
-- 1 bảng quyền SRM riêng cho customer accounts (nếu được duyệt).
-- Tổng 21 bảng mới dự kiến, chưa tính bảng dùng chung.
+Tổng thiết kế sau quyết định: 18 bảng SRM core + 2 bảng pivot + customer_user_srm_permissions + customer_user_server_rooms = 22 bảng mới dự kiến.
 
 Chưa tạo migration và chưa thêm permission seed. Trước tiên cần chốt phương án cấp quyền customer accounts và mapping phạm vi user ↔ phòng Server.
 
-## 11. Các điểm cần chủ dự án xác nhận
+## 11. Quyết định đã chốt và điểm còn mở
 
-1. Chọn phương án A (cột boolean trên users) hay B (bảng customer_user_srm_permissions).
-2. Customer IT Admin có được tự tạo/cấp quyền cho user khác trong tenant không, hay chỉ Super Admin/IT nội bộ cấp?
-3. Customer user được xem tất cả phòng Server của tenant hay phải gán từng phòng?
-4. Có yêu cầu một người vừa tạo vừa duyệt trong trường hợp khách hàng nhỏ không? Đề xuất mặc định không, nhưng có thể cấu hình emergency/exception có audit.
+Đã chốt: phương án B; Customer User assigned-only; Customer IT Admin được cấp/thu hồi quyền SRM và gán phòng cho user cùng tenant theo allowlist và audit.
+
+Còn mở: ngoại lệ self-approval trong trường hợp khách hàng nhỏ. Mặc định vẫn cấm người tạo tự duyệt.
