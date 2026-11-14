@@ -10,13 +10,13 @@
 - Một quyết định ảnh hưởng nhiều bảng phải cập nhật đồng bộ Data Dictionary, ERD, Column Schema, State Machine và Migration Blueprint.
 - Không tự ý thêm bảng ngoài register 22 bảng nếu chưa có quyết định kiến trúc mới.
 
-Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác nhận**.
+Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác nhận**, trừ các mục đã được xác nhận và ghi rõ **APPROVED**.
 
 ## 2. Nhóm A – Nền tảng, Location, Room, Asset, Checklist (Batch 1)
 
 | ID | Nội dung cần quyết định | Đề xuất của thầy | Ảnh hưởng chính |
 |---|---|---|---|
-| A01 | Tái sử dụng code location/room/asset sau soft delete? | Không tái sử dụng; giữ mã định danh lịch sử và tránh nhầm hồ sơ cũ. | Unique strategy, form tạo mới, báo cáo |
+| A01 | Tái sử dụng code location/room/asset sau soft delete? | **APPROVED – Không cho phép tái sử dụng mã sau Soft Delete.** | Unique strategy, form tạo mới, báo cáo |
 | A02 | location_type=branch và branch_id | branch bắt buộc có branch_id; loại khác phải NULL. | CHECK/service validation, composite FK |
 | A03 | Primary contact trong một room | Tối đa một primary contact đang active. | Unique active strategy, transaction |
 | A04 | Contact/access person user_id liên kết loại user nào? | Cho phép internal user có quyền phụ trách tenant và customer user cùng tenant; service authorization bắt buộc. | User ownership, policies, composite FK/test |
@@ -105,7 +105,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
-| A – Batch 1 | 11 | 0 | 11 |
+| A – Batch 1 | 11 | 1 | 10 |
 | B – Batch 2 | 16 | 0 | 16 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
