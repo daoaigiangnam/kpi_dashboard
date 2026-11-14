@@ -24,7 +24,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | A06 | Access Person thu hồi | **APPROVED – Bổ sung `revoked_by`, `revoked_at`, `revoke_reason`. Không hard delete Access Person đã phát sinh lịch sử; khi thu hồi phải cập nhật trạng thái và ghi nhận người thực hiện, thời điểm, lý do để phục vụ kiểm tra/Audit.** | Column schema, audit, state transition |
 | A07 | Checklist response_type có multi_select? | **APPROVED – Phiên bản đầu tiên KHÔNG hỗ trợ `multi_select`. Chỉ xem xét bổ sung khi có use case và cấu trúc lưu kết quả/đánh giá rõ ràng.** | Checklist items, inspection results |
 | A08 | Clone checklist version | **APPROVED – Khi tạo version mới từ Checklist Template đã duyệt, hệ thống clone toàn bộ Checklist Items sang version mới; mỗi Item có ID mới; version đã `approved` bất biến, không được sửa trực tiếp. Mọi điều chỉnh phải tạo version mới.** | Template service, FK, snapshot |
-| A09 | Một version hiệu lực cho mỗi code? | Chỉ một version active/effective tại một thời điểm; không cho khoảng hiệu lực chồng lấn. | Effective date validation, unique strategy |
+| A09 | Một version hiệu lực cho mỗi code? | **APPROVED – Với cùng `customer_id` và `code`, chỉ có một Version đang hiệu lực tại một thời điểm; không cho phép các khoảng thời gian hiệu lực chồng lấn. Version cũ được giữ để tra cứu lịch sử; khi Version mới có hiệu lực, Version cũ kết thúc hiệu lực theo thời gian cấu hình.** | Effective date validation, unique strategy |
 | A10 | Rack và U-position | Giữ Rack là asset category=rack; thiết bị có thể không gắn Rack; U collision kiểm tra trong transaction và khóa Rack. | Self-FK, asset validation, concurrency test |
 | A11 | Phân biệt archived/retired/inactive/deleted_at | Status là vòng đời nghiệp vụ; deleted_at chỉ là soft delete kỹ thuật. Định nghĩa status riêng cho từng bảng, không dùng thay thế nhau. | State model, filters, retention |
 
@@ -105,7 +105,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
-| A – Batch 1 | 11 | 8 | 3 |
+| A – Batch 1 | 11 | 9 | 2 |
 | B – Batch 2 | 16 | 0 | 16 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
@@ -135,6 +135,9 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 ## Lịch sử xác nhận
+
+- **A09 – APPROVED (2026-11-14):** Với cùng `customer_id` và `code`, chỉ một Version có hiệu lực tại một thời điểm; cấm khoảng hiệu lực chồng lấn; giữ lịch sử Version cũ.
+
 
 - **A08 – APPROVED (2026-11-14):** Clone toàn bộ Checklist Items sang version mới với ID mới; version `approved` bất biến; mọi điều chỉnh phải tạo version mới.
 
