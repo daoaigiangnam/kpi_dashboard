@@ -168,7 +168,8 @@ Mục đích: các câu hỏi/hạng mục thuộc template.
 | Cột | Kiểu dự kiến | Null | Ghi chú |
 |---|---|---:|---|
 | id | BIGINT UNSIGNED | NO | PK |
-| template_id | BIGINT UNSIGNED | NO | FK template |
+| customer_id | BIGINT UNSIGNED | NO | Tenant; phải bằng customer_id của template |
+| template_id | BIGINT UNSIGNED | NO | FK template, cùng tenant |
 | item_code | VARCHAR(50) | NO | Mã hạng mục |
 | item_name | VARCHAR(200) | NO | Tên |
 | description | TEXT | YES | Hướng dẫn |
@@ -180,7 +181,7 @@ Mục đích: các câu hỏi/hạng mục thuộc template.
 | created_at | TIMESTAMP | YES | |
 | updated_at | TIMESTAMP | YES | |
 
-Unique dự kiến: `(template_id, item_code)`. Có thể cần `customer_id` để thuận tiện tenant enforcement hoặc FK ghép qua template; quyết định ở bản final.
+Unique dự kiến: `(template_id, item_code)`. Tạo composite FK `(template_id, customer_id)` → `srm_checklist_templates(id, customer_id)`; không suy tenant chỉ bằng kiểm tra giao diện.
 
 ### 2.8 `server_room_access_logs`
 
@@ -369,8 +370,9 @@ Mục đích: ghi nhận đưa thiết bị vào/ra phòng hoặc chuyển vị 
 |---|---|---:|---|
 | id | BIGINT UNSIGNED | NO | PK |
 | customer_id | BIGINT UNSIGNED | NO | Tenant |
-| server_room_id | BIGINT UNSIGNED | NO | FK phòng liên quan |
 | asset_id | BIGINT UNSIGNED | YES | FK `server_room_assets.id`; có thể NULL với thiết bị ngoài danh mục |
+| from_server_room_id | BIGINT UNSIGNED | YES | FK phòng nguồn; NULL với check_in |
+| to_server_room_id | BIGINT UNSIGNED | YES | FK phòng đích; NULL với check_out |
 | movement_code | VARCHAR(60) | NO | Mã phiếu |
 | movement_type | VARCHAR(30) | NO | check_in/check_out/relocate |
 | asset_tag_snapshot | VARCHAR(100) | YES | Snapshot mã thiết bị |
@@ -388,7 +390,7 @@ Mục đích: ghi nhận đưa thiết bị vào/ra phòng hoặc chuyển vị 
 | created_at | TIMESTAMP | YES | |
 | updated_at | TIMESTAMP | YES | |
 
-Unique: `(customer_id, movement_code)`. Index: `(customer_id, server_room_id, movement_at)`, `asset_id`. Cần xác định movement relocate có thể chuyển giữa hai phòng Server; nếu có, nên thay `server_room_id` bằng `from_server_room_id` và `to_server_room_id` nullable/có quy tắc bắt buộc theo movement_type. Đây là điểm cần chốt trước migration.
+Unique: `(customer_id, movement_code)`. Index dự kiến: `(customer_id, from_server_room_id, movement_at)`, `(customer_id, to_server_room_id, movement_at)`, `asset_id`. Quy tắc theo movement_type: check_in bắt buộc to và để from NULL; check_out bắt buộc from và để to NULL; relocate bắt buộc cả from/to. Hai phòng và asset (nếu có) phải cùng tenant. Với đổi Rack/U trong cùng phòng, from và to có thể bằng nhau; vị trí nguồn/đích phải được lưu snapshot.
 
 ### 2.15 `server_room_environment_logs`
 
@@ -517,7 +519,7 @@ Tham chiếu tài liệu [ERD và quan hệ dữ liệu](./03-erd-and-relationsh
 
 ---
 
-## 3. Quyền SRM và phạm vi truy cập Customer User (đã chốt)
+## 6. Quyền SRM và phạm vi truy cập Customer User (đã chốt)
 
 ### 3.1 customer_user_srm_permissions
 
@@ -551,6 +553,15 @@ Mục đích: gán phạm vi phòng Server cụ thể cho từng customer user. 
 
 Không hard delete assignment đã cấp. Khi cần cấp lại, phải bảo toàn lịch sử cấp/thu hồi; cách đặt unique active assignment sẽ được chốt ở schema review.
 
-### 3.3 Tổng số bảng
+### 6.3 Tổng số bảng
 
 18 bảng SRM core + 2 bảng pivot + 2 bảng access-control = 22 bảng mới dự kiến.
+
+
+## 7. Chuẩn hóa các điểm đã thống nhất cho thiết kế Migration
+
+1. Tổng số bảng mới của SRM là 22: 18 bảng nghiệp vụ cốt lõi, 2 bảng pivot và 2 bảng phân quyền Customer User.
+2. Equipment Movement dùng `from_server_room_id` và `to_server_room_id`; không còn dùng một `server_room_id` đơn để biểu diễn nguồn/đích.
+3. Checklist Item có `customer_id` và phải tham chiếu template qua cặp `(template_id, customer_id)` để bảo đảm cùng tenant.
+4. Các quan hệ con có `customer_id` phải được thiết kế FK ghép hoặc kiểm tra service-layer có test tenant isolation; không được chỉ dựa vào ID đơn.
+5. Đây vẫn là Data Dictionary bản nháp. Các kiểu cột, FK cụ thể, index, unique, soft-delete và delete rule phải được rà soát ở bảng Migration Blueprint trước khi viết migration.
