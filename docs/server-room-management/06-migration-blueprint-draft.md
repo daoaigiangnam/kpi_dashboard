@@ -191,3 +191,16 @@ Không tự suy đoán các nội dung sau trong migration:
 - [ ] Tạo migrations theo thứ tự phụ thuộc và chạy test tenant/state/permission.
 
 **Lưu ý:** Hoàn tất review không đồng nghĩa schema đã được phê duyệt. Các quyết định mở trong tài liệu 10, 11, 12 phải được xử lý trước migration.
+
+
+## 8. Final Schema Decision Gate
+
+- [x] Tổng hợp quyết định còn mở từ Batch 1, 2, 3 vào [13 – Final Schema Decision Register](./13-final-schema-decision-register-draft.md).
+- [ ] Chủ dự án xác nhận nhóm quyết định P0.
+- [ ] Chủ dự án xác nhận nhóm quyết định P1 hoặc chấp nhận policy triển khai.
+- [ ] Cập nhật đồng bộ Data Dictionary, ERD, Column Schema và State Machines.
+- [ ] Kiểm tra schema MySQL hiện hữu, FK/index/unique và dữ liệu duplicate.
+- [ ] Final Schema Approval.
+- [ ] Laravel Migrations.
+
+**Gate:** Không bắt đầu migration khi các quyết định P0 chưa được xác nhận và schema database thực tế chưa được kiểm tra.
