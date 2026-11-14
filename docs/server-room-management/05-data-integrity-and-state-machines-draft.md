@@ -262,3 +262,22 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 - [ ] Viết test tenant isolation cho mọi endpoint.
 - [ ] Viết test state transition và SoD.
 - [ ] Viết test race condition cho Rack U và movement.
+
+
+## 10. Nguyên tắc bổ sung đã được phê duyệt – Rack và xóa dữ liệu
+
+### 10.1. Liên kết Asset với Rack
+
+- Asset có `category=rack` là Rack; Rack không được gắn vào một Rack khác.
+- Thiết bị có thể không thuộc Rack; khi không lắp trong Rack, `rack_asset_id = NULL`.
+- Nếu thiết bị có `rack_asset_id`, Rack được tham chiếu phải thuộc cùng Server Room.
+- Không cho phép Rack tự tham chiếu chính nó hoặc tạo vòng lặp Rack lồng nhau.
+- Trước khi Soft Delete Rack, phải xử lý các thiết bị đang gắn Rack; không để lại liên kết mồ côi hoặc trạng thái không nhất quán.
+
+### 10.2. Xóa Location, Server Room và Asset
+
+- Location, Server Room và Asset sử dụng Soft Delete; không Hard Delete dữ liệu đã phát sinh nghiệp vụ.
+- Không cho Soft Delete Location khi còn Server Room đang hoạt động bên trong.
+- Không cho Soft Delete Server Room khi còn Asset đang hoạt động hoặc nghiệp vụ chưa hoàn tất.
+- Asset đã có lịch sử kiểm tra, sự cố, bảo trì hoặc di chuyển phải được giữ lại phục vụ Audit.
+- Trước khi xóa mềm phải kiểm tra quan hệ con và nghiệp vụ đang mở; thao tác phải được kiểm soát bằng Service/Policy và transaction phù hợp.
