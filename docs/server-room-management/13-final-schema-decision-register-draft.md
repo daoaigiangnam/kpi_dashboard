@@ -21,7 +21,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | A03 | Primary contact trong một room | **APPROVED – Mỗi Server Room có tối đa một Contact đang hoạt động được đánh dấu `is_primary = 1`. Có thể có nhiều Contact khác; thay đổi Primary Contact phải thực hiện trong transaction; Contact cũ được giữ lịch sử, không xóa dữ liệu.** | Unique active strategy, transaction |
 | A04 | Contact/access person user_id liên kết loại user nào? | **APPROVED – Cho phép Internal User được phân quyền phụ trách tenant và Customer User thuộc chính tenant đó. User phải có quan hệ hợp lệ với `customer_id` của Server Room; kiểm tra quyền truy cập bắt buộc tại Service/Policy.** | User ownership, policies, composite FK/test |
 | A05 | Access level | **APPROVED – Chỉ có hai mức: `permanent` (được phép ra vào thường xuyên) và `supervised` (chỉ được vào khi có người giám sát). Với `supervised`, bắt buộc xác định người giám sát hoặc quy trình giám sát cụ thể; không cấp quyền nếu không có cơ chế giám sát thực hiện được.** | Validation, UI, access workflow |
-| A06 | Access Person thu hồi | Bổ sung revoked_by, revoked_at, revoke_reason; không hard delete bản ghi đã sử dụng. | Column schema, audit, state transition |
+| A06 | Access Person thu hồi | **APPROVED – Bổ sung `revoked_by`, `revoked_at`, `revoke_reason`. Không hard delete Access Person đã phát sinh lịch sử; khi thu hồi phải cập nhật trạng thái và ghi nhận người thực hiện, thời điểm, lý do để phục vụ kiểm tra/Audit.** | Column schema, audit, state transition |
 | A07 | Checklist response_type có multi_select? | Phiên bản đầu KHÔNG hỗ trợ multi_select; chỉ bật khi có use case và cấu trúc result rõ. | Checklist items, inspection results |
 | A08 | Clone checklist version | Clone toàn bộ item sang version row mới; item có ID mới; version đã approved bất biến. | Template service, FK, snapshot |
 | A09 | Một version hiệu lực cho mỗi code? | Chỉ một version active/effective tại một thời điểm; không cho khoảng hiệu lực chồng lấn. | Effective date validation, unique strategy |
@@ -105,7 +105,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
-| A – Batch 1 | 11 | 5 | 6 |
+| A – Batch 1 | 11 | 6 | 5 |
 | B – Batch 2 | 16 | 0 | 16 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
@@ -135,6 +135,9 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 ## Lịch sử xác nhận
+
+- **A06 – APPROVED (2026-11-14):** Bổ sung `revoked_by`, `revoked_at`, `revoke_reason`; không hard delete Access Person đã có lịch sử; thu hồi phải ghi trạng thái, người thực hiện, thời điểm và lý do.
+
 
 - **A05 – APPROVED (2026-11-14):** Chỉ có `permanent` và `supervised`; mức `supervised` bắt buộc có người giám sát hoặc quy trình giám sát cụ thể.
 
