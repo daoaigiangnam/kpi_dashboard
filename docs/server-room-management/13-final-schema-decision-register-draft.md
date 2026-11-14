@@ -36,7 +36,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | B02 | Visitor không có access_person | **APPROVED – Cho phép `access_person_id = NULL`, nhưng bắt buộc có `visitor_name`, `purpose` và người phê duyệt hoặc quyền ngoại lệ hợp lệ. Nếu đi theo ngoại lệ, bắt buộc ghi `exception_reason`; toàn bộ thao tác phải được Audit.** | Validation, access policy, audit |
 | B03 | Inspection review_return | **APPROVED – Khi Review yêu cầu bổ sung/chỉnh sửa, chuyển Inspection sang `correction_required`, không quay về `draft`. Giữ nguyên kết quả đã Submit; mọi chỉnh sửa tạo Correction Revision mới. Ghi nhận người yêu cầu, thời điểm và lý do; bảo toàn lịch sử Submit/Review để Audit.** | Status, revision behavior, UI |
 | B04 | Inspection result multi_select/boolean | **APPROVED – Phiên bản đầu không hỗ trợ `multi_select` và không dùng `boolean_value`. Kết quả Yes/No lưu trong `result`; dữ liệu Numeric, Text, Date lưu ở cột tương ứng. Mỗi `response_type` phải có validation riêng và không chấp nhận dữ liệu sai kiểu.** | Result schema, validation |
-| B05 | Incident status | Chốt open/in_progress/resolved/closed/cancelled; không dùng investigating hoặc verified như status riêng. verified_by/verified_at lưu bước xác minh trước close. | Status allowlist, workflow, reports |
+| B05 | Incident status | **APPROVED – Incident dùng các trạng thái `open`, `in_progress`, `resolved`, `closed`, `cancelled`. Không dùng `investigating` hoặc `verified` làm status riêng. `verified_by` và `verified_at` ghi nhận bước xác minh; chỉ chuyển sang `closed` sau khi hoàn tất xác minh.** | Status allowlist, workflow, reports |
 | B06 | Incident pivot asset scope | Asset phải cùng customer; ưu tiên cho phép asset ở room khác trong cùng tenant nếu sự cố liên phòng, nhưng ghi rõ relationship/impact và xác thực tenant. | Pivot validation, UI |
 | B07 | Incident Action verification | completed bắt buộc completed_at/completion_note; verified bắt buộc verified_by/verified_at/verification_note. Người xác minh phải khác người hoàn tất nếu workflow yêu cầu SoD; đề xuất mặc định khác người. | Action validation, SoD policy |
 | B08 | Emergency Maintenance | Chưa triển khai emergency bypass ở phiên bản đầu; mọi công việc đi qua approval chuẩn. Có thể bổ sung sau với quyền riêng và hậu kiểm. | Maintenance status/columns, approval |
@@ -106,7 +106,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
 | A – Batch 1 | 11 | 11 | 0 |
-| B – Batch 2 | 16 | 4 | 12 |
+| B – Batch 2 | 16 | 5 | 11 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
 
@@ -135,6 +135,9 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 ## Lịch sử xác nhận
+
+- **B05 – APPROVED (2026-11-14):** Incident dùng `open`, `in_progress`, `resolved`, `closed`, `cancelled`; xác minh lưu ở `verified_by`/`verified_at`; chỉ đóng sau xác minh.
+
 
 - **B04 – APPROVED (2026-11-14):** Không hỗ trợ `multi_select` và không dùng `boolean_value`; Yes/No dùng `result`, Numeric/Text/Date dùng cột tương ứng; validation theo từng `response_type`.
 
