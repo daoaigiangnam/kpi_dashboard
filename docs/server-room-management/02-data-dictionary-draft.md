@@ -521,7 +521,7 @@ Tham chiếu tài liệu [ERD và quan hệ dữ liệu](./03-erd-and-relationsh
 
 ## 6. Quyền SRM và phạm vi truy cập Customer User (đã chốt)
 
-### 3.1 customer_user_srm_permissions
+### 6.1 customer_user_srm_permissions
 
 | Cột | Kiểu dự kiến | Null | Ghi chú |
 |---|---|---|---|
@@ -535,7 +535,7 @@ Tham chiếu tài liệu [ERD và quan hệ dữ liệu](./03-erd-and-relationsh
 
 Unique (customer_id, user_id, permission_code). Index (user_id, customer_id), (customer_id, permission_code). Ràng buộc: users.account_type=customer và users.service_customer_id=customer_id. Không cấp quyền internal/platform. Mọi thay đổi phải audit.
 
-### 3.2 customer_user_server_rooms
+### 6.2 customer_user_server_rooms
 
 Mục đích: gán phạm vi phòng Server cụ thể cho từng customer user. Không có assignment thì mặc định không truy cập phòng nào.
 
