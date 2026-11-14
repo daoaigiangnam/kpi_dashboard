@@ -178,3 +178,16 @@ Không tự suy đoán các nội dung sau trong migration:
 - [ ] Review Batch 2: 7 bảng nghiệp vụ.
 - [ ] Review Batch 3: 8 bảng còn lại.
 - Tài liệu review: [10 – Schema Review Batch 1](./10-schema-review-batch-1-draft.md).
+
+
+## 7. Tiến độ Schema Review
+
+- [x] Schema Review Batch 1: 7 bảng nền tảng – tài liệu [10](./10-schema-review-batch-1-draft.md).
+- [x] Schema Review Batch 2: 7 bảng nghiệp vụ – tài liệu [11](./11-schema-review-batch-2-draft.md).
+- [x] Schema Review Batch 3: 8 bảng cuối – tài liệu [12](./12-schema-review-batch-3-draft.md).
+- [x] Hoàn tất review sơ bộ 22/22 bảng.
+- [ ] Hợp nhất các quyết định còn mở và chốt final schema.
+- [ ] Đối chiếu schema/migrations thực tế trước khi tạo SRM migrations.
+- [ ] Tạo migrations theo thứ tự phụ thuộc và chạy test tenant/state/permission.
+
+**Lưu ý:** Hoàn tất review không đồng nghĩa schema đã được phê duyệt. Các quyết định mở trong tài liệu 10, 11, 12 phải được xử lý trước migration.
