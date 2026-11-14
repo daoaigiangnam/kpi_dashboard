@@ -64,3 +64,8 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 ## 10. Schema Review – Batch 1
 
 - [10 – Schema Review Batch 1](./10-schema-review-batch-1-draft.md): rà soát 7 bảng nền tảng, tenant integrity, Rack/U-position, soft delete và checklist versioning.
+
+
+## 11. Schema Review – Batch 2
+
+- [11 – Schema Review Batch 2](./11-schema-review-batch-2-draft.md): rà soát 7 bảng Access Logs, Inspections, Incidents, Maintenance và Equipment Movements.
