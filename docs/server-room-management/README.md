@@ -54,3 +54,8 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 ## 08. Column-level Schema – Batch 2
 
 - [08 – Column-level Schema, Batch 2](./08-column-schema-batch-2-draft.md): chuẩn hóa 7 bảng Access Logs, Inspections, Inspection Results, Incidents, Incident Actions, Maintenance Requests và Equipment Movements.
+
+
+## 09. Column-level Schema – Batch 3
+
+- [09 – Column-level Schema, Batch 3](./09-column-schema-batch-3-draft.md): chuẩn hóa 8 bảng còn lại, hoàn tất thiết kế cột sơ bộ cho register 22 bảng.
