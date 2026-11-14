@@ -19,6 +19,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - Đã soạn ma trận vai trò, permission codes, tenant scope, SoD và workflow phê duyệt.
 - Đã chốt 2 bảng access-control: customer_user_srm_permissions và customer_user_server_rooms.
 - Tổng thiết kế hiện tại: 22 bảng mới dự kiến (18 core + 2 pivots + 2 access-control).
+- Đã lập tài liệu quy tắc tenant integrity, Rack/U, equipment movement và State Machine cho 7 nhóm hồ sơ.
 - Chưa tạo permission seed, migration hoặc code authorization.
 
 ## Tài liệu
