@@ -44,3 +44,8 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 ## 06. Migration Blueprint
 
 - [06 – Migration Blueprint (bản nháp)](./06-migration-blueprint-draft.md): danh mục 22 bảng, thứ tự migration, tenant integrity, composite FK và các gate trước khi viết Laravel migrations.
+
+
+## 07. Column-level Schema – Batch 1
+
+- [07 – Column-level Schema, Batch 1](./07-column-schema-batch-1-draft.md): chuẩn hóa 7 bảng nền tảng đầu tiên ở mức cột, kiểu dữ liệu, nullable, default, unique/index và quy tắc tenant.
