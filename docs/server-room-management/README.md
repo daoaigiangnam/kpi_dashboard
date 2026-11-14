@@ -49,3 +49,8 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 ## 07. Column-level Schema – Batch 1
 
 - [07 – Column-level Schema, Batch 1](./07-column-schema-batch-1-draft.md): chuẩn hóa 7 bảng nền tảng đầu tiên ở mức cột, kiểu dữ liệu, nullable, default, unique/index và quy tắc tenant.
+
+
+## 08. Column-level Schema – Batch 2
+
+- [08 – Column-level Schema, Batch 2](./08-column-schema-batch-2-draft.md): chuẩn hóa 7 bảng Access Logs, Inspections, Inspection Results, Incidents, Incident Actions, Maintenance Requests và Equipment Movements.
