@@ -17,7 +17,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | ID | Nội dung cần quyết định | Đề xuất của thầy | Ảnh hưởng chính |
 |---|---|---|---|
 | A01 | Tái sử dụng code location/room/asset sau soft delete? | **APPROVED – Không cho phép tái sử dụng mã sau Soft Delete.** | Unique strategy, form tạo mới, báo cáo |
-| A02 | location_type=branch và branch_id | branch bắt buộc có branch_id; loại khác phải NULL. | CHECK/service validation, composite FK |
+| A02 | location_type=branch và branch_id | **APPROVED – `branch` bắt buộc có `branch_id`; `head_office`, `data_center`, `independent` phải có `branch_id = NULL`. `branch_id` phải thuộc cùng `customer_id`.** | CHECK/service validation, composite FK |
 | A03 | Primary contact trong một room | Tối đa một primary contact đang active. | Unique active strategy, transaction |
 | A04 | Contact/access person user_id liên kết loại user nào? | Cho phép internal user có quyền phụ trách tenant và customer user cùng tenant; service authorization bắt buộc. | User ownership, policies, composite FK/test |
 | A05 | Access level | Chốt allowlist permanent/supervised; định nghĩa supervised phải có giám sát viên hoặc quy trình giám sát cụ thể. | Validation, UI, access workflow |
@@ -105,7 +105,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
-| A – Batch 1 | 11 | 1 | 10 |
+| A – Batch 1 | 11 | 2 | 9 |
 | B – Batch 2 | 16 | 0 | 16 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
@@ -132,3 +132,8 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 - [05 – Data Integrity and State Machines](./05-data-integrity-and-state-machines-draft.md)
 - [06 – Migration Blueprint](./06-migration-blueprint-draft.md)
 
+
+
+## Lịch sử xác nhận
+
+- **A02 – APPROVED (2026-11-14):** `branch` bắt buộc có `branch_id`; `head_office`, `data_center`, `independent` phải có `branch_id = NULL`; `branch_id` phải thuộc cùng `customer_id`.
