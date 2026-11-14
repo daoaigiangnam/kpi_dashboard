@@ -492,3 +492,24 @@ Index: `(customer_id, auditable_type, auditable_id, created_at)`, `(performed_by
 ## 4. Lưu ý
 
 Các kiểu dữ liệu, cột và index trong tài liệu là đề xuất thiết kế. Các điểm ghi rõ "cần chốt" phải được giải quyết trước khi migration; không được xem bản nháp là schema đã phê duyệt.
+
+
+## 5. Bổ sung quan hệ ERD sau rà soát
+
+Tham chiếu tài liệu [ERD và quan hệ dữ liệu](./03-erd-and-relationships-draft.md).
+
+Đề xuất bổ sung hai bảng liên kết nhiều-nhiều: server_room_incident_assets và server_room_maintenance_assets; tổng cộng 20 bảng dự kiến (18 bảng cốt lõi + 2 bảng liên kết). Rack được biểu diễn bằng tài sản có category=rack, thiết bị tham chiếu Rack qua rack_asset_id; chưa tạo bảng Rack riêng. Bảng movement cần hỗ trợ from_server_room_id và to_server_room_id thay cho một server_room_id đơn.
+
+### 5.1 Các cột bổ sung/chỉnh sửa đề xuất
+
+- server_room_assets: thêm rack_asset_id, rack_u_start, rack_u_height, rack_total_u; Rack là bản ghi có category=rack.
+- server_room_equipment_movements: dùng from_server_room_id, to_server_room_id, asset_id; lưu snapshot thiết bị và vị trí nguồn/đích.
+- Tạo server_room_incident_assets để một sự cố liên kết nhiều thiết bị.
+- Tạo server_room_maintenance_assets để một yêu cầu bảo trì liên kết nhiều thiết bị.
+
+### 5.2 Các vấn đề còn cần xác nhận
+
+- Tính hợp lệ của Rack và vị trí U phải được kiểm tra trong transaction; cần xác định có cho phép thiết bị chiếm nhiều U không.
+- Movement giữa hai phòng chỉ được phép trong cùng customer_id.
+- Các bảng pivot phải enforce tenant consistency cho cả hai đầu quan hệ.
+- Approval/Attachment/Audit polymorphic không có FK cứng tới từng bảng; cần allowlist và authorization ở service layer.
