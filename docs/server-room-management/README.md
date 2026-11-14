@@ -28,6 +28,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 2. [Data Dictionary – bản nháp](./02-data-dictionary-draft.md)
 3. [ERD và quan hệ dữ liệu – bản nháp](./03-erd-and-relationships-draft.md)
 4. [Ma trận phân quyền và luồng phê duyệt – bản đề xuất](./04-permissions-and-approval-workflows-draft.md)
+5. [Toàn vẹn dữ liệu và State Machine – bản nháp](./05-data-integrity-and-state-machines-draft.md)
 
 ## Phạm vi
 
