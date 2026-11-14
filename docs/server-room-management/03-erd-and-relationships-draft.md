@@ -180,3 +180,32 @@ Hành vi xóa cuối cùng phải đối chiếu với soft-delete và chính s�
 - Rack chưa cần bảng riêng; dùng self-reference trên server_room_assets.
 
 Tổng dự kiến: 20 bảng (18 core + 2 pivot), chưa tính các bảng danh mục dùng chung nếu phân tích sau này chứng minh cần thiết.
+
+
+---
+
+## 12. Phân quyền Customer User – quan hệ đã chốt
+
+Chủ dự án đã chốt:
+- Customer account dùng customer_user_srm_permissions để cấp quyền chức năng.
+- Customer user chỉ truy cập phòng Server được gán.
+- Customer IT Admin được cấp/thu hồi quyền và gán phòng cho user cùng tenant.
+
+~~~mermaid
+erDiagram
+    service_customers ||--o{ customer_user_srm_permissions : scopes
+    users ||--o{ customer_user_srm_permissions : receives
+    service_customers ||--o{ customer_user_server_rooms : scopes
+    users ||--o{ customer_user_server_rooms : assigned
+    server_rooms ||--o{ customer_user_server_rooms : room_scope
+~~~
+
+Ràng buộc:
+- customer_user_srm_permissions.customer_id = users.service_customer_id.
+- customer_user_server_rooms.customer_id phải bằng users.service_customer_id và server_rooms.customer_id.
+- Customer IT Admin chỉ quản trị user cùng tenant và chỉ cấp quyền thuộc allowlist.
+- Không có assignment thì deny by default.
+- can_access_all_branches không thay thế room assignment.
+- Cấp/thu hồi quyền và assignment phải được audit.
+
+Tổng số bảng dự kiến: 22 (18 core + 2 pivots + 2 access-control).
