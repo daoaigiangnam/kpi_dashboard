@@ -39,3 +39,8 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 - Tôn trọng schema hiện hữu của KPI Dashboard; tái sử dụng service_customers, customer_branches, users và RBAC hiện có.
 - Cô lập dữ liệu theo khách hàng ở cả tầng truy vấn, policy và ràng buộc dữ liệu phù hợp.
 - Chỉ bắt đầu migrations sau khi hoàn tất Data Dictionary, ERD, quyền và rà soát schema thực tế.
+
+
+## 06. Migration Blueprint
+
+- [06 – Migration Blueprint (bản nháp)](./06-migration-blueprint-draft.md): danh mục 22 bảng, thứ tự migration, tenant integrity, composite FK và các gate trước khi viết Laravel migrations.
