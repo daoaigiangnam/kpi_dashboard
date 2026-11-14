@@ -513,3 +513,44 @@ Tham chiếu tài liệu [ERD và quan hệ dữ liệu](./03-erd-and-relationsh
 - Movement giữa hai phòng chỉ được phép trong cùng customer_id.
 - Các bảng pivot phải enforce tenant consistency cho cả hai đầu quan hệ.
 - Approval/Attachment/Audit polymorphic không có FK cứng tới từng bảng; cần allowlist và authorization ở service layer.
+
+
+---
+
+## 3. Quyền SRM và phạm vi truy cập Customer User (đã chốt)
+
+### 3.1 customer_user_srm_permissions
+
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| user_id | BIGINT UNSIGNED | NO | Customer account cùng tenant |
+| permission_code | VARCHAR(120) | NO | Mã quyền SRM thuộc allowlist |
+| granted_by | BIGINT UNSIGNED | YES | Người cấp |
+| created_at | TIMESTAMP | YES | |
+| updated_at | TIMESTAMP | YES | |
+
+Unique (customer_id, user_id, permission_code). Index (user_id, customer_id), (customer_id, permission_code). Ràng buộc: users.account_type=customer và users.service_customer_id=customer_id. Không cấp quyền internal/platform. Mọi thay đổi phải audit.
+
+### 3.2 customer_user_server_rooms
+
+Mục đích: gán phạm vi phòng Server cụ thể cho từng customer user. Không có assignment thì mặc định không truy cập phòng nào.
+
+| Cột | Kiểu dự kiến | Null | Ghi chú |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK |
+| customer_id | BIGINT UNSIGNED | NO | Tenant |
+| user_id | BIGINT UNSIGNED | NO | Customer account cùng tenant |
+| server_room_id | BIGINT UNSIGNED | NO | Phòng Server cùng tenant |
+| granted_by | BIGINT UNSIGNED | YES | Người cấp |
+| revoked_by | BIGINT UNSIGNED | YES | Người thu hồi |
+| revoked_at | DATETIME | YES | Thời điểm thu hồi |
+| created_at | TIMESTAMP | YES | |
+| updated_at | TIMESTAMP | YES | |
+
+Không hard delete assignment đã cấp. Khi cần cấp lại, phải bảo toàn lịch sử cấp/thu hồi; cách đặt unique active assignment sẽ được chốt ở schema review.
+
+### 3.3 Tổng số bảng
+
+18 bảng SRM core + 2 bảng pivot + 2 bảng access-control = 22 bảng mới dự kiến.
