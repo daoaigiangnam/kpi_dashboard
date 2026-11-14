@@ -18,7 +18,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 |---|---|---|---|
 | A01 | Tái sử dụng code location/room/asset sau soft delete? | **APPROVED – Không cho phép tái sử dụng mã sau Soft Delete.** | Unique strategy, form tạo mới, báo cáo |
 | A02 | location_type=branch và branch_id | **APPROVED – `branch` bắt buộc có `branch_id`; `head_office`, `data_center`, `independent` phải có `branch_id = NULL`. `branch_id` phải thuộc cùng `customer_id`.** | CHECK/service validation, composite FK |
-| A03 | Primary contact trong một room | Tối đa một primary contact đang active. | Unique active strategy, transaction |
+| A03 | Primary contact trong một room | **APPROVED – Mỗi Server Room có tối đa một Contact đang hoạt động được đánh dấu `is_primary = 1`. Có thể có nhiều Contact khác; thay đổi Primary Contact phải thực hiện trong transaction; Contact cũ được giữ lịch sử, không xóa dữ liệu.** | Unique active strategy, transaction |
 | A04 | Contact/access person user_id liên kết loại user nào? | Cho phép internal user có quyền phụ trách tenant và customer user cùng tenant; service authorization bắt buộc. | User ownership, policies, composite FK/test |
 | A05 | Access level | Chốt allowlist permanent/supervised; định nghĩa supervised phải có giám sát viên hoặc quy trình giám sát cụ thể. | Validation, UI, access workflow |
 | A06 | Access Person thu hồi | Bổ sung revoked_by, revoked_at, revoke_reason; không hard delete bản ghi đã sử dụng. | Column schema, audit, state transition |
@@ -105,7 +105,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
-| A – Batch 1 | 11 | 2 | 9 |
+| A – Batch 1 | 11 | 3 | 8 |
 | B – Batch 2 | 16 | 0 | 16 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
@@ -135,5 +135,8 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 ## Lịch sử xác nhận
+
+- **A03 – APPROVED (2026-11-14):** Mỗi Server Room có tối đa một Contact đang hoạt động được đánh dấu `is_primary = 1`; thay đổi Primary Contact phải thực hiện trong transaction; Contact cũ được giữ lịch sử.
+
 
 - **A02 – APPROVED (2026-11-14):** `branch` bắt buộc có `branch_id`; `head_office`, `data_center`, `independent` phải có `branch_id = NULL`; `branch_id` phải thuộc cùng `customer_id`.
