@@ -69,3 +69,8 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 ## 11. Schema Review – Batch 2
 
 - [11 – Schema Review Batch 2](./11-schema-review-batch-2-draft.md): rà soát 7 bảng Access Logs, Inspections, Incidents, Maintenance và Equipment Movements.
+
+
+## 12. Schema Review – Batch 3
+
+- [12 – Schema Review Batch 3](./12-schema-review-batch-3-draft.md): rà soát 8 bảng cuối, gồm Environment Logs, Approval, Attachment, Audit, hai pivot và hai bảng phân quyền Customer User.
