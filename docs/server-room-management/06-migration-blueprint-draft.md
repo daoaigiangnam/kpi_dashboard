@@ -157,7 +157,8 @@ Không tự suy đoán các nội dung sau trong migration:
 - [x] Master register 22 bảng.
 - [x] Thứ tự migration sơ bộ.
 - [x] Nguyên tắc tenant integrity và composite FK.
-- [ ] Chốt đầy đủ column-level schema cho cả 22 bảng.
+- [x] Column-level schema batch 1: 7 bảng nền tảng (đang chờ chủ dự án xác nhận các điểm nghiệp vụ).
+- [ ] Column-level schema cho 15 bảng còn lại.
 - [ ] Chốt toàn bộ FK/unique/index/delete rule.
 - [ ] Phê duyệt các quyết định nghiệp vụ còn mở.
 - [ ] Viết Laravel migrations.
