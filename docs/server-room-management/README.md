@@ -7,7 +7,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - Kiến trúc nghiệp vụ: đã thống nhất ở mức định hướng.
 - Data Dictionary: mô tả sơ bộ 18 bảng cốt lõi; đang rà soát quan hệ và bảng liên kết.
 - ERD logic: bản nháp đã có; chưa chốt FK/index/delete rules.
-- Phân quyền và workflow: đã có bản đề xuất; chờ chốt cách cấp quyền customer accounts và phạm vi user/phòng.
+- Phân quyền và workflow: đã có bản đề xuất; đã chốt phương án B; Customer User assigned-only; Customer IT Admin được cấp quyền và gán phòng trong tenant.
 - Laravel migrations và code ứng dụng: chưa triển khai.
 - Không chạy migration hoặc thay đổi dữ liệu production trong giai đoạn thiết kế.
 
@@ -17,6 +17,8 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - Đề xuất tái sử dụng RBAC hiện hữu cho internal users; không tạo RBAC thứ hai.
 - Đề xuất quyền SRM tách biệt cho customer accounts, giữ nguyên nguyên tắc customer không kế thừa quyền quản trị nội bộ.
 - Đã soạn ma trận vai trò, permission codes, tenant scope, SoD và workflow phê duyệt.
+- Đã chốt 2 bảng access-control: customer_user_srm_permissions và customer_user_server_rooms.
+- Tổng thiết kế hiện tại: 22 bảng mới dự kiến (18 core + 2 pivots + 2 access-control).
 - Chưa tạo permission seed, migration hoặc code authorization.
 
 ## Tài liệu
