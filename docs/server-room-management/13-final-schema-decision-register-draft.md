@@ -268,3 +268,12 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 - Khi parent có Legal Hold còn hiệu lực, tất cả file đính kèm thuộc parent đó đều không được purge.
 - Khi parent được gỡ Legal Hold, các file đính kèm trở lại quy trình xét retention thông thường; chỉ purge nếu đã hết retention, không còn reference hợp lệ và đã ghi Audit.
 - Schema cụ thể để lưu Legal Hold ở parent và truy vấn attachment liên quan vẫn phải được thiết kế trong Final Schema Review.
+
+
+### C09-B – Lịch sử Legal Hold (APPROVED – 2026-11-15)
+
+- Bắt buộc lưu lịch sử riêng cho mỗi lần đặt và gỡ Legal Hold; không chỉ ghi đè trạng thái hiện tại.
+- Mỗi sự kiện phải lưu tối thiểu: parent record được áp dụng, hành động (`placed`/`released`), actor thực hiện, thời điểm UTC và lý do.
+- Sự kiện gỡ hold phải liên kết được với lần đặt hold tương ứng; giữ nguyên lịch sử các chu kỳ hold trước đó.
+- Chỉ người có quyền phù hợp mới được đặt/gỡ hold; thao tác phải được Audit và không hard delete lịch sử.
+- Cấu trúc lưu trữ (bảng lịch sử riêng hay cơ chế tương đương) sẽ được quyết định trong Final Schema Review sau khi rà soát các loại parent polymorphic; chưa tạo migration.
