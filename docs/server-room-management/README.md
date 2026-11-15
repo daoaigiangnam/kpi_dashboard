@@ -9,7 +9,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - ERD logic: đã đồng bộ Movement theo B11–B16; FK/index/delete rules toàn hệ thống vẫn đang Final Schema Review.
 - Phân quyền và workflow: đã có bản đề xuất; đã chốt phương án B; Customer User assigned-only; Customer IT Admin được cấp quyền và gán phòng trong tenant.
 - Batch 1 và Batch 2: các quyết định nghiệp vụ đã được ghi nhận; Batch 2 có B01–B16 APPROVED.
-- Batch 3: C01–C07 đã APPROVED; C08–C18 và baseline kỹ thuật nhóm D vẫn còn mở.
+- Batch 3: C01–C08 đã APPROVED; C09–C18 và baseline kỹ thuật nhóm D vẫn còn mở.
 - Laravel migrations và code ứng dụng: chưa triển khai.
 - Không chạy migration hoặc thay đổi dữ liệu production trong giai đoạn thiết kế.
 
@@ -94,3 +94,5 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 - Bổ sung `acting_approver_id`, `acted_by`, `delegation_id` cho `server_room_approvals`.
 - Tổng thiết kế điều chỉnh từ 22 lên 23 bảng; chưa tạo Laravel migrations hoặc thay đổi database.
 - C07 đã APPROVED: requester không tự phê duyệt; requester bị loại khỏi approver snapshot, cấp rỗng bị chặn, delegation không được bypass SoD; không phát sinh bảng/cột mới.
+
+- C08 đã APPROVED: Private Storage, MIME validation theo nội dung, allowlist/giới hạn cấu hình, quarantine + malware scan; chỉ file `clean` mới được preview/download. Bổ sung `scan_status` và `scanned_at` vào attachment metadata; chưa tạo migrations.
