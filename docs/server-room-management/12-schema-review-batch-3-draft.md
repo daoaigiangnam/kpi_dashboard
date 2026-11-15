@@ -233,3 +233,11 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Parent đang Legal Hold chặn purge tất cả attachment liên quan dù retention đã hết.
 - Khi gỡ Legal Hold, file chỉ đủ điều kiện purge nếu retention đã hết, không còn reference hợp lệ và có Audit actor/thời điểm/kết quả.
 - Cách lưu Legal Hold ở parent và cơ chế resolve attachment sẽ được chốt trong Final Schema Review; không tự thêm bảng/cột ở bước này.
+
+
+## 9. C09-B – Legal Hold event history (APPROVED – 2026-11-15)
+
+- Mỗi lần đặt/gỡ Legal Hold phải có lịch sử riêng, không ghi đè trạng thái lịch sử.
+- Lưu parent identity, action, actor, UTC timestamp, reason; release liên kết lần placement tương ứng.
+- Không hard delete; quyền đặt/gỡ phải được kiểm soát và Audit.
+- Cấu trúc bảng/cột chờ Final Schema Review.
