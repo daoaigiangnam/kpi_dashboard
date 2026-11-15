@@ -237,3 +237,13 @@ Chủ dự án đã chọn ủy quyền theo thời hạn/phạm vi và xác nh�
 - Event tối thiểu: parent type + ID (hoặc định danh parent tương đương), action `placed`/`released`, actor, timestamp UTC, reason; sự kiện release phải tham chiếu lần placement tương ứng.
 - Lịch sử không hard delete; mọi thao tác phải được Audit.
 - Bảng/cấu trúc lưu event sẽ được chốt trong Final Schema Review; chưa tự thêm bảng/cột hoặc migration.
+
+
+## C10 – Audit Log Immutability (APPROVED – 2026-11-15)
+
+- `server_room_audit_logs` được thiết kế theo nguyên tắc append-only; không có chức năng cập nhật/xóa audit row trong các luồng ứng dụng thông thường.
+- Tài khoản DB runtime của ứng dụng không được cấp quyền `UPDATE`/`DELETE` trên bảng Audit Log. Quyền quản trị/migration phải tách biệt và được kiểm soát.
+- Hỗ trợ archive riêng với quyền sửa/xóa bị hạn chế khi compliance yêu cầu; mức bảo vệ cụ thể phụ thuộc policy và năng lực hạ tầng.
+- Audit event ghi tối thiểu actor, timestamp UTC, action, target object, result và trace/correlation ID khi có.
+- Không tuyên bố bất biến tuyệt đối trước DBA/quản trị hạ tầng chỉ bằng UI hoặc append-only ở tầng ứng dụng.
+- Kiểm tra quyền DB, archive, retention, quyền xem log và test âm tính UPDATE/DELETE bằng tài khoản runtime ở giai đoạn triển khai; chưa tạo migration.
