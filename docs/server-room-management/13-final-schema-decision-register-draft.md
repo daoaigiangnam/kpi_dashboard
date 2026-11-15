@@ -338,3 +338,13 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 3. User và mọi dữ liệu SRM liên quan phải thuộc cùng một tenant; không chấp nhận chỉ dựa vào user ID hoặc record ID do client gửi.
 4. Trước khi chọn composite FK/candidate key, phải kiểm tra schema `users` hiện hữu. Nếu không thể enforce bằng FK ghép phù hợp, Service/Policy phải kiểm tra tenant ở mọi thao tác và có negative tests chống truy cập chéo.
 5. Không tạo migration trước khi xác minh các cột, unique/index và quan hệ hiện hữu của `users`.
+
+
+## C17 – Customer IT Admin Scope (APPROVED – 2026-11-15)
+
+1. Customer IT Admin chỉ được cấp hoặc thu hồi quyền SRM cho Customer User thuộc cùng `customer_id` với chính mình.
+2. Customer IT Admin chỉ được gán hoặc thu hồi quyền truy cập các Server Room thuộc tenant của mình.
+3. Chỉ được cấp các `permission_code` nằm trong allowlist quyền SRM dành cho Customer Admin; không thể tự cấp quyền Internal/Platform hoặc nâng quyền vượt phạm vi được phép.
+4. Mọi thao tác grant/revoke permission và room assignment đều phải được authorization theo tenant, kiểm tra trạng thái user/room, và ghi Audit actor, target, action, timestamp UTC, result.
+5. Server-side phải resolve tenant từ user đã xác thực; không tin `customer_id`, `user_id` hoặc `server_room_id` do client gửi nếu chưa xác minh ownership.
+6. Cần negative tests: Customer IT Admin tenant A không thể grant/revoke user tenant B, gán/revoke room tenant B, hoặc cấp permission ngoài allowlist.
