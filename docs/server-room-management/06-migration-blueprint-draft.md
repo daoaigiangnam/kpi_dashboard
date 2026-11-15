@@ -157,8 +157,8 @@ Không tự suy đoán các nội dung sau trong migration:
 - [x] Master register 22 bảng.
 - [x] Thứ tự migration sơ bộ.
 - [x] Nguyên tắc tenant integrity và composite FK.
-- [x] Column-level schema batch 1: 7 bảng nền tảng (đang chờ chủ dự án xác nhận các điểm nghiệp vụ).
-- [x] Column-level schema batch 2: 7 bảng nghiệp vụ (đang chờ chủ dự án xác nhận các điểm nghiệp vụ).
+- [x] Column-level schema batch 1: 7 bảng nền tảng (các quyết định Batch 1 đã được ghi nhận trong Decision Register).
+- [x] Column-level schema batch 2: 7 bảng nghiệp vụ (B01–B16 đã APPROVED; schema Movement đã đồng bộ).
 - [x] Column-level schema batch 3: 8 bảng còn lại (đang chờ chủ dự án duyệt các quyết định nghiệp vụ).
 - [ ] Chốt toàn bộ FK/unique/index/delete rule.
 - [ ] Phê duyệt các quyết định nghiệp vụ còn mở.
@@ -174,8 +174,8 @@ Không tự suy đoán các nội dung sau trong migration:
 ## Schema Review Progress
 
 - [x] Review Batch 1: 7 bảng nền tảng; đã ghi nhận các ràng buộc tenant, Rack/U-position, soft delete, user ownership và checklist versioning.
-- [ ] Chủ dự án xác nhận các quyết định mở trong tài liệu 10.
-- [ ] Review Batch 2: 7 bảng nghiệp vụ.
+- [ ] Hoàn tất đối chiếu các quyết định và điểm còn mở trong tài liệu 10 với Decision Register.
+- [x] Review Batch 2: 7 bảng nghiệp vụ (đã review; B01–B16 đã APPROVED).
 - [ ] Review Batch 3: 8 bảng còn lại.
 - Tài liệu review: [10 – Schema Review Batch 1](./10-schema-review-batch-1-draft.md).
 
@@ -186,11 +186,11 @@ Không tự suy đoán các nội dung sau trong migration:
 - [x] Schema Review Batch 2: 7 bảng nghiệp vụ – tài liệu [11](./11-schema-review-batch-2-draft.md).
 - [x] Schema Review Batch 3: 8 bảng cuối – tài liệu [12](./12-schema-review-batch-3-draft.md).
 - [x] Hoàn tất review sơ bộ 22/22 bảng.
-- [ ] Hợp nhất các quyết định còn mở và chốt final schema.
+- [ ] Hợp nhất các quyết định còn mở của Batch 3 và baseline kỹ thuật; chốt final schema.
 - [ ] Đối chiếu schema/migrations thực tế trước khi tạo SRM migrations.
 - [ ] Tạo migrations theo thứ tự phụ thuộc và chạy test tenant/state/permission.
 
-**Lưu ý:** Hoàn tất review không đồng nghĩa schema đã được phê duyệt. Các quyết định mở trong tài liệu 10, 11, 12 phải được xử lý trước migration.
+**Lưu ý:** Hoàn tất review không đồng nghĩa schema đã được phê duyệt. Batch 1 và Batch 2 có các quyết định đã ghi nhận trong Decision Register; Batch 3 (C01–C18) và baseline kỹ thuật nhóm D vẫn còn mở. Phải hoàn tất các quyết định ảnh hưởng cấu trúc và kiểm tra database thực tế trước migration.
 
 
 ## 8. Final Schema Decision Gate
