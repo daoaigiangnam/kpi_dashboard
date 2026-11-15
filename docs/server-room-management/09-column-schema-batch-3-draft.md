@@ -285,3 +285,10 @@ Chủ dự án đã chọn ủy quyền theo thời hạn/phạm vi và xác nh�
 - Re-assignment sau revoke tạo row mới.
 - Chỉ một assignment active cho mỗi `(customer_id, user_id, server_room_id)`.
 - Cơ chế unique active phải được xác minh theo MySQL version và schema/index thực tế; nếu không có unique strategy phù hợp, dùng transaction/locking và concurrency test.
+
+
+## C16 – Customer User Tenant Integrity (APPROVED – 2026-11-15)
+
+- Mọi Customer User thao tác SRM phải thỏa `users.account_type = 'customer'` và `users.service_customer_id = customer_id` của record SRM.
+- Quan hệ user–tenant phải được xác minh trên server; không tin tenant/customer ID do client cung cấp.
+- FK ghép/candidate key trên `users` chỉ được sử dụng nếu schema hiện hữu hỗ trợ đúng và không phá vỡ các quan hệ hiện tại. Nếu không, bắt buộc tenant check tại Service/Policy và negative tests.
