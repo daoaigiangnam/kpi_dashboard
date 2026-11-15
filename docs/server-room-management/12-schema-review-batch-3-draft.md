@@ -274,3 +274,12 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Maintenance mặc định giới hạn Asset trong cùng Server Room; đa phòng phải khai báo phạm vi rõ ràng.
 - Service phải xác minh tenant và room scope; bổ sung negative tests cho cross-tenant và room mismatch.
 - Không phát sinh bảng mới từ quyết định này; cấu trúc khai báo scope đa phòng của Maintenance phải được đối chiếu trong Final Schema Review.
+
+
+## 14. C14 – Customer Permission Revoke (APPROVED – 2026-11-15)
+
+- Thu hồi bằng `revoked_at`/`revoked_by`; không hard-delete grant.
+- Cấp lại tạo row mới; giữ nguyên lịch sử các lần grant/revoke.
+- Chỉ một grant active cho `(customer_id, user_id, permission_code)`.
+- Chốt cách enforce unique active sau khi kiểm tra MySQL version và schema/index hiện hữu; generated-column strategy chỉ là một lựa chọn, không mặc định.
+- Kiểm thử concurrency để bảo đảm hai yêu cầu cấp quyền đồng thời không tạo hai active grant.
