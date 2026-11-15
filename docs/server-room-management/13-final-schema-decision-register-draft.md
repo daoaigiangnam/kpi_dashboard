@@ -65,7 +65,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C10 | Audit immutability | **APPROVED – 2026-11-15 –** Audit Log append-only; ứng dụng không cung cấp chức năng UPDATE/DELETE audit rows; tài khoản DB của ứng dụng không có quyền UPDATE/DELETE trên bảng Audit Log; hỗ trợ archive riêng với quyền sửa/xóa bị hạn chế khi yêu cầu compliance; ghi actor, UTC timestamp, action, target object, result và trace cần thiết. Không tuyên bố bất biến tuyệt đối trước DBA/quản trị hạ tầng chỉ bằng các kiểm soát này. | DB privilege, archive, audit service, security tests |
 | C11 | Pivot column naming | **APPROVED – 2026-11-15 –** Giữ nguyên `server_room_incident_assets.impact_note` và `server_room_maintenance_assets.work_note`; không đổi thành tên chung `relationship_note`. | Column schema, API |
 | C12 | Pivot asset snapshot | **APPROVED – 2026-11-15 –** Lưu cả `asset_tag` và `asset_name` snapshot trên pivot tại thời điểm Asset được liên kết với Incident/Maintenance để bảo toàn thông tin lịch sử. | Pivot columns, reports, audit |
-| C13 | Pivot room scope | Tenant bắt buộc giống nhau; room scope được kiểm tra theo từng nghiệp vụ: sự cố có thể đa phòng; maintenance một phòng mặc định cùng phòng, đa phòng phải khai báo rõ. | Service validation, UI |
+| C13 | Pivot room scope | **APPROVED – 2026-11-15 –** Incident được liên kết Asset ở nhiều Server Room trong cùng tenant; Maintenance mặc định cùng một Room, đa phòng phải khai báo rõ; Service kiểm tra tenant và room scope trước khi liên kết. | Service validation, UI, tests |
 | C14 | Customer permission revoke | Giữ lịch sử grant/revoke bằng revoked_at/revoked_by; cấp lại tạo bản ghi mới. Cần active unique strategy bằng generated column hoặc transaction/locking sau khi kiểm tra MySQL. | Permission schema, indexes |
 | C15 | Room assignment uniqueness | Một assignment active duy nhất cho (customer,user,room); revoke giữ lịch sử; cấp lại tạo row mới. Ưu tiên generated active key nếu hỗ trợ đúng trên MySQL hiện hữu, nếu không dùng transaction/locking. | Unique strategy, concurrency tests |
 | C16 | Customer user tenant integrity | Bắt buộc account_type=customer và service_customer_id=customer_id. Nếu không thể tạo candidate key trên users hiện hữu thì service check + negative tests. | Existing schema, FK, policy |
@@ -302,3 +302,12 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 - Snapshot được chụp tại thời điểm tạo liên kết; không tự cập nhật khi Asset gốc đổi tên hoặc đổi mã.
 - Khi cần hiển thị lịch sử, ưu tiên snapshot; thông tin Asset hiện tại vẫn có thể được truy vấn riêng để đối chiếu.
 - Kiểu dữ liệu, độ dài và nullability cụ thể được rà soát trong Column Schema/Final Schema Review; chưa tạo migration.
+
+
+## C13 – Pivot Room Scope (APPROVED – 2026-11-15)
+
+1. Incident được phép liên kết Asset thuộc nhiều Server Room khác nhau nếu tất cả cùng `customer_id` với Incident.
+2. Maintenance mặc định chỉ liên kết Asset thuộc cùng Server Room với phạm vi yêu cầu.
+3. Maintenance nhiều phòng chỉ hợp lệ khi yêu cầu khai báo rõ phạm vi đa phòng.
+4. Service phải kiểm tra tenant và room scope trước khi tạo/cập nhật liên kết; không chỉ dựa vào ID do client gửi.
+5. Không phát sinh bảng mới; quy tắc được thực thi ở service/validation và kiểm thử tenant/room scope.
