@@ -262,3 +262,10 @@ Chủ dự án chọn phương án ủy quyền theo thời hạn/phạm vi (b�
 - Nếu loại requester khiến cấp không còn approver hợp lệ, chặn kích hoạt cấp; không tự động skip. Workflow manager có thẩm quyền phải điều chỉnh cấu hình hoặc thực hiện reassignment hợp lệ.
 - Delegation không được dùng để vượt SoD. Nếu acting approver được snapshot là requester hoặc không đủ điều kiện, chặn quyết định và yêu cầu reassignment có thẩm quyền.
 - Mọi thay đổi vẫn phải giữ nguyên quy tắc ALL; không được giảm số nghĩa vụ phê duyệt còn lại.
+
+## 12. C08 – Quyền và truy cập tệp đính kèm (APPROVED – 2026-11-15)
+
+- Mọi thao tác upload, preview, download và delete phải kiểm tra quyền trên chức năng SRM, tenant và parent record; biết ID hoặc URL không đồng nghĩa có quyền truy cập.
+- File ở trạng thái `pending`, `infected` hoặc `error` không được preview/download; chỉ `clean` mới được cấp nội dung.
+- Không cung cấp public URL hoặc `file_path`; truy cập qua service authorization, hoặc signed URL thời hạn rất ngắn chỉ được tạo sau khi kiểm tra quyền.
+- Download phải kiểm tra lại quyền tại thời điểm yêu cầu; không dựa vào quyền đã kiểm tra khi upload.
