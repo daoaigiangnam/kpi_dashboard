@@ -77,19 +77,25 @@ Unique: (maintenance_request_id, asset_id). Yêu cầu bảo trì và tài sản
 
 ## 4. Di chuyển thiết bị
 
-server_room_equipment_movements cần hỗ trợ chuyển thiết bị giữa các phòng hoặc vị trí trong cùng tenant. Đề xuất thay server_room_id đơn bằng:
+`server_room_equipment_movements` hỗ trợ check-in, check-out và relocate trong cùng tenant. Thiết kế dùng `from_server_room_id` và `to_server_room_id`; không dùng một `server_room_id` để biểu diễn cả nguồn và đích.
 
-- from_server_room_id BIGINT UNSIGNED NULL
-- to_server_room_id BIGINT UNSIGNED NULL
-- asset_id BIGINT UNSIGNED NULL
-- movement_type: check_in, check_out, relocate
+Các trường và quan hệ chính:
+- `asset_id` nullable cho thiết bị chưa có Asset Record (chỉ theo điều kiện B13).
+- `movement_type`: `check_in`, `check_out`, `relocate`.
+- Timestamp tách biệt: `requested_at` (tạo yêu cầu) và `executed_at` (hoàn tất thực tế).
+- Lifecycle: `draft` → `pending_approval` → `approved` → `completed`; có nhánh `rejected` và `cancelled`.
+- Rack/U nguồn và đích dùng `from_rack_asset_id`, `from_rack_u_start`, `to_rack_asset_id`, `to_rack_u_start`; Rack phải thuộc đúng Server Room tương ứng. Text location chỉ là ghi chú.
+- Snapshot thiết bị gồm tên, Serial Number và Asset Tag nếu có; snapshot vị trí nguồn/đích phải được giữ để bảo toàn lịch sử.
 
-Quy tắc dự kiến:
-- check_in: from có thể NULL, to bắt buộc.
-- check_out: from bắt buộc, to có thể NULL.
-- relocate: from và to bắt buộc; có thể cùng phòng nếu chỉ đổi Rack/U.
-- Nếu có asset_id, tài sản phải thuộc tenant và cần ghi snapshot tên/mã/serial ở phiếu để bảo toàn lịch sử.
-- Khi movement được xác nhận, cập nhật vị trí hiện tại của asset trong cùng transaction; không cập nhật chỉ bằng cách sửa lịch sử movement.
+Quy tắc theo loại:
+- `check_in`: `from_server_room_id = NULL`, `to_server_room_id` bắt buộc.
+- `check_out`: `from_server_room_id` bắt buộc, `to_server_room_id = NULL`.
+- `relocate`: from/to bắt buộc; có thể cùng phòng nếu chỉ đổi Rack/U.
+- `relocate`/`check_out` chỉ execute khi Asset hiện đang thuộc phòng nguồn; check lại bên trong transaction.
+- `check_out` không xóa Asset Record; chuyển Asset sang `checked_out` hoặc trạng thái tương đương trong allowlist. Khi quay lại, tạo Movement `check_in` mới.
+- `asset_id = NULL` chỉ dùng cho thiết bị ngoài danh mục; check-in không tự động tạo Asset Record.
+
+Execute chỉ được thực hiện từ trạng thái `approved`. Hệ thống khóa Asset bằng row-level lock (`SELECT ... FOR UPDATE`), cập nhật Asset và Movement trong cùng Database Transaction; nếu source validation hoặc cập nhật thất bại thì rollback toàn bộ. Movement `completed` là hồ sơ bất biến; sai sót phải lập phiếu mới.
 
 ## 5. Checklist và Inspection
 
