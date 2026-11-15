@@ -306,3 +306,12 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Chỉ cấp permission SRM thuộc allowlist; không cho cấp quyền Internal/Platform hoặc tự nâng quyền.
 - Audit đầy đủ grant/revoke và room assignment.
 - Kiểm tra tenant ownership server-side; có negative tests cross-tenant và privilege escalation.
+
+
+## 18. C18 – Customer User Disable / Tenant Change (APPROVED – 2026-11-15)
+
+- Disabled/inactive Customer User: deny all SRM access immediately; preserve grant and room-assignment history.
+- Tenant change: revoke all old-tenant SRM permissions and room assignments; never auto-transfer rights to new tenant.
+- Reactivation/new tenant: grant only through the target tenant's normal authorization workflow.
+- Lifecycle change and revocations must be consistent/transactional with rollback on failure; audit lifecycle, revoke and denied-access events.
+- Inspect existing User lifecycle hooks and schema before deciding implementation; do not assume event infrastructure.
