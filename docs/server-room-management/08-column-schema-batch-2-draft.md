@@ -322,8 +322,7 @@
 3. Inspection Result: có cần multi-select không? Có cần boolean_value riêng hay dùng result cho yes/no?
 4. Incident: có cần trạng thái investigating và verified riêng hay chuẩn hóa theo State Machine open → in_progress → resolved → closed?
 5. Maintenance: có bật emergency maintenance? Nếu có, vai trò nào được kích hoạt và hậu kiểm trong bao lâu?
-6. Movement: chốt movement_at là thời điểm yêu cầu hay thực hiện; đề xuất tách requested_at và executed_at nếu cần báo cáo cả hai.
-7. Movement: asset ngoài danh mục (asset_id NULL) có được phép check_in/check_out không, và sau đó có quy trình tạo asset record không?
+6. Movement: B11–B16 đã được chủ dự án APPROVED; schema tại mục 8 là nội dung áp dụng cho Batch 2.
 
 ## 10. Trạng thái batch
 
