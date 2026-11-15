@@ -272,12 +272,16 @@
 | serial_number | VARCHAR(150) | YES | NULL | Snapshot serial |
 | source_location | VARCHAR(200) | YES | NULL | Ghi chú vị trí nguồn; không thay thế Rack/U có cấu trúc |
 | destination_location | VARCHAR(200) | YES | NULL | Ghi chú vị trí đích; không thay thế Rack/U có cấu trúc |
-| from_rack_asset_id | BIGINT UNSIGNED | YES | NULL | Rack nguồn; phải thuộc from_server_room_id |\n| from_rack_u_start | SMALLINT UNSIGNED | YES | NULL | U bắt đầu nguồn |\n| to_rack_asset_id | BIGINT UNSIGNED | YES | NULL | Rack đích; phải thuộc to_server_room_id |\n| to_rack_u_start | SMALLINT UNSIGNED | YES | NULL | U bắt đầu đích |\n| requested_at | DATETIME | NO | — | Thời điểm tạo yêu cầu Movement |
+| from_rack_asset_id | BIGINT UNSIGNED | YES | NULL | Rack nguồn; phải thuộc from_server_room_id |
+| from_rack_u_start | SMALLINT UNSIGNED | YES | NULL | U bắt đầu nguồn |
+| to_rack_asset_id | BIGINT UNSIGNED | YES | NULL | Rack đích; phải thuộc to_server_room_id |
+| to_rack_u_start | SMALLINT UNSIGNED | YES | NULL | U bắt đầu đích |
+| requested_at | DATETIME | NO | — | Thời điểm tạo yêu cầu Movement |
 | reason | TEXT | NO | — | Lý do |
 | status | VARCHAR(30) | NO | draft | draft/pending_approval/approved/rejected/completed/cancelled |
-| performed_by | BIGINT UNSIGNED | YES | NULL | FK users |
-| approved_by | BIGINT UNSIGNED | YES | NULL | FK users |
-| approved_at | DATETIME | YES | NULL | Thời điểm duyệt |
+| performed_by | BIGINT UNSIGNED | YES | NULL | FK users; bắt buộc khi completed |
+| approved_by | BIGINT UNSIGNED | YES | NULL | FK users; bắt buộc khi approved/completed |
+| approved_at | DATETIME | YES | NULL | Bắt buộc khi approved/completed |
 | executed_at | DATETIME | YES | NULL | Thời điểm thực tế hoàn tất Movement |
 | notes | TEXT | YES | NULL | Ghi chú |
 | created_by | BIGINT UNSIGNED | YES | NULL | FK users |
@@ -289,23 +293,27 @@
 - UNIQUE: (customer_id, movement_code).
 - INDEX: (customer_id, from_server_room_id, requested_at), (customer_id, to_server_room_id, requested_at), (asset_id), (customer_id, status, requested_at).
 - Quan hệ composite tenant tới from room, to room và asset.
-- Nếu cần composite FK asset cùng room, asset cần candidate unique (id, customer_id, server_room_id).
+- Rack nguồn/đích phải được kiểm tra thuộc đúng Server Room tương ứng; nếu cần composite FK, Rack phải có candidate key phù hợp.
 
 **Quy tắc movement_type**
 - check_in: from=NULL, to bắt buộc.
 - check_out: from bắt buộc, to=NULL.
 - relocate: from và to bắt buộc.
 - from/to cùng tenant; relocate giữa phòng thì from != to; đổi Rack/U trong cùng phòng cho phép from=to.
-- Asset nếu có phải thuộc tenant; với movement relocate giữa phòng, vị trí hiện tại của asset phải khớp from room.
-- Khi execute, cập nhật server_room_assets.server_room_id và rack/U trong cùng DB transaction.
+- Khi execute relocate/check_out, Asset (nếu có) phải đang thuộc from_server_room_id. Việc kiểm tra phải lặp lại bên trong transaction.
+- Nếu asset_id=NULL, bắt buộc snapshot equipment_name, serial_number (nếu có), asset_tag_snapshot (nếu có); check-in không tự động tạo Asset Record.
+- Rack/U nguồn và đích lưu bằng from_rack_asset_id, from_rack_u_start, to_rack_asset_id, to_rack_u_start. Rack phải thuộc đúng Server Room; thiết bị không gắn Rack được phép để các trường Rack/U tương ứng NULL. source_location/destination_location chỉ là ghi chú.
+- Execute phải khóa Asset bằng row-level lock (SELECT ... FOR UPDATE), cập nhật Asset và Movement trong cùng Database Transaction; nếu source validation hoặc cập nhật thất bại thì rollback toàn bộ.
+- check_out không xóa Asset Record; cập nhật trạng thái Asset sang checked_out hoặc trạng thái tương đương trong allowlist. Khi thiết bị quay lại, tạo Movement check_in mới; không ghi đè Movement cũ.
 - Movement completed bất biến; điều chỉnh bằng phiếu mới.
 
 **State rules**
 - draft → pending_approval → approved → completed.
 - pending_approval → rejected.
 - draft/pending_approval/approved → cancelled nếu chưa execute.
-- Chỉ execute khi approved; cập nhật asset và movement trong cùng transaction.
-- Data Dictionary ban đầu thiếu status/executed_at trong khi State Machine yêu cầu các bước này; đây là phần bổ sung schema đề xuất, cần xác nhận trước migration.
+- Khi approved, bắt buộc approved_by và approved_at; khi completed, bắt buộc performed_by và executed_at.
+- Không cho draft → completed; chỉ execute khi approved.
+- requested_at là thời điểm tạo yêu cầu; executed_at là thời điểm thực tế hoàn tất. Không dùng movement_at cho cả hai ý nghĩa.
 
 ## 9. Các điểm cần chủ dự án xác nhận
 
