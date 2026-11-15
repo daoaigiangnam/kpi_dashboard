@@ -70,7 +70,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C15 | Room assignment uniqueness | **APPROVED – 2026-11-15 –** Mỗi `(customer_id, user_id, server_room_id)` chỉ có một assignment active; revoke bằng `revoked_at`/`revoked_by`, cấp lại tạo row mới. Cơ chế unique active chốt sau khi xác minh MySQL thực tế. | Unique strategy, concurrency tests |
 | C16 | Customer user tenant integrity | **APPROVED – 2026-11-15 –** Customer User bắt buộc `account_type=customer` và `users.service_customer_id=customer_id` của dữ liệu SRM; nếu schema users hiện hữu không hỗ trợ composite FK/candidate key phù hợp, bắt buộc Service tenant check và negative tests. | Existing schema, FK, policy, tenant tests |
 | C17 | Customer IT Admin | **APPROVED – 2026-11-15 –** Chỉ cấp/revoke permission và room assignment cho Customer User/Server Room cùng tenant; permission grant phải nằm trong allowlist SRM; Audit đầy đủ. | Authorization, audit, tenant tests |
-| C18 | User disable/tenant change | Khi customer user bị disable hoặc chuyển tenant, mọi quyền/assignment SRM phải bị vô hiệu hóa/thu hồi theo transaction và audit. | User lifecycle integration |
+| C18 | User disable/tenant change | **APPROVED – 2026-11-15 –** Disabled/inactive user bị từ chối truy cập SRM; giữ lịch sử permission/assignment. Khi đổi tenant, revoke quyền/assignment tenant cũ, không tự chuyển quyền; transaction nhất quán và Audit đầy đủ. | User lifecycle integration, transaction, audit, negative tests |
 
 ## 5. Nhóm D – Quyết định kỹ thuật áp dụng xuyên suốt 23 bảng
 
@@ -348,3 +348,14 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 4. Mọi thao tác grant/revoke permission và room assignment đều phải được authorization theo tenant, kiểm tra trạng thái user/room, và ghi Audit actor, target, action, timestamp UTC, result.
 5. Server-side phải resolve tenant từ user đã xác thực; không tin `customer_id`, `user_id` hoặc `server_room_id` do client gửi nếu chưa xác minh ownership.
 6. Cần negative tests: Customer IT Admin tenant A không thể grant/revoke user tenant B, gán/revoke room tenant B, hoặc cấp permission ngoài allowlist.
+
+
+## C18 – Customer User Disable / Tenant Change (APPROVED – 2026-11-15)
+
+1. Khi Customer User bị `disabled`/`inactive`, hệ thống lập tức từ chối mọi truy cập SRM; permission và room assignment hiện hữu được giữ lại làm lịch sử/trạng thái, nhưng không được sử dụng để cấp quyền truy cập khi user bị khóa.
+2. Khi Customer User chuyển `customer_id` sang tenant khác, toàn bộ permission và room assignment của tenant cũ phải được revoke; không tự động chuyển quyền sang tenant mới.
+3. Giữ nguyên lịch sử grant/revoke và assignment; không hard-delete dữ liệu lịch sử.
+4. Quy trình cập nhật trạng thái user, thu hồi permission và room assignment phải được thực hiện nhất quán trong transaction ở mức ứng dụng/DB phù hợp; nếu thất bại phải rollback, không để trạng thái một phần.
+5. Khi user được kích hoạt lại hoặc chuyển tenant hoàn tất, quyền truy cập chỉ được khôi phục/cấp mới theo quy trình cấp quyền của tenant tương ứng; không tự khôi phục quyền tenant cũ.
+6. Ghi Audit cho disable/enable, tenant change, các thao tác revoke và các lần truy cập SRM bị từ chối; ghi actor, target, UTC timestamp, action, result và correlation ID nếu có.
+7. Negative tests bắt buộc: disabled user không truy cập được; user sau tenant change không còn quyền/room assignment tenant cũ; user không được tự động nhận quyền tenant mới; lỗi giữa quy trình không để lại permission/assignment ở trạng thái dở dang.
