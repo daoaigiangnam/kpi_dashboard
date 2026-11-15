@@ -401,3 +401,15 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 7. Kiểm thử bắt buộc: insert trùng, concurrent insert/update, regrant sau revoke, retry/idempotent request và tenant isolation.
 
 - Unique active constraints phải tương thích lifecycle revoke/restore và không làm mất lịch sử; phương án cụ thể chốt theo schema MySQL 8.0.46 và từng bảng.
+
+
+## D06 – JSON and Data Type Policy (APPROVED – 2026-11-15)
+
+1. Sử dụng MySQL `JSON` cho dữ liệu có cấu trúc linh hoạt, không dùng JSON để thay thế các cột nghiệp vụ có cấu trúc ổn định, cần lọc/sắp xếp/join/index thường xuyên.
+2. Các giá trị thời gian được lưu UTC; hiển thị và truy vấn theo timezone tenant theo quyết định C01.
+3. Giá trị tiền tệ dùng `DECIMAL` với precision/scale được xác định theo nghiệp vụ; không dùng `FLOAT`/`DOUBLE` cho số tiền.
+4. Số lượng dùng kiểu số nguyên phù hợp với miền giá trị và giới hạn nghiệp vụ; không chọn độ rộng tùy tiện.
+5. Không lưu nội dung file nhị phân trong JSON hoặc bảng nghiệp vụ; file được lưu ở Storage riêng và DB chỉ lưu metadata/reference cần thiết.
+6. Giá trị thuộc tập lựa chọn cố định phải được kiểm soát bằng validation phía ứng dụng và constraint phù hợp với MySQL 8.0.46/schema thực tế; không chỉ dựa vào giao diện.
+7. Với JSON cần truy vấn theo thuộc tính cụ thể, phải đánh giá generated column/index hoặc giải pháp phù hợp; chỉ bổ sung khi có use case và kiểm thử hiệu năng.
+8. Kiểu dữ liệu, precision/scale, nullability, default và constraint cụ thể của từng cột được chốt trong Final Schema Review sau khi đối chiếu data dictionary và schema hiện hữu.
