@@ -268,3 +268,12 @@ Chủ dự án đã chọn ủy quyền theo thời hạn/phạm vi và xác nh�
 - Pivot Incident–Asset: Asset có thể thuộc Server Room khác nhau trong cùng tenant của Incident; không bắt buộc cùng một Room.
 - Pivot Maintenance–Asset: mặc định Asset phải thuộc Room của Maintenance Request. Trường hợp nhiều Room phải có khai báo phạm vi đa phòng rõ ràng trên yêu cầu.
 - Service kiểm tra `customer_id` ở cả hai đầu và điều kiện Room tương ứng trước khi ghi pivot; kiểm tra lại vị trí Asset tại thời điểm thực hiện nghiệp vụ.
+
+
+## C14 – Customer Permission Revoke (APPROVED – 2026-11-15)
+
+- Bảng `customer_user_srm_permissions` giữ lịch sử grant/revoke; thu hồi bằng `revoked_at` và `revoked_by`, không hard-delete.
+- Cấp lại permission sau khi thu hồi phải tạo row mới.
+- Chỉ một grant active cho mỗi bộ `(customer_id, user_id, permission_code)`.
+- Cơ chế unique active được quyết định sau khi xác minh MySQL version, generated-column/index support và schema hiện hữu; nếu không khả thi thì dùng transaction/locking cùng kiểm thử concurrency.
+- Mọi grant/revoke phải được authorization và Audit.
