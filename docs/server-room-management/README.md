@@ -158,3 +158,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - D09 đã APPROVED: correlation/request ID; phân biệt Application, Security và Audit Logs; không log secrets; giám sát lỗi, latency, slow query, deadlock và lock timeout; retention/access control.
+
+
+- D10 đã APPROVED: SRM thuộc backup chung KPI Dashboard; phối hợp DB và File Storage; retention/encryption; restore test định kỳ; RPO/RTO theo nghiệp vụ; không thử restore trên Production.
