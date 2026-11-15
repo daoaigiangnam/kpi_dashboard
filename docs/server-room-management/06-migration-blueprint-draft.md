@@ -350,3 +350,19 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 ## D01 – MySQL Baseline (APPROVED – 2026-11-15)
 
 MySQL 8.0 là baseline mục tiêu theo xác nhận của người dùng. Trước migration phải chạy kiểm tra phiên bản 8.x cụ thể, `version_comment`, `sql_mode`, charset/collation, storage engine và schema hiện hữu. Không mặc định minor/patch release hoặc cấu hình server.
+
+
+### D01 – Runtime evidence (verified 2026-11-15)
+
+Thông tin truy vấn qua kết nối Laravel đang hoạt động tới database `kpi_dashboard` trong container `kpi-dashboard-db-1`:
+
+- `VERSION()`: `8.0.46`
+- `version_comment`: `MySQL Community Server - GPL`
+- `sql_mode`: `ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION`
+- `character_set_server`: `utf8mb4`
+- `collation_server`: `utf8mb4_unicode_ci`
+- `default_storage_engine`: `InnoDB`
+
+Kết luận: runtime xác minh là MySQL Community Server 8.0.46, InnoDB, charset/collation server `utf8mb4`/`utf8mb4_unicode_ci`. Đây là bằng chứng môi trường tại thời điểm kiểm tra; trước production migration vẫn phải kiểm tra lại trên đúng môi trường triển khai.
+
+- Baseline migration đã được xác minh trên container hiện tại; dùng InnoDB cho các bảng SRM cần transaction và foreign key. Kiểm tra lại `sql_mode` và server variables ở môi trường đích trước triển khai.
