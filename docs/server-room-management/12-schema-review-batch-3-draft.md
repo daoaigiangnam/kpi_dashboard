@@ -8,7 +8,7 @@ Batch 3 hoàn tất rà soát 8 bảng còn lại trong register 22 bảng: Envi
 
 Các nguyên tắc chính đã rõ: log môi trường thuộc tenant/room; ba bảng approval/attachment/audit dùng polymorphic allowlist và service-layer tenant validation; hai pivot dùng composite FK tenant; customer user dùng quyền chức năng riêng và room assignment theo nguyên tắc deny-by-default.
 
-Các điểm còn mở tập trung vào timezone/retention, approval ANY/ALL và group snapshot, bảo mật file, audit immutability, lịch sử thu hồi permission và unique active room assignment.
+C01–C03 về Environment Logs đã được chủ dự án APPROVED. Các điểm còn mở tập trung vào approval ANY/ALL và group snapshot, bảo mật file, audit immutability, lịch sử thu hồi permission và unique active room assignment.
 
 ## 2. Review từng bảng
 
@@ -163,7 +163,7 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 
 ## 4. Quyết định còn mở trước Migration
 
-1. Environment Logs: timezone, retention, source authentication/idempotency, default source_type.
+1. Environment Logs: C01–C03 đã APPROVED; còn thiết kế chi tiết API authentication, idempotency/replay protection và retention policy vận hành.
 2. Approvals: ANY/ALL; group resolution/snapshot; assigned_by; reassign history; có cần approval_events/workflow definition không.
 3. Attachments: MIME/dung lượng, malware scanning/quarantine, private storage, retention/legal hold.
 4. Audit Logs: retention, access policy, masking, mức immutability chống sửa trực tiếp.
@@ -191,4 +191,4 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Đã rà soát đủ 8 bảng còn lại.
 - Column Schema Batch 3 có các điểm bổ sung/đổi tên so với Data Dictionary (assigned_by, revoked fields đang là đề xuất; impact_note/work_note đổi thành relationship_note); cần thống nhất trước migration.
 - Tổng cộng đã review đủ 22/22 bảng ở ba batch.
-- Chưa có phê duyệt final schema và chưa tạo Laravel migrations.
+- C01–C03 đã APPROVED; C04–C18 vẫn OPEN.\n- Chưa có phê duyệt final schema và chưa tạo Laravel migrations.
