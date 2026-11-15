@@ -352,3 +352,15 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 - Archive riêng có thể được áp dụng khi compliance yêu cầu, với quyền sửa/xóa hạn chế theo policy/hạ tầng.
 - Mỗi audit event cần actor, timestamp UTC, action, target object, result và trace/correlation ID khi có.
 - Cơ chế này giảm nguy cơ sửa/xóa, không bảo đảm bất biến tuyệt đối trước DBA hoặc quản trị hạ tầng đặc quyền.
+
+## D02 – Storage Engine and Transaction Policy (APPROVED – 2026-11-15)
+
+1. Toàn bộ 23 bảng SRM sử dụng InnoDB.
+2. Các thao tác nghiệp vụ cập nhật nhiều bảng có quan hệ phải được thực hiện trong một Database Transaction phù hợp.
+3. Nếu một bước bắt buộc trong transaction thất bại, rollback toàn bộ thay đổi thuộc transaction; không để lại trạng thái nghiệp vụ dở dang.
+4. Không sử dụng MyISAM cho các bảng SRM.
+5. Với thao tác đồng thời có nguy cơ tranh chấp dữ liệu, Service phải đánh giá và sử dụng cơ chế khóa phù hợp; `SELECT ... FOR UPDATE` được dùng khi cần khóa bản ghi để bảo vệ invariant, kết hợp transaction và thứ tự khóa nhất quán để hạn chế deadlock.
+6. Các transaction phải ngắn, không giữ row lock trong lúc gọi dịch vụ mạng hoặc thực hiện tác vụ chậm; có xử lý lỗi deadlock/lock timeout phù hợp.
+7. Kiểm thử phải bao gồm rollback khi lỗi giữa chừng và các tình huống concurrent update cho các invariant quan trọng.
+
+- Các thao tác cập nhật trạng thái, tạo approval/audit liên quan và cập nhật quan hệ nhiều bảng phải xác định transaction boundary rõ ràng.
