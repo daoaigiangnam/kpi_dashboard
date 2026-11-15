@@ -330,6 +330,7 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 
 - Không cascade delete và không xóa file tự động khi parent record Archived hoặc Soft Deleted.
 - Retention phải cấu hình theo loại hồ sơ/tài liệu và policy đã phê duyệt; không hard-code thời hạn khi policy chưa xác định.
-- Legal Hold có hiệu lực chặn purge vật lý, kể cả khi retention đã hết hạn.
-- Purge chỉ được thực hiện khi retention hết hạn, không còn Legal Hold, đã kiểm tra tham chiếu và ghi Audit actor/thời điểm/kết quả.
-- File lifecycle cần có trạng thái/metadata đủ để scheduler đánh giá điều kiện purge; cấu trúc cột và cách kế thừa Legal Hold từ parent sẽ được chốt ở Final Schema Review, chưa tự ý thêm schema.
+- Legal Hold được quản lý tại parent record; toàn bộ attachment của parent tự động kế thừa trạng thái bảo vệ. Không đặt Legal Hold độc lập trên từng file.
+- Legal Hold tại parent chặn purge mọi attachment liên quan, kể cả khi retention của file đã hết hạn.
+- Khi parent được gỡ Legal Hold, attachment quay lại quy trình xét retention; chỉ purge khi hết retention, không còn reference hợp lệ và đã ghi Audit actor/thời điểm/kết quả.
+- Schema lưu Legal Hold tại parent và cơ chế scheduler xác định attachment theo parent sẽ được chốt trong Final Schema Review; chưa tự ý thêm schema.
