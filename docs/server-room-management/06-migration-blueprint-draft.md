@@ -273,3 +273,12 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 - Migration cho pivot Incident–Asset phải giữ cột `impact_note` trên `server_room_incident_assets`.
 - Migration cho pivot Maintenance–Asset phải giữ cột `work_note` trên `server_room_maintenance_assets`.
 - Không dùng `relationship_note`; kiểm tra tên cột nhất quán giữa migration, model, validation, API và UI.
+
+
+## C12 – Pivot Asset Snapshot migration/test gate (APPROVED – 2026-11-15)
+
+- Bổ sung/duy trì hai trường snapshot `asset_tag` và `asset_name` trên cả hai pivot Incident–Asset và Maintenance–Asset.
+- Khi tạo pivot row, Service phải đọc Asset hợp lệ trong đúng tenant và ghi snapshot trong cùng transaction với thao tác liên kết.
+- Không cập nhật snapshot khi Asset gốc đổi tên/mã; mọi báo cáo lịch sử phải dùng snapshot.
+- Test: tạo liên kết lưu đúng mã/tên tại thời điểm đó; đổi tên/mã Asset không làm thay đổi snapshot; tenant mismatch không tạo được pivot row.
+- Kiểu dữ liệu, độ dài và nullability được chốt ở Final Schema Review; chưa tạo migration.
