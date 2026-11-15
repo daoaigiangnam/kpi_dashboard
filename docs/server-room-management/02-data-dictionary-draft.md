@@ -364,33 +364,41 @@ Unique: `(customer_id, request_code)`. Index: `(customer_id, server_room_id, sta
 
 ### 2.14 `server_room_equipment_movements`
 
-Mục đích: ghi nhận đưa thiết bị vào/ra phòng hoặc chuyển vị trí.
+Mục đích: ghi nhận đưa thiết bị vào/ra phòng hoặc chuyển vị trí; giữ lịch sử Movement và Asset, không xóa hồ sơ khi check-out.
 
 | Cột | Kiểu dự kiến | Null | Ghi chú |
 |---|---|---:|---|
 | id | BIGINT UNSIGNED | NO | PK |
 | customer_id | BIGINT UNSIGNED | NO | Tenant |
-| asset_id | BIGINT UNSIGNED | YES | FK `server_room_assets.id`; có thể NULL với thiết bị ngoài danh mục |
+| asset_id | BIGINT UNSIGNED | YES | FK `server_room_assets.id`; NULL với thiết bị ngoài danh mục |
 | from_server_room_id | BIGINT UNSIGNED | YES | FK phòng nguồn; NULL với check_in |
 | to_server_room_id | BIGINT UNSIGNED | YES | FK phòng đích; NULL với check_out |
 | movement_code | VARCHAR(60) | NO | Mã phiếu |
 | movement_type | VARCHAR(30) | NO | check_in/check_out/relocate |
 | asset_tag_snapshot | VARCHAR(100) | YES | Snapshot mã thiết bị |
-| equipment_name | VARCHAR(150) | NO | Tên thiết bị |
-| serial_number | VARCHAR(150) | YES | Serial |
-| source_location | VARCHAR(200) | YES | Vị trí đi |
-| destination_location | VARCHAR(200) | YES | Vị trí đến |
-| movement_at | DATETIME | NO | Thời điểm |
+| equipment_name | VARCHAR(150) | NO | Snapshot tên thiết bị |
+| serial_number | VARCHAR(150) | YES | Snapshot serial |
+| source_location | VARCHAR(200) | YES | Ghi chú vị trí nguồn; không thay thế Rack/U có cấu trúc |
+| destination_location | VARCHAR(200) | YES | Ghi chú vị trí đích; không thay thế Rack/U có cấu trúc |
+| from_rack_asset_id | BIGINT UNSIGNED | YES | Rack nguồn; phải thuộc from_server_room_id |
+| from_rack_u_start | SMALLINT UNSIGNED | YES | U bắt đầu nguồn |
+| to_rack_asset_id | BIGINT UNSIGNED | YES | Rack đích; phải thuộc to_server_room_id |
+| to_rack_u_start | SMALLINT UNSIGNED | YES | U bắt đầu đích |
+| requested_at | DATETIME | NO | Thời điểm tạo yêu cầu Movement |
+| executed_at | DATETIME | YES | Thời điểm thực tế hoàn tất Movement |
 | reason | TEXT | NO | Lý do |
-| performed_by | BIGINT UNSIGNED | YES | FK users |
-| approved_by | BIGINT UNSIGNED | YES | FK users |
-| approved_at | DATETIME | YES | |
-| notes | TEXT | YES | |
+| status | VARCHAR(30) | NO | draft/pending_approval/approved/rejected/completed/cancelled |
+| performed_by | BIGINT UNSIGNED | YES | FK users; bắt buộc khi completed |
+| approved_by | BIGINT UNSIGNED | YES | FK users; bắt buộc khi approved/completed |
+| approved_at | DATETIME | YES | Bắt buộc khi approved/completed |
+| notes | TEXT | YES | Ghi chú |
 | created_by | BIGINT UNSIGNED | YES | FK users |
 | created_at | TIMESTAMP | YES | |
 | updated_at | TIMESTAMP | YES | |
 
-Unique: `(customer_id, movement_code)`. Index dự kiến: `(customer_id, from_server_room_id, movement_at)`, `(customer_id, to_server_room_id, movement_at)`, `asset_id`. Quy tắc theo movement_type: check_in bắt buộc to và để from NULL; check_out bắt buộc from và để to NULL; relocate bắt buộc cả from/to. Hai phòng và asset (nếu có) phải cùng tenant. Với đổi Rack/U trong cùng phòng, from và to có thể bằng nhau; vị trí nguồn/đích phải được lưu snapshot.
+Unique: `(customer_id, movement_code)`. Index dự kiến: `(customer_id, from_server_room_id, requested_at)`, `(customer_id, to_server_room_id, requested_at)`, `(asset_id)`, `(customer_id, status, requested_at)`. Quy tắc theo movement_type: check_in bắt buộc to và để from NULL; check_out bắt buộc from và để to NULL; relocate bắt buộc cả from/to. Hai phòng phải cùng tenant; relocate giữa phòng khác nhau, đổi Rack/U trong cùng phòng cho phép from=to. Asset (nếu có) phải cùng tenant; với relocate/check_out, Asset phải đang thuộc from room tại thời điểm execute.
+
+B11: `requested_at` là thời điểm tạo yêu cầu; `executed_at` là thời điểm thực tế hoàn tất, không dùng một `movement_at` cho cả hai. B12: trạng thái Movement là `draft`, `pending_approval`, `approved`, `rejected`, `completed`, `cancelled`; khi approved cần `approved_by`/`approved_at`, khi completed cần `performed_by`/`executed_at`; không cho draft → completed. B13: `asset_id` được NULL cho thiết bị ngoài danh mục; bắt buộc snapshot tên, Serial Number và Asset Tag nếu có; không tự động tạo Asset Record khi check-in. B14: Rack/U nguồn/đích lưu bằng các cột có cấu trúc; Rack phải thuộc đúng Server Room; thiết bị không gắn Rack được phép để các trường Rack/U tương ứng NULL; text chỉ là ghi chú. B15: check-out không xóa Asset Record; cập nhật trạng thái `checked_out` hoặc trạng thái tương đương trong allowlist; check-in lại bằng Movement mới. B16: execute relocate/check_out kiểm tra Asset đúng from room, khóa Asset bằng row-level lock và cập nhật Asset/Movement trong cùng transaction; lỗi thì rollback toàn bộ.
 
 ### 2.15 `server_room_environment_logs`
 
