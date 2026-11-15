@@ -63,7 +63,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C08 | Attachment security | **APPROVED – File lưu Private Storage; xác minh MIME bằng nội dung thực tế; áp dụng allowlist loại file và giới hạn dung lượng có cấu hình; file mới upload ở trạng thái quarantine/pending, chỉ cho preview/download khi malware scan trả kết quả clean; infected/error/pending đều bị chặn truy cập; không public `file_path`. Kiểm tra authorization và tenant ở mọi thao tác.** | Storage, upload/download service, scan state |
 | C09 | Attachment retention | **APPROVED – Không tự động xóa file khi parent Archived/Soft Deleted; retention cấu hình theo loại hồ sơ/tài liệu và policy nghiệp vụ; hỗ trợ Legal Hold; Legal Hold còn hiệu lực thì không xóa dù đã hết hạn; chỉ xóa vật lý sau khi hết hạn, không còn Legal Hold, kiểm tra tham chiếu và ghi Audit đầy đủ actor/thời điểm/kết quả.** | Storage lifecycle, scheduler, legal hold, audit |
 | C10 | Audit immutability | **APPROVED – 2026-11-15 –** Audit Log append-only; ứng dụng không cung cấp chức năng UPDATE/DELETE audit rows; tài khoản DB của ứng dụng không có quyền UPDATE/DELETE trên bảng Audit Log; hỗ trợ archive riêng với quyền sửa/xóa bị hạn chế khi yêu cầu compliance; ghi actor, UTC timestamp, action, target object, result và trace cần thiết. Không tuyên bố bất biến tuyệt đối trước DBA/quản trị hạ tầng chỉ bằng các kiểm soát này. | DB privilege, archive, audit service, security tests |
-| C11 | Pivot column naming | Giữ tên theo Data Dictionary: incident_assets.impact_note và maintenance_assets.work_note; không đổi thành relationship_note nếu không có lý do nghiệp vụ. | Column schema, API |
+| C11 | Pivot column naming | **APPROVED – 2026-11-15 –** Giữ nguyên `server_room_incident_assets.impact_note` và `server_room_maintenance_assets.work_note`; không đổi thành tên chung `relationship_note`. | Column schema, API |
 | C12 | Pivot asset snapshot | Lưu snapshot asset_tag và asset_name tại thời điểm liên kết nếu báo cáo lịch sử cần giữ nguyên tên/mã; đề xuất có snapshot tối thiểu. | Pivot columns, audit |
 | C13 | Pivot room scope | Tenant bắt buộc giống nhau; room scope được kiểm tra theo từng nghiệp vụ: sự cố có thể đa phòng; maintenance một phòng mặc định cùng phòng, đa phòng phải khai báo rõ. | Service validation, UI |
 | C14 | Customer permission revoke | Giữ lịch sử grant/revoke bằng revoked_at/revoked_by; cấp lại tạo bản ghi mới. Cần active unique strategy bằng generated column hoặc transaction/locking sau khi kiểm tra MySQL. | Permission schema, indexes |
@@ -287,3 +287,10 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 4. **Audit fields:** ghi nhận tối thiểu actor, UTC timestamp, action, target object, result và thông tin trace cần thiết (ví dụ request/correlation ID khi có).
 5. **Giới hạn bảo đảm:** append-only và DB privilege giảm nguy cơ sửa/xóa nhưng không tạo ra tính bất biến tuyệt đối trước DBA hoặc quản trị hạ tầng có đặc quyền. Không tuyên bố immutable tuyệt đối chỉ dựa vào UI.
 6. **Implementation gate:** kiểm tra quyền DB thực tế, archive access control, retention, audit access policy và test âm tính UPDATE/DELETE bằng tài khoản ứng dụng trước khi triển khai.
+
+## C11 – Pivot Column Naming (APPROVED – 2026-11-15)
+
+- Giữ `server_room_incident_assets.impact_note` để mô tả ảnh hưởng của Asset trong Incident.
+- Giữ `server_room_maintenance_assets.work_note` để ghi chú công việc bảo trì liên quan đến Asset.
+- Không đổi thành tên chung `relationship_note`; hai trường phản ánh hai ngữ nghĩa nghiệp vụ khác nhau.
+- Không phát sinh bảng hoặc cột mới; đây là xác nhận tên cột đã có trong Data Dictionary.
