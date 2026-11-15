@@ -259,3 +259,10 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Giữ `server_room_incident_assets.impact_note` cho ngữ cảnh ảnh hưởng Asset trong Incident.
 - Giữ `server_room_maintenance_assets.work_note` cho ghi chú công việc bảo trì.
 - Không đổi thành tên chung `relationship_note`; không phát sinh schema object mới.
+
+
+## 12. C12 – Pivot Asset Snapshot (APPROVED – 2026-11-15)
+
+- Lưu cả `asset_tag` và `asset_name` snapshot trên `server_room_incident_assets` và `server_room_maintenance_assets` tại thời điểm liên kết.
+- Snapshot không bị ghi đè khi Asset gốc thay đổi tên/mã; dùng cho báo cáo lịch sử.
+- Cần chốt kiểu dữ liệu/độ dài/nullability trong Final Schema Review và kiểm thử tenant + snapshot consistency.
