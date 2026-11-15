@@ -322,3 +322,17 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Baseline: MySQL 8.0.
 - Xác minh runtime version 8.x cụ thể, SQL mode, charset/collation, storage engine và schema trước khi chốt chi tiết migration.
 - Không giả định tương thích MariaDB/MySQL 5.7.
+
+
+### D01 – Runtime evidence (verified 2026-11-15)
+
+Thông tin truy vấn qua kết nối Laravel đang hoạt động tới database `kpi_dashboard` trong container `kpi-dashboard-db-1`:
+
+- `VERSION()`: `8.0.46`
+- `version_comment`: `MySQL Community Server - GPL`
+- `sql_mode`: `ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION`
+- `character_set_server`: `utf8mb4`
+- `collation_server`: `utf8mb4_unicode_ci`
+- `default_storage_engine`: `InnoDB`
+
+Kết luận: runtime xác minh là MySQL Community Server 8.0.46, InnoDB, charset/collation server `utf8mb4`/`utf8mb4_unicode_ci`. Đây là bằng chứng môi trường tại thời điểm kiểm tra; trước production migration vẫn phải kiểm tra lại trên đúng môi trường triển khai.
