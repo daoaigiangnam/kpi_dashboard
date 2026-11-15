@@ -259,4 +259,12 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 4. Khi Legal Hold còn hiệu lực, file không được xóa vật lý kể cả khi đã hết hạn retention.
 5. Chỉ cho phép xóa vật lý sau khi retention hết hạn, Legal Hold không còn hiệu lực, đã kiểm tra tham chiếu và ghi Audit gồm actor, thời điểm và kết quả.
 
-**Schema note:** C09 chốt nguyên tắc nghiệp vụ. Cách biểu diễn retention/Legal Hold ở mức cột và quan hệ (file-level hay kế thừa từ parent) sẽ được chốt trong Final Schema Review; chưa tự ý thêm bảng/cột và chưa tạo migration.
+**Schema note:** Chủ dự án chọn Legal Hold ở cấp hồ sơ cha (parent record). Khi parent được đặt Legal Hold, toàn bộ attachment gắn với parent đó tự động được bảo vệ; không đặt Legal Hold độc lập cho từng file. Cách lưu trạng thái/metadata Legal Hold tại parent và cách scheduler tra cứu các attachment liên quan sẽ được chốt trong Final Schema Review; chưa tự ý thêm bảng/cột và chưa tạo migration.
+
+
+### C09-A – Phạm vi Legal Hold (APPROVED – 2026-11-15)
+
+- Legal Hold được quản lý tại cấp hồ sơ cha (parent record), không quản lý độc lập trên từng attachment.
+- Khi parent có Legal Hold còn hiệu lực, tất cả file đính kèm thuộc parent đó đều không được purge.
+- Khi parent được gỡ Legal Hold, các file đính kèm trở lại quy trình xét retention thông thường; chỉ purge nếu đã hết retention, không còn reference hợp lệ và đã ghi Audit.
+- Schema cụ thể để lưu Legal Hold ở parent và truy vấn attachment liên quan vẫn phải được thiết kế trong Final Schema Review.
