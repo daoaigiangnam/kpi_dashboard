@@ -158,14 +158,16 @@ Bảng customer_user_server_rooms lưu customer_id, user_id, server_room_id, gra
 ### 7.1 Cấp quyền vào phòng Server
 1. Người quản lý tạo đề nghị thêm người.
 2. Người có quyền kiểm tra thông tin và thời hạn.
-3. Người phê duyệt được chỉ định duyệt hoặc từ chối.
-4. Khi duyệt, access person chuyển trạng thái approved và có hiệu lực theo valid_from/valid_until.
-5. Thu hồi quyền phải lưu người thu hồi, thời điểm và lý do.
+3. Yêu cầu đi qua workflow phê duyệt tuần tự theo cấp; tại mỗi cấp, tất cả approver thuộc snapshot hiệu lực phải APPROVE mới được chuyển cấp.
+4. Chỉ khi toàn bộ cấp bắt buộc đã APPROVE, access person mới chuyển trạng thái approved và có hiệu lực theo valid_from/valid_until.
+5. Nếu bất kỳ approver nào REJECT, workflow dừng và yêu cầu bị từ chối.
+6. Thu hồi quyền phải lưu người thu hồi, thời điểm và lý do.
 
 ### 7.2 Yêu cầu bảo trì
 1. Người yêu cầu tạo phiếu, mô tả phạm vi, thời gian, thiết bị và ảnh hưởng.
-2. Workflow gửi đúng người/nhóm phê duyệt.
-3. Chỉ khi approved mới chuyển sang in_progress (trừ quy trình emergency được cấu hình riêng).
+2. Workflow gửi yêu cầu tuần tự theo cấp; group/role được resolve thành danh sách user cụ thể khi cấp đó đến lượt.
+3. Tại mỗi cấp, tất cả approver trong snapshot phải APPROVE; chỉ sau đó mới chuyển cấp tiếp theo. Một REJECT làm dừng workflow và từ chối yêu cầu.
+4. Chỉ khi tất cả cấp bắt buộc approved mới chuyển sang in_progress. Emergency Bypass không thuộc phiên bản đầu.
 4. Kết thúc công việc: ghi actual time, kết quả, bằng chứng và xác minh.
 5. Đóng phiếu; lưu toàn bộ lịch sử duyệt.
 
@@ -182,6 +184,26 @@ Bảng customer_user_server_rooms lưu customer_id, user_id, server_room_id, gra
 3. Giao người xử lý/action.
 4. Xác minh kết quả khắc phục.
 5. Đóng sự cố bởi người có quyền; không xóa hồ sơ.
+
+### 7.5 Quy tắc Approval Workflow đã được chủ dự án phê duyệt (C04–C06)
+
+**C04 – Sequential Approval + ALL Approvers per Level**
+- Các cấp phê duyệt chạy tuần tự theo thứ tự cấu hình; cấp sau chỉ được kích hoạt khi cấp trước hoàn tất.
+- Trong một cấp có nhiều approver, tất cả approver thuộc danh sách hiệu lực đều phải APPROVE mới được chuyển cấp.
+- Chỉ cần một approver REJECT thì workflow dừng tại cấp đó và yêu cầu bị từ chối.
+- Không tự động bỏ qua cấp hoặc coi im lặng/hết thời hạn là đồng ý.
+
+**C05 – Approver Snapshot**
+- Khi một cấp được kích hoạt/giao duyệt, hệ thống resolve group/role thành danh sách user cụ thể và snapshot danh sách đó cho cấp đang xử lý.
+- Thay đổi membership hoặc cơ cấu nhân sự sau thời điểm snapshot không tự thay đổi danh sách của cấp đang xử lý.
+- Cấp tiếp theo được snapshot tại thời điểm cấp đó được kích hoạt; không snapshot trước toàn bộ các cấp nếu cấu hình/người nhận có thể thay đổi trước khi đến lượt.
+
+**C06 – Delegation và Reassignment**
+- Delegation (ủy quyền): người phê duyệt gốc vẫn được lưu; người được ủy quyền thực hiện thay trong phạm vi và thời hạn được duyệt. Phải lưu cả principal approver và acting approver.
+- Reassignment (thay thế/giao lại): người có thẩm quyền quản lý workflow có thể thay approver trong yêu cầu đang xử lý; bắt buộc ghi approver cũ, approver mới, actor thực hiện, thời điểm và lý do.
+- Đề nghị ủy quyền phải được người có thẩm quyền chấp thuận; người được ủy quyền phải active, có quyền phù hợp và đúng tenant/scope.
+- Thay thế không được làm giảm điều kiện ALL: người thay thế tiếp nhận nghĩa vụ duyệt của vị trí được thay; các approver còn lại vẫn phải duyệt.
+- Mọi thao tác tạo, duyệt, thu hồi ủy quyền và reassignment đều phải ghi Audit Log. Không ghi đè lịch sử quyết định đã phát sinh.
 
 ## 8. Ma trận vai trò rút gọn
 
