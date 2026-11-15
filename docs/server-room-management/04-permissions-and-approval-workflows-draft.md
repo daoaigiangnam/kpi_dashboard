@@ -284,3 +284,11 @@ Chủ dự án chọn phương án ủy quyền theo thời hạn/phạm vi (b�
 - Thu hồi assignment bằng `revoked_at`/`revoked_by`; giữ row lịch sử.
 - Cấp lại tạo assignment row mới; mỗi cặp `(customer_id, user_id, server_room_id)` chỉ có một assignment active.
 - Người cấp/thu hồi phải có quyền quản trị SRM trong tenant; mọi thay đổi phải Audit.
+
+
+## C16 – Customer User Tenant Integrity (APPROVED – 2026-11-15)
+
+- Customer account phải có `account_type='customer'` và `service_customer_id` đúng bằng `customer_id` của dữ liệu SRM.
+- Customer User chỉ được cấp/kiểm tra quyền trong tenant của chính user; không kế thừa quyền Internal/Platform.
+- Mọi authorization phải kiểm tra account type, tenant ownership, trạng thái user, permission và room assignment phù hợp.
+- Không tin `customer_id` hoặc user identity do client tự gửi; phải resolve từ user đã xác thực.
