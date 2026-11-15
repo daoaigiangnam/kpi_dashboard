@@ -334,3 +334,11 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 - Legal Hold tại parent chặn purge mọi attachment liên quan, kể cả khi retention của file đã hết hạn.
 - Khi parent được gỡ Legal Hold, attachment quay lại quy trình xét retention; chỉ purge khi hết retention, không còn reference hợp lệ và đã ghi Audit actor/thời điểm/kết quả.
 - Schema lưu Legal Hold tại parent và cơ chế scheduler xác định attachment theo parent sẽ được chốt trong Final Schema Review; chưa tự ý thêm schema.
+
+
+## 15. C09-B – Legal Hold event history (APPROVED – 2026-11-15)
+
+- Mỗi lần đặt/gỡ Legal Hold tạo một event lịch sử riêng gắn với parent record; không ghi đè lịch sử cũ.
+- Lưu action, parent identity, actor, thời điểm UTC, lý do; release event phải liên kết lần đặt hold được gỡ.
+- Không hard delete event; kiểm soát quyền và Audit mọi thao tác đặt/gỡ.
+- Cấu trúc bảng/cột cụ thể sẽ được chốt trong Final Schema Review.
