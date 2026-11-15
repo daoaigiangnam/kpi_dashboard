@@ -413,3 +413,14 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 6. Giá trị thuộc tập lựa chọn cố định phải được kiểm soát bằng validation phía ứng dụng và constraint phù hợp với MySQL 8.0.46/schema thực tế; không chỉ dựa vào giao diện.
 7. Với JSON cần truy vấn theo thuộc tính cụ thể, phải đánh giá generated column/index hoặc giải pháp phù hợp; chỉ bổ sung khi có use case và kiểm thử hiệu năng.
 8. Kiểu dữ liệu, precision/scale, nullability, default và constraint cụ thể của từng cột được chốt trong Final Schema Review sau khi đối chiếu data dictionary và schema hiện hữu.
+
+
+## D07 – Indexing and Query Performance Policy (APPROVED – 2026-11-15)
+
+1. Mọi Foreign Key phải có index phù hợp cho các thao tác join, kiểm tra constraint và truy vấn quan hệ; xác minh index hiện có trước khi tạo mới để tránh trùng lặp không cần thiết.
+2. Thiết kế Composite Index dựa trên query pattern thực tế; cân nhắc tenant scope (`customer_id`), room/asset reference, trạng thái và cột thời gian theo điều kiện lọc/sắp xếp thực tế.
+3. Không tạo index tràn lan; đánh giá chi phí INSERT/UPDATE/DELETE, dung lượng lưu trữ và khả năng trùng lặp/leftmost-prefix với index hiện hữu.
+4. Các truy vấn danh sách, tìm kiếm, lọc và báo cáo quan trọng phải được kiểm tra bằng `EXPLAIN`; dùng `EXPLAIN ANALYZE` khi phù hợp và an toàn trên dữ liệu đại diện.
+5. Chỉ bổ sung/thay đổi index khi có căn cứ từ query pattern, execution plan hoặc đo kiểm hiệu năng; không suy đoán index chỉ từ tên cột.
+6. Trước migration index, rà soát index/constraint hiện hữu, dữ liệu và khả năng lock/ảnh hưởng vận hành trên MySQL 8.0.46; kế hoạch triển khai phải có bước xác minh sau thay đổi.
+7. Kiểm thử phải bao gồm truy vấn theo tenant, room, status, thời gian, join FK và các truy vấn dashboard/báo cáo quan trọng.
