@@ -450,3 +450,17 @@ Kết luận: runtime xác minh là MySQL Community Server 8.0.46, InnoDB, chars
 
 - Trước migration index: lấy inventory index/constraint hiện tại và xác định index nào đã đáp ứng FK/query pattern; không tạo index trùng.
 - Kiểm tra execution plan và thời gian truy vấn trước/sau trên dữ liệu đại diện; xác minh lock/impact phù hợp MySQL 8.0.46.
+
+
+## D08 – Pagination, Filtering and Sorting Policy (APPROVED – 2026-11-15)
+
+1. Tất cả API trả danh sách phải hỗ trợ pagination; endpoint đặc thù chỉ được miễn nếu có lý do được ghi nhận và giới hạn kết quả rõ ràng.
+2. Mặc định dùng `LIMIT`/`OFFSET`; chỉ cân nhắc cursor pagination khi quy mô dữ liệu hoặc yêu cầu hiệu năng/độ ổn định của tập kết quả chứng minh cần thiết.
+3. Phải giới hạn `page_size` tối đa ở server; không tin giá trị do client gửi nếu vượt ngưỡng cấu hình.
+4. Sort field và sort direction phải được kiểm tra bằng allowlist; không nối trực tiếp tên cột hoặc biểu thức sort tùy ý từ client vào SQL.
+5. Filter phải được validate kiểu dữ liệu, miền giá trị và quyền truy cập; mọi truy vấn phải áp dụng tenant scope/authorization ở server.
+6. Pagination phải có thứ tự sắp xếp ổn định, bổ sung unique tie-breaker (ví dụ primary key) khi sort field không duy nhất để hạn chế bản ghi trùng/bỏ sót giữa các trang.
+7. Các truy vấn list/filter/sort quan trọng phải được kiểm tra bằng `EXPLAIN` và đối chiếu với index theo D07.
+8. Giá trị mặc định và tối đa của `page_size`, danh sách sort/filter được phép sẽ được xác định theo từng API và kiểm thử tải; không áp một con số tùy tiện cho toàn hệ thống.
+
+- API contract phải công bố pagination/filter/sort được hỗ trợ; giới hạn page size và allowlist phải được enforce ở server.
