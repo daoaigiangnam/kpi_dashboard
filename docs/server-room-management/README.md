@@ -131,3 +131,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - D01 đã APPROVED: MySQL 8.0 là baseline thiết kế/migration; runtime minor/patch version và cấu hình thực tế vẫn phải được xác minh trước khi triển khai.
+
+
+- D01 runtime đã được xác minh qua Laravel: MySQL Community Server 8.0.46, InnoDB, `utf8mb4` / `utf8mb4_unicode_ci`; `sql_mode` đã được ghi nhận trong Decision Register và Migration Blueprint.
