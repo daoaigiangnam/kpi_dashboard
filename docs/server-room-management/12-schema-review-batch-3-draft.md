@@ -196,3 +196,12 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Tổng cộng đã review đủ 22/22 bảng ở ba batch.
 - C01–C06 đã APPROVED; C07–C18 vẫn OPEN.
 - Chưa có phê duyệt final schema và chưa tạo Laravel migrations.
+
+
+## Bổ sung review – C06 Delegation và bảng thứ 23
+
+**Trạng thái quyết định nghiệp vụ:** APPROVED – chủ dự án chọn delegation theo thời hạn/phạm vi và chọn chỉ áp dụng khi approval level được kích hoạt.
+
+**Schema impact:** thêm `server_room_approval_delegations`; bổ sung `acting_approver_id`, `acted_by`, `delegation_id` vào `server_room_approvals`. Principal approver vẫn được snapshot ở `approver_id`; acting approver và delegation được snapshot tại thời điểm kích hoạt cấp. Không hồi tố thay đổi cấp đã kích hoạt khi delegation bị thu hồi/hết hạn.
+
+**Review còn phải kiểm tra trước migration:** unique/conflict strategy cho các delegation overlap; composite FK tenant; index theo customer/principal/status/validity; quyền phê duyệt và thu hồi delegation; audit event khi áp dụng delegation. Tổng register điều chỉnh từ 22 lên 23 bảng.
