@@ -369,3 +369,14 @@ Kết luận: runtime xác minh là MySQL Community Server 8.0.46, InnoDB, chars
 5. Soft Delete không xóa bản ghi vật lý và không được làm mất tính toàn vẹn tham chiếu; Service phải xác định rõ cách xử lý record soft-deleted trong từng nghiệp vụ.
 6. Trước khi tạo FK, phải kiểm tra dữ liệu orphan, kiểu dữ liệu/unsigned, index và thứ tự migration; không tạo constraint nếu dữ liệu hiện hữu chưa đạt điều kiện.
 7. Kiểm thử bắt buộc: ngăn xóa cha còn con, ngăn tham chiếu chéo tenant, kiểm tra polymorphic reference hợp lệ và xử lý soft-deleted parent.
+
+
+## D05 – Unique Index and Duplicate Prevention Policy (APPROVED – 2026-11-15)
+
+1. Các mã định danh nghiệp vụ phải có uniqueness phù hợp với phạm vi áp dụng; với dữ liệu thuộc tenant, phạm vi unique phải bao gồm `customer_id` khi nghiệp vụ yêu cầu mã chỉ duy nhất trong tenant.
+2. Những bản ghi chỉ được phép tồn tại một trạng thái active cho cùng một business key phải có cơ chế bảo đảm uniqueness ở database khi khả thi, không chỉ kiểm tra tại PHP.
+3. Không dựa riêng vào application-level pre-check để bảo đảm uniqueness vì có thể xảy ra race condition khi nhiều request đồng thời.
+4. Các thao tác tạo dữ liệu quan trọng cần có cơ chế idempotency phù hợp để request gửi lại không tạo bản ghi hoặc side effect trùng; thiết kế key/scope/retention phải theo từng operation.
+5. Trước khi tạo Unique Index/constraint, phải rà soát dữ liệu trùng hiện hữu, xác định quy tắc nghiệp vụ, xử lý dữ liệu trùng có kiểm soát và kiểm tra ảnh hưởng tới các module đang dùng schema.
+6. Không áp đặt một quy tắc unique toàn cục cho mọi mã; xác định rõ business key, tenant scope, trạng thái active/inactive và lịch sử cho từng bảng.
+7. Kiểm thử bắt buộc: insert trùng, concurrent insert/update, regrant sau revoke, retry/idempotent request và tenant isolation.
