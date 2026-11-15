@@ -190,7 +190,7 @@ Không tự suy đoán các nội dung sau trong migration:
 - [ ] Đối chiếu schema/migrations thực tế trước khi tạo SRM migrations.
 - [ ] Tạo migrations theo thứ tự phụ thuộc và chạy test tenant/state/permission.
 
-**Lưu ý:** Hoàn tất review không đồng nghĩa schema đã được phê duyệt. Batch 1 và Batch 2 có các quyết định đã ghi nhận trong Decision Register; Batch 3 (C01–C18) và baseline kỹ thuật nhóm D vẫn còn mở. Phải hoàn tất các quyết định ảnh hưởng cấu trúc và kiểm tra database thực tế trước migration.
+**Lưu ý:** Hoàn tất review không đồng nghĩa schema đã được phê duyệt. Batch 1 và Batch 2 có các quyết định đã ghi nhận trong Decision Register; Batch 3: C01–C03 đã APPROVED; C04–C18 và baseline kỹ thuật nhóm D vẫn còn mở. Phải hoàn tất các quyết định ảnh hưởng cấu trúc và kiểm tra database thực tế trước migration.
 
 
 ## 8. Final Schema Decision Gate
