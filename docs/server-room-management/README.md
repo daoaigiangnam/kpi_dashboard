@@ -9,7 +9,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - ERD logic: đã đồng bộ Movement theo B11–B16; FK/index/delete rules toàn hệ thống vẫn đang Final Schema Review.
 - Phân quyền và workflow: đã có bản đề xuất; đã chốt phương án B; Customer User assigned-only; Customer IT Admin được cấp quyền và gán phòng trong tenant.
 - Batch 1 và Batch 2: các quyết định nghiệp vụ đã được ghi nhận; Batch 2 có B01–B16 APPROVED.
-- Batch 3: C01–C12 đã APPROVED; C13–C18 và baseline kỹ thuật nhóm D vẫn còn mở.
+- Batch 3: C01–C13 đã APPROVED; C14–C18 và baseline kỹ thuật nhóm D vẫn còn mở.
 - Laravel migrations và code ứng dụng: chưa triển khai.
 - Không chạy migration hoặc thay đổi dữ liệu production trong giai đoạn thiết kế.
 
@@ -110,3 +110,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - C12 đã APPROVED: cả hai pivot Incident–Asset và Maintenance–Asset lưu snapshot `asset_tag` và `asset_name` tại thời điểm liên kết; snapshot không thay đổi khi Asset gốc đổi tên/mã. Kiểu dữ liệu chi tiết chờ Final Schema Review.
+
+
+- C13 đã APPROVED: Incident được liên kết Asset đa phòng trong cùng tenant; Maintenance mặc định cùng Room, đa phòng phải khai báo scope rõ; Service kiểm tra tenant/room scope trước khi liên kết. Không phát sinh bảng mới.
