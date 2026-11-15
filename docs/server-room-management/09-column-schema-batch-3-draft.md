@@ -71,12 +71,14 @@
 | mime_type | VARCHAR(150) | YES | NULL | MIME đã xác thực |
 | file_size | BIGINT UNSIGNED | NO | — | Byte |
 | checksum_sha256 | CHAR(64) | YES | NULL | SHA-256 |
+| scan_status | VARCHAR(20) | NO | pending | `pending`, `clean`, `infected`, `error`; chỉ `clean` được phép preview/download |
+| scanned_at | TIMESTAMP | YES | NULL | Thời điểm scanner hoàn tất; UTC |
 | uploaded_by | BIGINT UNSIGNED | YES | NULL | FK users |
 | created_at | TIMESTAMP | YES | NULL | Laravel |
 
 **Khóa/index:** PK id; INDEX (customer_id, attachable_type, attachable_id), (uploaded_by), (customer_id, created_at). FK uploaded_by → users.id, nullable. Polymorphic parent không có FK trực tiếp; kiểm tra allowlist, parent và tenant trước upload/download/delete. file_path không public URL; download qua service authorization.
 
-**Security/retention:** Kiểm tra MIME theo nội dung, không tin extension/header; giới hạn dung lượng/loại file, malware scan và storage policy phải cấu hình. Xóa vật lý theo retention job sau khi kiểm tra tham chiếu; không cascade tự động. Không lưu binary trong MySQL.
+**Security/retention (C08):** Binary lưu Private Storage; `file_path` chỉ là đường dẫn nội bộ, không public. Xác minh MIME theo nội dung thực tế, không tin extension/client header; chỉ nhận MIME allowlist và giới hạn dung lượng cấu hình. File mới upload ở trạng thái quarantine `pending`; scanner xác nhận `clean` mới cho preview/download. `infected` hoặc `error` bị chặn truy cập và xử lý theo quy trình bảo mật. Mọi thao tác phải kiểm tra authorization + tenant + parent record. Xóa vật lý theo retention job sau khi kiểm tra tham chiếu; không cascade tự động. Không lưu binary trong MySQL.
 
 ## 5. Bảng 18 – server_room_audit_logs
 
