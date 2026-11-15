@@ -205,3 +205,13 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 **Schema impact:** thêm `server_room_approval_delegations`; bổ sung `acting_approver_id`, `acted_by`, `delegation_id` vào `server_room_approvals`. Principal approver vẫn được snapshot ở `approver_id`; acting approver và delegation được snapshot tại thời điểm kích hoạt cấp. Không hồi tố thay đổi cấp đã kích hoạt khi delegation bị thu hồi/hết hạn.
 
 **Review còn phải kiểm tra trước migration:** unique/conflict strategy cho các delegation overlap; composite FK tenant; index theo customer/principal/status/validity; quyền phê duyệt và thu hồi delegation; audit event khi áp dụng delegation. Tổng register điều chỉnh từ 22 lên 23 bảng.
+
+
+## 6. C07 – Approval self-approval (APPROVED – 2026-11-15)
+
+**Quyết định:** Cấm requester tự phê duyệt yêu cầu do chính mình tạo trong mọi SRM workflow của phiên bản đầu.
+
+- Loại requester khỏi approver snapshot nếu requester xuất hiện trong danh sách đã resolve; ghi nhận lý do/audit.
+- Nếu không còn approver hợp lệ ở cấp, chặn kích hoạt; không tự skip cấp.
+- Delegation không được bypass quy tắc này; acting approver là requester thì không được approve. Chỉ workflow manager có thẩm quyền mới được reassignment và phải giữ ALL.
+- Đây là quy tắc authorization/service-level, không phát sinh bảng hoặc cột mới trong schema.
