@@ -248,3 +248,10 @@ Tại thời điểm kích hoạt cấp, hệ thống resolve approver group/rol
 
 - Quan hệ Incident–Asset (`server_room_incident_assets`) và Maintenance–Asset (`server_room_maintenance_assets`) lưu `asset_tag` và `asset_name` snapshot tại thời điểm liên kết.
 - Snapshot bảo toàn ngữ cảnh lịch sử khi Asset gốc được đổi tên hoặc đổi mã; không thay thế FK tới Asset hiện tại.
+
+
+## C13 – Room Scope của các quan hệ Pivot (APPROVED – 2026-11-15)
+
+- Incident–Asset: cho phép quan hệ qua nhiều Server Room nhưng bắt buộc cùng `customer_id`.
+- Maintenance–Asset: mặc định cùng Server Room; trường hợp đa phòng phải được yêu cầu bảo trì khai báo tường minh.
+- Room scope là quy tắc nghiệp vụ trên quan hệ; không ép Incident đa phòng thành một Room duy nhất.
