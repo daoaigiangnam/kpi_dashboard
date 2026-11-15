@@ -46,8 +46,8 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | B12 | Movement status/lifecycle | **APPROVED – Movement dùng các trạng thái `draft`, `pending_approval`, `approved`, `rejected`, `completed`, `cancelled`. Khi `approved` bắt buộc có `approved_by`, `approved_at`; khi `completed` bắt buộc có `performed_by`, `executed_at`. Không cho chuyển trực tiếp `draft` → `completed`; chỉ cập nhật vị trí Asset khi Movement thực hiện thành công. Mọi chuyển trạng thái phải được Audit.** | State machine, migration |
 | B13 | Movement asset_id NULL | **APPROVED – Cho phép `asset_id = NULL` đối với Movement loại `check_in` và `check_out` cho thiết bị chưa có Asset Record. Bắt buộc lưu Snapshot gồm tên thiết bị, Serial Number và Asset Tag (nếu có). Sau `check_in`, quản trị viên quyết định có tạo Asset Record chính thức hay không; nếu tạo, liên kết bằng quy trình riêng. Không tự động tạo Asset Record khi check-in.** | Asset lifecycle, reconciliation |
 | B14 | Movement Rack/U snapshot | **APPROVED – Lưu vị trí Rack/U nguồn và đích bằng các trường có cấu trúc: `from_rack_asset_id`, `from_rack_u_start`, `to_rack_asset_id`, `to_rack_u_start`. Rack nguồn/đích phải thuộc đúng Server Room tương ứng. Thiết bị không gắn Rack được phép để các trường Rack/U tương ứng `NULL`. Lưu Snapshot trước và sau di chuyển; trường Text chỉ dùng làm ghi chú, không thay thế dữ liệu vị trí kỹ thuật có cấu trúc.** | Movement schema, validation |
-| B15 | Check-out asset state | Check-out đưa asset sang trạng thái ngoài phòng/checked_out, không xóa asset; check_in lại bằng phiếu mới. Cần thêm allowlist trạng thái asset tương ứng. | Asset status, movement transaction |
-| B16 | Movement source validation | Khi relocate/check_out, asset phải ở from room; execute cập nhật asset và movement trong một transaction, khóa asset để chống double execution. | Service, locking, tests |
+| B15 | Check-out asset state | **APPROVED – Không xóa Asset Record khi check-out. Cập nhật trạng thái Asset sang `checked_out` (hoặc trạng thái tương đương trong allowlist); tạo Movement `check_out` lưu thời gian, người thực hiện và snapshot thiết bị. Khi thiết bị quay lại, tạo Movement `check_in` mới để giữ nguyên lịch sử; không ghi đè Movement cũ.** | Asset status, movement transaction |
+| B16 | Movement source validation | **APPROVED – Khi thực hiện `relocate` hoặc `check_out`, Asset phải đang thuộc `from_server_room_id`. Execute Movement phải cập nhật Movement và Asset trong cùng một Database Transaction; khóa Asset bằng row-level lock (`SELECT ... FOR UPDATE`) để ngăn hai yêu cầu đồng thời thực hiện trên cùng Asset. Nếu kiểm tra nguồn không hợp lệ hoặc có xung đột, rollback toàn bộ transaction; không cập nhật một phần.** | Service, locking, tests |
 
 ## 4. Nhóm C – Environment, Approval, File, Audit, Pivot và Customer Access (Batch 3)
 
@@ -106,7 +106,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
 | A – Batch 1 | 11 | 11 | 0 |
-| B – Batch 2 | 16 | 14 | 2 |
+| B – Batch 2 | 16 | 16 | 0 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
 
@@ -206,3 +206,8 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 - **A02 – APPROVED (2026-11-14):** `branch` bắt buộc có `branch_id`; `head_office`, `data_center`, `independent` phải có `branch_id = NULL`; `branch_id` phải thuộc cùng `customer_id`.
+
+
+- **B15 – APPROVED (2026-11-15):** Không xóa Asset Record khi check-out; cập nhật trạng thái `checked_out` (hoặc trạng thái tương đương trong allowlist); tạo Movement `check_out` với thời gian, người thực hiện và snapshot thiết bị; khi quay lại tạo Movement `check_in` mới, không ghi đè lịch sử.
+
+- **B16 – APPROVED (2026-11-15):** Khi `relocate`/`check_out`, Asset phải thuộc `from_server_room_id`; Execute cập nhật Asset và Movement trong cùng transaction, khóa Asset bằng row-level lock để chống double execution; nếu kiểm tra nguồn/xung đột thất bại thì rollback toàn bộ.
