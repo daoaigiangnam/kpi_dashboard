@@ -309,3 +309,19 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 - Khi áp dụng delegation, kiểm tra acting approver sau bước resolve delegation. Acting approver không được là requester; nếu vi phạm, không cho quyết định được ghi nhận.
 - Reassignment chỉ do workflow manager có quyền thực hiện, phải lưu old/new approver, actor, timestamp, reason; sau reassignment vẫn phải thỏa ALL.
 - Test bắt buộc: requester nằm trong approver list; requester bị loại khiến list rỗng; delegate là requester; reassignment hợp lệ; không thể approve bằng API giả mạo actor.
+
+## 13. C08 – Attachment scan state và integrity (APPROVED – 2026-11-15)
+
+| Current | Event | Next | Điều kiện |
+|---|---|---|---|
+| pending | scan_clean | clean | Scanner xác nhận file an toàn; ghi `scanned_at` |
+| pending | scan_infected | infected | Scanner phát hiện mã độc; cách ly, cấm preview/download |
+| pending | scan_error | error | Scanner lỗi/không xác định được kết quả; fail closed, cấm preview/download |
+| error | rescan | pending | Chỉ service bảo mật được phép yêu cầu quét lại |
+
+- File upload phải được giữ trong private quarantine cho tới khi scan hoàn tất.
+- Chỉ `scan_status=clean` mới được preview/download. Không được coi pending, lỗi scanner hoặc timeout là clean.
+- MIME phải xác minh từ nội dung; allowlist và dung lượng là cấu hình server-side.
+- Mỗi lần scan cập nhật trạng thái/thời điểm và ghi audit; không cho client tự gửi `scan_status`.
+- Upload/download/delete đều kiểm tra tenant, parent record và authorization; `file_path` không được trả ra API công khai.
+- Không xóa file nhiễm mã độc tự động nếu chưa xác định retention/security handling; cách ly và xử lý theo quy trình được phê duyệt.
