@@ -261,3 +261,10 @@ Chủ dự án đã chọn ủy quyền theo thời hạn/phạm vi và xác nh�
 - Snapshot phục vụ báo cáo lịch sử, không bị ghi đè khi Asset gốc thay đổi tên/mã.
 - Khi cần, giao diện có thể hiển thị song song snapshot lịch sử và thông tin Asset hiện tại; không dùng dữ liệu hiện tại thay cho snapshot.
 - Độ dài/kiểu dữ liệu và quy tắc nullability phải được xác nhận khi rà soát cột cuối cùng.
+
+
+## C13 – Pivot Room Scope (APPROVED – 2026-11-15)
+
+- Pivot Incident–Asset: Asset có thể thuộc Server Room khác nhau trong cùng tenant của Incident; không bắt buộc cùng một Room.
+- Pivot Maintenance–Asset: mặc định Asset phải thuộc Room của Maintenance Request. Trường hợp nhiều Room phải có khai báo phạm vi đa phòng rõ ràng trên yêu cầu.
+- Service kiểm tra `customer_id` ở cả hai đầu và điều kiện Room tương ứng trước khi ghi pivot; kiểm tra lại vị trí Asset tại thời điểm thực hiện nghiệp vụ.
