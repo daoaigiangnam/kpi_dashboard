@@ -114,14 +114,14 @@ Batch 2 gồm Access Logs, Inspections/Results, Incidents/Actions, Maintenance R
 - Chuyển Rack/U trong cùng room cho phép from=to.
 
 **Mâu thuẫn/thiếu cần giải quyết**
-1. Data Dictionary có movement_at nhưng chưa định nghĩa là thời điểm yêu cầu, dự kiến hay thực thi. Batch 2 đề xuất status và executed_at nhưng đây là cột bổ sung chưa được phê duyệt.
-2. State Machine cần draft/pending_approval/approved/rejected/completed/cancelled; cần status để biểu diễn lifecycle.
-3. Đề xuất tách requested_at và executed_at; không dùng một movement_at cho hai ý nghĩa. Có thể giữ movement_at chỉ khi định nghĩa rõ.
-4. performed_by là người thực hiện; executed_at là thời điểm hoàn tất. Khi approved cần approved_by/approved_at; khi completed cần performed_by/executed_at.
-5. Với asset_id khác NULL, asset hiện tại phải ở from_server_room_id trước khi relocate/check_out. Check_in cần định nghĩa asset chưa thuộc phòng hoặc trạng thái phù hợp.
-6. Với asset_id NULL, equipment_name/serial/tag snapshot phải đủ cho thiết bị ngoài danh mục. Có quy trình tạo asset sau check_in không?
-7. Đổi Rack/U trong cùng room: source_location/destination_location hiện là text; nếu cần đối soát chính xác, cân nhắc snapshot rack ID/U riêng.
-8. Cần candidate keys và composite FK cho from room, to room, asset. Với asset, kiểm tra thuộc đúng source room; cùng customer là chưa đủ.
+1. Đã giải quyết theo B11: bỏ semantics mơ hồ của movement_at; dùng requested_at và executed_at riêng.
+2. Đã giải quyết theo B12: status dùng draft/pending_approval/approved/rejected/completed/cancelled; metadata actor/time bắt buộc theo trạng thái.
+3. Đã giải quyết theo B11: không giữ movement_at; requested_at là thời điểm tạo yêu cầu và executed_at là thời điểm hoàn tất thực tế.
+4. Đã chốt theo B12: khi approved cần approved_by/approved_at; khi completed cần performed_by/executed_at.
+5. Đã chốt theo B16: relocate/check_out phải kiểm tra Asset hiện tại ở from_server_room_id ngay trong transaction khi execute.
+6. Đã chốt theo B13: asset_id NULL được phép cho check_in/check_out thiết bị ngoài danh mục; snapshot tên, Serial Number, Asset Tag nếu có; không tự động tạo Asset Record khi check-in.
+7. Đã chốt theo B14: dùng from_rack_asset_id/from_rack_u_start/to_rack_asset_id/to_rack_u_start; Rack thuộc đúng phòng; text chỉ là ghi chú và cần giữ snapshot vị trí trước/sau.
+8. Ràng buộc tenant và source room tiếp tục là điều kiện bắt buộc ở composite FK/service transaction; khóa Asset khi execute theo B16.
 9. Cấm movement xuyên customer. Check_in/check_out có một đầu NULL theo type.
 
 ## 3. Ma trận tenant integrity
@@ -167,10 +167,10 @@ Actor fields phải được authorization theo tenant và permission; FK users.
 - [ ] Xác định composite FK cho room, template, access_person, incident, asset và maintenance.
 - [ ] Chốt allowlist status/transition đồng nhất giữa Data Dictionary, State Machine, model và UI.
 - [ ] Chốt snapshot và immutability/revision cho Inspection Results.
-- [ ] Chốt time semantics cho access log, inspection, maintenance và movement.
-- [ ] Chốt asset location lifecycle khi movement check_in/check_out/relocate.
+- [ ] Chốt time semantics cho access log, inspection và maintenance. Movement đã chốt theo B11.
+- [x] Chốt asset location lifecycle khi movement check_in/check_out/relocate (B13, B15, B16).
 - [ ] Viết test tenant mismatch, invalid transition, timestamp order, duplicate inspection item, movement source mismatch và double execution.
-- [ ] Kiểm tra transaction/locking khi execute movement để tránh một asset bị di chuyển đồng thời bởi hai phiếu.
+- [x] Chốt transaction/locking khi execute movement (B16); cần hiện thực và kiểm thử khi triển khai.
 
 ## 6. Kết luận Batch 2
 
