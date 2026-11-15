@@ -253,3 +253,11 @@ Chủ dự án đã chọn ủy quyền theo thời hạn/phạm vi và xác nh�
 - `server_room_incident_assets.impact_note`: ghi nhận ảnh hưởng của Asset trong Incident.
 - `server_room_maintenance_assets.work_note`: ghi chú công việc bảo trì liên quan đến Asset.
 - Giữ nguyên hai tên cột theo ngữ nghĩa nghiệp vụ; không đổi thành `relationship_note`.
+
+
+## C12 – Pivot Asset Snapshot (APPROVED – 2026-11-15)
+
+- Hai bảng `server_room_incident_assets` và `server_room_maintenance_assets` phải lưu snapshot gồm `asset_tag` và `asset_name` tại thời điểm liên kết Asset.
+- Snapshot phục vụ báo cáo lịch sử, không bị ghi đè khi Asset gốc thay đổi tên/mã.
+- Khi cần, giao diện có thể hiển thị song song snapshot lịch sử và thông tin Asset hiện tại; không dùng dữ liệu hiện tại thay cho snapshot.
+- Độ dài/kiểu dữ liệu và quy tắc nullability phải được xác nhận khi rà soát cột cuối cùng.
