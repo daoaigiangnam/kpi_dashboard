@@ -78,7 +78,7 @@
 
 **Khóa/index:** PK id; INDEX (customer_id, attachable_type, attachable_id), (uploaded_by), (customer_id, created_at). FK uploaded_by → users.id, nullable. Polymorphic parent không có FK trực tiếp; kiểm tra allowlist, parent và tenant trước upload/download/delete. file_path không public URL; download qua service authorization.
 
-**Security/retention (C08):** Binary lưu Private Storage; `file_path` chỉ là đường dẫn nội bộ, không public. Xác minh MIME theo nội dung thực tế, không tin extension/client header; chỉ nhận MIME allowlist và giới hạn dung lượng cấu hình. File mới upload ở trạng thái quarantine `pending`; scanner xác nhận `clean` mới cho preview/download. `infected` hoặc `error` bị chặn truy cập và xử lý theo quy trình bảo mật. Mọi thao tác phải kiểm tra authorization + tenant + parent record. Xóa vật lý theo retention job sau khi kiểm tra tham chiếu; không cascade tự động. Không lưu binary trong MySQL.
+**Security (C08) và Retention (C09):** Binary lưu Private Storage; `file_path` chỉ là đường dẫn nội bộ, không public. Xác minh MIME theo nội dung thực tế, không tin extension/client header; chỉ nhận MIME allowlist và giới hạn dung lượng cấu hình. File mới upload ở trạng thái quarantine `pending`; scanner xác nhận `clean` mới cho preview/download. `infected` hoặc `error` bị chặn truy cập và xử lý theo quy trình bảo mật. Mọi thao tác phải kiểm tra authorization + tenant + parent record. Không tự động xóa file khi parent Archived/Soft Deleted. Xóa vật lý chỉ sau khi hết retention, không còn Legal Hold, kiểm tra tham chiếu và ghi Audit actor/thời điểm/kết quả. Không lưu binary trong MySQL.
 
 ## 5. Bảng 18 – server_room_audit_logs
 
@@ -220,3 +220,12 @@ Chủ dự án đã chọn ủy quyền theo thời hạn/phạm vi và xác nh�
 - Chỉ kiểm tra delegation khi cấp được kích hoạt. Thu hồi/hết hạn sau đó không hồi tố thay đổi cấp đã kích hoạt; cấp tiếp theo kiểm tra lại khi đến lượt.
 
 **Thứ tự tạo bảng:** tạo `server_room_approval_delegations` trước `server_room_approvals` để tạo FK delegation_id. Tổng register: 23 bảng (18 core + 2 pivot + 2 access-control + 1 delegation).
+
+
+## C09 – Retention và Legal Hold (APPROVED – 2026-11-15)
+
+- Parent chuyển `archived` hoặc Soft Delete không tự động xóa file vật lý.
+- Retention được cấu hình theo loại hồ sơ/tài liệu và policy nghiệp vụ; chưa hard-code thời hạn.
+- File có thể được đặt Legal Hold; trong thời gian hold, cấm xóa vật lý kể cả khi retention đã hết.
+- Điều kiện purge: retention đã hết + không còn Legal Hold + kiểm tra không còn tham chiếu hợp lệ + Audit actor/thời điểm/kết quả.
+- Cách lưu trạng thái Legal Hold và thời hạn ở mức schema sẽ được chốt trong Final Schema Review; hiện chưa thêm cột/bảng hoặc migration.
