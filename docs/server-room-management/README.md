@@ -85,3 +85,11 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 ## 13. Final Schema Decision Register
 
 - [13 – Final Schema Decision Register](./13-final-schema-decision-register-draft.md): tổng hợp các quyết định còn mở từ ba đợt Schema Review, kèm đề xuất và mức ưu tiên P0/P1.
+
+
+## Cập nhật Approval Delegation – C06
+
+- Chủ dự án chọn ủy quyền theo thời hạn và phạm vi, quản lý bằng bảng `server_room_approval_delegations`.
+- Đã chốt chỉ áp dụng ủy quyền khi cấp phê duyệt được kích hoạt; principal approver được snapshot theo C05 trước, sau đó mới resolve acting approver.
+- Bổ sung `acting_approver_id`, `acted_by`, `delegation_id` cho `server_room_approvals`.
+- Tổng thiết kế điều chỉnh từ 22 lên 23 bảng; chưa tạo Laravel migrations hoặc thay đổi database.
