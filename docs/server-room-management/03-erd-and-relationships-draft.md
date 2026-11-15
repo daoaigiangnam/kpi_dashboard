@@ -242,3 +242,9 @@ Tại thời điểm kích hoạt cấp, hệ thống resolve approver group/rol
 - Quan hệ Incident–Asset sử dụng `server_room_incident_assets.impact_note`.
 - Quan hệ Maintenance–Asset sử dụng `server_room_maintenance_assets.work_note`.
 - Giữ hai tên riêng theo ngữ nghĩa nghiệp vụ; không chuẩn hóa thành tên chung `relationship_note`.
+
+
+## C12 – Snapshot Asset trên các Pivot (APPROVED – 2026-11-15)
+
+- Quan hệ Incident–Asset (`server_room_incident_assets`) và Maintenance–Asset (`server_room_maintenance_assets`) lưu `asset_tag` và `asset_name` snapshot tại thời điểm liên kết.
+- Snapshot bảo toàn ngữ cảnh lịch sử khi Asset gốc được đổi tên hoặc đổi mã; không thay thế FK tới Asset hiện tại.
