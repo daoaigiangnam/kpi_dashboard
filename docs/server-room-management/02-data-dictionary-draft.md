@@ -634,3 +634,8 @@ Cả `server_room_incident_assets` và `server_room_maintenance_assets` lưu hai
 ## C14 – Data Dictionary: Customer Permission Revoke (APPROVED – 2026-11-15)
 
 Bảng `customer_user_srm_permissions` giữ lịch sử grant/revoke. Thu hồi cập nhật `revoked_at`, `revoked_by`; cấp lại tạo row mới. Mỗi `(customer_id, user_id, permission_code)` chỉ có một grant active. Cơ chế unique/index cụ thể chờ xác minh MySQL version và schema hiện hữu.
+
+
+## C15 – Data Dictionary: Customer Room Assignment (APPROVED – 2026-11-15)
+
+Bảng `customer_user_server_rooms` giữ lịch sử assignment. Thu hồi cập nhật `revoked_at`, `revoked_by`; cấp lại tạo row mới. Mỗi `(customer_id, user_id, server_room_id)` chỉ có một assignment active. Chiến lược unique/index cụ thể chờ xác minh MySQL version và schema hiện hữu.
