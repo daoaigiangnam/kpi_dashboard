@@ -8,7 +8,7 @@
 - Các đề xuất trong tài liệu này là phương án mặc định để giảm rủi ro tenant leakage, mất lịch sử và sai lệch trạng thái.
 - Nếu cần thay đổi đề xuất, ghi rõ phương án thay thế và tác động tới schema/API/UI/test.
 - Một quyết định ảnh hưởng nhiều bảng phải cập nhật đồng bộ Data Dictionary, ERD, Column Schema, State Machine và Migration Blueprint.
-- Không tự ý thêm bảng ngoài register 22 bảng nếu chưa có quyết định kiến trúc mới.
+- Không tự ý thêm bảng ngoài register hiện hành (23 bảng) nếu chưa có quyết định kiến trúc mới.
 
 Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác nhận**, trừ các mục đã được xác nhận và ghi rõ **APPROVED**.
 
@@ -61,7 +61,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C06 | Delegation and reassignment | **APPROVED – Hỗ trợ cả ủy quyền và thay thế. Delegation cần được người có thẩm quyền chấp thuận, có phạm vi/thời hạn và lưu principal/acting approver. Reassignment do người có thẩm quyền workflow thực hiện, lưu old/new approver, actor, time, reason. Mọi thao tác phải Audit và không làm giảm điều kiện ALL.** | Approval, audit, authorization |
 | C07 | Approval self-approval | **APPROVED – Người tạo yêu cầu không được tự phê duyệt yêu cầu đó. Nếu requester xuất hiện trong danh sách approver đã resolve, loại khỏi danh sách hiệu lực và ghi nhận lý do. Nếu cấp không còn approver hợp lệ, chặn kích hoạt và yêu cầu cấu hình lại; không tự bỏ qua cấp. Delegation không được dùng để vượt SoD; acting approver không hợp lệ phải được xử lý bằng reassignment có thẩm quyền, vẫn giữ ALL.** | Authorization, SoD tests, approval activation |
 | C08 | Attachment security | **APPROVED – File lưu Private Storage; xác minh MIME bằng nội dung thực tế; áp dụng allowlist loại file và giới hạn dung lượng có cấu hình; file mới upload ở trạng thái quarantine/pending, chỉ cho preview/download khi malware scan trả kết quả clean; infected/error/pending đều bị chặn truy cập; không public `file_path`. Kiểm tra authorization và tenant ở mọi thao tác.** | Storage, upload/download service, scan state |
-| C09 | Attachment retention | Chốt retention và legal hold trước triển khai xóa file; không cascade delete tự động. | Storage lifecycle, scheduler |
+| C09 | Attachment retention | **APPROVED – Không tự động xóa file khi parent Archived/Soft Deleted; retention cấu hình theo loại hồ sơ/tài liệu và policy nghiệp vụ; hỗ trợ Legal Hold; Legal Hold còn hiệu lực thì không xóa dù đã hết hạn; chỉ xóa vật lý sau khi hết hạn, không còn Legal Hold, kiểm tra tham chiếu và ghi Audit đầy đủ actor/thời điểm/kết quả.** | Storage lifecycle, scheduler, legal hold, audit | Storage lifecycle, scheduler |
 | C10 | Audit immutability | Append-only ở app; quyền DB hạn chế; archive bảo vệ chống sửa nếu yêu cầu compliance. Không tuyên bố bất biến tuyệt đối chỉ bằng UI. | DB privilege, archive, audit service |
 | C11 | Pivot column naming | Giữ tên theo Data Dictionary: incident_assets.impact_note và maintenance_assets.work_note; không đổi thành relationship_note nếu không có lý do nghiệp vụ. | Column schema, API |
 | C12 | Pivot asset snapshot | Lưu snapshot asset_tag và asset_name tại thời điểm liên kết nếu báo cáo lịch sử cần giữ nguyên tên/mã; đề xuất có snapshot tối thiểu. | Pivot columns, audit |
@@ -72,7 +72,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C17 | Customer IT Admin | Chỉ cấp/revoke permission và room assignment cho user/room cùng tenant; permission grant phải nằm trong allowlist SRM. | Authorization, audit |
 | C18 | User disable/tenant change | Khi customer user bị disable hoặc chuyển tenant, mọi quyền/assignment SRM phải bị vô hiệu hóa/thu hồi theo transaction và audit. | User lifecycle integration |
 
-## 5. Nhóm D – Quyết định kỹ thuật áp dụng xuyên suốt 22 bảng
+## 5. Nhóm D – Quyết định kỹ thuật áp dụng xuyên suốt 23 bảng
 
 Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuật; vẫn phải kiểm tra schema thực tế trước khi thực thi.
 
@@ -250,3 +250,13 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 6. **Audit:** ghi nhận upload, scan result, access/download và delete theo khả năng audit hiện có; không ghi nội dung bí mật của file vào log.
 7. **Schema:** bổ sung trạng thái scan và thời điểm scan vào metadata của `server_room_attachments`; binary không lưu trong MySQL.
 8. **Giới hạn quyết định:** MIME allowlist cụ thể, dung lượng tối đa, số lượng file và scanner/vendor sẽ cấu hình ở bước triển khai; không tự giả định trong schema review.
+
+## C09 – Attachment Retention (APPROVED – 2026-11-15)
+
+1. Không xóa file tự động khi hồ sơ cha chuyển `archived` hoặc Soft Delete; trạng thái hồ sơ cha không tự động kích hoạt xóa vật lý file.
+2. Thời hạn lưu được cấu hình theo loại hồ sơ/tài liệu và chính sách nghiệp vụ đã phê duyệt; không hard-code số năm khi chưa có policy.
+3. Hỗ trợ Legal Hold cho nhu cầu kiểm toán, tranh chấp hoặc yêu cầu pháp lý.
+4. Khi Legal Hold còn hiệu lực, file không được xóa vật lý kể cả khi đã hết hạn retention.
+5. Chỉ cho phép xóa vật lý sau khi retention hết hạn, Legal Hold không còn hiệu lực, đã kiểm tra tham chiếu và ghi Audit gồm actor, thời điểm và kết quả.
+
+**Schema note:** C09 chốt nguyên tắc nghiệp vụ. Cách biểu diễn retention/Legal Hold ở mức cột và quan hệ (file-level hay kế thừa từ parent) sẽ được chốt trong Final Schema Review; chưa tự ý thêm bảng/cột và chưa tạo migration.
