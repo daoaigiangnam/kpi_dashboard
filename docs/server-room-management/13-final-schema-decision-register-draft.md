@@ -367,3 +367,17 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 - Không thiết kế tương thích ngược MySQL 5.7 hoặc MariaDB trừ khi có yêu cầu mới.
 - Trước khi viết/chạy migration, phải kiểm tra phiên bản MySQL 8.x cụ thể, `version_comment`, `sql_mode`, `character_set_server`, `collation_server`, storage engine và schema thực tế.
 - Không giả định các đặc tính vận hành hoặc cấu hình production chỉ từ thông tin MySQL 8.
+
+
+### D01 – Runtime evidence (verified 2026-11-15)
+
+Thông tin truy vấn qua kết nối Laravel đang hoạt động tới database `kpi_dashboard` trong container `kpi-dashboard-db-1`:
+
+- `VERSION()`: `8.0.46`
+- `version_comment`: `MySQL Community Server - GPL`
+- `sql_mode`: `ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION`
+- `character_set_server`: `utf8mb4`
+- `collation_server`: `utf8mb4_unicode_ci`
+- `default_storage_engine`: `InnoDB`
+
+Kết luận: runtime xác minh là MySQL Community Server 8.0.46, InnoDB, charset/collation server `utf8mb4`/`utf8mb4_unicode_ci`. Đây là bằng chứng môi trường tại thời điểm kiểm tra; trước production migration vẫn phải kiểm tra lại trên đúng môi trường triển khai.
