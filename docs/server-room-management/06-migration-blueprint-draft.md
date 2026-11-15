@@ -245,6 +245,7 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 
 - Không tạo cascade delete từ parent record sang metadata/file storage; Archived hoặc Soft Deleted không đồng nghĩa được purge.
 - Retention period phải đọc từ policy cấu hình theo loại hồ sơ/tài liệu, không hard-code số năm.
-- Purge job phải kiểm tra đồng thời: retention đã hết, Legal Hold không còn hiệu lực, không còn tham chiếu hợp lệ; sau đó mới xóa vật lý và ghi Audit actor/thời điểm/kết quả.
-- Test bắt buộc: parent archived/soft-deleted vẫn giữ file; retention chưa hết thì giữ; Legal Hold còn hiệu lực thì giữ dù retention hết; có reference thì không purge; purge đủ điều kiện phải audit; lỗi trong quá trình purge phải ghi nhận kết quả và không xóa metadata sai lệch.
-- Chi tiết schema cho Legal Hold/retention vẫn là gate của Final Schema Review; chưa tạo migration.
+- Legal Hold được quản lý ở parent record; purge job phải xác định parent của từng attachment và chặn purge nếu parent đang Legal Hold.
+- Purge job chỉ xóa khi retention attachment đã hết, parent không còn Legal Hold, không còn tham chiếu hợp lệ; sau đó ghi Audit actor/thời điểm/kết quả.
+- Test bắt buộc: parent archived/soft-deleted vẫn giữ file; retention chưa hết thì giữ; parent Legal Hold bảo vệ tất cả attachment dù retention hết; gỡ hold thì attachment chỉ đủ điều kiện purge khi các điều kiện còn lại thỏa; có reference thì không purge; purge đủ điều kiện phải audit; lỗi purge không được xóa metadata sai lệch.
+- Chi tiết schema lưu Legal Hold tại parent và truy vấn attachment vẫn là gate của Final Schema Review; chưa tạo migration.
