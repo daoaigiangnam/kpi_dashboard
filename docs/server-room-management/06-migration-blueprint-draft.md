@@ -206,3 +206,15 @@ Không tự suy đoán các nội dung sau trong migration:
 - [ ] Laravel Migrations.
 
 **Gate:** Không bắt đầu migration khi các quyết định P0 chưa được xác nhận và schema database thực tế chưa được kiểm tra.
+
+
+## 10. Bổ sung Migration Blueprint – Approval Delegation (bảng 23)
+
+Bổ sung bảng `server_room_approval_delegations` vào master register. Thứ tự migration phải tạo delegation trước `server_room_approvals` để approval rows có FK `delegation_id`:
+1. Tạo `server_room_approval_delegations` sau các bảng nền tảng có tenant/users/rooms.
+2. Tạo `server_room_approvals` với các cột `acting_approver_id`, `acted_by`, `delegation_id` và FK phù hợp.
+3. Các bảng attachments, audit logs, pivots và access-control tiếp tục theo dependency order.
+
+Master register cập nhật: 23 bảng mới = 18 core + 2 pivot + 2 access-control + 1 approval-delegation. Không tạo bảng `approval_events` riêng ở quyết định này; sự kiện delegation và reassignment được ghi vào audit log, còn trạng thái snapshot nằm trên approval row.
+
+**Migration gate bổ sung:** kiểm tra user/customer ownership, room scope, overlap delegation, valid_from < valid_until, FK delegation_id và test snapshot tại thời điểm activate level trước khi chạy migration.
