@@ -190,7 +190,7 @@ Không tự suy đoán các nội dung sau trong migration:
 - [ ] Đối chiếu schema/migrations thực tế trước khi tạo SRM migrations.
 - [ ] Tạo migrations theo thứ tự phụ thuộc và chạy test tenant/state/permission.
 
-**Lưu ý:** Hoàn tất review không đồng nghĩa schema đã được phê duyệt. Batch 1 và Batch 2 có các quyết định đã ghi nhận trong Decision Register; Batch 3: C01–C03 đã APPROVED; C04–C18 và baseline kỹ thuật nhóm D vẫn còn mở. Phải hoàn tất các quyết định ảnh hưởng cấu trúc và kiểm tra database thực tế trước migration.
+**Lưu ý:** Hoàn tất review không đồng nghĩa schema đã được phê duyệt. Batch 1 và Batch 2 có các quyết định đã ghi nhận trong Decision Register; Batch 3: C01–C06 đã APPROVED; C07–C18 và baseline kỹ thuật nhóm D vẫn còn mở. Phải hoàn tất các quyết định ảnh hưởng cấu trúc và kiểm tra database thực tế trước migration.
 
 
 ## 8. Final Schema Decision Gate
@@ -199,6 +199,7 @@ Không tự suy đoán các nội dung sau trong migration:
 - [ ] Chủ dự án xác nhận nhóm quyết định P0.
 - [ ] Chủ dự án xác nhận các quyết định P1 còn mở hoặc chấp nhận ghi nhận là policy triển khai.
 - [x] C01–C03 Environment Logs đã APPROVED; `recorded_at` lưu UTC, timezone customer được xử lý ở application/query layer, device/import phải xác thực nguồn + idempotency + chống replay, retention/archive theo policy.
+- [x] C04–C06 Approval đã APPROVED; workflow tuần tự theo cấp, ALL approvers mỗi cấp, snapshot approver khi kích hoạt cấp, delegation/reassignment có kiểm soát và audit.
 - [ ] Cập nhật đồng bộ Data Dictionary, ERD, Column Schema và State Machines.
 - [ ] Kiểm tra schema MySQL hiện hữu, FK/index/unique và dữ liệu duplicate.
 - [ ] Final Schema Approval.
