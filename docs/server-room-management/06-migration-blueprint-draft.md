@@ -436,3 +436,17 @@ Kết luận: runtime xác minh là MySQL Community Server 8.0.46, InnoDB, chars
 8. Kiểu dữ liệu, precision/scale, nullability, default và constraint cụ thể của từng cột được chốt trong Final Schema Review sau khi đối chiếu data dictionary và schema hiện hữu.
 
 - Mỗi cột phải được rà soát type, unsigned, precision/scale, nullability, default, collation và index theo use case; không áp dụng một kiểu mặc định cho mọi cột.
+
+
+## D07 – Indexing and Query Performance Policy (APPROVED – 2026-11-15)
+
+1. Mọi Foreign Key phải có index phù hợp cho các thao tác join, kiểm tra constraint và truy vấn quan hệ; xác minh index hiện có trước khi tạo mới để tránh trùng lặp không cần thiết.
+2. Thiết kế Composite Index dựa trên query pattern thực tế; cân nhắc tenant scope (`customer_id`), room/asset reference, trạng thái và cột thời gian theo điều kiện lọc/sắp xếp thực tế.
+3. Không tạo index tràn lan; đánh giá chi phí INSERT/UPDATE/DELETE, dung lượng lưu trữ và khả năng trùng lặp/leftmost-prefix với index hiện hữu.
+4. Các truy vấn danh sách, tìm kiếm, lọc và báo cáo quan trọng phải được kiểm tra bằng `EXPLAIN`; dùng `EXPLAIN ANALYZE` khi phù hợp và an toàn trên dữ liệu đại diện.
+5. Chỉ bổ sung/thay đổi index khi có căn cứ từ query pattern, execution plan hoặc đo kiểm hiệu năng; không suy đoán index chỉ từ tên cột.
+6. Trước migration index, rà soát index/constraint hiện hữu, dữ liệu và khả năng lock/ảnh hưởng vận hành trên MySQL 8.0.46; kế hoạch triển khai phải có bước xác minh sau thay đổi.
+7. Kiểm thử phải bao gồm truy vấn theo tenant, room, status, thời gian, join FK và các truy vấn dashboard/báo cáo quan trọng.
+
+- Trước migration index: lấy inventory index/constraint hiện tại và xác định index nào đã đáp ứng FK/query pattern; không tạo index trùng.
+- Kiểm tra execution plan và thời gian truy vấn trước/sau trên dữ liệu đại diện; xác minh lock/impact phù hợp MySQL 8.0.46.
