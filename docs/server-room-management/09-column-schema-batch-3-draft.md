@@ -24,7 +24,8 @@
 | ups_status | VARCHAR(30) | YES | NULL | Trạng thái UPS |
 | power_status | VARCHAR(30) | YES | NULL | Trạng thái nguồn |
 | source_type | VARCHAR(20) | NO | manual | manual/device/import |
-| source_reference | VARCHAR(150) | YES | NULL | ID sensor/nguồn ngoài; với device/import bắt buộc ở service layer để định danh nguồn |\n| idempotency_key | VARCHAR(100) | YES | NULL | Khóa sự kiện do nguồn cấp; device/import bắt buộc, manual để NULL |
+| source_reference | VARCHAR(150) | YES | NULL | ID sensor/nguồn ngoài; với device/import bắt buộc ở service layer để định danh nguồn |
+| idempotency_key | VARCHAR(100) | YES | NULL | Khóa sự kiện do nguồn cấp; device/import bắt buộc, manual để NULL |
 | remarks | TEXT | YES | NULL | Ghi chú |
 | recorded_by | BIGINT UNSIGNED | YES | NULL | FK users |
 | created_at | TIMESTAMP | YES | NULL | Laravel |
