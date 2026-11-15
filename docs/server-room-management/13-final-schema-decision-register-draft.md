@@ -64,7 +64,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C09 | Attachment retention | **APPROVED – Không tự động xóa file khi parent Archived/Soft Deleted; retention cấu hình theo loại hồ sơ/tài liệu và policy nghiệp vụ; hỗ trợ Legal Hold; Legal Hold còn hiệu lực thì không xóa dù đã hết hạn; chỉ xóa vật lý sau khi hết hạn, không còn Legal Hold, kiểm tra tham chiếu và ghi Audit đầy đủ actor/thời điểm/kết quả.** | Storage lifecycle, scheduler, legal hold, audit |
 | C10 | Audit immutability | **APPROVED – 2026-11-15 –** Audit Log append-only; ứng dụng không cung cấp chức năng UPDATE/DELETE audit rows; tài khoản DB của ứng dụng không có quyền UPDATE/DELETE trên bảng Audit Log; hỗ trợ archive riêng với quyền sửa/xóa bị hạn chế khi yêu cầu compliance; ghi actor, UTC timestamp, action, target object, result và trace cần thiết. Không tuyên bố bất biến tuyệt đối trước DBA/quản trị hạ tầng chỉ bằng các kiểm soát này. | DB privilege, archive, audit service, security tests |
 | C11 | Pivot column naming | **APPROVED – 2026-11-15 –** Giữ nguyên `server_room_incident_assets.impact_note` và `server_room_maintenance_assets.work_note`; không đổi thành tên chung `relationship_note`. | Column schema, API |
-| C12 | Pivot asset snapshot | Lưu snapshot asset_tag và asset_name tại thời điểm liên kết nếu báo cáo lịch sử cần giữ nguyên tên/mã; đề xuất có snapshot tối thiểu. | Pivot columns, audit |
+| C12 | Pivot asset snapshot | **APPROVED – 2026-11-15 –** Lưu cả `asset_tag` và `asset_name` snapshot trên pivot tại thời điểm Asset được liên kết với Incident/Maintenance để bảo toàn thông tin lịch sử. | Pivot columns, reports, audit |
 | C13 | Pivot room scope | Tenant bắt buộc giống nhau; room scope được kiểm tra theo từng nghiệp vụ: sự cố có thể đa phòng; maintenance một phòng mặc định cùng phòng, đa phòng phải khai báo rõ. | Service validation, UI |
 | C14 | Customer permission revoke | Giữ lịch sử grant/revoke bằng revoked_at/revoked_by; cấp lại tạo bản ghi mới. Cần active unique strategy bằng generated column hoặc transaction/locking sau khi kiểm tra MySQL. | Permission schema, indexes |
 | C15 | Room assignment uniqueness | Một assignment active duy nhất cho (customer,user,room); revoke giữ lịch sử; cấp lại tạo row mới. Ưu tiên generated active key nếu hỗ trợ đúng trên MySQL hiện hữu, nếu không dùng transaction/locking. | Unique strategy, concurrency tests |
@@ -294,3 +294,11 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 - Giữ `server_room_maintenance_assets.work_note` để ghi chú công việc bảo trì liên quan đến Asset.
 - Không đổi thành tên chung `relationship_note`; hai trường phản ánh hai ngữ nghĩa nghiệp vụ khác nhau.
 - Không phát sinh bảng hoặc cột mới; đây là xác nhận tên cột đã có trong Data Dictionary.
+
+
+## C12 – Pivot Asset Snapshot (APPROVED – 2026-11-15)
+
+- Lưu cả `asset_tag` và `asset_name` snapshot trên các pivot liên kết Asset với Incident và Maintenance.
+- Snapshot được chụp tại thời điểm tạo liên kết; không tự cập nhật khi Asset gốc đổi tên hoặc đổi mã.
+- Khi cần hiển thị lịch sử, ưu tiên snapshot; thông tin Asset hiện tại vẫn có thể được truy vấn riêng để đối chiếu.
+- Kiểu dữ liệu, độ dài và nullability cụ thể được rà soát trong Column Schema/Final Schema Review; chưa tạo migration.
