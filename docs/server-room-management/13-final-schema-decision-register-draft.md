@@ -60,7 +60,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C05 | Approver snapshot timing | **APPROVED – Resolve group/role thành danh sách user cụ thể và snapshot khi từng cấp được kích hoạt; thay đổi membership sau snapshot không tự thay đổi danh sách cấp đang xử lý. Cấp tiếp theo được snapshot khi đến lượt.** | Approval schema/service, audit |
 | C06 | Delegation and reassignment | **APPROVED – Hỗ trợ cả ủy quyền và thay thế. Delegation cần được người có thẩm quyền chấp thuận, có phạm vi/thời hạn và lưu principal/acting approver. Reassignment do người có thẩm quyền workflow thực hiện, lưu old/new approver, actor, time, reason. Mọi thao tác phải Audit và không làm giảm điều kiện ALL.** | Approval, audit, authorization |
 | C07 | Approval self-approval | **APPROVED – Người tạo yêu cầu không được tự phê duyệt yêu cầu đó. Nếu requester xuất hiện trong danh sách approver đã resolve, loại khỏi danh sách hiệu lực và ghi nhận lý do. Nếu cấp không còn approver hợp lệ, chặn kích hoạt và yêu cầu cấu hình lại; không tự bỏ qua cấp. Delegation không được dùng để vượt SoD; acting approver không hợp lệ phải được xử lý bằng reassignment có thẩm quyền, vẫn giữ ALL.** | Authorization, SoD tests, approval activation |
-| C08 | Attachment security | Private storage; MIME xác minh bằng nội dung; giới hạn dung lượng/loại; malware scan trước download; không public file_path. | Storage, upload/download service |
+| C08 | Attachment security | **APPROVED – File lưu Private Storage; xác minh MIME bằng nội dung thực tế; áp dụng allowlist loại file và giới hạn dung lượng có cấu hình; file mới upload ở trạng thái quarantine/pending, chỉ cho preview/download khi malware scan trả kết quả clean; infected/error/pending đều bị chặn truy cập; không public `file_path`. Kiểm tra authorization và tenant ở mọi thao tác.** | Storage, upload/download service, scan state |
 | C09 | Attachment retention | Chốt retention và legal hold trước triển khai xóa file; không cascade delete tự động. | Storage lifecycle, scheduler |
 | C10 | Audit immutability | Append-only ở app; quyền DB hạn chế; archive bảo vệ chống sửa nếu yêu cầu compliance. Không tuyên bố bất biến tuyệt đối chỉ bằng UI. | DB privilege, archive, audit service |
 | C11 | Pivot column naming | Giữ tên theo Data Dictionary: incident_assets.impact_note và maintenance_assets.work_note; không đổi thành relationship_note nếu không có lý do nghiệp vụ. | Column schema, API |
@@ -239,3 +239,14 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 5. Quy tắc ALL vẫn giữ nguyên: mọi approver hợp lệ còn lại trong cấp phải APPROVE.
 
 **Phạm vi:** C07 cấm requester tự duyệt chính yêu cầu do mình tạo; không tự mở rộng thành cấm mọi người từng tham gia xử lý nghiệp vụ được phê duyệt.
+
+## C08 – Bảo mật tệp đính kèm (APPROVED – 2026-11-15)
+
+1. **Private Storage:** binary chỉ lưu trên private disk/private bucket; không public object URL hoặc thư mục upload.
+2. **MIME validation:** xác định MIME từ nội dung thực tế (file signature/magic bytes); không tin extension hoặc Content-Type do client gửi.
+3. **Allowlist và giới hạn:** chỉ nhận loại file được cấu hình cho phép; giới hạn dung lượng được cấu hình tập trung. Không tự đặt con số khi chưa có chính sách vận hành.
+4. **Quarantine và malware scan:** file mới upload ở trạng thái `pending`/quarantine. Chỉ chuyển sang `clean` sau khi scanner xác nhận an toàn. Trạng thái `pending`, `infected` hoặc `error` đều không được preview/download. File nhiễm mã độc phải bị cách ly và xử lý theo quy trình bảo mật; không trả file cho người dùng.
+5. **Authorization:** kiểm tra quyền người dùng, tenant và quyền trên parent record trước upload, preview, download và delete. Download phải qua service có kiểm soát hoặc signed URL thời hạn rất ngắn sau authorization; không lộ `file_path` nội bộ.
+6. **Audit:** ghi nhận upload, scan result, access/download và delete theo khả năng audit hiện có; không ghi nội dung bí mật của file vào log.
+7. **Schema:** bổ sung trạng thái scan và thời điểm scan vào metadata của `server_room_attachments`; binary không lưu trong MySQL.
+8. **Giới hạn quyết định:** MIME allowlist cụ thể, dung lượng tối đa, số lượng file và scanner/vendor sẽ cấu hình ở bước triển khai; không tự giả định trong schema review.
