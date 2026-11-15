@@ -102,7 +102,7 @@ Không dùng một server_room_id duy nhất cho movement relocate. Cấu trúc 
 - to_server_room_id nullable
 - movement_code
 - movement_type: check_in / check_out / relocate
-- source/destination snapshots, equipment snapshot, reason, requested/approved/performed timestamps và actors.
+- Rack/U nguồn và đích bằng trường có cấu trúc (`from_rack_asset_id`, `from_rack_u_start`, `to_rack_asset_id`, `to_rack_u_start`); snapshot thiết bị, reason, `requested_at`/`executed_at` và actors.
 
 ### 4.2 Quy tắc theo movement_type
 
@@ -203,10 +203,10 @@ Emergency maintenance là nhánh riêng: cho phép bắt đầu trước approva
 | draft | submit | pending_approval | From/to và asset snapshot hợp lệ |
 | pending_approval | approve | approved | Approver có quyền |
 | pending_approval | reject | rejected | Có lý do |
-| approved | execute | completed | Cập nhật vị trí asset trong transaction |
+| approved | execute | completed | Kiểm tra Asset ở đúng phòng nguồn; row lock; cập nhật Asset và Movement trong cùng transaction; set performed_by/executed_at |
 | draft/pending_approval/approved | cancel | cancelled | Chưa execute |
 
-Movement completed là hồ sơ bất biến; điều chỉnh bằng phiếu mới.
+Movement completed là hồ sơ bất biến; điều chỉnh bằng phiếu mới. Khi check_out, Asset chuyển sang `checked_out` (hoặc trạng thái tương đương trong allowlist), không xóa Asset Record; check_in lại bằng Movement mới. Execute kiểm tra source room và dùng transaction + row-level lock để chống double execution.
 
 ### 5.8 Approval record
 
