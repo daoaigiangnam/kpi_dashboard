@@ -197,7 +197,8 @@ Không tự suy đoán các nội dung sau trong migration:
 
 - [x] Tổng hợp quyết định còn mở từ Batch 1, 2, 3 vào [13 – Final Schema Decision Register](./13-final-schema-decision-register-draft.md).
 - [ ] Chủ dự án xác nhận nhóm quyết định P0.
-- [ ] Chủ dự án xác nhận nhóm quyết định P1 hoặc chấp nhận policy triển khai.
+- [ ] Chủ dự án xác nhận các quyết định P1 còn mở hoặc chấp nhận ghi nhận là policy triển khai.
+- [x] C01–C03 Environment Logs đã APPROVED; `recorded_at` lưu UTC, timezone customer được xử lý ở application/query layer, device/import phải xác thực nguồn + idempotency + chống replay, retention/archive theo policy.
 - [ ] Cập nhật đồng bộ Data Dictionary, ERD, Column Schema và State Machines.
 - [ ] Kiểm tra schema MySQL hiện hữu, FK/index/unique và dữ liệu duplicate.
 - [ ] Final Schema Approval.
