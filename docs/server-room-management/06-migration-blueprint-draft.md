@@ -230,3 +230,12 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 - Sau delegation resolution: bảo đảm acting approver không phải requester.
 - Reassignment phải có authorization và audit; không làm giảm ALL.
 - Bổ sung test SoD vào bộ kiểm thử trước migration và trước release.
+
+
+## 12. C08 – Attachment Security migration/test gate
+
+- Bảng `server_room_attachments` bổ sung `scan_status` (default `pending`, allowlist `pending/clean/infected/error`) và `scanned_at` nullable (UTC); không thêm bảng mới.
+- `file_path` là đường dẫn private nội bộ, không tạo public URL hoặc endpoint trả trực tiếp đường dẫn.
+- Storage phải hỗ trợ private quarantine; file chỉ được preview/download khi scan status là `clean`.
+- Service/API phải xác minh MIME từ nội dung, allowlist, dung lượng cấu hình, tenant, parent record và authorization.
+- Test bắt buộc: pending không tải được; infected/error không tải được; clean tải được khi có quyền; user khác tenant bị từ chối; giả mạo MIME/extension bị từ chối; không lộ file_path; scanner timeout/error là fail-closed.
