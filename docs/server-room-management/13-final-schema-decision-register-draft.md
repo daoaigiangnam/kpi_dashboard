@@ -66,7 +66,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C11 | Pivot column naming | **APPROVED – 2026-11-15 –** Giữ nguyên `server_room_incident_assets.impact_note` và `server_room_maintenance_assets.work_note`; không đổi thành tên chung `relationship_note`. | Column schema, API |
 | C12 | Pivot asset snapshot | **APPROVED – 2026-11-15 –** Lưu cả `asset_tag` và `asset_name` snapshot trên pivot tại thời điểm Asset được liên kết với Incident/Maintenance để bảo toàn thông tin lịch sử. | Pivot columns, reports, audit |
 | C13 | Pivot room scope | **APPROVED – 2026-11-15 –** Incident được liên kết Asset ở nhiều Server Room trong cùng tenant; Maintenance mặc định cùng một Room, đa phòng phải khai báo rõ; Service kiểm tra tenant và room scope trước khi liên kết. | Service validation, UI, tests |
-| C14 | Customer permission revoke | Giữ lịch sử grant/revoke bằng revoked_at/revoked_by; cấp lại tạo bản ghi mới. Cần active unique strategy bằng generated column hoặc transaction/locking sau khi kiểm tra MySQL. | Permission schema, indexes |
+| C14 | Customer permission revoke | **APPROVED – 2026-11-15 –** Thu hồi bằng `revoked_at`/`revoked_by`, không xóa bản ghi; cấp lại tạo row mới; chỉ một grant active cho cùng `(customer_id, user_id, permission_code)`. Cơ chế unique active phải chọn sau khi kiểm tra MySQL thực tế. | Permission schema, indexes, concurrency tests |
 | C15 | Room assignment uniqueness | Một assignment active duy nhất cho (customer,user,room); revoke giữ lịch sử; cấp lại tạo row mới. Ưu tiên generated active key nếu hỗ trợ đúng trên MySQL hiện hữu, nếu không dùng transaction/locking. | Unique strategy, concurrency tests |
 | C16 | Customer user tenant integrity | Bắt buộc account_type=customer và service_customer_id=customer_id. Nếu không thể tạo candidate key trên users hiện hữu thì service check + negative tests. | Existing schema, FK, policy |
 | C17 | Customer IT Admin | Chỉ cấp/revoke permission và room assignment cho user/room cùng tenant; permission grant phải nằm trong allowlist SRM. | Authorization, audit |
@@ -311,3 +311,12 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 3. Maintenance nhiều phòng chỉ hợp lệ khi yêu cầu khai báo rõ phạm vi đa phòng.
 4. Service phải kiểm tra tenant và room scope trước khi tạo/cập nhật liên kết; không chỉ dựa vào ID do client gửi.
 5. Không phát sinh bảng mới; quy tắc được thực thi ở service/validation và kiểm thử tenant/room scope.
+
+
+## C14 – Customer Permission Revoke (APPROVED – 2026-11-15)
+
+1. Thu hồi quyền bằng cách cập nhật `revoked_at` và `revoked_by`; không hard-delete grant đã phát sinh.
+2. Khi cấp lại quyền sau thu hồi, tạo bản ghi grant mới để giữ lịch sử từng chu kỳ cấp/thu hồi.
+3. Với cùng `(customer_id, user_id, permission_code)`, chỉ được có một grant đang hoạt động tại một thời điểm.
+4. Chiến lược enforce active uniqueness (generated column/unique index hoặc transaction + locking) chỉ được chốt sau khi kiểm tra phiên bản MySQL, schema/index hiện hữu và khả năng hỗ trợ thực tế; không giả định trước.
+5. Cấp/thu hồi phải kiểm tra tenant, quyền của người thực hiện và ghi Audit.
