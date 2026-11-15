@@ -97,4 +97,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 - C08 đã APPROVED: Private Storage, MIME validation theo nội dung, allowlist/giới hạn cấu hình, quarantine + malware scan; chỉ file `clean` mới được preview/download. Bổ sung `scan_status` và `scanned_at` vào attachment metadata; chưa tạo migrations.
 
-- C09 đã APPROVED: không cascade/purge khi parent Archived/Soft Deleted; retention theo policy; Legal Hold chặn purge; purge cần hết hạn + hết hold + kiểm tra reference + Audit. Chi tiết schema Legal Hold/retention tiếp tục là gate của Final Schema Review.
+- C09 đã APPROVED: không cascade/purge khi parent Archived/Soft Deleted; retention theo policy; Legal Hold đặt ở parent và bảo vệ toàn bộ attachment của parent; purge cần hết hạn + parent hết hold + kiểm tra reference + Audit. Chi tiết schema Legal Hold ở parent tiếp tục là gate của Final Schema Review.
+
+- C09-A đã APPROVED: Legal Hold ở cấp parent record; toàn bộ attachment của parent tự động được bảo vệ; không đặt hold riêng từng file. Schema cụ thể tại parent vẫn chờ Final Schema Review.
