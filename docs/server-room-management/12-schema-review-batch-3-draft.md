@@ -224,3 +224,11 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Bổ sung `scan_status` (`pending`, `clean`, `infected`, `error`) và `scanned_at` vào `server_room_attachments`; không phát sinh bảng mới.
 - Upload/preview/download/delete phải kiểm tra authorization, tenant và parent record. Không public file path; download qua service authorization hoặc signed URL rất ngắn sau khi kiểm tra quyền.
 - MIME allowlist, giới hạn dung lượng/số lượng file và scanner/vendor cụ thể sẽ được cấu hình ở giai đoạn triển khai; chưa ấn định con số.
+
+## 8. C09 – Attachment Retention (APPROVED – 2026-11-15)
+
+- Không xóa tự động file khi parent Archived/Soft Deleted.
+- Retention cấu hình theo loại hồ sơ/tài liệu và policy nghiệp vụ; chưa hard-code thời hạn.
+- Legal Hold ngăn purge vật lý khi còn hiệu lực, kể cả retention đã hết.
+- Purge chỉ sau khi hết retention, không còn Legal Hold, kiểm tra tham chiếu và ghi Audit actor/thời điểm/kết quả.
+- Chi tiết schema retention/Legal Hold được giữ là điểm cần chốt trong Final Schema Review; không tự thêm bảng/cột ở bước này.
