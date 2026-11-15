@@ -276,3 +276,11 @@ Chủ dự án chọn phương án ủy quyền theo thời hạn/phạm vi (b�
 - Cấp lại sau thu hồi tạo grant row mới, không tái sử dụng row cũ.
 - Mỗi `(customer_id, user_id, permission_code)` chỉ có một grant active.
 - Người cấp/thu hồi phải có quyền quản trị SRM trong đúng tenant; mọi thay đổi ghi Audit.
+
+
+## C15 – Customer User Room Assignment (APPROVED – 2026-11-15)
+
+- Customer User chỉ truy cập Room khi có assignment active đúng tenant.
+- Thu hồi assignment bằng `revoked_at`/`revoked_by`; giữ row lịch sử.
+- Cấp lại tạo assignment row mới; mỗi cặp `(customer_id, user_id, server_room_id)` chỉ có một assignment active.
+- Người cấp/thu hồi phải có quyền quản trị SRM trong tenant; mọi thay đổi phải Audit.
