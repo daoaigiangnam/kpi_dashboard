@@ -17,21 +17,21 @@
 | id | BIGINT UNSIGNED | NO | AUTO_INCREMENT | PK |
 | customer_id | BIGINT UNSIGNED | NO | — | Tenant |
 | server_room_id | BIGINT UNSIGNED | NO | — | FK room cùng tenant |
-| recorded_at | DATETIME | NO | — | Thời điểm đo |
+| recorded_at | DATETIME | NO | — | Thời điểm đo; lưu UTC, không lưu giờ địa phương customer |
 | temperature_c | DECIMAL(5,2) | YES | NULL | °C |
 | humidity_percent | DECIMAL(5,2) | YES | NULL | 0–100 |
 | air_conditioning_status | VARCHAR(30) | YES | NULL | Trạng thái điều hòa |
 | ups_status | VARCHAR(30) | YES | NULL | Trạng thái UPS |
 | power_status | VARCHAR(30) | YES | NULL | Trạng thái nguồn |
 | source_type | VARCHAR(20) | NO | manual | manual/device/import |
-| source_reference | VARCHAR(150) | YES | NULL | ID sensor/nguồn ngoài |
+| source_reference | VARCHAR(150) | YES | NULL | ID sensor/nguồn ngoài; với device/import bắt buộc ở service layer để định danh nguồn |\n| idempotency_key | VARCHAR(100) | YES | NULL | Khóa sự kiện do nguồn cấp; device/import bắt buộc, manual để NULL |
 | remarks | TEXT | YES | NULL | Ghi chú |
 | recorded_by | BIGINT UNSIGNED | YES | NULL | FK users |
 | created_at | TIMESTAMP | YES | NULL | Laravel |
 
-**Khóa/index:** PK id; INDEX (customer_id, server_room_id, recorded_at), (source_type, source_reference), (customer_id, source_type, recorded_at). Composite FK (server_room_id, customer_id) → server_rooms(id, customer_id). Không unique source_reference/recorded_at vì có thể có nhiều phép đo cùng thời điểm làm tròn.
+**Khóa/index:** PK id; INDEX (customer_id, server_room_id, recorded_at), (source_type, source_reference), (customer_id, source_type, recorded_at); UNIQUE (customer_id, source_type, source_reference, idempotency_key) để chống ghi trùng cho device/import (các trường khóa này bắt buộc với device/import ở service layer). Composite FK (server_room_id, customer_id) → server_rooms(id, customer_id). Không unique source_reference/recorded_at vì có thể có nhiều phép đo cùng thời điểm làm tròn.
 
-**Validation:** Ít nhất một trường đo/trạng thái có dữ liệu; humidity_percent trong [0,100]. Ngưỡng nhiệt độ cảnh báo cấu hình theo policy, không hard-code. source_type allowlist manual/device/import. Timezone và retention cần chốt; ngưỡng cảnh báo cấu hình riêng, không lưu ngưỡng vào từng log.
+**Validation:** Ít nhất một trường đo/trạng thái có dữ liệu; humidity_percent trong [0,100]. Ngưỡng nhiệt độ cảnh báo cấu hình theo policy, không hard-code. source_type allowlist manual/device/import, default manual. Với device/import: xác thực nguồn, yêu cầu source_reference và idempotency_key, kiểm tra timestamp/chống replay; source_reference không phải credential. recorded_at phải được chuẩn hóa UTC trước khi lưu. Retention cấu hình theo loại dữ liệu/tần suất; archive khi cần, không tự xóa trước khi policy được duyệt.
 
 ## 3. Bảng 16 – server_room_approvals
 
