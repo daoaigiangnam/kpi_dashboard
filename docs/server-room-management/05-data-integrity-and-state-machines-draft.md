@@ -342,3 +342,13 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 - Lưu action, parent identity, actor, thời điểm UTC, lý do; release event phải liên kết lần đặt hold được gỡ.
 - Không hard delete event; kiểm soát quyền và Audit mọi thao tác đặt/gỡ.
 - Cấu trúc bảng/cột cụ thể sẽ được chốt trong Final Schema Review.
+
+
+## 16. C10 – Audit Log append-only và kiểm soát sửa/xóa (APPROVED – 2026-11-15)
+
+- Audit Log chỉ nhận bản ghi mới từ các luồng ứng dụng; không cung cấp chức năng UPDATE/DELETE trong nghiệp vụ thông thường.
+- Tài khoản DB runtime của ứng dụng không có quyền UPDATE/DELETE trên bảng `server_room_audit_logs`; kiểm tra bằng quyền thực tế và negative test.
+- Tách quyền runtime khỏi quyền migration/DBA; mọi quyền đặc biệt phải theo quy trình quản trị có kiểm soát.
+- Archive riêng có thể được áp dụng khi compliance yêu cầu, với quyền sửa/xóa hạn chế theo policy/hạ tầng.
+- Mỗi audit event cần actor, timestamp UTC, action, target object, result và trace/correlation ID khi có.
+- Cơ chế này giảm nguy cơ sửa/xóa, không bảo đảm bất biến tuyệt đối trước DBA hoặc quản trị hạ tầng đặc quyền.
