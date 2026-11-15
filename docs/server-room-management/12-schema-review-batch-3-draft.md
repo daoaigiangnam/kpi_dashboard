@@ -347,3 +347,14 @@ Kết luận: runtime xác minh là MySQL Community Server 8.0.46, InnoDB, chars
 5. Với thao tác đồng thời có nguy cơ tranh chấp dữ liệu, Service phải đánh giá và sử dụng cơ chế khóa phù hợp; `SELECT ... FOR UPDATE` được dùng khi cần khóa bản ghi để bảo vệ invariant, kết hợp transaction và thứ tự khóa nhất quán để hạn chế deadlock.
 6. Các transaction phải ngắn, không giữ row lock trong lúc gọi dịch vụ mạng hoặc thực hiện tác vụ chậm; có xử lý lỗi deadlock/lock timeout phù hợp.
 7. Kiểm thử phải bao gồm rollback khi lỗi giữa chừng và các tình huống concurrent update cho các invariant quan trọng.
+
+
+## D03 – Lock Ordering, Deadlock and Lock Wait Handling (APPROVED – 2026-11-15)
+
+1. Các transaction có thể khóa nhiều bản ghi phải lấy khóa theo thứ tự xác định, nhất quán giữa các luồng nghiệp vụ để giảm nguy cơ deadlock.
+2. Khi gặp MySQL deadlock error `1213` hoặc lock wait timeout `1205`, ứng dụng phải xử lý lỗi có kiểm soát; transaction thất bại phải rollback đúng phạm vi.
+3. Cho phép retry transaction với số lần giới hạn và backoff tăng dần; số lần, thời gian chờ và ngưỡng retry phải được cấu hình/kiểm chứng trong triển khai, không retry vô hạn.
+4. Chỉ retry khi toàn bộ thao tác có thể chạy lại an toàn (idempotent hoặc được bảo vệ bằng idempotency key/unique constraint và không gây side effect lặp). Không retry mù các thao tác gửi thông báo, gọi API bên ngoài hoặc phát sinh side effect ngoài transaction.
+5. Side effect ngoài database nên được phát hành sau khi transaction commit (ví dụ qua cơ chế after-commit/outbox nếu cần); không giữ row lock trong khi gọi network/API.
+6. Ghi log có cấu trúc cho transaction lỗi/retry: operation/correlation ID, error code, số lần retry, thời gian và kết quả; không ghi dữ liệu bí mật.
+7. Kiểm thử concurrency, deadlock, lock timeout, rollback và giới hạn retry đối với các nghiệp vụ có tranh chấp dữ liệu.
