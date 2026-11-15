@@ -617,3 +617,8 @@ Bổ sung vào `server_room_approvals`: `acting_approver_id` (người được 
 - `server_room_incident_assets.impact_note`: ghi nhận ảnh hưởng của Asset trong Incident.
 - `server_room_maintenance_assets.work_note`: ghi chú công việc bảo trì liên quan đến Asset.
 - Giữ nguyên tên cột riêng theo ngữ nghĩa nghiệp vụ; không đổi thành `relationship_note`.
+
+
+## C12 – Data Dictionary: Pivot Asset Snapshot (APPROVED – 2026-11-15)
+
+Cả `server_room_incident_assets` và `server_room_maintenance_assets` lưu hai trường snapshot `asset_tag` và `asset_name` tại thời điểm liên kết Asset. Snapshot bảo toàn tên/mã lịch sử và không tự thay đổi khi bản ghi Asset gốc được cập nhật. Chi tiết kiểu dữ liệu/độ dài/nullability được chốt trong Final Schema Review.
