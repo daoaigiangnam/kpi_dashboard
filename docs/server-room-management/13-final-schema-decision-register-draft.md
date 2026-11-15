@@ -43,7 +43,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | B09 | Maintenance asset scope | **APPROVED – Maintenance Request liên kết Asset qua `server_room_maintenance_assets`. Asset phải cùng `customer_id` với Request. Nếu Request chỉ áp dụng cho một Server Room, Asset phải thuộc Room đó tại thời điểm thực hiện; nếu bảo trì nhiều Room, Request phải khai báo rõ phạm vi đa phòng. Khi thực hiện, Service phải kiểm tra lại vị trí thực tế của Asset.** | Pivot service validation |
 | B10 | Maintenance personnel JSON | **APPROVED – Lưu danh sách người tham gia dưới dạng JSON snapshot, chỉ gồm thông tin tối thiểu: `name`, `organization` (đơn vị/vendor), `role` (vai trò). Không lưu CCCD, hộ chiếu hoặc dữ liệu cá nhân nhạy cảm nếu không có căn cứ nghiệp vụ. Snapshot giữ nguyên thông tin tại thời điểm bảo trì.** | JSON contract, privacy |
 | B11 | Movement timestamps | **APPROVED – Tách `requested_at` (thời điểm tạo yêu cầu di chuyển) và `executed_at` (thời điểm thực tế hoàn tất di chuyển). Không dùng một trường `movement_at` cho cả hai ý nghĩa; báo cáo/SLA phải dựa trên đúng mốc thời gian.** | Column schema, SLA/report |
-| B12 | Movement status/lifecycle | Bắt buộc status draft/pending_approval/approved/rejected/completed/cancelled; approved_by/approved_at khi approved; performed_by/executed_at khi completed. | State machine, migration |
+| B12 | Movement status/lifecycle | **APPROVED – Movement dùng các trạng thái `draft`, `pending_approval`, `approved`, `rejected`, `completed`, `cancelled`. Khi `approved` bắt buộc có `approved_by`, `approved_at`; khi `completed` bắt buộc có `performed_by`, `executed_at`. Không cho chuyển trực tiếp `draft` → `completed`; chỉ cập nhật vị trí Asset khi Movement thực hiện thành công. Mọi chuyển trạng thái phải được Audit.** | State machine, migration |
 | B13 | Movement asset_id NULL | Cho phép thiết bị ngoài danh mục check_in/check_out; bắt buộc snapshot tên/serial/tag phù hợp. Sau check_in, người quản trị quyết định tạo asset record và liên kết bằng quy trình riêng. | Asset lifecycle, reconciliation |
 | B14 | Movement Rack/U snapshot | Bổ sung source/destination rack asset ID và U position có cấu trúc; text location chỉ dùng ghi chú hiển thị. | Movement columns, FK/self-FK |
 | B15 | Check-out asset state | Check-out đưa asset sang trạng thái ngoài phòng/checked_out, không xóa asset; check_in lại bằng phiếu mới. Cần thêm allowlist trạng thái asset tương ứng. | Asset status, movement transaction |
@@ -106,7 +106,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 | Nhóm | Tổng mục | Đã xác nhận | Còn mở |
 |---|---:|---:|---:|
 | A – Batch 1 | 11 | 11 | 0 |
-| B – Batch 2 | 16 | 11 | 5 |
+| B – Batch 2 | 16 | 12 | 4 |
 | C – Batch 3 | 18 | 0 | 18 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
 
@@ -135,6 +135,9 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 ## Lịch sử xác nhận
+
+- **B12 – APPROVED (2026-11-15):** Movement có các trạng thái `draft`, `pending_approval`, `approved`, `rejected`, `completed`, `cancelled`; yêu cầu metadata khi approved/completed; cấm draft → completed; chỉ cập nhật Asset sau khi thực hiện thành công và Audit mọi chuyển trạng thái.
+
 
 - **B11 – APPROVED (2026-11-15):** Tách `requested_at` (tạo yêu cầu) và `executed_at` (hoàn tất di chuyển thực tế); không dùng chung `movement_at` cho hai ý nghĩa.
 
