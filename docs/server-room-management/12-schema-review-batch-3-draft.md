@@ -229,6 +229,7 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 
 - Không xóa tự động file khi parent Archived/Soft Deleted.
 - Retention cấu hình theo loại hồ sơ/tài liệu và policy nghiệp vụ; chưa hard-code thời hạn.
-- Legal Hold ngăn purge vật lý khi còn hiệu lực, kể cả retention đã hết.
-- Purge chỉ sau khi hết retention, không còn Legal Hold, kiểm tra tham chiếu và ghi Audit actor/thời điểm/kết quả.
-- Chi tiết schema retention/Legal Hold được giữ là điểm cần chốt trong Final Schema Review; không tự thêm bảng/cột ở bước này.
+- Legal Hold được quản lý ở parent record; tất cả attachment của parent tự động được bảo vệ, không có Legal Hold độc lập từng file.
+- Parent đang Legal Hold chặn purge tất cả attachment liên quan dù retention đã hết.
+- Khi gỡ Legal Hold, file chỉ đủ điều kiện purge nếu retention đã hết, không còn reference hợp lệ và có Audit actor/thời điểm/kết quả.
+- Cách lưu Legal Hold ở parent và cơ chế resolve attachment sẽ được chốt trong Final Schema Review; không tự thêm bảng/cột ở bước này.
