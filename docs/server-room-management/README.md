@@ -143,3 +143,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - D04 đã APPROVED: FK cho quan hệ SRM rõ; polymorphic reference được kiểm tra tại Service; không cascade delete dữ liệu nghiệp vụ/lịch sử/Audit; ưu tiên RESTRICT/NO ACTION và kiểm tra orphan trước migration.
+
+
+- D05 đã APPROVED: uniqueness theo business/tenant scope; active uniqueness ở database khi khả thi; không chỉ dựa PHP pre-check; idempotency cho thao tác tạo quan trọng; kiểm tra duplicate trước migration.
