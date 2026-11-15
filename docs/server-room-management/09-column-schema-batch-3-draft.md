@@ -247,3 +247,9 @@ Chủ dự án đã chọn ủy quyền theo thời hạn/phạm vi và xác nh�
 - Audit event ghi tối thiểu actor, timestamp UTC, action, target object, result và trace/correlation ID khi có.
 - Không tuyên bố bất biến tuyệt đối trước DBA/quản trị hạ tầng chỉ bằng UI hoặc append-only ở tầng ứng dụng.
 - Kiểm tra quyền DB, archive, retention, quyền xem log và test âm tính UPDATE/DELETE bằng tài khoản runtime ở giai đoạn triển khai; chưa tạo migration.
+
+## C11 – Pivot Column Naming (APPROVED – 2026-11-15)
+
+- `server_room_incident_assets.impact_note`: ghi nhận ảnh hưởng của Asset trong Incident.
+- `server_room_maintenance_assets.work_note`: ghi chú công việc bảo trì liên quan đến Asset.
+- Giữ nguyên hai tên cột theo ngữ nghĩa nghiệp vụ; không đổi thành `relationship_note`.
