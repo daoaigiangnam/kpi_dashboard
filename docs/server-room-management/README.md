@@ -140,3 +140,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - D03 đã APPROVED: thứ tự khóa nhất quán; xử lý deadlock 1213/lock timeout 1205; retry có giới hạn và backoff chỉ với thao tác chạy lại an toàn; ghi log và kiểm thử concurrency.
+
+
+- D04 đã APPROVED: FK cho quan hệ SRM rõ; polymorphic reference được kiểm tra tại Service; không cascade delete dữ liệu nghiệp vụ/lịch sử/Audit; ưu tiên RESTRICT/NO ACTION và kiểm tra orphan trước migration.
