@@ -8,7 +8,7 @@ Batch 3 hoàn tất rà soát 8 bảng còn lại trong register 22 bảng: Envi
 
 Các nguyên tắc chính đã rõ: log môi trường thuộc tenant/room; ba bảng approval/attachment/audit dùng polymorphic allowlist và service-layer tenant validation; hai pivot dùng composite FK tenant; customer user dùng quyền chức năng riêng và room assignment theo nguyên tắc deny-by-default.
 
-C01–C03 về Environment Logs đã được chủ dự án APPROVED. Các điểm còn mở tập trung vào approval ANY/ALL và group snapshot, bảo mật file, audit immutability, lịch sử thu hồi permission và unique active room assignment.
+C01–C06 đã được chủ dự án APPROVED. Approval áp dụng tuần tự theo cấp, ALL approvers tại từng cấp, snapshot người duyệt khi cấp được kích hoạt, và hỗ trợ delegation/reassignment có audit. Các điểm còn mở tập trung vào bảo mật file, audit immutability, lịch sử thu hồi permission và unique active room assignment.
 
 ## 2. Review từng bảng
 
@@ -37,15 +37,18 @@ C01–C03 về Environment Logs đã được chủ dự án APPROVED. Các đi�
 - Tách quyền submit khỏi quyền approve; mặc định cấm self-approval.
 - Reassign và quyết định phải được audit; quyết định lưu lịch sử, không ghi đè.
 
-**Cần chốt**
-1. ANY hay ALL khi một bước có nhiều approver; áp dụng theo từng workflow hay một quy tắc toàn cục?
-2. approver_group là snapshot mã nhóm/role hay nhóm động? Nếu nhóm động, cần xác định lúc giao duyệt resolve thành user cụ thể và lưu snapshot thành viên.
-3. Data Dictionary chưa có assigned_by; Batch 3 đề xuất thêm. Cần phê duyệt trường này để truy vết người giao/reassign.
-4. Reassign cần lưu người cũ, người mới, actor, thời điểm và lý do. Một assigned_by đơn lẻ không đủ lưu nhiều lần reassign; audit event phải ghi đầy đủ hoặc thiết kế approval_events riêng.
-5. UNIQUE theo approval_step/approver chưa chốt do phụ thuộc multi-approver. Cần chống tạo trùng step/approver bằng constraint hoặc transaction.
-6. comments cần bắt buộc khi rejected; skipped phải có lý do và workflow cho phép.
-7. Polymorphic parent không có FK trực tiếp. Mọi thao tác tạo/đọc/decide phải qua service kiểm tra allowlist, tenant, trạng thái hồ sơ và chống double-submit.
-8. Cần xác định có cần bảng workflow definition/approval events không. Không tự thêm bảng ngoài register 22 nếu chưa quyết định.
+**Đã chốt C04–C06**
+1. Approval chạy tuần tự theo cấp; trong mỗi cấp, tất cả approver phải APPROVE mới được chuyển cấp; một REJECT dừng workflow.
+2. Group/role được resolve thành danh sách user cụ thể và snapshot khi cấp được kích hoạt; cấp sau snapshot khi đến lượt.
+3. Delegation và Reassignment đều được hỗ trợ với kiểm soát quyền, thời hạn/phạm vi phù hợp và Audit Log đầy đủ. Reassignment lưu old/new approver, actor, time, reason; delegation lưu principal và acting approver.
+4. Quy tắc ALL không bị giảm khi ủy quyền/thay thế.
+
+**Còn cần hoàn thiện kỹ thuật**
+1. Xác định cấu trúc cột/metadata để lưu level, step, principal approver, acting approver, assigned_by và lịch sử delegation/reassignment; không tự thêm bảng ngoài register 22 nếu chưa chứng minh cần thiết.
+2. Chống tạo trùng approver trong cùng step/level bằng unique constraint hoặc transaction.
+3. `comments` bắt buộc khi rejected; skipped chỉ được dùng khi workflow cho phép và phải có lý do.
+4. Polymorphic parent phải qua allowlist; mọi thao tác kiểm tra tenant, trạng thái hồ sơ và chống double-submit.
+5. Chưa quyết định có cần workflow definition/approval events riêng; ưu tiên dùng approval + audit hiện hữu nếu đáp ứng đầy đủ lịch sử.
 
 ### 2.3 server_room_attachments
 
@@ -191,5 +194,5 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Đã rà soát đủ 8 bảng còn lại.
 - Column Schema Batch 3 có các điểm bổ sung/đổi tên so với Data Dictionary (assigned_by, revoked fields đang là đề xuất; impact_note/work_note đổi thành relationship_note); cần thống nhất trước migration.
 - Tổng cộng đã review đủ 22/22 bảng ở ba batch.
-- C01–C03 đã APPROVED; C04–C18 vẫn OPEN.
+- C01–C06 đã APPROVED; C07–C18 vẫn OPEN.
 - Chưa có phê duyệt final schema và chưa tạo Laravel migrations.
