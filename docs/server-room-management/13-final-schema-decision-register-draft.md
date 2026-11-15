@@ -98,7 +98,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 ### P1 – Ảnh hưởng service, security, retention và vận hành
 - B02, B06, B07, B09, B10, B16
-- C01, C02, C03, C06, C07, C08, C09, C10, C13, C17, C18
+- C06, C07, C08, C09, C10, C13, C17, C18
 - A01, A05, A08, A11
 
 ## 7. Trạng thái phê duyệt
