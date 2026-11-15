@@ -318,3 +318,16 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 - Nếu không khả thi, Service/Policy phải enforce `account_type='customer'` và `service_customer_id=customer_id` trên mọi thao tác SRM; kiểm thử cả read, create, update, delete, attachment/download và API endpoints.
 - Negative tests bắt buộc: customer user tenant A không đọc/ghi record tenant B; giả mạo customer_id không vượt được kiểm tra; internal/platform account không bị nhận diện nhầm là customer; disabled user không được truy cập.
 - Không tạo migration cho users trước khi hoàn tất schema inspection và kiểm tra dữ liệu thực tế.
+
+
+## C17 – Customer IT Admin Scope (APPROVED – 2026-11-15)
+
+1. Customer IT Admin chỉ được cấp hoặc thu hồi quyền SRM cho Customer User thuộc cùng `customer_id` với chính mình.
+2. Customer IT Admin chỉ được gán hoặc thu hồi quyền truy cập các Server Room thuộc tenant của mình.
+3. Chỉ được cấp các `permission_code` nằm trong allowlist quyền SRM dành cho Customer Admin; không thể tự cấp quyền Internal/Platform hoặc nâng quyền vượt phạm vi được phép.
+4. Mọi thao tác grant/revoke permission và room assignment đều phải được authorization theo tenant, kiểm tra trạng thái user/room, và ghi Audit actor, target, action, timestamp UTC, result.
+5. Server-side phải resolve tenant từ user đã xác thực; không tin `customer_id`, `user_id` hoặc `server_room_id` do client gửi nếu chưa xác minh ownership.
+6. Cần negative tests: Customer IT Admin tenant A không thể grant/revoke user tenant B, gán/revoke room tenant B, hoặc cấp permission ngoài allowlist.
+
+- Migration/seed permission phải tạo allowlist quyền SRM dành cho Customer Admin; xác minh mapping role-permission hiện hữu trước khi thay đổi.
+- Kiểm thử negative cases cross-tenant và privilege escalation trước khi nghiệm thu.
