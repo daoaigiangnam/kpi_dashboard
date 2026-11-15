@@ -622,3 +622,10 @@ Bổ sung vào `server_room_approvals`: `acting_approver_id` (người được 
 ## C12 – Data Dictionary: Pivot Asset Snapshot (APPROVED – 2026-11-15)
 
 Cả `server_room_incident_assets` và `server_room_maintenance_assets` lưu hai trường snapshot `asset_tag` và `asset_name` tại thời điểm liên kết Asset. Snapshot bảo toàn tên/mã lịch sử và không tự thay đổi khi bản ghi Asset gốc được cập nhật. Chi tiết kiểu dữ liệu/độ dài/nullability được chốt trong Final Schema Review.
+
+
+## C13 – Data Dictionary: Pivot Room Scope (APPROVED – 2026-11-15)
+
+- `server_room_incident_assets`: Asset liên kết có thể nằm ở nhiều Room khác nhau trong cùng `customer_id`.
+- `server_room_maintenance_assets`: Asset mặc định phải thuộc Room của Maintenance Request; trường hợp đa phòng yêu cầu khai báo scope rõ ràng.
+- Tenant và Room scope được Service xác thực trước khi ghi liên kết; không chỉ dựa vào FK ID đơn.
