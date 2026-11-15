@@ -253,3 +253,12 @@ Chủ dự án chọn phương án ủy quyền theo thời hạn/phạm vi (b�
 4. Thu hồi hoặc hết hạn sau thời điểm kích hoạt không hồi tố thay đổi cấp đã snapshot. Các cấp tiếp theo kiểm tra delegation mới tại thời điểm cấp đó được kích hoạt.
 5. Acting approver thực hiện nghĩa vụ của principal; không tạo thêm hoặc bỏ bớt approver. ALL approvers vẫn phải hoàn tất.
 6. Ghi audit khi tạo, duyệt, từ chối, thu hồi delegation và khi delegation được áp dụng vào approval level.
+
+
+## 7.7 C07 – Chống tự phê duyệt (APPROVED – 2026-11-15)
+
+- Requester (người tạo yêu cầu) không được tự approve chính yêu cầu đó trong mọi SRM workflow của phiên bản đầu.
+- Khi resolve danh sách approver của một cấp theo C05, nếu requester có mặt, hệ thống loại requester khỏi danh sách hiệu lực và ghi nhận lý do/audit.
+- Nếu loại requester khiến cấp không còn approver hợp lệ, chặn kích hoạt cấp; không tự động skip. Workflow manager có thẩm quyền phải điều chỉnh cấu hình hoặc thực hiện reassignment hợp lệ.
+- Delegation không được dùng để vượt SoD. Nếu acting approver được snapshot là requester hoặc không đủ điều kiện, chặn quyết định và yêu cầu reassignment có thẩm quyền.
+- Mọi thay đổi vẫn phải giữ nguyên quy tắc ALL; không được giảm số nghĩa vụ phê duyệt còn lại.
