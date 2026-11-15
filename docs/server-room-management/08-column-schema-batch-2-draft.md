@@ -1,6 +1,6 @@
 # SRM – Column-level Schema, Batch 2 (bản nháp)
 
-> Phạm vi: 7 bảng nghiệp vụ phát sinh và vận hành. Nội dung được chuẩn hóa từ Data Dictionary và State Machine hiện tại; các cột bổ sung để lưu trạng thái/chủ thể/thời điểm chuyển trạng thái được ghi rõ là đề xuất cần duyệt. Chưa tạo migration.
+> Phạm vi: 7 bảng nghiệp vụ phát sinh và vận hành. Các quyết định B01–B16 của Batch 2 đã được chủ dự án phê duyệt và phải được phản ánh nhất quán trong schema, validation và State Machine. Chưa tạo migration.
 
 ## 1. Quy ước
 
@@ -274,11 +274,11 @@
 | destination_location | VARCHAR(200) | YES | NULL | Snapshot vị trí đích |
 | movement_at | DATETIME | NO | — | Thời điểm yêu cầu/thực hiện; cần thống nhất semantics |
 | reason | TEXT | NO | — | Lý do |
-| status | VARCHAR(30) | NO | draft | Đề xuất bổ sung: draft/pending_approval/approved/rejected/completed/cancelled |
+| status | VARCHAR(30) | NO | draft | draft/pending_approval/approved/rejected/completed/cancelled |
 | performed_by | BIGINT UNSIGNED | YES | NULL | FK users |
 | approved_by | BIGINT UNSIGNED | YES | NULL | FK users |
 | approved_at | DATETIME | YES | NULL | Thời điểm duyệt |
-| executed_at | DATETIME | YES | NULL | Đề xuất bổ sung: thời điểm thực thi |
+| executed_at | DATETIME | YES | NULL | Thời điểm thực tế hoàn tất Movement |
 | notes | TEXT | YES | NULL | Ghi chú |
 | created_by | BIGINT UNSIGNED | YES | NULL | FK users |
 | created_at | TIMESTAMP | YES | NULL | Laravel |
@@ -287,7 +287,7 @@
 **Khóa/index**
 - PK: id.
 - UNIQUE: (customer_id, movement_code).
-- INDEX: (customer_id, from_server_room_id, movement_at), (customer_id, to_server_room_id, movement_at), (asset_id), (customer_id, status, movement_at).
+- INDEX: (customer_id, from_server_room_id, requested_at), (customer_id, to_server_room_id, requested_at), (asset_id), (customer_id, status, requested_at).
 - Quan hệ composite tenant tới from room, to room và asset.
 - Nếu cần composite FK asset cùng room, asset cần candidate unique (id, customer_id, server_room_id).
 
@@ -322,5 +322,5 @@
 - [x] Chuẩn hóa 7 bảng nghiệp vụ.
 - [x] Bổ sung status/actor/time fields cần thiết để biểu diễn state machine, ghi rõ phần còn chờ duyệt.
 - [x] Định nghĩa index và tenant relationships ở mức thiết kế.
-- [ ] Chủ dự án xác nhận các quyết định mục 9.
+- [x] Chủ dự án xác nhận các quyết định mục 9 (Batch 2: B01–B16 APPROVED).
 - [ ] Rà soát FK/index/delete rules trước migration.
