@@ -267,3 +267,9 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 - Audit event tối thiểu gồm actor, UTC timestamp, action, target object, result và trace/correlation ID khi có.
 - Gate trước release: kiểm tra grants thực tế; thử UPDATE/DELETE bằng runtime account phải bị từ chối; kiểm tra quyền đọc log, retention/archive và audit các thao tác đặc quyền.
 - Lưu ý: các kiểm soát này không chống được tuyệt đối DBA/quản trị hạ tầng có đặc quyền; không mô tả là immutable tuyệt đối.
+
+## C11 – Migration/schema naming gate (APPROVED – 2026-11-15)
+
+- Migration cho pivot Incident–Asset phải giữ cột `impact_note` trên `server_room_incident_assets`.
+- Migration cho pivot Maintenance–Asset phải giữ cột `work_note` trên `server_room_maintenance_assets`.
+- Không dùng `relationship_note`; kiểm tra tên cột nhất quán giữa migration, model, validation, API và UI.
