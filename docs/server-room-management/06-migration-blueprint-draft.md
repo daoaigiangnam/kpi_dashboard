@@ -257,3 +257,13 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 - Event cần parent identity, action, actor, UTC timestamp, reason; release phải tham chiếu placement tương ứng.
 - Test: nhiều chu kỳ place/release vẫn truy vết đầy đủ; không sửa/xóa lịch sử; actor không đủ quyền bị từ chối; release không có placement hợp lệ bị từ chối; timezone hiển thị đúng từ UTC.
 - Chọn cấu trúc lưu trữ sau khi rà soát polymorphic parent và schema users/audit; chưa tạo migration.
+
+
+## 15. C10 – Audit Log Immutability migration/security gate (APPROVED – 2026-11-15)
+
+- `server_room_audit_logs` là append-only ở tầng ứng dụng; không xây dựng CRUD update/delete cho audit rows.
+- Tài khoản DB runtime phải bị thu hồi quyền `UPDATE` và `DELETE` trên bảng Audit Log. Quyền migration/DBA dùng tài khoản riêng, không dùng chung runtime credential.
+- Nếu compliance yêu cầu, archive sang vùng lưu trữ riêng với access control hạn chế sửa/xóa; cấu hình cụ thể theo policy và năng lực hạ tầng, không mặc định tuyên bố WORM/object-lock khi chưa xác minh.
+- Audit event tối thiểu gồm actor, UTC timestamp, action, target object, result và trace/correlation ID khi có.
+- Gate trước release: kiểm tra grants thực tế; thử UPDATE/DELETE bằng runtime account phải bị từ chối; kiểm tra quyền đọc log, retention/archive và audit các thao tác đặc quyền.
+- Lưu ý: các kiểm soát này không chống được tuyệt đối DBA/quản trị hạ tầng có đặc quyền; không mô tả là immutable tuyệt đối.
