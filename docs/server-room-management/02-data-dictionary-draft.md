@@ -629,3 +629,8 @@ Cả `server_room_incident_assets` và `server_room_maintenance_assets` lưu hai
 - `server_room_incident_assets`: Asset liên kết có thể nằm ở nhiều Room khác nhau trong cùng `customer_id`.
 - `server_room_maintenance_assets`: Asset mặc định phải thuộc Room của Maintenance Request; trường hợp đa phòng yêu cầu khai báo scope rõ ràng.
 - Tenant và Room scope được Service xác thực trước khi ghi liên kết; không chỉ dựa vào FK ID đơn.
+
+
+## C14 – Data Dictionary: Customer Permission Revoke (APPROVED – 2026-11-15)
+
+Bảng `customer_user_srm_permissions` giữ lịch sử grant/revoke. Thu hồi cập nhật `revoked_at`, `revoked_by`; cấp lại tạo row mới. Mỗi `(customer_id, user_id, permission_code)` chỉ có một grant active. Cơ chế unique/index cụ thể chờ xác minh MySQL version và schema hiện hữu.
