@@ -594,3 +594,11 @@ Bổ sung vào `server_room_approvals`: `acting_approver_id` (người được 
 - Parent đang Legal Hold chặn purge tất cả attachment liên quan dù retention đã hết.
 - Khi gỡ Legal Hold, file chỉ đủ điều kiện purge nếu retention đã hết, không còn reference hợp lệ và có Audit actor/thời điểm/kết quả.
 - Cách lưu Legal Hold ở parent và cơ chế resolve attachment sẽ được chốt trong Final Schema Review; không tự thêm bảng/cột ở bước này.
+
+
+## 9. C09-B – Legal Hold event history (APPROVED – 2026-11-15)
+
+- Lưu từng lần đặt/gỡ Legal Hold thành event riêng, không chỉ ghi đè trạng thái hiện tại.
+- Event gồm parent identity, action, actor, thời điểm UTC, lý do; release phải tham chiếu lần placement tương ứng.
+- Không hard delete lịch sử; thao tác đặt/gỡ phải có authorization và Audit.
+- Cấu trúc lưu trữ sẽ được chốt trong Final Schema Review.
