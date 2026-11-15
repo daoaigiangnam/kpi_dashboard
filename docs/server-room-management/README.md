@@ -9,7 +9,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - ERD logic: đã đồng bộ Movement theo B11–B16; FK/index/delete rules toàn hệ thống vẫn đang Final Schema Review.
 - Phân quyền và workflow: đã có bản đề xuất; đã chốt phương án B; Customer User assigned-only; Customer IT Admin được cấp quyền và gán phòng trong tenant.
 - Batch 1 và Batch 2: các quyết định nghiệp vụ đã được ghi nhận; Batch 2 có B01–B16 APPROVED.
-- Batch 3: C01–C15 đã APPROVED; C16–C18 và baseline kỹ thuật nhóm D vẫn còn mở.
+- Batch 3: C01–C16 đã APPROVED; C17–C18 và baseline kỹ thuật nhóm D vẫn còn mở.
 - Laravel migrations và code ứng dụng: chưa triển khai.
 - Không chạy migration hoặc thay đổi dữ liệu production trong giai đoạn thiết kế.
 
@@ -119,3 +119,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - C15 đã APPROVED: mỗi `(customer_id, user_id, server_room_id)` chỉ có một assignment active; revoke giữ lịch sử, cấp lại tạo row mới; cơ chế unique active chờ xác minh MySQL thực tế.
+
+
+- C16 đã APPROVED: Customer User bắt buộc `account_type=customer` và `service_customer_id=customer_id`; composite FK chỉ dùng nếu schema hiện hữu hỗ trợ, nếu không Service/Policy tenant check và negative tests là bắt buộc.
