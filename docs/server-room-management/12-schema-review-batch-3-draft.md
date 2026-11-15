@@ -241,3 +241,15 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Lưu parent identity, action, actor, UTC timestamp, reason; release liên kết lần placement tương ứng.
 - Không hard delete; quyền đặt/gỡ phải được kiểm soát và Audit.
 - Cấu trúc bảng/cột chờ Final Schema Review.
+
+
+## 10. C10 – Audit Log Immutability (APPROVED – 2026-11-15)
+
+**Quyết định:**
+- Audit Log append-only ở ứng dụng; không cho UPDATE/DELETE qua chức năng nghiệp vụ thông thường.
+- Tài khoản DB runtime của ứng dụng không có quyền UPDATE/DELETE trên bảng Audit Log.
+- Có thể archive riêng với quyền sửa/xóa hạn chế khi compliance yêu cầu; mức bảo vệ cụ thể chốt theo policy và hạ tầng thực tế.
+- Ghi actor, UTC timestamp, action, target object, result và trace cần thiết.
+- Không tuyên bố bất biến tuyệt đối trước DBA/quản trị hạ tầng đặc quyền.
+
+**Schema/implementation impact:** không phát sinh bảng mới theo quyết định này. Cần kiểm tra DB grants, tách tài khoản runtime và migration/DBA, archive/retention/access policy và negative tests UPDATE/DELETE trước release.
