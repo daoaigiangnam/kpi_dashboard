@@ -583,3 +583,5 @@ Bổ sung bảng thứ 23 `server_room_approval_delegations` với các trườn
 Bảng quản lý ủy quyền theo thời hạn và phạm vi; không tạo bản ghi delegation riêng cho từng request. Khi một approval level được kích hoạt, hệ thống mới tìm ủy quyền hợp lệ và snapshot kết quả vào `server_room_approvals`.
 
 Bổ sung vào `server_room_approvals`: `acting_approver_id` (người được giao xử lý tại thời điểm kích hoạt), `acted_by` (người thực tế bấm quyết định), `delegation_id` (ủy quyền được áp dụng, nullable). `approver_id` luôn là principal approver gốc. Không có delegation thì acting_approver_id trùng approver_id; acted_by được ghi khi có quyết định.
+
+- C09 đã APPROVED: không cascade/purge khi parent Archived/Soft Deleted; retention theo policy; Legal Hold chặn purge; purge cần hết hạn + hết hold + kiểm tra reference + Audit. Chi tiết schema Legal Hold/retention tiếp tục là gate của Final Schema Review.
