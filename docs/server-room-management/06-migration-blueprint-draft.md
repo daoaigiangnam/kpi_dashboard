@@ -422,3 +422,17 @@ Kết luận: runtime xác minh là MySQL Community Server 8.0.46, InnoDB, chars
 
 - Trước khi tạo unique constraint/index: thống kê duplicate theo business key và tenant scope; chuẩn bị phương án xử lý có audit và không tự ý xóa dữ liệu.
 - Kiểm tra tác động đến luồng regrant/history của customer permissions và room assignments đã được duyệt ở C14/C15.
+
+
+## D06 – JSON and Data Type Policy (APPROVED – 2026-11-15)
+
+1. Sử dụng MySQL `JSON` cho dữ liệu có cấu trúc linh hoạt, không dùng JSON để thay thế các cột nghiệp vụ có cấu trúc ổn định, cần lọc/sắp xếp/join/index thường xuyên.
+2. Các giá trị thời gian được lưu UTC; hiển thị và truy vấn theo timezone tenant theo quyết định C01.
+3. Giá trị tiền tệ dùng `DECIMAL` với precision/scale được xác định theo nghiệp vụ; không dùng `FLOAT`/`DOUBLE` cho số tiền.
+4. Số lượng dùng kiểu số nguyên phù hợp với miền giá trị và giới hạn nghiệp vụ; không chọn độ rộng tùy tiện.
+5. Không lưu nội dung file nhị phân trong JSON hoặc bảng nghiệp vụ; file được lưu ở Storage riêng và DB chỉ lưu metadata/reference cần thiết.
+6. Giá trị thuộc tập lựa chọn cố định phải được kiểm soát bằng validation phía ứng dụng và constraint phù hợp với MySQL 8.0.46/schema thực tế; không chỉ dựa vào giao diện.
+7. Với JSON cần truy vấn theo thuộc tính cụ thể, phải đánh giá generated column/index hoặc giải pháp phù hợp; chỉ bổ sung khi có use case và kiểm thử hiệu năng.
+8. Kiểu dữ liệu, precision/scale, nullability, default và constraint cụ thể của từng cột được chốt trong Final Schema Review sau khi đối chiếu data dictionary và schema hiện hữu.
+
+- Mỗi cột phải được rà soát type, unsigned, precision/scale, nullability, default, collation và index theo use case; không áp dụng một kiểu mặc định cho mọi cột.
