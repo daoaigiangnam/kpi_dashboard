@@ -359,3 +359,11 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 5. Khi user được kích hoạt lại hoặc chuyển tenant hoàn tất, quyền truy cập chỉ được khôi phục/cấp mới theo quy trình cấp quyền của tenant tương ứng; không tự khôi phục quyền tenant cũ.
 6. Ghi Audit cho disable/enable, tenant change, các thao tác revoke và các lần truy cập SRM bị từ chối; ghi actor, target, UTC timestamp, action, result và correlation ID nếu có.
 7. Negative tests bắt buộc: disabled user không truy cập được; user sau tenant change không còn quyền/room assignment tenant cũ; user không được tự động nhận quyền tenant mới; lỗi giữa quy trình không để lại permission/assignment ở trạng thái dở dang.
+
+
+## D01 – Database Engine / Version Baseline (APPROVED – 2026-11-15)
+
+- User xác nhận dự án sử dụng MySQL 8; lấy MySQL 8.0 làm baseline cho thiết kế schema, index, constraints và migration.
+- Không thiết kế tương thích ngược MySQL 5.7 hoặc MariaDB trừ khi có yêu cầu mới.
+- Trước khi viết/chạy migration, phải kiểm tra phiên bản MySQL 8.x cụ thể, `version_comment`, `sql_mode`, `character_set_server`, `collation_server`, storage engine và schema thực tế.
+- Không giả định các đặc tính vận hành hoặc cấu hình production chỉ từ thông tin MySQL 8.
