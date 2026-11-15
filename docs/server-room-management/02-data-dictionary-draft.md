@@ -602,3 +602,12 @@ Bổ sung vào `server_room_approvals`: `acting_approver_id` (người được 
 - Event gồm parent identity, action, actor, thời điểm UTC, lý do; release phải tham chiếu lần placement tương ứng.
 - Không hard delete lịch sử; thao tác đặt/gỡ phải có authorization và Audit.
 - Cấu trúc lưu trữ sẽ được chốt trong Final Schema Review.
+
+
+## C10 – Data Dictionary note: `server_room_audit_logs` (APPROVED – 2026-11-15)
+
+- Bảng Audit Log vận hành theo append-only; ứng dụng không cập nhật/xóa audit rows trong luồng thông thường.
+- DB runtime account không có quyền `UPDATE`/`DELETE` trên bảng này; quyền đặc biệt được tách biệt và kiểm soát.
+- Archive riêng với quyền sửa/xóa hạn chế là phương án hỗ trợ khi compliance yêu cầu; không mặc định một công nghệ archive cụ thể.
+- Event ghi actor, UTC timestamp, action, target object, result và trace/correlation ID khi có.
+- Không tuyên bố bất biến tuyệt đối trước DBA/quản trị hạ tầng đặc quyền. Các quyền DB và archive là implementation/security controls, không phải cột dữ liệu mới.
