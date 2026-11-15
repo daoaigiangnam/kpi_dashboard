@@ -152,3 +152,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - D07 đã APPROVED: index FK phù hợp; composite index theo query pattern; EXPLAIN cho truy vấn quan trọng; tránh index dư thừa và đánh giá tác động INSERT/UPDATE.
+
+
+- D08 đã APPROVED: API list hỗ trợ pagination (mặc định LIMIT/OFFSET); page size có giới hạn; sort allowlist; filter tenant-scoped; stable ordering có unique tie-breaker.
