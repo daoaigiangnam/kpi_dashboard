@@ -146,3 +146,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - D05 đã APPROVED: uniqueness theo business/tenant scope; active uniqueness ở database khi khả thi; không chỉ dựa PHP pre-check; idempotency cho thao tác tạo quan trọng; kiểm tra duplicate trước migration.
+
+
+- D06 đã APPROVED: JSON cho dữ liệu linh hoạt; timestamp UTC; tiền DECIMAL; số lượng integer; file ở Storage riêng; fixed values được validation và constraint phù hợp.
