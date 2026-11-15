@@ -478,3 +478,18 @@ Kết luận: runtime xác minh là MySQL Community Server 8.0.46, InnoDB, chars
 8. Kiểm thử xác minh correlation ID xuyên request/job, redaction secret, quyền truy cập log và khả năng truy vết sự cố.
 
 - Cấu hình logging/monitoring phải được triển khai và kiểm thử mà không ghi lộ credential; xác minh retention, quyền đọc và cơ chế archive trước nghiệm thu.
+
+
+## D10 – Backup, Restore and Disaster Recovery Policy (APPROVED – 2026-11-15)
+
+1. Database SRM thuộc phạm vi backup chung của KPI Dashboard; không xem SRM là một nguồn dữ liệu độc lập ngoài quy trình backup ứng dụng.
+2. Backup phải có lịch thực hiện, retention policy và biện pháp mã hóa/bảo vệ phù hợp với phân loại dữ liệu và chính sách hạ tầng.
+3. Phải kiểm tra khả năng restore định kỳ; việc chỉ xác nhận file backup tồn tại hoặc job backup báo thành công không đủ chứng minh khả năng khôi phục.
+4. RPO và RTO phải được xác định theo yêu cầu nghiệp vụ và được phê duyệt; không tự đặt giá trị khi chưa có yêu cầu.
+5. Database và File Storage phải có phương án backup/restore phối hợp, bảo đảm khôi phục nhất quán giữa metadata trong DB và file thực tế.
+6. Có quy trình phát hiện, cảnh báo và xử lý backup thất bại; ghi log đầy đủ và Audit các thao tác restore/quản trị có ảnh hưởng dữ liệu khi phù hợp.
+7. Không thực hiện thử nghiệm restore trực tiếp trên Production; dùng môi trường khôi phục riêng biệt, được kiểm soát và bảo vệ dữ liệu.
+8. Trước nghiệm thu SRM, phải xác minh phạm vi backup DB, attachment/file storage, retention, encryption/access control, restore test evidence và quy trình DR hiện hữu của KPI Dashboard.
+
+- Trước go-live, đối chiếu backup scope của DB và File Storage với attachment metadata; chạy restore test trên môi trường riêng và lưu bằng chứng.
+- Không tự đặt RPO/RTO; tham chiếu BCP/DR policy đã được doanh nghiệp phê duyệt.
