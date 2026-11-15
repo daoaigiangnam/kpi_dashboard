@@ -253,3 +253,9 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Không tuyên bố bất biến tuyệt đối trước DBA/quản trị hạ tầng đặc quyền.
 
 **Schema/implementation impact:** không phát sinh bảng mới theo quyết định này. Cần kiểm tra DB grants, tách tài khoản runtime và migration/DBA, archive/retention/access policy và negative tests UPDATE/DELETE trước release.
+
+## 11. C11 – Pivot Column Naming (APPROVED – 2026-11-15)
+
+- Giữ `server_room_incident_assets.impact_note` cho ngữ cảnh ảnh hưởng Asset trong Incident.
+- Giữ `server_room_maintenance_assets.work_note` cho ghi chú công việc bảo trì.
+- Không đổi thành tên chung `relationship_note`; không phát sinh schema object mới.
