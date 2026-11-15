@@ -229,3 +229,11 @@ Chủ dự án đã chọn ủy quyền theo thời hạn/phạm vi và xác nh�
 - Legal Hold được đặt ở parent record; mọi attachment của parent tự động được bảo vệ trong thời gian hold, không có hold độc lập ở từng file.
 - Điều kiện purge: retention của attachment đã hết + parent không còn Legal Hold + kiểm tra không còn tham chiếu hợp lệ + Audit actor/thời điểm/kết quả.
 - Cách lưu trạng thái/metadata Legal Hold ở parent và cách scheduler resolve các attachment liên quan sẽ được chốt trong Final Schema Review; hiện chưa thêm cột/bảng hoặc migration.
+
+
+### C09-B – Legal Hold event history (APPROVED – 2026-11-15)
+
+- Lưu riêng từng sự kiện đặt/gỡ Legal Hold tại parent record; không chỉ cập nhật một cờ trạng thái hiện tại.
+- Event tối thiểu: parent type + ID (hoặc định danh parent tương đương), action `placed`/`released`, actor, timestamp UTC, reason; sự kiện release phải tham chiếu lần placement tương ứng.
+- Lịch sử không hard delete; mọi thao tác phải được Audit.
+- Bảng/cấu trúc lưu event sẽ được chốt trong Final Schema Review; chưa tự thêm bảng/cột hoặc migration.
