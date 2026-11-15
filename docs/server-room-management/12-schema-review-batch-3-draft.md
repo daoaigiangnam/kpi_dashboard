@@ -215,3 +215,12 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Nếu không còn approver hợp lệ ở cấp, chặn kích hoạt; không tự skip cấp.
 - Delegation không được bypass quy tắc này; acting approver là requester thì không được approve. Chỉ workflow manager có thẩm quyền mới được reassignment và phải giữ ALL.
 - Đây là quy tắc authorization/service-level, không phát sinh bảng hoặc cột mới trong schema.
+
+## 7. C08 – Attachment Security (APPROVED – 2026-11-15)
+
+- Binary chỉ lưu Private Storage; metadata lưu trong MySQL; không public `file_path`.
+- MIME xác minh bằng nội dung thực tế; không tin extension hoặc client header. Chỉ nhận MIME allowlist và dung lượng cấu hình server-side.
+- File mới upload được cách ly ở trạng thái `pending`; chỉ `clean` mới cho preview/download. `infected` và `error` đều bị chặn (fail closed).
+- Bổ sung `scan_status` (`pending`, `clean`, `infected`, `error`) và `scanned_at` vào `server_room_attachments`; không phát sinh bảng mới.
+- Upload/preview/download/delete phải kiểm tra authorization, tenant và parent record. Không public file path; download qua service authorization hoặc signed URL rất ngắn sau khi kiểm tra quyền.
+- MIME allowlist, giới hạn dung lượng/số lượng file và scanner/vendor cụ thể sẽ được cấu hình ở giai đoạn triển khai; chưa ấn định con số.
