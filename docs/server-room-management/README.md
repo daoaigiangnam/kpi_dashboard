@@ -8,7 +8,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - Data Dictionary: đã chuẩn hóa danh mục 22 bảng dự kiến; tiếp tục đối chiếu FK/index/delete rules trước migration.
 - ERD logic: đã đồng bộ Movement theo B11–B16; FK/index/delete rules toàn hệ thống vẫn đang Final Schema Review.
 - Phân quyền và workflow: đã có bản đề xuất; đã chốt phương án B; Customer User assigned-only; Customer IT Admin được cấp quyền và gán phòng trong tenant.
-- Batch 1 và Batch 2: các quyết định nghiệp vụ đã được ghi nhận; Batch 2 có B01–B16 APPROVED.\n- Batch 3: C01–C18 và baseline kỹ thuật nhóm D vẫn còn mở.\n- Laravel migrations và code ứng dụng: chưa triển khai.
+- Batch 1 và Batch 2: các quyết định nghiệp vụ đã được ghi nhận; Batch 2 có B01–B16 APPROVED.\n- Batch 3: C01–C03 đã APPROVED; C04–C18 và baseline kỹ thuật nhóm D vẫn còn mở.\n- Laravel migrations và code ứng dụng: chưa triển khai.
 - Không chạy migration hoặc thay đổi dữ liệu production trong giai đoạn thiết kế.
 
 ## Tiến độ cập nhật gần nhất
@@ -19,7 +19,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - Đã soạn ma trận vai trò, permission codes, tenant scope, SoD và workflow phê duyệt.
 - Đã chốt 2 bảng access-control: customer_user_srm_permissions và customer_user_server_rooms.
 - Tổng thiết kế hiện tại: 22 bảng mới dự kiến (18 core + 2 pivots + 2 access-control).
-- Đã lập tài liệu quy tắc tenant integrity, Rack/U, equipment movement và State Machine cho 7 nhóm hồ sơ.\n- Đã đồng bộ Movement B11–B16 giữa Decision Register, Data Dictionary, ERD, Column Schema và State Machine.\n- Đã cập nhật kết luận Schema Review Batch 2 và Migration Blueprint theo trạng thái phê duyệt mới nhất.
+- Đã lập tài liệu quy tắc tenant integrity, Rack/U, equipment movement và State Machine cho 7 nhóm hồ sơ.\n- Đã đồng bộ Movement B11–B16 giữa Decision Register, Data Dictionary, ERD, Column Schema và State Machine.\n- Đã cập nhật kết luận Schema Review Batch 2 và Migration Blueprint theo trạng thái phê duyệt mới nhất.\n- C01–C03 Environment Logs đã APPROVED và đồng bộ vào Decision Register, Data Dictionary, Column Schema Batch 3, Schema Review Batch 3 và Migration Blueprint.
 - Chưa tạo permission seed, migration hoặc code authorization.
 
 ## Tài liệu
