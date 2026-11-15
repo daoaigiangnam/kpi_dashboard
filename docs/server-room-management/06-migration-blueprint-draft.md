@@ -282,3 +282,12 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 - Không cập nhật snapshot khi Asset gốc đổi tên/mã; mọi báo cáo lịch sử phải dùng snapshot.
 - Test: tạo liên kết lưu đúng mã/tên tại thời điểm đó; đổi tên/mã Asset không làm thay đổi snapshot; tenant mismatch không tạo được pivot row.
 - Kiểu dữ liệu, độ dài và nullability được chốt ở Final Schema Review; chưa tạo migration.
+
+
+## C13 – Pivot Room Scope migration/test gate (APPROVED – 2026-11-15)
+
+- Enforce tenant consistency cho cả hai đầu của từng pivot.
+- Incident–Asset phải cho phép nhiều Room trong cùng tenant; không thêm ràng buộc buộc cùng Room.
+- Maintenance–Asset mặc định phải cùng Room; nếu hỗ trợ đa phòng, request phải khai báo scope rõ ràng và service xác thực từng Asset thuộc một Room trong scope.
+- Kiểm tra scope khi tạo/cập nhật pivot và kiểm tra lại vị trí Asset khi execute nghiệp vụ liên quan.
+- Test bắt buộc: khác tenant bị từ chối; Incident đa phòng cùng tenant hợp lệ; Maintenance cùng phòng hợp lệ; Maintenance khác phòng nhưng chưa khai báo scope bị từ chối; Maintenance đa phòng có scope hợp lệ được chấp nhận.
