@@ -277,3 +277,11 @@ Chủ dự án đã chọn ủy quyền theo thời hạn/phạm vi và xác nh�
 - Chỉ một grant active cho mỗi bộ `(customer_id, user_id, permission_code)`.
 - Cơ chế unique active được quyết định sau khi xác minh MySQL version, generated-column/index support và schema hiện hữu; nếu không khả thi thì dùng transaction/locking cùng kiểm thử concurrency.
 - Mọi grant/revoke phải được authorization và Audit.
+
+
+## C15 – Customer User Room Assignment Uniqueness (APPROVED – 2026-11-15)
+
+- Bảng `customer_user_server_rooms` giữ lịch sử cấp/thu hồi assignment; revoke cập nhật `revoked_at` và `revoked_by`, không hard-delete.
+- Re-assignment sau revoke tạo row mới.
+- Chỉ một assignment active cho mỗi `(customer_id, user_id, server_room_id)`.
+- Cơ chế unique active phải được xác minh theo MySQL version và schema/index thực tế; nếu không có unique strategy phù hợp, dùng transaction/locking và concurrency test.
