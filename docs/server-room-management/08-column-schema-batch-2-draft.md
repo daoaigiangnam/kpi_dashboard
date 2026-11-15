@@ -270,9 +270,9 @@
 | asset_tag_snapshot | VARCHAR(100) | YES | NULL | Snapshot mã |
 | equipment_name | VARCHAR(150) | NO | — | Snapshot tên |
 | serial_number | VARCHAR(150) | YES | NULL | Snapshot serial |
-| source_location | VARCHAR(200) | YES | NULL | Snapshot vị trí nguồn |
-| destination_location | VARCHAR(200) | YES | NULL | Snapshot vị trí đích |
-| movement_at | DATETIME | NO | — | Thời điểm yêu cầu/thực hiện; cần thống nhất semantics |
+| source_location | VARCHAR(200) | YES | NULL | Ghi chú vị trí nguồn; không thay thế Rack/U có cấu trúc |
+| destination_location | VARCHAR(200) | YES | NULL | Ghi chú vị trí đích; không thay thế Rack/U có cấu trúc |
+| from_rack_asset_id | BIGINT UNSIGNED | YES | NULL | Rack nguồn; phải thuộc from_server_room_id |\n| from_rack_u_start | SMALLINT UNSIGNED | YES | NULL | U bắt đầu nguồn |\n| to_rack_asset_id | BIGINT UNSIGNED | YES | NULL | Rack đích; phải thuộc to_server_room_id |\n| to_rack_u_start | SMALLINT UNSIGNED | YES | NULL | U bắt đầu đích |\n| requested_at | DATETIME | NO | — | Thời điểm tạo yêu cầu Movement |
 | reason | TEXT | NO | — | Lý do |
 | status | VARCHAR(30) | NO | draft | draft/pending_approval/approved/rejected/completed/cancelled |
 | performed_by | BIGINT UNSIGNED | YES | NULL | FK users |
