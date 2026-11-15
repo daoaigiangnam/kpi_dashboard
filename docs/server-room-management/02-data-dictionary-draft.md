@@ -574,3 +574,12 @@ Không hard delete assignment đã cấp. Khi cần cấp lại, phải bảo to
 3. Checklist Item có `customer_id` và phải tham chiếu template qua cặp `(template_id, customer_id)` để bảo đảm cùng tenant.
 4. Các quan hệ con có `customer_id` phải được thiết kế FK ghép hoặc kiểm tra service-layer có test tenant isolation; không được chỉ dựa vào ID đơn.
 5. Đây vẫn là Data Dictionary bản nháp. Các kiểu cột, FK cụ thể, index, unique, soft-delete và delete rule phải được rà soát ở bảng Migration Blueprint trước khi viết migration.
+
+
+## Bổ sung Data Dictionary – Approval Delegation (C06)
+
+Bổ sung bảng thứ 23 `server_room_approval_delegations` với các trường: id, customer_id, principal_approver_id, delegate_user_id, approvable_type (nullable), scope_server_room_id (nullable), valid_from, valid_until, status, reason, requested_at, approved_by, approved_at, revoked_by, revoked_at, created_at, updated_at. Chi tiết kiểu dữ liệu, FK và index theo mục 12 của tài liệu Column Schema Batch 3.
+
+Bảng quản lý ủy quyền theo thời hạn và phạm vi; không tạo bản ghi delegation riêng cho từng request. Khi một approval level được kích hoạt, hệ thống mới tìm ủy quyền hợp lệ và snapshot kết quả vào `server_room_approvals`.
+
+Bổ sung vào `server_room_approvals`: `acting_approver_id` (người được giao xử lý tại thời điểm kích hoạt), `acted_by` (người thực tế bấm quyết định), `delegation_id` (ủy quyền được áp dụng, nullable). `approver_id` luôn là principal approver gốc. Không có delegation thì acting_approver_id trùng approver_id; acted_by được ghi khi có quyết định.
