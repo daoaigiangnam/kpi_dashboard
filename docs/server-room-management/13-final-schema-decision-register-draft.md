@@ -68,7 +68,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C13 | Pivot room scope | **APPROVED – 2026-11-15 –** Incident được liên kết Asset ở nhiều Server Room trong cùng tenant; Maintenance mặc định cùng một Room, đa phòng phải khai báo rõ; Service kiểm tra tenant và room scope trước khi liên kết. | Service validation, UI, tests |
 | C14 | Customer permission revoke | **APPROVED – 2026-11-15 –** Thu hồi bằng `revoked_at`/`revoked_by`, không xóa bản ghi; cấp lại tạo row mới; chỉ một grant active cho cùng `(customer_id, user_id, permission_code)`. Cơ chế unique active phải chọn sau khi kiểm tra MySQL thực tế. | Permission schema, indexes, concurrency tests |
 | C15 | Room assignment uniqueness | **APPROVED – 2026-11-15 –** Mỗi `(customer_id, user_id, server_room_id)` chỉ có một assignment active; revoke bằng `revoked_at`/`revoked_by`, cấp lại tạo row mới. Cơ chế unique active chốt sau khi xác minh MySQL thực tế. | Unique strategy, concurrency tests |
-| C16 | Customer user tenant integrity | Bắt buộc account_type=customer và service_customer_id=customer_id. Nếu không thể tạo candidate key trên users hiện hữu thì service check + negative tests. | Existing schema, FK, policy |
+| C16 | Customer user tenant integrity | **APPROVED – 2026-11-15 –** Customer User bắt buộc `account_type=customer` và `users.service_customer_id=customer_id` của dữ liệu SRM; nếu schema users hiện hữu không hỗ trợ composite FK/candidate key phù hợp, bắt buộc Service tenant check và negative tests. | Existing schema, FK, policy, tenant tests |
 | C17 | Customer IT Admin | Chỉ cấp/revoke permission và room assignment cho user/room cùng tenant; permission grant phải nằm trong allowlist SRM. | Authorization, audit |
 | C18 | User disable/tenant change | Khi customer user bị disable hoặc chuyển tenant, mọi quyền/assignment SRM phải bị vô hiệu hóa/thu hồi theo transaction và audit. | User lifecycle integration |
 
@@ -329,3 +329,12 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 3. Cấp lại quyền truy cập phòng sau khi thu hồi phải tạo row assignment mới.
 4. Cơ chế enforce unique active (generated column/unique index hoặc transaction + locking) chỉ được chốt sau khi xác minh phiên bản MySQL, schema/index hiện hữu và khả năng hỗ trợ thực tế.
 5. Grant/revoke phải kiểm tra tenant, quyền người thực hiện và ghi Audit; kiểm thử concurrency bắt buộc.
+
+
+## C16 – Customer User Tenant Integrity (APPROVED – 2026-11-15)
+
+1. Customer User phải có `users.account_type = 'customer'`.
+2. `users.service_customer_id` phải bằng `customer_id` của bản ghi SRM được truy cập/thao tác.
+3. User và mọi dữ liệu SRM liên quan phải thuộc cùng một tenant; không chấp nhận chỉ dựa vào user ID hoặc record ID do client gửi.
+4. Trước khi chọn composite FK/candidate key, phải kiểm tra schema `users` hiện hữu. Nếu không thể enforce bằng FK ghép phù hợp, Service/Policy phải kiểm tra tenant ở mọi thao tác và có negative tests chống truy cập chéo.
+5. Không tạo migration trước khi xác minh các cột, unique/index và quan hệ hiện hữu của `users`.
