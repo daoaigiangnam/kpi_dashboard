@@ -53,9 +53,9 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 
 | ID | Nội dung cần quyết định | Đề xuất của thầy | Ảnh hưởng chính |
 |---|---|---|---|
-| C01 | Environment timezone | Lưu timestamp theo UTC; hiển thị theo timezone cấu hình customer. | App config, reports, ingestion |
-| C02 | Environment source security | Device/import phải xác thực nguồn, có idempotency key và chống replay; source_reference không thay thế xác thực. | API ingestion, security, indexes |
-| C03 | Environment retention | Chốt retention theo loại dữ liệu và tần suất; hỗ trợ archive khi log tăng lớn. | Operations, storage, indexes |
+| C01 | Environment timezone | **APPROVED – Lưu timestamp theo UTC. Hiển thị, tìm kiếm và lọc theo timezone cấu hình của customer; backend quy đổi khoảng thời gian người dùng nhập từ timezone customer sang UTC trước khi truy vấn và quy đổi kết quả về timezone customer khi trả giao diện.** | App config, reports, search, ingestion |
+| C02 | Environment source security | **APPROVED – Device/import phải xác thực nguồn gửi; có idempotency key để chống ghi trùng khi retry và cơ chế chống replay; `source_reference` chỉ định danh nguồn, không thay thế xác thực. Manual entry phải ghi nhận actor người dùng.** | API ingestion, security, indexes |
+| C03 | Environment retention | **APPROVED – Chính sách retention được xác định theo loại dữ liệu và tần suất ghi nhận; hỗ trợ archive dữ liệu cũ khi khối lượng tăng. Không tự động xóa dữ liệu trước khi có retention policy được phê duyệt; chỉ quyết định partition khi có số liệu tải thực tế.** | Operations, storage, indexes |
 | C04 | Approval ANY/ALL | Mặc định ANY cho nhiều approver cùng một step; ALL chỉ dùng khi workflow chỉ định rõ. | Approval engine, tests |
 | C05 | Approval group | Resolve group thành danh sách approver cụ thể tại thời điểm giao; lưu snapshot người được giao để membership thay đổi sau này không làm đổi lịch sử. | Approval schema/service |
 | C06 | Approval reassignment | assigned_by được bổ sung; mọi lần giao lại phải lưu old/new approver, actor, time, reason trong audit. Chưa thêm approval_events table ở bản đầu. | Approval, audit |
@@ -107,7 +107,7 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 |---|---:|---:|---:|
 | A – Batch 1 | 11 | 11 | 0 |
 | B – Batch 2 | 16 | 16 | 0 |
-| C – Batch 3 | 18 | 0 | 18 |
+| C – Batch 3 | 18 | 3 | 15 |
 | D – Baseline kỹ thuật | 10 | 0 | 10 |
 
 > Số lượng mục trong bảng A/B/C là mã quyết định độc lập; nhóm D là nguyên tắc xuyên suốt, không phải thay thế các quyết định chi tiết.
@@ -211,3 +211,8 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 - **B15 – APPROVED (2026-11-15):** Không xóa Asset Record khi check-out; cập nhật trạng thái `checked_out` (hoặc trạng thái tương đương trong allowlist); tạo Movement `check_out` với thời gian, người thực hiện và snapshot thiết bị; khi quay lại tạo Movement `check_in` mới, không ghi đè lịch sử.
 
 - **B16 – APPROVED (2026-11-15):** Khi `relocate`/`check_out`, Asset phải thuộc `from_server_room_id`; Execute cập nhật Asset và Movement trong cùng transaction, khóa Asset bằng row-level lock để chống double execution; nếu kiểm tra nguồn/xung đột thất bại thì rollback toàn bộ.
+
+
+## 10. Lịch sử phê duyệt
+
+- **2026-11-15 – Chủ dự án APPROVED C01, C02, C03.** C01: UTC là chuẩn lưu trữ; hiển thị/tìm kiếm/lọc theo timezone customer. C02: xác thực device/import, idempotency và chống replay; source_reference không phải credential. C03: retention theo loại dữ liệu/tần suất, archive khi cần; không xóa trước khi có policy được duyệt.
