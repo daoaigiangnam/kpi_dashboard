@@ -137,3 +137,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - D02 đã APPROVED: toàn bộ 23 bảng SRM dùng InnoDB; transaction cho nghiệp vụ nhiều bảng; row locking khi cần bảo vệ invariant và kiểm thử rollback/concurrency.
+
+
+- D03 đã APPROVED: thứ tự khóa nhất quán; xử lý deadlock 1213/lock timeout 1205; retry có giới hạn và backoff chỉ với thao tác chạy lại an toàn; ghi log và kiểm thử concurrency.
