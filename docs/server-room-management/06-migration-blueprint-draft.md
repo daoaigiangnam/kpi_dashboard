@@ -408,3 +408,17 @@ Kết luận: runtime xác minh là MySQL Community Server 8.0.46, InnoDB, chars
 
 - Trước khi thêm FK: kiểm tra orphan records, type/unsigned compatibility, index hỗ trợ và thứ tự tạo bảng/migration.
 - Không thêm FK trực tiếp cho polymorphic pairs; ghi rõ Service validation contract và test tương ứng.
+
+
+## D05 – Unique Index and Duplicate Prevention Policy (APPROVED – 2026-11-15)
+
+1. Các mã định danh nghiệp vụ phải có uniqueness phù hợp với phạm vi áp dụng; với dữ liệu thuộc tenant, phạm vi unique phải bao gồm `customer_id` khi nghiệp vụ yêu cầu mã chỉ duy nhất trong tenant.
+2. Những bản ghi chỉ được phép tồn tại một trạng thái active cho cùng một business key phải có cơ chế bảo đảm uniqueness ở database khi khả thi, không chỉ kiểm tra tại PHP.
+3. Không dựa riêng vào application-level pre-check để bảo đảm uniqueness vì có thể xảy ra race condition khi nhiều request đồng thời.
+4. Các thao tác tạo dữ liệu quan trọng cần có cơ chế idempotency phù hợp để request gửi lại không tạo bản ghi hoặc side effect trùng; thiết kế key/scope/retention phải theo từng operation.
+5. Trước khi tạo Unique Index/constraint, phải rà soát dữ liệu trùng hiện hữu, xác định quy tắc nghiệp vụ, xử lý dữ liệu trùng có kiểm soát và kiểm tra ảnh hưởng tới các module đang dùng schema.
+6. Không áp đặt một quy tắc unique toàn cục cho mọi mã; xác định rõ business key, tenant scope, trạng thái active/inactive và lịch sử cho từng bảng.
+7. Kiểm thử bắt buộc: insert trùng, concurrent insert/update, regrant sau revoke, retry/idempotent request và tenant isolation.
+
+- Trước khi tạo unique constraint/index: thống kê duplicate theo business key và tenant scope; chuẩn bị phương án xử lý có audit và không tự ý xóa dữ liệu.
+- Kiểm tra tác động đến luồng regrant/history của customer permissions và room assignments đã được duyệt ở C14/C15.
