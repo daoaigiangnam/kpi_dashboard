@@ -639,3 +639,8 @@ Bảng `customer_user_srm_permissions` giữ lịch sử grant/revoke. Thu hồi
 ## C15 – Data Dictionary: Customer Room Assignment (APPROVED – 2026-11-15)
 
 Bảng `customer_user_server_rooms` giữ lịch sử assignment. Thu hồi cập nhật `revoked_at`, `revoked_by`; cấp lại tạo row mới. Mỗi `(customer_id, user_id, server_room_id)` chỉ có một assignment active. Chiến lược unique/index cụ thể chờ xác minh MySQL version và schema hiện hữu.
+
+
+## C16 – Data Dictionary: Customer User Tenant Integrity (APPROVED – 2026-11-15)
+
+Các record SRM được truy cập bởi Customer User phải xác minh `users.account_type='customer'` và `users.service_customer_id` bằng `customer_id` của record. Cơ chế FK ghép chỉ áp dụng nếu schema `users` hiện hữu hỗ trợ; nếu không, Service/Policy tenant check và negative tests là bắt buộc.
