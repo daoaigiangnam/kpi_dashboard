@@ -416,7 +416,8 @@ Mục đích: nhật ký điều kiện môi trường và trạng thái hạ t�
 | ups_status | VARCHAR(30) | YES | Trạng thái UPS |
 | power_status | VARCHAR(30) | YES | Trạng thái nguồn |
 | source_type | VARCHAR(20) | NO | manual/device/import |
-| source_reference | VARCHAR(150) | YES | Mã cảm biến/nguồn; device/import bắt buộc ở service layer |\n| idempotency_key | VARCHAR(100) | YES | Khóa sự kiện nguồn; device/import bắt buộc để chống ghi trùng |
+| source_reference | VARCHAR(150) | YES | Mã cảm biến/nguồn; device/import bắt buộc ở service layer |
+| idempotency_key | VARCHAR(100) | YES | Khóa sự kiện nguồn; device/import bắt buộc để chống ghi trùng |
 | remarks | TEXT | YES | Ghi chú |
 | recorded_by | BIGINT UNSIGNED | YES | FK users |
 | created_at | TIMESTAMP | YES | |
