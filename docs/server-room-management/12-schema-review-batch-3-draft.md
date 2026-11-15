@@ -266,3 +266,11 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Lưu cả `asset_tag` và `asset_name` snapshot trên `server_room_incident_assets` và `server_room_maintenance_assets` tại thời điểm liên kết.
 - Snapshot không bị ghi đè khi Asset gốc thay đổi tên/mã; dùng cho báo cáo lịch sử.
 - Cần chốt kiểu dữ liệu/độ dài/nullability trong Final Schema Review và kiểm thử tenant + snapshot consistency.
+
+
+## 13. C13 – Pivot Room Scope (APPROVED – 2026-11-15)
+
+- Incident có thể liên kết Asset thuộc nhiều Server Room trong cùng tenant.
+- Maintenance mặc định giới hạn Asset trong cùng Server Room; đa phòng phải khai báo phạm vi rõ ràng.
+- Service phải xác minh tenant và room scope; bổ sung negative tests cho cross-tenant và room mismatch.
+- Không phát sinh bảng mới từ quyết định này; cấu trúc khai báo scope đa phòng của Maintenance phải được đối chiếu trong Final Schema Review.
