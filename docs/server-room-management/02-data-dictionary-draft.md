@@ -409,19 +409,19 @@ Mục đích: nhật ký điều kiện môi trường và trạng thái hạ t�
 | id | BIGINT UNSIGNED | NO | PK |
 | customer_id | BIGINT UNSIGNED | NO | Tenant |
 | server_room_id | BIGINT UNSIGNED | NO | FK phòng |
-| recorded_at | DATETIME | NO | Thời điểm đo |
+| recorded_at | DATETIME | NO | Thời điểm đo; lưu UTC, giao diện và truy vấn theo timezone customer |
 | temperature_c | DECIMAL(5,2) | YES | Nhiệt độ °C |
 | humidity_percent | DECIMAL(5,2) | YES | Độ ẩm % |
 | air_conditioning_status | VARCHAR(30) | YES | Trạng thái điều hòa |
 | ups_status | VARCHAR(30) | YES | Trạng thái UPS |
 | power_status | VARCHAR(30) | YES | Trạng thái nguồn |
 | source_type | VARCHAR(20) | NO | manual/device/import |
-| source_reference | VARCHAR(150) | YES | Mã cảm biến/nguồn |
+| source_reference | VARCHAR(150) | YES | Mã cảm biến/nguồn; device/import bắt buộc ở service layer |\n| idempotency_key | VARCHAR(100) | YES | Khóa sự kiện nguồn; device/import bắt buộc để chống ghi trùng |
 | remarks | TEXT | YES | Ghi chú |
 | recorded_by | BIGINT UNSIGNED | YES | FK users |
 | created_at | TIMESTAMP | YES | |
 
-Index: `(customer_id, server_room_id, recorded_at)`, `(source_type, source_reference)`. Cần kiểm tra miền giá trị (humidity 0–100), đơn vị và timezone. Ngưỡng cảnh báo nên cấu hình riêng, không hard-code vào log.
+Index: `(customer_id, server_room_id, recorded_at)`, `(source_type, source_reference)`, UNIQUE `(customer_id, source_type, source_reference, idempotency_key)` cho sự kiện device/import. `recorded_at` lưu UTC; người dùng nhập điều kiện thời gian theo timezone customer, backend quy đổi sang UTC trước truy vấn và hiển thị kết quả theo timezone customer. Device/import phải xác thực nguồn, cung cấp source_reference + idempotency_key và được kiểm tra chống replay; source_reference không phải credential. Retention cấu hình theo loại dữ liệu/tần suất; hỗ trợ archive, không tự xóa trước khi policy được duyệt. Kiểm tra humidity 0–100; ngưỡng cảnh báo cấu hình riêng.
 
 ### 2.16 `server_room_approvals`
 
