@@ -9,7 +9,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - ERD logic: đã đồng bộ Movement theo B11–B16; FK/index/delete rules toàn hệ thống vẫn đang Final Schema Review.
 - Phân quyền và workflow: đã có bản đề xuất; đã chốt phương án B; Customer User assigned-only; Customer IT Admin được cấp quyền và gán phòng trong tenant.
 - Batch 1 và Batch 2: các quyết định nghiệp vụ đã được ghi nhận; Batch 2 có B01–B16 APPROVED.
-- Batch 3: C01–C09 đã APPROVED; C10–C18 và baseline kỹ thuật nhóm D vẫn còn mở.
+- Batch 3: C01–C10 đã APPROVED; C11–C18 và baseline kỹ thuật nhóm D vẫn còn mở.
 - Laravel migrations và code ứng dụng: chưa triển khai.
 - Không chạy migration hoặc thay đổi dữ liệu production trong giai đoạn thiết kế.
 
@@ -102,3 +102,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 - C09-A đã APPROVED: Legal Hold ở cấp parent record; toàn bộ attachment của parent tự động được bảo vệ; không đặt hold riêng từng file. Schema cụ thể tại parent vẫn chờ Final Schema Review.
 
 - C09-B đã APPROVED: mỗi lần đặt/gỡ Legal Hold lưu thành event riêng với parent identity, action, actor, UTC timestamp, reason; release liên kết placement tương ứng; không hard delete. Cấu trúc lưu trữ chờ Final Schema Review.
+
+
+- C10 đã APPROVED: Audit Log append-only; DB runtime account không có UPDATE/DELETE; hỗ trợ archive riêng với quyền sửa/xóa hạn chế khi compliance yêu cầu; audit event có actor, UTC timestamp, action, target, result và trace cần thiết. Không tuyên bố bất biến tuyệt đối trước DBA/quản trị hạ tầng đặc quyền. Chưa tạo migration.
