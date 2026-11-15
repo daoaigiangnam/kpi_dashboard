@@ -315,3 +315,10 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Reactivation/new tenant: grant only through the target tenant's normal authorization workflow.
 - Lifecycle change and revocations must be consistent/transactional with rollback on failure; audit lifecycle, revoke and denied-access events.
 - Inspect existing User lifecycle hooks and schema before deciding implementation; do not assume event infrastructure.
+
+
+## D01 – Database Engine / Version Baseline (APPROVED – 2026-11-15)
+
+- Baseline: MySQL 8.0.
+- Xác minh runtime version 8.x cụ thể, SQL mode, charset/collation, storage engine và schema trước khi chốt chi tiết migration.
+- Không giả định tương thích MariaDB/MySQL 5.7.
