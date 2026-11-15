@@ -235,3 +235,10 @@ Quan hệ logic:
 - Một delegation có thể được tham chiếu bởi nhiều approval rows nếu các cấp được kích hoạt trong thời hạn/phạm vi; mỗi approval row snapshot `approver_id`, `acting_approver_id` và `delegation_id`.
 
 Tại thời điểm kích hoạt cấp, hệ thống resolve approver group/role thành principal users trước (C05), sau đó kiểm tra delegation hợp lệ và ghi acting approver. Thay đổi/thu hồi delegation sau thời điểm này không thay đổi approval row đã snapshot. Tổng thiết kế: 23 bảng (18 core, 2 pivot, 2 access-control, 1 delegation).
+
+
+## C11 – Xác nhận tên cột Pivot (APPROVED – 2026-11-15)
+
+- Quan hệ Incident–Asset sử dụng `server_room_incident_assets.impact_note`.
+- Quan hệ Maintenance–Asset sử dụng `server_room_maintenance_assets.work_note`.
+- Giữ hai tên riêng theo ngữ nghĩa nghiệp vụ; không chuẩn hóa thành tên chung `relationship_note`.
