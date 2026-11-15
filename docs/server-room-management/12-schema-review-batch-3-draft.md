@@ -298,3 +298,11 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Kiểm tra schema users hiện hữu trước khi quyết định composite FK/candidate key.
 - Nếu FK ghép không khả thi, Service/Policy tenant check là bắt buộc, kèm negative tests cross-tenant cho mọi loại thao tác.
 - Không tự ý thay đổi bảng users hoặc tạo migration trước khi rà soát schema thực tế.
+
+
+## 17. C17 – Customer IT Admin Scope (APPROVED – 2026-11-15)
+
+- Giới hạn grant/revoke Customer User và room assignment trong cùng tenant.
+- Chỉ cấp permission SRM thuộc allowlist; không cho cấp quyền Internal/Platform hoặc tự nâng quyền.
+- Audit đầy đủ grant/revoke và room assignment.
+- Kiểm tra tenant ownership server-side; có negative tests cross-tenant và privilege escalation.
