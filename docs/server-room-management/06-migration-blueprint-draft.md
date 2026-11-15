@@ -220,3 +220,13 @@ Bổ sung bảng `server_room_approval_delegations` vào master register. Thứ 
 Master register cập nhật: 23 bảng mới = 18 core + 2 pivot + 2 access-control + 1 approval-delegation. Không tạo bảng `approval_events` riêng ở quyết định này; sự kiện delegation và reassignment được ghi vào audit log, còn trạng thái snapshot nằm trên approval row.
 
 **Migration gate bổ sung:** kiểm tra user/customer ownership, room scope, overlap delegation, valid_from < valid_until, FK delegation_id và test snapshot tại thời điểm activate level trước khi chạy migration.
+
+
+## 11. C07 – Migration và test gate
+
+C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là quy tắc thực thi ở Approval Service/Policy:
+- Khi activate level: resolve principal approvers, loại requester, ghi nhận lý do và kiểm tra danh sách còn hợp lệ.
+- Nếu danh sách rỗng: rollback activation; không tạo level pending rỗng và không skip.
+- Sau delegation resolution: bảo đảm acting approver không phải requester.
+- Reassignment phải có authorization và audit; không làm giảm ALL.
+- Bổ sung test SoD vào bộ kiểm thử trước migration và trước release.
