@@ -345,3 +345,8 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 
 - Trước triển khai, xác định nguồn sự kiện disable/enable và tenant change trong module User hiện hữu; không giả định có event hook nếu chưa kiểm tra code.
 - Kiểm thử rollback tại từng điểm lỗi giữa cập nhật user lifecycle và revoke permission/room assignment.
+
+
+## D01 – MySQL Baseline (APPROVED – 2026-11-15)
+
+MySQL 8.0 là baseline mục tiêu theo xác nhận của người dùng. Trước migration phải chạy kiểm tra phiên bản 8.x cụ thể, `version_comment`, `sql_mode`, charset/collation, storage engine và schema hiện hữu. Không mặc định minor/patch release hoặc cấu hình server.
