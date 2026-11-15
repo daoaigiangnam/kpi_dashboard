@@ -20,13 +20,13 @@ C01–C03 về Environment Logs đã được chủ dự án APPROVED. Các đi�
 - humidity_percent phải trong khoảng 0–100; ít nhất một trường đo/trạng thái có dữ liệu.
 - Ngưỡng cảnh báo cấu hình riêng, không hard-code vào log.
 
-**Cần chốt**
-1. Data Dictionary ghi source_type manual/device/import; Batch 3 default manual. Cần chốt allowlist và default này.
-2. Device/import cần cơ chế xác thực nguồn gửi, chống giả mạo và idempotency để tránh ghi trùng khi retry; source_reference đơn lẻ chưa chắc là định danh duy nhất.
-3. Cần chốt timezone: lưu UTC hay local tenant. Khuyến nghị lưu UTC, hiển thị theo timezone cấu hình của customer; đây là khuyến nghị thiết kế, chưa phải quyết định.
-4. Cần retention và tần suất dữ liệu; bảng log có thể tăng nhanh. Chưa có partition/archive strategy.
-5. recorded_by có thể NULL với device/import; actor/service identity cần được phân biệt khỏi user account.
-6. Nhiệt độ và trạng thái thiết bị cần domain/allowlist theo sensor hoặc policy; tài liệu hiện chưa quy định ngưỡng.
+**Đã chốt C01–C03**
+1. `source_type` allowlist `manual/device/import`, default `manual`.
+2. Device/import phải xác thực nguồn; dùng idempotency key chống ghi trùng khi retry và cơ chế chống replay. `source_reference` không thay thế xác thực.
+3. `recorded_at` lưu UTC. Giao diện, tìm kiếm và lọc dùng timezone customer; backend quy đổi điều kiện tìm kiếm sang UTC trước truy vấn.
+4. Retention theo loại dữ liệu và tần suất; archive khi cần. Không tự xóa trước khi retention policy được duyệt.
+5. `recorded_by` có thể NULL với device/import; cần phân biệt actor/service identity với user account.
+6. Nhiệt độ và trạng thái thiết bị vẫn cần domain/allowlist theo sensor hoặc policy; không tự đặt ngưỡng khi chưa có căn cứ.
 
 ### 2.2 server_room_approvals
 
