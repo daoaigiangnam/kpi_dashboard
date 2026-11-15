@@ -611,3 +611,9 @@ Bổ sung vào `server_room_approvals`: `acting_approver_id` (người được 
 - Archive riêng với quyền sửa/xóa hạn chế là phương án hỗ trợ khi compliance yêu cầu; không mặc định một công nghệ archive cụ thể.
 - Event ghi actor, UTC timestamp, action, target object, result và trace/correlation ID khi có.
 - Không tuyên bố bất biến tuyệt đối trước DBA/quản trị hạ tầng đặc quyền. Các quyền DB và archive là implementation/security controls, không phải cột dữ liệu mới.
+
+## C11 – Xác nhận tên cột Pivot (APPROVED – 2026-11-15)
+
+- `server_room_incident_assets.impact_note`: ghi nhận ảnh hưởng của Asset trong Incident.
+- `server_room_maintenance_assets.work_note`: ghi chú công việc bảo trì liên quan đến Asset.
+- Giữ nguyên tên cột riêng theo ngữ nghĩa nghiệp vụ; không đổi thành `relationship_note`.
