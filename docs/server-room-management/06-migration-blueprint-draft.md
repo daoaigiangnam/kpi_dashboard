@@ -309,3 +309,12 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 - Trước khi chọn generated column/unique index, xác minh MySQL version, hỗ trợ generated columns/indexes, dữ liệu duplicate và index hiện hữu.
 - Nếu DB không hỗ trợ phương án unique phù hợp, grant/revoke phải chạy trong transaction với locking phù hợp; không chỉ kiểm tra ở UI.
 - Test: revoke giữ lịch sử; cấp lại tạo row mới; không thể tạo hai assignment active kể cả request đồng thời; cross-tenant user/room bị từ chối; user không có assignment active không truy cập được Room.
+
+
+## 18. C16 – Customer User Tenant Integrity migration/test gate (APPROVED – 2026-11-15)
+
+- Trước migration, inspect `users.account_type`, `users.service_customer_id`, primary/unique keys, indexes, existing FKs và dữ liệu orphan/không nhất quán.
+- Chỉ tạo composite FK/candidate key nếu tương thích schema hiện hữu và không ảnh hưởng các module khác.
+- Nếu không khả thi, Service/Policy phải enforce `account_type='customer'` và `service_customer_id=customer_id` trên mọi thao tác SRM; kiểm thử cả read, create, update, delete, attachment/download và API endpoints.
+- Negative tests bắt buộc: customer user tenant A không đọc/ghi record tenant B; giả mạo customer_id không vượt được kiểm tra; internal/platform account không bị nhận diện nhầm là customer; disabled user không được truy cập.
+- Không tạo migration cho users trước khi hoàn tất schema inspection và kiểm tra dữ liệu thực tế.
