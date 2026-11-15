@@ -300,3 +300,12 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 - Trước khi chọn generated column/unique index, phải xác minh phiên bản MySQL và khả năng hỗ trợ biểu thức/index cần dùng; đồng thời rà soát duplicate active rows và index hiện hữu.
 - Nếu DB không hỗ trợ phương án unique phù hợp, thực thi grant/revoke trong transaction với locking phù hợp và kiểm thử cạnh tranh; không chỉ dựa vào kiểm tra ở UI.
 - Test: revoke giữ lịch sử; re-grant tạo row mới; không thể tạo hai active grant kể cả hai request đồng thời; user khác tenant/actor thiếu quyền không thể cấp hoặc thu hồi.
+
+
+## 17. C15 – Customer Room Assignment migration/test gate (APPROVED – 2026-11-15)
+
+- Giữ lịch sử assignment: revoke cập nhật `revoked_at`/`revoked_by`; không hard-delete; cấp lại tạo row mới.
+- Enforce tối đa một assignment active cho `(customer_id, user_id, server_room_id)`.
+- Trước khi chọn generated column/unique index, xác minh MySQL version, hỗ trợ generated columns/indexes, dữ liệu duplicate và index hiện hữu.
+- Nếu DB không hỗ trợ phương án unique phù hợp, grant/revoke phải chạy trong transaction với locking phù hợp; không chỉ kiểm tra ở UI.
+- Test: revoke giữ lịch sử; cấp lại tạo row mới; không thể tạo hai assignment active kể cả request đồng thời; cross-tenant user/room bị từ chối; user không có assignment active không truy cập được Room.
