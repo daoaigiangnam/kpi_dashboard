@@ -9,7 +9,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - ERD logic: đã đồng bộ Movement theo B11–B16; FK/index/delete rules toàn hệ thống vẫn đang Final Schema Review.
 - Phân quyền và workflow: đã có bản đề xuất; đã chốt phương án B; Customer User assigned-only; Customer IT Admin được cấp quyền và gán phòng trong tenant.
 - Batch 1 và Batch 2: các quyết định nghiệp vụ đã được ghi nhận; Batch 2 có B01–B16 APPROVED.
-- Batch 3: C01–C03 đã APPROVED; C04–C18 và baseline kỹ thuật nhóm D vẫn còn mở.
+- Batch 3: C01–C06 đã APPROVED; C07–C18 và baseline kỹ thuật nhóm D vẫn còn mở.
 - Laravel migrations và code ứng dụng: chưa triển khai.
 - Không chạy migration hoặc thay đổi dữ liệu production trong giai đoạn thiết kế.
 
@@ -25,6 +25,7 @@ Tài liệu thiết kế module quản lý phòng máy chủ đa khách hàng tr
 - Đã đồng bộ Movement B11–B16 giữa Decision Register, Data Dictionary, ERD, Column Schema và State Machine.
 - Đã cập nhật kết luận Schema Review Batch 2 và Migration Blueprint theo trạng thái phê duyệt mới nhất.
 - C01–C03 Environment Logs đã APPROVED và đồng bộ vào Decision Register, Data Dictionary, Column Schema Batch 3, Schema Review Batch 3 và Migration Blueprint.
+- C04–C06 Approval đã APPROVED: phê duyệt tuần tự theo cấp, ALL approvers mỗi cấp, snapshot approver khi cấp kích hoạt; hỗ trợ delegation/reassignment có kiểm soát và Audit.
 - Chưa tạo permission seed, migration hoặc code authorization.
 
 ## Tài liệu
