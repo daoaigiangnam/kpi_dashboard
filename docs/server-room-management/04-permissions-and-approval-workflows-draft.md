@@ -302,3 +302,16 @@ Chủ dự án chọn phương án ủy quyền theo thời hạn/phạm vi (b�
 4. Mọi thao tác grant/revoke permission và room assignment đều phải được authorization theo tenant, kiểm tra trạng thái user/room, và ghi Audit actor, target, action, timestamp UTC, result.
 5. Server-side phải resolve tenant từ user đã xác thực; không tin `customer_id`, `user_id` hoặc `server_room_id` do client gửi nếu chưa xác minh ownership.
 6. Cần negative tests: Customer IT Admin tenant A không thể grant/revoke user tenant B, gán/revoke room tenant B, hoặc cấp permission ngoài allowlist.
+
+
+## C18 – Customer User Disable / Tenant Change (APPROVED – 2026-11-15)
+
+1. Khi Customer User bị `disabled`/`inactive`, hệ thống lập tức từ chối mọi truy cập SRM; permission và room assignment hiện hữu được giữ lại làm lịch sử/trạng thái, nhưng không được sử dụng để cấp quyền truy cập khi user bị khóa.
+2. Khi Customer User chuyển `customer_id` sang tenant khác, toàn bộ permission và room assignment của tenant cũ phải được revoke; không tự động chuyển quyền sang tenant mới.
+3. Giữ nguyên lịch sử grant/revoke và assignment; không hard-delete dữ liệu lịch sử.
+4. Quy trình cập nhật trạng thái user, thu hồi permission và room assignment phải được thực hiện nhất quán trong transaction ở mức ứng dụng/DB phù hợp; nếu thất bại phải rollback, không để trạng thái một phần.
+5. Khi user được kích hoạt lại hoặc chuyển tenant hoàn tất, quyền truy cập chỉ được khôi phục/cấp mới theo quy trình cấp quyền của tenant tương ứng; không tự khôi phục quyền tenant cũ.
+6. Ghi Audit cho disable/enable, tenant change, các thao tác revoke và các lần truy cập SRM bị từ chối; ghi actor, target, UTC timestamp, action, result và correlation ID nếu có.
+7. Negative tests bắt buộc: disabled user không truy cập được; user sau tenant change không còn quyền/room assignment tenant cũ; user không được tự động nhận quyền tenant mới; lỗi giữa quy trình không để lại permission/assignment ở trạng thái dở dang.
+
+- Disabled/inactive status là điều kiện từ chối truy cập trước khi xét permission hoặc room assignment.
