@@ -292,3 +292,13 @@ Chủ dự án chọn phương án ủy quyền theo thời hạn/phạm vi (b�
 - Customer User chỉ được cấp/kiểm tra quyền trong tenant của chính user; không kế thừa quyền Internal/Platform.
 - Mọi authorization phải kiểm tra account type, tenant ownership, trạng thái user, permission và room assignment phù hợp.
 - Không tin `customer_id` hoặc user identity do client tự gửi; phải resolve từ user đã xác thực.
+
+
+## C17 – Customer IT Admin Scope (APPROVED – 2026-11-15)
+
+1. Customer IT Admin chỉ được cấp hoặc thu hồi quyền SRM cho Customer User thuộc cùng `customer_id` với chính mình.
+2. Customer IT Admin chỉ được gán hoặc thu hồi quyền truy cập các Server Room thuộc tenant của mình.
+3. Chỉ được cấp các `permission_code` nằm trong allowlist quyền SRM dành cho Customer Admin; không thể tự cấp quyền Internal/Platform hoặc nâng quyền vượt phạm vi được phép.
+4. Mọi thao tác grant/revoke permission và room assignment đều phải được authorization theo tenant, kiểm tra trạng thái user/room, và ghi Audit actor, target, action, timestamp UTC, result.
+5. Server-side phải resolve tenant từ user đã xác thực; không tin `customer_id`, `user_id` hoặc `server_room_id` do client gửi nếu chưa xác minh ownership.
+6. Cần negative tests: Customer IT Admin tenant A không thể grant/revoke user tenant B, gán/revoke room tenant B, hoặc cấp permission ngoài allowlist.
