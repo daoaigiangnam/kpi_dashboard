@@ -155,3 +155,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - D08 đã APPROVED: API list hỗ trợ pagination (mặc định LIMIT/OFFSET); page size có giới hạn; sort allowlist; filter tenant-scoped; stable ordering có unique tie-breaker.
+
+
+- D09 đã APPROVED: correlation/request ID; phân biệt Application, Security và Audit Logs; không log secrets; giám sát lỗi, latency, slow query, deadlock và lock timeout; retention/access control.
