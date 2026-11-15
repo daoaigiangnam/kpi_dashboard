@@ -260,3 +260,14 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 5. Chỉ cho phép xóa vật lý sau khi retention hết hạn, Legal Hold không còn hiệu lực, đã kiểm tra tham chiếu và ghi Audit gồm actor, thời điểm và kết quả.
 
 **Schema note:** C09 chốt nguyên tắc nghiệp vụ. Cách biểu diễn retention/Legal Hold ở mức cột và quan hệ (file-level hay kế thừa từ parent) sẽ được chốt trong Final Schema Review; chưa tự ý thêm bảng/cột và chưa tạo migration.
+
+
+## C09 – Attachment Retention (APPROVED – 2026-11-15)
+
+1. Không xóa file tự động khi hồ sơ cha chuyển `archived` hoặc Soft Delete; trạng thái hồ sơ cha không tự động kích hoạt xóa vật lý file.
+2. Thời hạn lưu được cấu hình theo loại hồ sơ/tài liệu và chính sách nghiệp vụ đã phê duyệt; không hard-code số năm khi chưa có policy.
+3. Hỗ trợ Legal Hold cho nhu cầu kiểm toán, tranh chấp hoặc yêu cầu pháp lý.
+4. Khi Legal Hold còn hiệu lực, file không được xóa vật lý kể cả khi đã hết hạn retention.
+5. Chỉ cho phép xóa vật lý sau khi retention hết hạn, Legal Hold không còn hiệu lực, đã kiểm tra tham chiếu và ghi Audit gồm actor, thời điểm và kết quả.
+
+**Schema note:** C09 chốt nguyên tắc nghiệp vụ. Cách biểu diễn retention/Legal Hold ở mức cột và quan hệ (file-level hay kế thừa từ parent) sẽ được chốt trong Final Schema Review; chưa tự ý thêm bảng/cột và chưa tạo migration.
