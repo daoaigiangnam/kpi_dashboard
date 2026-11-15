@@ -113,7 +113,7 @@ Batch 2 gồm Access Logs, Inspections/Results, Incidents/Actions, Maintenance R
 - Movement completed bất biến; cập nhật asset và movement trong cùng transaction.
 - Chuyển Rack/U trong cùng room cho phép from=to.
 
-**Mâu thuẫn/thiếu cần giải quyết**
+**Các điểm Movement đã được giải quyết theo Decision Register**
 1. Đã giải quyết theo B11: bỏ semantics mơ hồ của movement_at; dùng requested_at và executed_at riêng.
 2. Đã giải quyết theo B12: status dùng draft/pending_approval/approved/rejected/completed/cancelled; metadata actor/time bắt buộc theo trạng thái.
 3. Đã giải quyết theo B11: không giữ movement_at; requested_at là thời điểm tạo yêu cầu và executed_at là thời điểm hoàn tất thực tế.
@@ -145,21 +145,15 @@ Batch 2 gồm Access Logs, Inspections/Results, Incidents/Actions, Maintenance R
 
 Actor fields phải được authorization theo tenant và permission; FK users.id không tự chứng minh quyền.
 
-## 4. Quyết định cần chủ dự án xác nhận
+## 4. Quyết định Batch 2 đã được xác nhận
 
-1. Access Log: entry_at là giờ vào thực tế; có cần scheduled_entry_at cho đăng ký trước không?
-2. Inspection: review_return dùng correction_required hay trả về draft có revision? Đề xuất correction_required.
-3. Inspection Result: có cần multi_select? Có bỏ boolean_value và dùng result cho yes_no?
-4. Incident: chốt open/in_progress/resolved/closed/cancelled hay cần investigating riêng? Có cần verified như status riêng không?
-5. Incident pivot: asset liên quan bắt buộc cùng phòng với incident hay chỉ cùng customer?
-6. Incident Action: điều kiện completed/verified và người xác minh có phải khác người thực hiện?
-7. Maintenance: có triển khai emergency maintenance ngay phiên bản đầu không?
-8. Maintenance pivot: asset phải thuộc room của request hay có thể ở room khác cùng tenant?
-9. Maintenance: cấu trúc personnel JSON và quy tắc dữ liệu cá nhân.
-10. Movement: tách requested_at/executed_at hay giữ movement_at với một định nghĩa duy nhất?
-11. Movement: có cho check_in/check_out thiết bị ngoài danh mục (asset_id NULL), và quy trình tạo asset sau đó?
-12. Movement: có cần snapshot Rack/U nguồn/đích có cấu trúc thay vì text?
-13. Movement: check_out làm asset chuyển trạng thái nào; asset có thể check_in lại bằng phiếu mới không?
+- B01–B02: Access Log và visitor/exception.
+- B03–B04: Inspection correction lifecycle và kiểu kết quả.
+- B05–B07: Incident, Incident Action và xác minh.
+- B08–B10: Maintenance approval, asset scope và personnel snapshot.
+- B11–B16: Equipment Movement timestamps, lifecycle, asset_id nullable, Rack/U snapshot, check-out asset state và source validation/locking.
+
+Chi tiết trạng thái từng quyết định và lịch sử phê duyệt được quản lý tại [13 – Final Schema Decision Register](./13-final-schema-decision-register-draft.md). Các câu hỏi trong bản review ban đầu được giữ làm dấu vết rà soát, không còn là danh sách câu hỏi đang chờ chủ dự án xác nhận.
 
 ## 5. Điều kiện kỹ thuật trước migration
 
@@ -175,5 +169,5 @@ Actor fields phải được authorization theo tenant và permission; FK users.
 ## 6. Kết luận Batch 2
 
 - Đã rà soát đủ 7 bảng và ghi nhận mâu thuẫn/thiếu sót có căn cứ từ ba tài liệu nguồn.
-- Các status/field được đề xuất thêm trong Column Schema Batch 2 chưa phải quyết định đã duyệt.
-- Chưa tạo Laravel migrations; cần chủ dự án chốt mục 4 trước khi final schema.
+- Các quyết định nghiệp vụ Batch 2 (B01–B16) đã được chủ dự án APPROVED và ghi nhận tại Decision Register; các tài liệu kỹ thuật liên quan đã được đồng bộ.
+- Chưa tạo Laravel migrations. Vẫn phải hoàn tất Final Schema Review, chốt các quyết định Batch 3/baseline kỹ thuật và kiểm tra database thực tế trước migration.
