@@ -178,3 +178,43 @@ Gán phạm vi phòng cụ thể cho customer user; không có assignment thì d
 - [ ] Chủ dự án duyệt các quyết định mở tại mục 10.
 - [ ] Rà soát hợp nhất 22 bảng và chuẩn hóa FK/unique/index.
 - [ ] Chưa tạo Laravel migrations.
+
+
+## 12. Bổ sung schema – Approval Delegation (C06, phương án B + áp dụng tại thời điểm kích hoạt cấp)
+
+Chủ dự án đã chọn ủy quyền theo thời hạn/phạm vi và xác nhận chỉ áp dụng khi cấp phê duyệt được kích hoạt. Bổ sung bảng thứ 23: `server_room_approval_delegations`.
+
+| Cột | Kiểu đề xuất | Null | Default | Ghi chú |
+|---|---|---:|---|---|
+| id | BIGINT UNSIGNED | NO | AUTO_INCREMENT | PK |
+| customer_id | BIGINT UNSIGNED | NO | — | Tenant |
+| principal_approver_id | BIGINT UNSIGNED | NO | — | Người ủy quyền gốc |
+| delegate_user_id | BIGINT UNSIGNED | NO | — | Người nhận ủy quyền |
+| approvable_type | VARCHAR(100) | YES | NULL | Alias allowlist; NULL = mọi loại hồ sơ SRM trong phạm vi được cấp |
+| scope_server_room_id | BIGINT UNSIGNED | YES | NULL | NULL = mọi phòng trong tenant; có giá trị = giới hạn phòng này |
+| valid_from | DATETIME | NO | — | Bắt đầu hiệu lực, UTC |
+| valid_until | DATETIME | NO | — | Kết thúc hiệu lực, UTC; phải lớn hơn valid_from |
+| status | VARCHAR(20) | NO | pending | pending/approved/rejected/revoked/expired |
+| reason | TEXT | NO | — | Lý do ủy quyền |
+| requested_at | DATETIME | NO | — | Thời điểm đề nghị, UTC |
+| approved_by | BIGINT UNSIGNED | YES | NULL | Người duyệt ủy quyền |
+| approved_at | DATETIME | YES | NULL | Thời điểm duyệt, UTC |
+| revoked_by | BIGINT UNSIGNED | YES | NULL | Người thu hồi |
+| revoked_at | DATETIME | YES | NULL | Thời điểm thu hồi, UTC |
+| created_at | TIMESTAMP | YES | NULL | Laravel |
+| updated_at | TIMESTAMP | YES | NULL | Laravel |
+
+**Khóa/index/FK:** PK id; INDEX (customer_id, principal_approver_id, status, valid_from, valid_until), (customer_id, delegate_user_id, status), (customer_id, scope_server_room_id, status); FK customer_id → service_customers.id; principal_approver_id, delegate_user_id, approved_by, revoked_by → users.id; composite FK (scope_server_room_id, customer_id) → server_rooms(id, customer_id) khi scope_server_room_id NOT NULL. Service layer xác minh cả hai user thuộc đúng tenant/phạm vi và active; không cho tự ủy quyền cho chính mình. Không hard-delete; thu hồi bằng status/revoked_at/revoked_by.
+
+**Điều kiện hiệu lực:** status=approved; thời điểm kích hoạt cấp nằm trong [valid_from, valid_until]; đúng customer, approver gốc, loại hồ sơ và room scope; delegate active và đủ quyền. Nếu nhiều bản ghi cùng khớp tại thời điểm kích hoạt, không tự chọn: chặn kích hoạt và yêu cầu xử lý xung đột.
+
+**Điều chỉnh bảng 16 – server_room_approvals:**
+- `approver_id`: principal approver đã resolve/snapshot từ group/role.
+- Bổ sung `acting_approver_id BIGINT UNSIGNED NULL`: người được giao thực hiện tại thời điểm cấp được kích hoạt; nếu không ủy quyền thì bằng approver_id.
+- Bổ sung `acted_by BIGINT UNSIGNED NULL`: user thực tế thực hiện approve/reject; chỉ ghi khi có quyết định.
+- Bổ sung `delegation_id BIGINT UNSIGNED NULL`: FK tới server_room_approval_delegations.id nếu cấp này sử dụng ủy quyền.
+- `approver_group` giữ mã nhóm/role nguồn; danh sách user cụ thể phải snapshot thành từng approval row.
+- Khi B thao tác thay A: approver_id=A, acting_approver_id=B, acted_by=B, delegation_id=ID ủy quyền. Không ủy quyền: acting_approver_id=approver_id, delegation_id=NULL.
+- Chỉ kiểm tra delegation khi cấp được kích hoạt. Thu hồi/hết hạn sau đó không hồi tố thay đổi cấp đã kích hoạt; cấp tiếp theo kiểm tra lại khi đến lượt.
+
+**Thứ tự tạo bảng:** tạo `server_room_approval_delegations` trước `server_room_approvals` để tạo FK delegation_id. Tổng register: 23 bảng (18 core + 2 pivot + 2 access-control + 1 delegation).
