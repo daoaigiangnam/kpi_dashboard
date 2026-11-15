@@ -222,12 +222,15 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 ## 6. Approval workflow – nguyên tắc thực thi
 
 - Tách permission tạo/submit khỏi permission approve.
-- Mỗi approval step có approver user cụ thể hoặc group/role được resolve thành người nhận thực tế.
-- Tại thời điểm approve phải kiểm tra approver còn active, còn quyền và còn thuộc tenant phù hợp.
-- Mặc định cấm self-approval.
-- Một bước có nhiều approver phải chốt rõ ANY (một người duyệt) hay ALL (tất cả duyệt); không suy đoán.
-- Reassign phải lưu approver cũ, approver mới, người thực hiện và lý do.
-- Approval records là lịch sử; không ghi đè quyết định đã có.
+- Các cấp phê duyệt chạy tuần tự; cấp sau chỉ được kích hoạt khi cấp trước hoàn tất.
+- Trong từng cấp, áp dụng ALL: tất cả approver thuộc danh sách hiệu lực phải APPROVE mới được chuyển cấp; một REJECT làm dừng workflow và từ chối yêu cầu.
+- Khi một cấp được kích hoạt, resolve group/role thành user cụ thể và snapshot danh sách approver của cấp đó. Membership thay đổi sau snapshot không tự sửa danh sách đang xử lý.
+- Cấp kế tiếp được resolve/snapshot khi đến lượt kích hoạt.
+- Tại thời điểm quyết định phải kiểm tra người thực hiện active, có quyền phù hợp và thuộc tenant/scope hợp lệ; mặc định cấm self-approval.
+- Delegation phải có thời hạn/phạm vi, được người có thẩm quyền chấp thuận và lưu cả approver gốc lẫn acting approver.
+- Reassignment chỉ do người có thẩm quyền workflow thực hiện; lưu approver cũ/mới, actor, thời điểm và lý do. Người thay thế tiếp nhận nghĩa vụ của vị trí được thay, không làm giảm điều kiện ALL.
+- Mọi quyết định, delegation, thu hồi delegation và reassignment phải được Audit; approval history không được ghi đè.
+- Approval decision/reassignment phải chạy trong transaction và chống double-submit.
 - Không cho request client truyền approvable_type tùy ý; dùng allowlist model.
 - Các quyết định phải chạy trong transaction, khóa hồ sơ cần thiết và chống double-submit.
 
@@ -242,13 +245,11 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 
 ## 8. Các quyết định còn chờ
 
-1. Approval multi-approver: ANY hay ALL ở từng loại hồ sơ.
 2. Có cho phép emergency maintenance không; vai trò nào có quyền kích hoạt và thời hạn hậu kiểm.
 3. Inspection review_return: trả về draft hay trạng thái correction_required riêng.
 4. Có cho phép ngoại lệ self-approval trong tenant nhỏ không. Khuyến nghị tiếp tục cấm.
 5. Chính sách retention theo loại hồ sơ và file.
 6. Chọn cách enforce unique active room assignment khi cấp lại sau revoke.
-7. Chọn cách lưu approval group: resolve group thành approver user tại thời điểm tạo hay lưu group_id và snapshot thành viên.
 
 ## 9. Checklist kỹ thuật trước migration
 
@@ -281,3 +282,10 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 - Không cho Soft Delete Server Room khi còn Asset đang hoạt động hoặc nghiệp vụ chưa hoàn tất.
 - Asset đã có lịch sử kiểm tra, sự cố, bảo trì hoặc di chuyển phải được giữ lại phục vụ Audit.
 - Trước khi xóa mềm phải kiểm tra quan hệ con và nghiệp vụ đang mở; thao tác phải được kiểm soát bằng Service/Policy và transaction phù hợp.
+
+
+## 11. Approval decisions đã được phê duyệt – C04 đến C06
+
+- **C04 – APPROVED (2026-11-15):** Phê duyệt tuần tự theo cấp; tại mỗi cấp tất cả approver phải APPROVE mới chuyển cấp. Một REJECT làm dừng workflow và từ chối yêu cầu.
+- **C05 – APPROVED (2026-11-15):** Resolve group/role thành user cụ thể và snapshot danh sách approver khi từng cấp được kích hoạt; thay đổi membership sau đó không tự thay đổi cấp đang xử lý.
+- **C06 – APPROVED (2026-11-15):** Hỗ trợ Delegation và Reassignment có kiểm soát. Delegation phải được người có thẩm quyền chấp thuận, có phạm vi/thời hạn và lưu principal/acting approver. Reassignment do người có thẩm quyền workflow thực hiện, lưu old/new approver, actor, time, reason. Tất cả thao tác phải Audit và không làm giảm quy tắc ALL.
