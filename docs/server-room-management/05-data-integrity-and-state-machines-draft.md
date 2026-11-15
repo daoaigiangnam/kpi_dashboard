@@ -377,3 +377,14 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 7. Kiểm thử concurrency, deadlock, lock timeout, rollback và giới hạn retry đối với các nghiệp vụ có tranh chấp dữ liệu.
 
 - Không phát sinh side effect bên ngoài trước commit nếu không có cơ chế bù trừ/idempotency được thiết kế rõ ràng.
+
+
+## D04 – Foreign Key and Referential Integrity Policy (APPROVED – 2026-11-15)
+
+1. Dùng Foreign Key cho các quan hệ nội bộ SRM có đích tham chiếu và khóa được xác định rõ, tương thích với schema thực tế.
+2. Quan hệ polymorphic như `approvable_type`/`approvable_id` và `attachable_type`/`attachable_id` không thể được bảo vệ bằng một FK SQL trực tiếp; Service phải kiểm tra loại đối tượng, sự tồn tại, tenant ownership và quyền truy cập trước khi thao tác.
+3. Không dùng `ON DELETE CASCADE` cho dữ liệu nghiệp vụ, lịch sử và Audit SRM.
+4. Ưu tiên `RESTRICT`/`NO ACTION` để ngăn xóa bản ghi cha khi còn dữ liệu con liên quan; việc xóa vật lý chỉ được xem xét sau khi đáp ứng retention, Legal Hold và quy trình kiểm soát đã duyệt.
+5. Soft Delete không xóa bản ghi vật lý và không được làm mất tính toàn vẹn tham chiếu; Service phải xác định rõ cách xử lý record soft-deleted trong từng nghiệp vụ.
+6. Trước khi tạo FK, phải kiểm tra dữ liệu orphan, kiểu dữ liệu/unsigned, index và thứ tự migration; không tạo constraint nếu dữ liệu hiện hữu chưa đạt điều kiện.
+7. Kiểm thử bắt buộc: ngăn xóa cha còn con, ngăn tham chiếu chéo tenant, kiểm tra polymorphic reference hợp lệ và xử lý soft-deleted parent.
