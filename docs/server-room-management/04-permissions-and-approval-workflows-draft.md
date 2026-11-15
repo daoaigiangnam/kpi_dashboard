@@ -242,3 +242,14 @@ Chưa tạo migration và chưa thêm permission seed. Trước tiên cần ch�
 Đã chốt: phương án B; Customer User assigned-only; Customer IT Admin được cấp/thu hồi quyền SRM và gán phòng cho user cùng tenant theo allowlist và audit.
 
 Còn mở: ngoại lệ self-approval trong trường hợp khách hàng nhỏ. Mặc định vẫn cấm người tạo tự duyệt.
+
+
+### 7.6 Chi tiết C06 – Delegation theo thời hạn/phạm vi và snapshot khi kích hoạt cấp
+
+Chủ dự án chọn phương án ủy quyền theo thời hạn/phạm vi (bảng `server_room_approval_delegations`) và xác nhận **chỉ áp dụng khi cấp phê duyệt được kích hoạt**:
+1. Principal approver tạo đề nghị delegation; người có thẩm quyền phê duyệt trước khi delegation có hiệu lực.
+2. Khi một cấp được kích hoạt, hệ thống resolve group/role thành principal approvers (C05), sau đó kiểm tra delegation phù hợp theo tenant, principal, loại hồ sơ, room scope và thời điểm kích hoạt.
+3. Nếu khớp đúng một delegation hợp lệ, snapshot acting approver và delegation_id vào approval row. Nếu không có delegation, principal tự thực hiện. Nếu có nhiều delegation cùng khớp, chặn kích hoạt để xử lý xung đột; không tự chọn.
+4. Thu hồi hoặc hết hạn sau thời điểm kích hoạt không hồi tố thay đổi cấp đã snapshot. Các cấp tiếp theo kiểm tra delegation mới tại thời điểm cấp đó được kích hoạt.
+5. Acting approver thực hiện nghĩa vụ của principal; không tạo thêm hoặc bỏ bớt approver. ALL approvers vẫn phải hoàn tất.
+6. Ghi audit khi tạo, duyệt, từ chối, thu hồi delegation và khi delegation được áp dụng vào approval level.
