@@ -315,3 +315,17 @@ Chủ dự án chọn phương án ủy quyền theo thời hạn/phạm vi (b�
 7. Negative tests bắt buộc: disabled user không truy cập được; user sau tenant change không còn quyền/room assignment tenant cũ; user không được tự động nhận quyền tenant mới; lỗi giữa quy trình không để lại permission/assignment ở trạng thái dở dang.
 
 - Disabled/inactive status là điều kiện từ chối truy cập trước khi xét permission hoặc room assignment.
+
+
+## D09 – Logging, Monitoring and Observability Policy (APPROVED – 2026-11-15)
+
+1. Mỗi request/operation phải có `request_id` hoặc `correlation_id` để liên kết log giữa các lớp xử lý; giữ ID xuyên suốt các service/job liên quan khi có thể.
+2. Log nghiệp vụ/kỹ thuật phải ghi các trường phù hợp như actor, tenant, action, target, result, timestamp UTC và correlation ID; chỉ ghi dữ liệu cần thiết.
+3. Phân biệt Application Log, Security Log và Audit Log theo mục đích, quyền truy cập, retention và yêu cầu toàn vẹn. Audit Log tuân thủ chính sách append-only/immutability đã duyệt tại C10; không thay Audit bằng Application Log.
+4. Tuyệt đối không ghi password, token, secret, credential, private key hoặc dữ liệu nhạy cảm không cần thiết vào log; áp dụng masking/redaction cho dữ liệu có nguy cơ lộ lọt.
+5. Monitoring phải theo dõi lỗi ứng dụng, latency/response time, slow queries, deadlock (`1213`), lock wait timeout (`1205`) và các chỉ số vận hành liên quan.
+6. Log phải có chính sách retention, archive, phân quyền truy cập và bảo vệ phù hợp; chỉ người/role được phép mới được truy cập log chứa thông tin vận hành hoặc bảo mật.
+7. Cần cảnh báo cho lỗi nghiêm trọng, tỷ lệ lỗi tăng, truy vấn chậm bất thường và deadlock/lock timeout vượt ngưỡng được cấu hình; ngưỡng cụ thể xác định khi triển khai dựa trên baseline vận hành.
+8. Kiểm thử xác minh correlation ID xuyên request/job, redaction secret, quyền truy cập log và khả năng truy vết sự cố.
+
+- Truy cập Security Log/Audit Log phải chịu authorization riêng; quyền quản trị SRM không mặc nhiên đồng nghĩa quyền đọc mọi log bảo mật.
