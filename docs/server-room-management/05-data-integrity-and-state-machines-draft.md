@@ -289,3 +289,13 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 - **C04 – APPROVED (2026-11-15):** Phê duyệt tuần tự theo cấp; tại mỗi cấp tất cả approver phải APPROVE mới chuyển cấp. Một REJECT làm dừng workflow và từ chối yêu cầu.
 - **C05 – APPROVED (2026-11-15):** Resolve group/role thành user cụ thể và snapshot danh sách approver khi từng cấp được kích hoạt; thay đổi membership sau đó không tự thay đổi cấp đang xử lý.
 - **C06 – APPROVED (2026-11-15):** Hỗ trợ Delegation và Reassignment có kiểm soát. Delegation phải được người có thẩm quyền chấp thuận, có phạm vi/thời hạn và lưu principal/acting approver. Reassignment do người có thẩm quyền workflow thực hiện, lưu old/new approver, actor, time, reason. Tất cả thao tác phải Audit và không làm giảm quy tắc ALL.
+
+
+## Bổ sung – State/Integrity cho Approval Delegation (C06)
+
+- Delegation lifecycle: pending → approved/rejected; approved → revoked/expired. Không cho delegate thực hiện trước trạng thái approved hoặc ngoài valid_from/valid_until.
+- Khi activate một approval level: resolve principal list theo C05; kiểm tra delegation theo tenant + principal + approvable_type + room scope + thời gian; snapshot acting_approver_id và delegation_id vào từng approval row.
+- Một cấp đã kích hoạt giữ nguyên snapshot kể cả delegation bị thu hồi/hết hạn sau đó. Cấp chưa kích hoạt phải kiểm tra lại theo trạng thái và thời gian mới nhất.
+- Không cho phép hai delegation đang hiệu lực cùng khớp một principal và cùng scope tại thời điểm activate; nếu xung đột, transaction không kích hoạt cấp và phát sinh lỗi nghiệp vụ cần xử lý.
+- Khi quyết định: acted_by phải là acting_approver_id đã snapshot (hoặc principal nếu không delegation); approver_id luôn giữ principal gốc. Kiểm tra user active, tenant, permission và trạng thái pending trong transaction.
+- Audit ghi delegation_id, principal_approver_id, acting_approver_id, action, actor, timestamp và reason phù hợp.
