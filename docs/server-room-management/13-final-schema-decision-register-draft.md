@@ -59,7 +59,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C04 | Approval hierarchy and quorum | **APPROVED – Phê duyệt tuần tự theo cấp; tại mỗi cấp tất cả approver phải APPROVE mới chuyển cấp. Một REJECT làm dừng workflow và từ chối yêu cầu.** | Approval engine, state machine, tests |
 | C05 | Approver snapshot timing | **APPROVED – Resolve group/role thành danh sách user cụ thể và snapshot khi từng cấp được kích hoạt; thay đổi membership sau snapshot không tự thay đổi danh sách cấp đang xử lý. Cấp tiếp theo được snapshot khi đến lượt.** | Approval schema/service, audit |
 | C06 | Delegation and reassignment | **APPROVED – Hỗ trợ cả ủy quyền và thay thế. Delegation cần được người có thẩm quyền chấp thuận, có phạm vi/thời hạn và lưu principal/acting approver. Reassignment do người có thẩm quyền workflow thực hiện, lưu old/new approver, actor, time, reason. Mọi thao tác phải Audit và không làm giảm điều kiện ALL.** | Approval, audit, authorization |
-| C07 | Approval self-approval | Cấm self-approval ở mọi workflow trong phiên bản đầu. | Authorization, SoD tests |
+| C07 | Approval self-approval | **APPROVED – Người tạo yêu cầu không được tự phê duyệt yêu cầu đó. Nếu requester xuất hiện trong danh sách approver đã resolve, loại khỏi danh sách hiệu lực và ghi nhận lý do. Nếu cấp không còn approver hợp lệ, chặn kích hoạt và yêu cầu cấu hình lại; không tự bỏ qua cấp. Delegation không được dùng để vượt SoD; acting approver không hợp lệ phải được xử lý bằng reassignment có thẩm quyền, vẫn giữ ALL.** | Authorization, SoD tests, approval activation |
 | C08 | Attachment security | Private storage; MIME xác minh bằng nội dung; giới hạn dung lượng/loại; malware scan trước download; không public file_path. | Storage, upload/download service |
 | C09 | Attachment retention | Chốt retention và legal hold trước triển khai xóa file; không cascade delete tự động. | Storage lifecycle, scheduler |
 | C10 | Audit immutability | Append-only ở app; quyền DB hạn chế; archive bảo vệ chống sửa nếu yêu cầu compliance. Không tuyên bố bất biến tuyệt đối chỉ bằng UI. | DB privilege, archive, audit service |
@@ -228,3 +228,14 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 **C06B – Delegation activation: APPROVED.** Chọn phương án 2: chỉ kiểm tra và áp dụng delegation khi approval level được kích hoạt. Trước tiên snapshot principal approvers theo C05, sau đó kiểm tra delegation hợp lệ theo tenant, loại hồ sơ, room scope và thời điểm. Snapshot acting approver và delegation_id vào approval row. Các level đã kích hoạt không bị thay đổi hồi tố khi delegation hết hạn/thu hồi; level tiếp theo kiểm tra lại khi đến lượt.
 
 **Schema decision:** bổ sung bảng `server_room_approval_delegations` (bảng 23); bổ sung `acting_approver_id`, `acted_by`, `delegation_id` vào `server_room_approvals`. ALL approvers vẫn bắt buộc. Nếu có nhiều delegation cùng khớp tại thời điểm kích hoạt, không tự chọn; chặn kích hoạt để xử lý xung đột.
+
+
+## C07 – Quy tắc chống tự phê duyệt (APPROVED – 2026-11-15)
+
+1. Requester (người tạo yêu cầu) không được tự approve chính yêu cầu đó trong mọi SRM workflow của phiên bản đầu.
+2. Khi resolve approver theo C05, nếu requester xuất hiện trong danh sách approver của cấp, hệ thống loại requester khỏi danh sách hiệu lực và ghi audit/reason cho việc loại trừ.
+3. Nếu sau khi loại requester, cấp không còn approver hợp lệ, không kích hoạt cấp và không tự động skip; yêu cầu workflow manager có thẩm quyền sửa cấu hình hoặc reassignment hợp lệ.
+4. Delegation không được bypass SoD. Nếu acting approver được snapshot là requester hoặc không đủ điều kiện độc lập, chặn quyết định; xử lý bằng reassignment do người có thẩm quyền thực hiện và lưu đầy đủ lịch sử.
+5. Quy tắc ALL vẫn giữ nguyên: mọi approver hợp lệ còn lại trong cấp phải APPROVE.
+
+**Phạm vi:** C07 cấm requester tự duyệt chính yêu cầu do mình tạo; không tự mở rộng thành cấm mọi người từng tham gia xử lý nghiệp vụ được phê duyệt.
