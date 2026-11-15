@@ -100,3 +100,5 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 - C09 đã APPROVED: không cascade/purge khi parent Archived/Soft Deleted; retention theo policy; Legal Hold đặt ở parent và bảo vệ toàn bộ attachment của parent; purge cần hết hạn + parent hết hold + kiểm tra reference + Audit. Chi tiết schema Legal Hold ở parent tiếp tục là gate của Final Schema Review.
 
 - C09-A đã APPROVED: Legal Hold ở cấp parent record; toàn bộ attachment của parent tự động được bảo vệ; không đặt hold riêng từng file. Schema cụ thể tại parent vẫn chờ Final Schema Review.
+
+- C09-B đã APPROVED: mỗi lần đặt/gỡ Legal Hold lưu thành event riêng với parent identity, action, actor, UTC timestamp, reason; release liên kết placement tương ứng; không hard delete. Cấu trúc lưu trữ chờ Final Schema Review.
