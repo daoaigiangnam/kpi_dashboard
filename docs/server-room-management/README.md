@@ -149,3 +149,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - D06 đã APPROVED: JSON cho dữ liệu linh hoạt; timestamp UTC; tiền DECIMAL; số lượng integer; file ở Storage riêng; fixed values được validation và constraint phù hợp.
+
+
+- D07 đã APPROVED: index FK phù hợp; composite index theo query pattern; EXPLAIN cho truy vấn quan trọng; tránh index dư thừa và đánh giá tác động INSERT/UPDATE.
