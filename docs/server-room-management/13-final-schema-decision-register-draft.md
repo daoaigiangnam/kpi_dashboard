@@ -69,7 +69,7 @@ Trạng thái ban đầu của mọi mục: **OPEN – chờ chủ dự án xác
 | C14 | Customer permission revoke | **APPROVED – 2026-11-15 –** Thu hồi bằng `revoked_at`/`revoked_by`, không xóa bản ghi; cấp lại tạo row mới; chỉ một grant active cho cùng `(customer_id, user_id, permission_code)`. Cơ chế unique active phải chọn sau khi kiểm tra MySQL thực tế. | Permission schema, indexes, concurrency tests |
 | C15 | Room assignment uniqueness | **APPROVED – 2026-11-15 –** Mỗi `(customer_id, user_id, server_room_id)` chỉ có một assignment active; revoke bằng `revoked_at`/`revoked_by`, cấp lại tạo row mới. Cơ chế unique active chốt sau khi xác minh MySQL thực tế. | Unique strategy, concurrency tests |
 | C16 | Customer user tenant integrity | **APPROVED – 2026-11-15 –** Customer User bắt buộc `account_type=customer` và `users.service_customer_id=customer_id` của dữ liệu SRM; nếu schema users hiện hữu không hỗ trợ composite FK/candidate key phù hợp, bắt buộc Service tenant check và negative tests. | Existing schema, FK, policy, tenant tests |
-| C17 | Customer IT Admin | Chỉ cấp/revoke permission và room assignment cho user/room cùng tenant; permission grant phải nằm trong allowlist SRM. | Authorization, audit |
+| C17 | Customer IT Admin | **APPROVED – 2026-11-15 –** Chỉ cấp/revoke permission và room assignment cho Customer User/Server Room cùng tenant; permission grant phải nằm trong allowlist SRM; Audit đầy đủ. | Authorization, audit, tenant tests |
 | C18 | User disable/tenant change | Khi customer user bị disable hoặc chuyển tenant, mọi quyền/assignment SRM phải bị vô hiệu hóa/thu hồi theo transaction và audit. | User lifecycle integration |
 
 ## 5. Nhóm D – Quyết định kỹ thuật áp dụng xuyên suốt 23 bảng
