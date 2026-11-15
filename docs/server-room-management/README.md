@@ -134,3 +134,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - D01 runtime đã được xác minh qua Laravel: MySQL Community Server 8.0.46, InnoDB, `utf8mb4` / `utf8mb4_unicode_ci`; `sql_mode` đã được ghi nhận trong Decision Register và Migration Blueprint.
+
+
+- D02 đã APPROVED: toàn bộ 23 bảng SRM dùng InnoDB; transaction cho nghiệp vụ nhiều bảng; row locking khi cần bảo vệ invariant và kiểm thử rollback/concurrency.
