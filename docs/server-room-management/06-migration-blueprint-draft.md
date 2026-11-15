@@ -291,3 +291,12 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 - Maintenance–Asset mặc định phải cùng Room; nếu hỗ trợ đa phòng, request phải khai báo scope rõ ràng và service xác thực từng Asset thuộc một Room trong scope.
 - Kiểm tra scope khi tạo/cập nhật pivot và kiểm tra lại vị trí Asset khi execute nghiệp vụ liên quan.
 - Test bắt buộc: khác tenant bị từ chối; Incident đa phòng cùng tenant hợp lệ; Maintenance cùng phòng hợp lệ; Maintenance khác phòng nhưng chưa khai báo scope bị từ chối; Maintenance đa phòng có scope hợp lệ được chấp nhận.
+
+
+## 16. C14 – Customer Permission Revoke migration/test gate (APPROVED – 2026-11-15)
+
+- Bảo toàn grant history: revoke cập nhật `revoked_at`/`revoked_by`; không hard-delete; re-grant tạo row mới.
+- Enforce tối đa một grant active cho `(customer_id, user_id, permission_code)`.
+- Trước khi chọn generated column/unique index, phải xác minh phiên bản MySQL và khả năng hỗ trợ biểu thức/index cần dùng; đồng thời rà soát duplicate active rows và index hiện hữu.
+- Nếu DB không hỗ trợ phương án unique phù hợp, thực thi grant/revoke trong transaction với locking phù hợp và kiểm thử cạnh tranh; không chỉ dựa vào kiểm tra ở UI.
+- Test: revoke giữ lịch sử; re-grant tạo row mới; không thể tạo hai active grant kể cả hai request đồng thời; user khác tenant/actor thiếu quyền không thể cấp hoặc thu hồi.
