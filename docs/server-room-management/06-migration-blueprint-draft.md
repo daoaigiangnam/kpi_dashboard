@@ -5,12 +5,12 @@
 ## 1. Mục tiêu
 
 - Chuyển thiết kế logic SRM thành một kế hoạch migration có thứ tự rõ ràng.
-- Bảo đảm đủ 22 bảng mới và không tạo trùng các bảng dùng chung hiện hữu.
+- Bảo đảm đủ 23 bảng mới và không tạo trùng các bảng dùng chung hiện hữu.
 - Tạo cấu trúc theo hướng multi-tenant với `service_customers` là tenant root.
 - Tách rõ FK cứng, composite FK và kiểm tra bắt buộc ở service layer.
 - Không thay đổi bảng hiện hữu như `service_customers`, `customer_branches`, `users`, `permissions`, `group_permissions` nếu chưa có migration riêng được đánh giá tác động.
 
-## 2. Master Table Register – 22 bảng
+## 2. Master Table Register – 23 bảng
 
 | STT | Bảng | Nhóm | Vai trò | Phụ thuộc chính |
 |---:|---|---|---|---|
@@ -30,12 +30,13 @@
 | 14 | `server_room_equipment_movements` | Core | Phiếu nhập/xuất/di chuyển | `server_room_assets`, `server_rooms`, `users` |
 | 15 | `server_room_environment_logs` | Core | Nhật ký môi trường | `server_rooms` |
 | 16 | `server_room_approvals` | Core | Các bước phê duyệt polymorphic | `service_customers`, `users` |
-| 17 | `server_room_attachments` | Core | File đính kèm polymorphic | `service_customers`, `users` |
-| 18 | `server_room_audit_logs` | Core | Nhật ký thay đổi nghiệp vụ | `service_customers`, `users` |
-| 19 | `server_room_incident_assets` | Pivot | Sự cố ↔ thiết bị | `server_room_incidents`, `server_room_assets` |
-| 20 | `server_room_maintenance_assets` | Pivot | Bảo trì ↔ thiết bị | `server_room_maintenance_requests`, `server_room_assets` |
-| 21 | `customer_user_srm_permissions` | Access control | Quyền chức năng SRM theo customer user | `service_customers`, `users` |
-| 22 | `customer_user_server_rooms` | Access control | Phạm vi phòng được gán cho customer user | `service_customers`, `users`, `server_rooms` |
+| 17 | `server_room_approval_delegations` | Core | Ủy quyền phê duyệt theo thời hạn/phạm vi | `service_customers`, `users`, `server_rooms` |
+| 18 | `server_room_attachments` | Core | File đính kèm polymorphic | `service_customers`, `users` |
+| 19 | `server_room_audit_logs` | Core | Nhật ký thay đổi nghiệp vụ | `service_customers`, `users` |
+| 20 | `server_room_incident_assets` | Pivot | Sự cố ↔ thiết bị | `server_room_incidents`, `server_room_assets` |
+| 21 | `server_room_maintenance_assets` | Pivot | Bảo trì ↔ thiết bị | `server_room_maintenance_requests`, `server_room_assets` |
+| 22 | `customer_user_srm_permissions` | Access control | Quyền chức năng SRM theo customer user | `service_customers`, `users` |
+| 23 | `customer_user_server_rooms` | Access control | Phạm vi phòng được gán cho customer user | `service_customers`, `users`, `server_rooms` |
 
 **Không tạo mới** các bảng `service_customers`, `customer_branches`, `users`, `permissions`, `group_permissions`, `user_groups`, `customer_user_branches`. Đây là các cấu trúc hiện hữu cần tái sử dụng.
 
@@ -60,13 +61,14 @@ Thứ tự dưới đây ưu tiên tạo bảng cha trước bảng con. FK tớ
 | 13 | `server_room_maintenance_requests` | Phụ thuộc room |
 | 14 | `server_room_equipment_movements` | Phụ thuộc asset và room nguồn/đích |
 | 15 | `server_room_environment_logs` | Phụ thuộc room |
-| 16 | `server_room_approvals` | Workflow phê duyệt |
-| 17 | `server_room_attachments` | File nghiệp vụ |
-| 18 | `server_room_audit_logs` | Audit |
-| 19 | `server_room_incident_assets` | Pivot incident–asset |
-| 20 | `server_room_maintenance_assets` | Pivot maintenance–asset |
-| 21 | `customer_user_srm_permissions` | Cấp quyền chức năng cho customer user |
-| 22 | `customer_user_server_rooms` | Gán customer user vào room |
+| 16 | `server_room_approval_delegations` | Delegation phải tồn tại trước approval FK |
+| 17 | `server_room_approvals` | Workflow phê duyệt, tham chiếu delegation |
+| 18 | `server_room_attachments` | File nghiệp vụ |
+| 19 | `server_room_audit_logs` | Audit |
+| 20 | `server_room_incident_assets` | Pivot incident–asset |
+| 21 | `server_room_maintenance_assets` | Pivot maintenance–asset |
+| 22 | `customer_user_srm_permissions` | Cấp quyền chức năng cho customer user |
+| 23 | `customer_user_server_rooms` | Gán customer user vào room |
 
 Ghi chú triển khai:
 - Có thể tạo `server_room_assets` trước rồi bổ sung self-FK `rack_asset_id` bằng bước FK riêng sau khi bảng tồn tại.
