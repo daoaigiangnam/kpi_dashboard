@@ -325,3 +325,11 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 - Mỗi lần scan cập nhật trạng thái/thời điểm và ghi audit; không cho client tự gửi `scan_status`.
 - Upload/download/delete đều kiểm tra tenant, parent record và authorization; `file_path` không được trả ra API công khai.
 - Không xóa file nhiễm mã độc tự động nếu chưa xác định retention/security handling; cách ly và xử lý theo quy trình được phê duyệt.
+
+## 14. C09 – Attachment retention và Legal Hold (APPROVED – 2026-11-15)
+
+- Không cascade delete và không xóa file tự động khi parent record Archived hoặc Soft Deleted.
+- Retention phải cấu hình theo loại hồ sơ/tài liệu và policy đã phê duyệt; không hard-code thời hạn khi policy chưa xác định.
+- Legal Hold có hiệu lực chặn purge vật lý, kể cả khi retention đã hết hạn.
+- Purge chỉ được thực hiện khi retention hết hạn, không còn Legal Hold, đã kiểm tra tham chiếu và ghi Audit actor/thời điểm/kết quả.
+- File lifecycle cần có trạng thái/metadata đủ để scheduler đánh giá điều kiện purge; cấu trúc cột và cách kế thừa Legal Hold từ parent sẽ được chốt ở Final Schema Review, chưa tự ý thêm schema.
