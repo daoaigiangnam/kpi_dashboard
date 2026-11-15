@@ -665,3 +665,15 @@ Các record SRM được truy cập bởi Customer User phải xác minh `users.
 5. Khi user được kích hoạt lại hoặc chuyển tenant hoàn tất, quyền truy cập chỉ được khôi phục/cấp mới theo quy trình cấp quyền của tenant tương ứng; không tự khôi phục quyền tenant cũ.
 6. Ghi Audit cho disable/enable, tenant change, các thao tác revoke và các lần truy cập SRM bị từ chối; ghi actor, target, UTC timestamp, action, result và correlation ID nếu có.
 7. Negative tests bắt buộc: disabled user không truy cập được; user sau tenant change không còn quyền/room assignment tenant cũ; user không được tự động nhận quyền tenant mới; lỗi giữa quy trình không để lại permission/assignment ở trạng thái dở dang.
+
+
+## D06 – JSON and Data Type Policy (APPROVED – 2026-11-15)
+
+1. Sử dụng MySQL `JSON` cho dữ liệu có cấu trúc linh hoạt, không dùng JSON để thay thế các cột nghiệp vụ có cấu trúc ổn định, cần lọc/sắp xếp/join/index thường xuyên.
+2. Các giá trị thời gian được lưu UTC; hiển thị và truy vấn theo timezone tenant theo quyết định C01.
+3. Giá trị tiền tệ dùng `DECIMAL` với precision/scale được xác định theo nghiệp vụ; không dùng `FLOAT`/`DOUBLE` cho số tiền.
+4. Số lượng dùng kiểu số nguyên phù hợp với miền giá trị và giới hạn nghiệp vụ; không chọn độ rộng tùy tiện.
+5. Không lưu nội dung file nhị phân trong JSON hoặc bảng nghiệp vụ; file được lưu ở Storage riêng và DB chỉ lưu metadata/reference cần thiết.
+6. Giá trị thuộc tập lựa chọn cố định phải được kiểm soát bằng validation phía ứng dụng và constraint phù hợp với MySQL 8.0.46/schema thực tế; không chỉ dựa vào giao diện.
+7. Với JSON cần truy vấn theo thuộc tính cụ thể, phải đánh giá generated column/index hoặc giải pháp phù hợp; chỉ bổ sung khi có use case và kiểm thử hiệu năng.
+8. Kiểu dữ liệu, precision/scale, nullability, default và constraint cụ thể của từng cột được chốt trong Final Schema Review sau khi đối chiếu data dictionary và schema hiện hữu.
