@@ -269,3 +269,10 @@ Chủ dự án chọn phương án ủy quyền theo thời hạn/phạm vi (b�
 - File ở trạng thái `pending`, `infected` hoặc `error` không được preview/download; chỉ `clean` mới được cấp nội dung.
 - Không cung cấp public URL hoặc `file_path`; truy cập qua service authorization, hoặc signed URL thời hạn rất ngắn chỉ được tạo sau khi kiểm tra quyền.
 - Download phải kiểm tra lại quyền tại thời điểm yêu cầu; không dựa vào quyền đã kiểm tra khi upload.
+
+## C14 – Lịch sử cấp/thu hồi Customer SRM Permission (APPROVED – 2026-11-15)
+
+- Permission grant không bị hard-delete khi thu hồi; ghi `revoked_at`, `revoked_by`.
+- Cấp lại sau thu hồi tạo grant row mới, không tái sử dụng row cũ.
+- Mỗi `(customer_id, user_id, permission_code)` chỉ có một grant active.
+- Người cấp/thu hồi phải có quyền quản trị SRM trong đúng tenant; mọi thay đổi ghi Audit.
