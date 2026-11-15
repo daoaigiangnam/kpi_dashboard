@@ -128,3 +128,6 @@ SRM quản lý địa điểm, phòng Server, thiết bị hạ tầng, quyền 
 
 
 - C18 đã APPROVED: disabled/inactive user bị từ chối truy cập SRM; chuyển tenant thì revoke quyền/assignment tenant cũ, không tự chuyển quyền; giữ lịch sử, transaction nhất quán, Audit và negative tests.
+
+
+- D01 đã APPROVED: MySQL 8.0 là baseline thiết kế/migration; runtime minor/patch version và cấu hình thực tế vẫn phải được xác minh trước khi triển khai.
