@@ -222,3 +222,16 @@ Tổng số bảng dự kiến: 22 (18 core + 2 pivots + 2 access-control).
 Danh mục ERD phải được hiểu thống nhất là 22 bảng: 18 core, 2 pivot (`server_room_incident_assets`, `server_room_maintenance_assets`) và 2 access-control (`customer_user_srm_permissions`, `customer_user_server_rooms`).
 
 Equipment Movement dùng `from_server_room_id` và `to_server_room_id`; điều kiện bắt buộc theo `movement_type` được quy định tại Data Integrity & State Machines. Cả hai đầu quan hệ, cùng asset (nếu có), phải thuộc cùng `customer_id`.
+
+
+## 14. Quan hệ Approval Delegation – bổ sung bảng thứ 23
+
+Bổ sung `server_room_approval_delegations` liên kết tenant và hai user (principal/delegate), tùy chọn giới hạn loại hồ sơ và phòng Server, thời hạn hiệu lực, người duyệt và người thu hồi.
+
+Quan hệ logic:
+- `service_customers` 1–N `server_room_approval_delegations`.
+- `users` (principal) 1–N delegation; `users` (delegate) 1–N delegation.
+- `server_rooms` 0–N delegation theo scope tùy chọn.
+- Một delegation có thể được tham chiếu bởi nhiều approval rows nếu các cấp được kích hoạt trong thời hạn/phạm vi; mỗi approval row snapshot `approver_id`, `acting_approver_id` và `delegation_id`.
+
+Tại thời điểm kích hoạt cấp, hệ thống resolve approver group/role thành principal users trước (C05), sau đó kiểm tra delegation hợp lệ và ghi acting approver. Thay đổi/thu hồi delegation sau thời điểm này không thay đổi approval row đã snapshot. Tổng thiết kế: 23 bảng (18 core, 2 pivot, 2 access-control, 1 delegation).
