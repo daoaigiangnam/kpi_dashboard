@@ -283,3 +283,10 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Chỉ một grant active cho `(customer_id, user_id, permission_code)`.
 - Chốt cách enforce unique active sau khi kiểm tra MySQL version và schema/index hiện hữu; generated-column strategy chỉ là một lựa chọn, không mặc định.
 - Kiểm thử concurrency để bảo đảm hai yêu cầu cấp quyền đồng thời không tạo hai active grant.
+
+
+## 15. C15 – Customer User Room Assignment Uniqueness (APPROVED – 2026-11-15)
+
+- Một assignment active duy nhất cho `(customer_id, user_id, server_room_id)`.
+- Revoke bằng `revoked_at`/`revoked_by`, không hard-delete; cấp lại tạo row mới.
+- Cơ chế unique active phải dựa trên kiểm tra MySQL version và schema/index thực tế; kiểm thử concurrency để chống cấp trùng.
