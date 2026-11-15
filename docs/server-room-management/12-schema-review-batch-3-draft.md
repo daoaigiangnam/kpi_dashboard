@@ -290,3 +290,11 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Một assignment active duy nhất cho `(customer_id, user_id, server_room_id)`.
 - Revoke bằng `revoked_at`/`revoked_by`, không hard-delete; cấp lại tạo row mới.
 - Cơ chế unique active phải dựa trên kiểm tra MySQL version và schema/index thực tế; kiểm thử concurrency để chống cấp trùng.
+
+
+## 16. C16 – Customer User Tenant Integrity (APPROVED – 2026-11-15)
+
+- Bắt buộc `account_type='customer'` và `service_customer_id=customer_id`.
+- Kiểm tra schema users hiện hữu trước khi quyết định composite FK/candidate key.
+- Nếu FK ghép không khả thi, Service/Policy tenant check là bắt buộc, kèm negative tests cross-tenant cho mọi loại thao tác.
+- Không tự ý thay đổi bảng users hoặc tạo migration trước khi rà soát schema thực tế.
