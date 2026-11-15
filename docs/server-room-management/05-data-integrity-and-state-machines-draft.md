@@ -299,3 +299,13 @@ Approval của một hồ sơ không được coi là hồ sơ nghiệp vụ đ�
 - Không cho phép hai delegation đang hiệu lực cùng khớp một principal và cùng scope tại thời điểm activate; nếu xung đột, transaction không kích hoạt cấp và phát sinh lỗi nghiệp vụ cần xử lý.
 - Khi quyết định: acted_by phải là acting_approver_id đã snapshot (hoặc principal nếu không delegation); approver_id luôn giữ principal gốc. Kiểm tra user active, tenant, permission và trạng thái pending trong transaction.
 - Audit ghi delegation_id, principal_approver_id, acting_approver_id, action, actor, timestamp và reason phù hợp.
+
+
+## 12. C07 – Integrity và SoD cho Approval (APPROVED – 2026-11-15)
+
+- Tại thời điểm kích hoạt từng approval level, đối chiếu requester_id của hồ sơ với danh sách principal approver đã resolve theo C05.
+- Nếu trùng requester, loại khỏi active approver snapshot và ghi audit event/reason; không sửa membership nguồn.
+- Nếu danh sách hiệu lực rỗng, rollback việc activate level và trả lỗi nghiệp vụ yêu cầu workflow configuration/reassignment; tuyệt đối không chuyển cấp hoặc skip ngầm.
+- Khi áp dụng delegation, kiểm tra acting approver sau bước resolve delegation. Acting approver không được là requester; nếu vi phạm, không cho quyết định được ghi nhận.
+- Reassignment chỉ do workflow manager có quyền thực hiện, phải lưu old/new approver, actor, timestamp, reason; sau reassignment vẫn phải thỏa ALL.
+- Test bắt buộc: requester nằm trong approver list; requester bị loại khiến list rỗng; delegate là requester; reassignment hợp lệ; không thể approve bằng API giả mạo actor.
