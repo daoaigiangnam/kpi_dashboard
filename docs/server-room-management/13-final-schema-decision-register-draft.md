@@ -219,3 +219,12 @@ Các nguyên tắc dưới đây được đề xuất làm baseline kỹ thuậ
 
 
 - **2026-11-15 – Chủ dự án APPROVED C04, C05, C06.** C04: phê duyệt tuần tự theo cấp, ALL approvers ở từng cấp; một REJECT dừng và từ chối yêu cầu. C05: resolve và snapshot danh sách approver khi cấp được kích hoạt. C06: hỗ trợ delegation và reassignment có kiểm soát, lưu principal/acting approver hoặc old/new approver cùng actor, thời điểm, lý do; Audit đầy đủ.
+
+
+## Bổ sung quyết định C06 – Delegation scope và thời điểm áp dụng
+
+**C06A – Delegation scope: APPROVED.** Chọn ủy quyền theo thời hạn và phạm vi, quản lý bằng bảng riêng `server_room_approval_delegations`; không chỉ lưu delegation trực tiếp trên từng approval request.
+
+**C06B – Delegation activation: APPROVED.** Chọn phương án 2: chỉ kiểm tra và áp dụng delegation khi approval level được kích hoạt. Trước tiên snapshot principal approvers theo C05, sau đó kiểm tra delegation hợp lệ theo tenant, loại hồ sơ, room scope và thời điểm. Snapshot acting approver và delegation_id vào approval row. Các level đã kích hoạt không bị thay đổi hồi tố khi delegation hết hạn/thu hồi; level tiếp theo kiểm tra lại khi đến lượt.
+
+**Schema decision:** bổ sung bảng `server_room_approval_delegations` (bảng 23); bổ sung `acting_approver_id`, `acted_by`, `delegation_id` vào `server_room_approvals`. ALL approvers vẫn bắt buộc. Nếu có nhiều delegation cùng khớp tại thời điểm kích hoạt, không tự chọn; chặn kích hoạt để xử lý xung đột.
