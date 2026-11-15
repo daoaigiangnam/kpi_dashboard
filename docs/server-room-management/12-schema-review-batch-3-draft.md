@@ -191,4 +191,5 @@ Actor fields đều cần kiểm tra tenant, account type, active status và per
 - Đã rà soát đủ 8 bảng còn lại.
 - Column Schema Batch 3 có các điểm bổ sung/đổi tên so với Data Dictionary (assigned_by, revoked fields đang là đề xuất; impact_note/work_note đổi thành relationship_note); cần thống nhất trước migration.
 - Tổng cộng đã review đủ 22/22 bảng ở ba batch.
-- C01–C03 đã APPROVED; C04–C18 vẫn OPEN.\n- Chưa có phê duyệt final schema và chưa tạo Laravel migrations.
+- C01–C03 đã APPROVED; C04–C18 vẫn OPEN.
+- Chưa có phê duyệt final schema và chưa tạo Laravel migrations.
