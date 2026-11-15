@@ -249,3 +249,11 @@ C07 không làm tăng số bảng hoặc yêu cầu thêm cột mới. Đây là
 - Purge job chỉ xóa khi retention attachment đã hết, parent không còn Legal Hold, không còn tham chiếu hợp lệ; sau đó ghi Audit actor/thời điểm/kết quả.
 - Test bắt buộc: parent archived/soft-deleted vẫn giữ file; retention chưa hết thì giữ; parent Legal Hold bảo vệ tất cả attachment dù retention hết; gỡ hold thì attachment chỉ đủ điều kiện purge khi các điều kiện còn lại thỏa; có reference thì không purge; purge đủ điều kiện phải audit; lỗi purge không được xóa metadata sai lệch.
 - Chi tiết schema lưu Legal Hold tại parent và truy vấn attachment vẫn là gate của Final Schema Review; chưa tạo migration.
+
+
+## 14. C09-B – Legal Hold event history migration/test gate (APPROVED – 2026-11-15)
+
+- Mỗi lần đặt/gỡ hold phải tạo event lịch sử mới, không chỉ update cờ trạng thái trên parent.
+- Event cần parent identity, action, actor, UTC timestamp, reason; release phải tham chiếu placement tương ứng.
+- Test: nhiều chu kỳ place/release vẫn truy vết đầy đủ; không sửa/xóa lịch sử; actor không đủ quyền bị từ chối; release không có placement hợp lệ bị từ chối; timezone hiển thị đúng từ UTC.
+- Chọn cấu trúc lưu trữ sau khi rà soát polymorphic parent và schema users/audit; chưa tạo migration.
