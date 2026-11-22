@@ -231,15 +231,17 @@ Cấu hình đọc được từ Settings:
 - danh sách Holidays;
 - đầu mối MSTAR_Email, Approver_Email, Manager_Email theo từng phòng lấy từ PL1.
 
-Quy tắc từ mã:
+Quy tắc từ mã và quyết định ADR-002 đã được phê duyệt:
 - Chỉ xử lý ngày làm việc nằm trong WORK_DAYS và không nằm trong ngày nghỉ được kích hoạt trong Holidays.
-- Kiểm tra theo từng phòng và ngày; xác định đã có phiếu dựa trên Room_ID + Inspection_Date + Form_Response_ID.
-- Sau DAILY_DEADLINE nếu chưa có phiếu thì gửi cảnh báo theo 3 cấp.
-- Cấp cảnh báo kế tiếp được tính từ thời điểm cấp trước đã gửi cộng thời gian delay cấu hình.
-- Nếu thiếu email người nhận cấp tương ứng, ghi sự kiện SKIPPED và chuyển cấp trong trạng thái escalation.
-- Hệ thống ghi Audit Log cho từng cấp cảnh báo.
+- Phạm vi lịch cảnh báo hiện tại chỉ là `DAILY`; chưa triển khai WEEKLY/MONTHLY.
+- Mỗi phòng/ngày có một Run theo UNIQUE `(room_id, work_date, schedule_type)`, với `schedule_type = DAILY`.
+- Kiểm tra phiếu hợp lệ theo phòng/ngày và Form Response ID/idempotency. Khi Inspection hợp lệ được commit, dừng các Event chưa gửi; không xóa lịch sử Event đã xử lý.
+- Level 1 đến hạn tại `DAILY_DEADLINE + ALERT_LEVEL1_DELAY_MINUTES`. Level 2 và Level 3 lần lượt tính từ timestamp kết quả cấp trước cộng delay cấu hình tương ứng.
+- Nếu recipient cấp trước thiếu và Event là `SKIPPED`, timestamp SKIPPED vẫn là mốc tính cấp tiếp theo.
+- Mỗi cấp là một Escalation Event; gửi qua Email Queue có retry, Event liên kết queue và lưu trạng thái nghiệp vụ riêng.
+- Ghi Audit Log cho các sự kiện tạo Run, lên lịch, gửi, bỏ qua, lỗi và dừng.
 
-**Quyết định người nhận đã chốt lại:** Giữ theo cách PL3 hiện đang gửi trong Apps Script: Cấp 1 gửi MSTAR; Cấp 2 gửi người phụ trách phòng (Approver); Cấp 3 gửi Manager. **Quyết định đã chốt:** Cấp 1 tại DAILY_DEADLINE; cấp 2 và cấp 3 theo các mốc thời gian do Admin cấu hình. Không hard-code thời gian trong chương trình. Khi phiếu hợp lệ được ghi nhận cho đúng Room_ID/ngày, dừng các cảnh báo còn lại. **Đối chiếu mã nguồn:** PL3 hiện ánh xạ recipients theo thứ tự MSTAR → Approver → Manager, không trùng với người nhận đã chốt; đồng thời delay hiện được tính nối tiếp từ thời điểm gửi cấp trước. Khi triển khai PHP phải sửa ánh xạ và triển khai mốc theo quyết định đã chốt, không sao chép nguyên logic hiện tại.
+**Người nhận theo quyết định nghiệp vụ đã chốt:** Cấp 1 MSTAR; Cấp 2 Room Approver; Cấp 3 Manager. Ánh xạ này là quyết định nghiệp vụ; không thay đổi chỉ vì mã Apps Script cũ có thể chứa khác biệt ở một số nhánh triển khai. Thời gian delay được cấu hình động, không hard-code.
 
 ### 5.4. Tích hợp PL3 → PL4
 
@@ -405,7 +407,7 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 | Q02 | Thời hạn token phê duyệt PL1 và cách xử lý khi hết hạn | Cần đối chiếu giá trị Settings triển khai |
 | Q03 | PL2: nhắc ở 12 giờ, EXPIRED ở 24 giờ, không tự duyệt | ĐÃ CHỐT theo quyết định D08 |
 | Q04 | PL2 có giới hạn thời gian được CHECK-IN sau khi duyệt hay không | Chưa chốt từ các đoạn mã đã rà |
-| Q05 | PL3 cách tính mốc cấp 2/cấp 3 | Không cố định trong code; Admin phải cấu hình động thời điểm hoặc khoảng trễ của từng cấp và cách tính mốc. Hệ thống thực thi theo cấu hình đang có hiệu lực. |
+| Q05 | PL3 cách tính mốc cấp 2/cấp 3 | ĐÃ CHỐT theo ADR-002: tính tuần tự từ timestamp cấp trước; Level 1 từ DAILY_DEADLINE + delay cấp 1; timestamp SKIPPED là mốc tiếp theo. Delay cấu hình động trong Admin. |
 | Q06 | Xác minh deployment thực tế chỉ kích hoạt tích hợp API PL3 ID + Token | Chủ nghiệp vụ đã chọn cơ chế ID PL3 + Token; cần kiểm tra trigger/deployment đang chạy |
 | Q07 | State machine PL4: Assignee báo cáo, UOA xác nhận cuối cùng; không cho Assignee tự đóng | ĐÃ CHỐT theo quyết định D10; thay thế bước APPROVE/REJECT sau báo cáo trong Apps Script |
 | Q08 | PL4 có queue/retry email ở bản đang triển khai không | Mã nguồn đã đọc cho thấy gửi MailApp trực tiếp ở các nhánh; cần kiểm tra các nhánh còn lại |
@@ -597,7 +599,7 @@ Người nhận cảnh báo theo quyết định D12: Cấp 1 MSTAR, Cấp 2 App
 1. Admin hiển thị cấu hình theo nhóm PL1, PL2, PL3, PL4, PL5, Email/Queue, Tích hợp và Lịch làm việc.
 2. Cấu hình theo phòng (ví dụ Approval_Timeout_Hours, Approver, MSTAR, Manager) phải gắn Room_ID; không chuyển thành một giá trị toàn hệ thống nếu nghiệp vụ hiện tại là theo phòng.
 3. Giá trị cấu hình phải có kiểu dữ liệu, đơn vị, min/max hoặc tập giá trị hợp lệ, giá trị mặc định, mô tả tác động và trạng thái đang áp dụng.
-4. Với thời gian escalation, Admin phải cho chọn cách tính rõ ràng: tính từ deadline hay tính nối tiếp từ lần gửi cấp trước. Không suy luận hoặc hard-code một cách tính khi chưa có quyết định.
+4. Với PL3 escalation, áp dụng chế độ tuần tự đã được phê duyệt tại ADR-002; Admin cấu hình động các khoảng delay, không cho thay đổi tùy ý calculation mode khi chưa có ADR/quyết định nghiệp vụ mới.
 5. Khi đổi cấu hình, phải lưu phiên bản/giá trị trước-sau, người thay đổi, thời điểm, lý do thay đổi (nếu được yêu cầu) và hiệu lực áp dụng.
 6. Secret, token ký, mật khẩu SMTP/API key và thông tin kết nối phải được quản lý riêng trong cấu hình bảo mật; giao diện chỉ cho phép cập nhật theo quy trình an toàn, không trả lại secret dạng rõ.
 7. Thay đổi cấu hình thông thường có hiệu lực mà không cần deploy lại; các thay đổi ảnh hưởng trigger/scheduler phải được áp dụng an toàn và ghi Audit Log.
