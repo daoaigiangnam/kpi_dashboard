@@ -378,7 +378,7 @@ VERIFY FAIL ghi thêm hành động REWORK_REQUIRED vào Work Execution. Vì v�
 
 ### 7.5. Dashboard và email
 
-**Quyết định đã xác nhận:** Dashboard PL5 giai đoạn đầu chỉ có quyền xem (read-only). Dashboard được phép hiển thị số liệu tổng hợp, danh sách và chi tiết Work_ID, trạng thái, lịch sử duyệt/thực hiện/xác minh. Không được tạo/sửa/hủy phiếu, duyệt/từ chối, thay đổi người thực hiện, xác minh/đóng công việc hoặc xóa dữ liệu. Các thao tác nghiệp vụ tiếp tục theo Form/Token hiện có. Dashboard hiện thống kê các trạng thái PENDING_APPROVAL, APPROVED, IN_PROGRESS, ON_HOLD, PENDING_VERIFICATION, CLOSED và liệt kê tối đa 100 yêu cầu gần nhất theo mã nguồn.
+**Quyết định đã xác nhận:** Dashboard PL5 giai đoạn đầu chỉ có quyền xem (read-only), dành cho nhân sự UOA và nhóm MSTAR. Dashboard được phép hiển thị số liệu tổng hợp, danh sách và chi tiết Work_ID, trạng thái, lịch sử duyệt/thực hiện/xác minh. Không được tạo/sửa/hủy phiếu, duyệt/từ chối, thay đổi người thực hiện, xác minh/đóng công việc hoặc xóa dữ liệu. Các thao tác nghiệp vụ tiếp tục theo Form/Token hiện có. Dashboard hiện thống kê các trạng thái PENDING_APPROVAL, APPROVED, IN_PROGRESS, ON_HOLD, PENDING_VERIFICATION, CLOSED và liệt kê tối đa 100 yêu cầu gần nhất theo mã nguồn. Việc phân quyền phải giới hạn người dùng vào đúng nhóm UOA hoặc MSTAR đã được cấp quyền; không công khai Dashboard.
 
 PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/RETRY/SENT/FAILED và khôi phục SENDING bị treo sau 15 phút. Có Email Log. Queue PL5 độc lập PL1.
 
@@ -409,7 +409,7 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 | Q06 | Xác minh deployment thực tế chỉ kích hoạt tích hợp API PL3 ID + Token | Chủ nghiệp vụ đã chọn cơ chế ID PL3 + Token; cần kiểm tra trigger/deployment đang chạy |
 | Q07 | State machine PL4: Assignee báo cáo, UOA xác nhận cuối cùng; không cho Assignee tự đóng | ĐÃ CHỐT theo quyết định D10; thay thế bước APPROVE/REJECT sau báo cáo trong Apps Script |
 | Q08 | PL4 có queue/retry email ở bản đang triển khai không | Mã nguồn đã đọc cho thấy gửi MailApp trực tiếp ở các nhánh; cần kiểm tra các nhánh còn lại |
-| Q09 | Chốt phạm vi read-only PL5 Dashboard và nhóm tài khoản được xem | Read-only đã xác nhận; nhóm người xem cần xác định |
+| Q09 | Chốt phạm vi read-only PL5 Dashboard và nhóm tài khoản được xem | ĐÃ CHỐT: read-only; nhóm được xem gồm nhân sự UOA và nhóm MSTAR |
 | Q10 | Danh sách trường Form đang phát hành có khác mã Apps Script/workbook không | Chưa truy cập trực tiếp được giao diện Google Forms |
 
 ---
@@ -439,11 +439,11 @@ Chỉ chuyển sang bước chốt ERD, migration và code khi:
 | D04 | PL3 thời gian cảnh báo | ĐÃ CHỐT: Cấp 1 tại deadline; Cấp 2 sau 30 phút; Cấp 3 sau 60 phút nếu chưa có phiếu. Các mốc cấu hình được. Khi có phiếu hợp lệ thì dừng cảnh báo còn lại. |
 | D05 | PL3 → PL4 | ĐÃ XÁC NHẬN: tích hợp bằng ID PL3 (Inspection_ID), checklist item ID và Token xác thực; cần chống gửi/tạo ISSUE trùng. |
 | D06 | PL4 xác nhận hoàn thành | ĐÃ CHỐT: Assignee báo cáo COMPLETED/NOT_COMPLETED; cả hai đều chuyển PENDING_UOA_CONFIRMATION. UOA xác nhận thì CLOSED; không xác nhận (bắt buộc lý do) thì về IN_PROGRESS. Assignee không được tự đóng ISSUE. Lưu riêng lịch sử báo cáo và xác minh. |
-| D07 | PL5 Dashboard | ĐÃ XÁC NHẬN: giai đoạn đầu chỉ xem; không có thao tác ghi/sửa/duyệt/xóa trên Dashboard. |
+| D07 | PL5 Dashboard | ĐÃ XÁC NHẬN: giai đoạn đầu chỉ xem; không có thao tác ghi/sửa/duyệt/xóa trên Dashboard. Nhóm được xem: UOA và MSTAR. |
 
 ### 11.1. Những điểm cần chủ nghiệp vụ duyệt tiếp
 
-4. PL5: Nhóm người dùng được xem Dashboard là toàn bộ nhân sự UOA, chỉ UOA, hay thêm nhóm MSTAR/đối tác?
+
 
 
 
@@ -451,3 +451,5 @@ Chỉ chuyển sang bước chốt ERD, migration và code khi:
 | D09 | Lịch cảnh báo PL3 | ĐÃ CHỐT: Cấp 1 tại DAILY_DEADLINE; cấp 2 sau 30 phút; cấp 3 sau 60 phút nếu chưa có phiếu hợp lệ; dừng cảnh báo khi đã ghi nhận phiếu hợp lệ. |
 
 | D10 | Quy trình xử lý và xác nhận ISSUE PL4 | ĐÃ CHỐT: Assignee báo cáo COMPLETED hoặc NOT_COMPLETED; cả hai đều chờ UOA xác nhận. UOA xác nhận thì CLOSED; không xác nhận phải ghi lý do và trả về IN_PROGRESS. Assignee không tự đóng ISSUE. Lưu lịch sử từng lần báo cáo/xác minh. |
+
+| D11 | Nhóm người dùng được xem PL5 Dashboard | ĐÃ CHỐT: nhân sự UOA và nhóm MSTAR; Dashboard vẫn read-only, không công khai và phải kiểm soát quyền truy cập theo nhóm. |
