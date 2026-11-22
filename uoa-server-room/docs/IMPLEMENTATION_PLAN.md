@@ -42,6 +42,10 @@
 - [ ] Gửi yêu cầu xác nhận và email kết quả qua queue.
 - [ ] Theo ADR-008: email PL4 dùng Queue chung; Work Report enqueue hai email riêng cho Reporter và UOA Approver trong cùng transaction; thông báo UOA CONFIRMED/NOT_CONFIRMED cho Reporter + Assignee; không gửi MSTAR trong sự kiện Work Report.
 - [ ] Bảo đảm event_key riêng theo business event + recipient role; retry cùng command không tạo thêm Work Report/Queue item; ghi attempt/audit và hỗ trợ retry FAILED theo quyền.
+- [ ] PL4-R07 theo ADR-009: ghi Audit cho tạo Issue, Assignment lifecycle, Work Report, UOA Confirmation và Status Change; mọi Audit liên kết Business Entity ISSUE.
+- [ ] Xây dựng ISSUE Timeline tổng hợp Status History, Assignments, Work Reports, UOA Confirmations, system_audit_logs và Email Queue/Attempts; không tạo bảng lịch sử trùng.
+- [ ] Notification History hiển thị recipient, event, queue status, sent_at và từng attempt; retry trên queue item hiện hữu.
+- [ ] Kiểm tra quyền Timeline theo D18/D19 và bảo đảm không hiển thị raw token/OTP/secret.
 
 ## Giai đoạn 6 – PL5 Work / Maintenance
 - [ ] Đăng ký khung thời gian, đơn vị thực hiện, thiết bị/hệ thống.
