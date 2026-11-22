@@ -1,5 +1,5 @@
 # ERD VẬT LÝ – SƠ ĐỒ QUAN HỆ PL1–PL5
-**Phiên bản:** 0.2 – Đã áp dụng ADR-001; dự thảo trực quan hóa từ ERD logic và Data Dictionary  
+**Phiên bản:** 0.3 – Đã áp dụng ADR-001 và ADR-002; dự thảo trực quan hóa từ ERD logic và Data Dictionary  
 **Nhánh:** `feature/ITSMWEB`  
 **CSDL mục tiêu:** MySQL 8.0 / InnoDB  
 **Trạng thái:** DRAFT – chưa triển khai Migration
@@ -320,6 +320,7 @@ erDiagram
     PL3_INSPECTIONS ||--o{ PL3_ACKNOWLEDGEMENTS : acknowledged
     SERVER_ROOMS ||--o{ PL3_ESCALATION_RUNS : schedules
     PL3_ESCALATION_RUNS ||--o{ PL3_ESCALATION_EVENTS : emits
+    EMAIL_QUEUE o|--o{ PL3_ESCALATION_EVENTS : delivers
     PL3_INSPECTIONS ||--o{ PL3_INTEGRATION_OUTBOX : produces
     PL3_INSPECTION_RESULTS ||--o{ PL3_INTEGRATION_OUTBOX : references
 
@@ -354,16 +355,25 @@ erDiagram
       bigint id PK
       bigint room_id FK
       date work_date
+      varchar schedule_type UK
+      datetime deadline_at
       varchar status
       json config_snapshot
+      datetime started_at
+      datetime stopped_at
     }
     PL3_ESCALATION_EVENTS {
       bigint id PK
       bigint escalation_run_id FK
       int level
       varchar status
+      varchar recipient_type
+      varchar recipient_email_snapshot
       datetime scheduled_at
+      datetime attempted_at
       datetime sent_at
+      bigint email_queue_id FK
+      int attempt_count
     }
     PL3_INTEGRATION_OUTBOX {
       bigint id PK
@@ -595,7 +605,7 @@ Audit event không gắn hồ sơ (ví dụ sự kiện hệ thống) được p
 |---:|---|---|---|
 | 1 | Audit/Evidence định danh hồ sơ | Supertype/Subtype qua `business_entities`, FK từ Audit/Evidence | ĐÃ PHÊ DUYỆT – ADR-001 |
 | 2 | Access Record identity | Không UNIQUE email+room trên toàn lịch sử; khóa bản ghi hiện hành trong transaction | Nguyên tắc đã xác định |
-| 3 | PL3 escalation run | Khóa theo Room + work date + schedule type sau khi chốt DAILY/WEEKLY/MONTHLY | CHỜ NGHIỆP VỤ |
+| 3 | PL3 escalation run | UNIQUE `(room_id, work_date, schedule_type)`; hiện chỉ `DAILY`; Event từng cấp qua Email Queue | ĐÃ PHÊ DUYỆT – ADR-002 |
 | 4 | Form/API idempotency | Dùng `idempotency_keys` với scope + key unique và request hash | Đề xuất |
 | 5 | External actor | Lưu actor snapshot; chỉ tạo external_contacts nếu cần quản lý vòng đời riêng | CHỜ CHỐT |
 | 6 | Retention và WORM | Quyết định chính sách lưu trữ, archive, immutable storage trước production | CHỜ CHÍNH SÁCH |
