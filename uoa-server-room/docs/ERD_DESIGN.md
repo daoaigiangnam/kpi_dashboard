@@ -244,3 +244,25 @@ Các mục dưới đây phải đối chiếu câu hỏi còn mở trong WORKFL
 
 **ERD logic v0.2 – DRAFT, đã áp dụng quyết định kiến trúc ADR-001; chưa phê duyệt triển khai Migration.**  
 Đây là bản đồ thực thể và quan hệ để rà soát. Chưa thay thế `database/schema.sql`, chưa tạo migration, chưa tạo PHP nghiệp vụ. Sau khi rà soát các quan hệ và chốt các điểm chặn, mới chuyển thành ERD vật lý, Data Dictionary, rồi Migration theo từng nhóm.
+
+
+## 9. PL4-R08 – SLA Policy, Calendar, Cycles, Dashboard và Reports (ADR-010 đã phê duyệt)
+
+ADR-010 được phê duyệt ngày 22/11/2026. Bổ sung 9 thực thể:
+- pl4_sla_calendars → pl4_sla_calendar_versions → pl4_sla_calendar_periods / pl4_sla_calendar_exceptions.
+- pl4_sla_policies → pl4_sla_policy_versions.
+- pl4_sla_policy_assignment_rules tham chiếu Policy Version.
+- pl4_issues 1 — 0..1 pl4_issue_sla_instances.
+- pl4_issue_sla_instances 1 — N pl4_sla_cycles.
+
+Mỗi Policy Version tham chiếu một Calendar Version và chứa ba target độc lập: Assignment Response, Assignee Resolution, UOA Confirmation. Calendar/Policy Version đã PUBLISHED là bất biến; thay đổi tạo version mới.
+
+Policy Assignment dùng Default Policy Version trong Business Settings và Conditional Rules theo Room + Source Type (PL3/MANUAL). Ưu tiên: Room+Source → Room → Source → Default. Rule có thời gian hiệu lực; cấu hình áp dụng ngay hoặc đặt lịch. Không cho Rule cùng mức cụ thể, cùng điều kiện có khoảng hiệu lực chồng lấn. Rule cụ thể đã khớp nhưng Policy không hợp lệ không được fallback sang Default.
+
+Issue được gán Policy khi tạo và giữ snapshot Policy Version, Calendar Version, Rule, timezone và targets. Nếu không có Policy hợp lệ, Issue vẫn được tạo; SLA Instance là NOT_CONFIGURED, không tự đặt due date.
+
+SLA Cycle có ba loại ASSIGNMENT_RESPONSE, ASSIGNEE_RESOLUTION, UOA_CONFIRMATION. Mỗi Issue chỉ có tối đa một Cycle RUNNING tại một thời điểm. Một Assignment có thể có nhiều Assignee Resolution Cycle do UOA NOT_CONFIRMED và nhiều vòng Work Report. UOA Cycle gắn chính xác Work Report. Reassignment giữ lịch sử và tạo chu kỳ mới.
+
+Elapsed time và due_at tính theo Calendar Version snapshot, không dùng phép trừ timestamp thuần. SLA Worker chạy nền, idempotent, đánh dấu BREACHED một lần. STOPPED/CANCELLED không được tính MET; BREACHED không chuyển ngược MET.
+
+Dashboard/Reports gồm R08-01 đến R08-08; ba nhóm Response, Assignee Resolution và UOA Confirmation được báo cáo riêng. Priority không tự quyết định SLA. Phân quyền UOA/MSTAR/Super Admin giữ nguyên D18/D19; Audit dùng system_audit_logs liên kết business_entity_id Issue theo ADR-009. Chi tiết đầy đủ tại ADR-010-PL4-SLA-POLICY-DASHBOARD-REPORTS.md.
