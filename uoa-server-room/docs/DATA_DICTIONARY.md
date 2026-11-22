@@ -168,7 +168,7 @@ INDEX `(person_email, room_id, record_status)`. Không UNIQUE cứng trên email
 
 ### 4.1 `pl2_visits`
 
-- Định danh: `id PK`, `visit_code VARCHAR(60) UNIQUE`, `room_id FK`.
+- Định danh: `id PK`, `business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id)`, `visit_code VARCHAR(60) UNIQUE`, `room_id FK`.
 - Người đăng ký: `requester_name`, `requester_email`, `organization`, `visitor_count SMALLINT UNSIGNED`.
 - Công việc: `purpose TEXT`, `supervisor_name`, `planned_entry_at DATETIME(3)`.
 - Snapshot duyệt: `approver_name_snapshot`, `approver_email_snapshot`.
@@ -208,7 +208,7 @@ INDEX `(approval_status, created_at)`, `(room_id, planned_entry_at)`, `(visit_st
 
 ### 5.2 `pl3_inspections`
 
-`id PK, inspection_code UNIQUE, room_id FK, frequency (DAILY/WEEKLY/MONTHLY), inspection_date DATE, inspection_time TIME, inspector_name, inspector_email NULL, temperature_c DECIMAL(5,2) NULL, humidity_percent DECIMAL(5,2) NULL, conclusion, form_response_id NULL, uoa_acknowledgement_status, submitted_at, created_at, updated_at`.
+`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), inspection_code UNIQUE, room_id FK, frequency (DAILY/WEEKLY/MONTHLY), inspection_date DATE, inspection_time TIME, inspector_name, inspector_email NULL, temperature_c DECIMAL(5,2) NULL, humidity_percent DECIMAL(5,2) NULL, conclusion, form_response_id NULL, uoa_acknowledgement_status, submitted_at, created_at, updated_at`.
 
 UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` vì cần xác nhận quy tắc nhiều lần kiểm tra/tần suất. Dùng `idempotency_keys` theo Form Response ID; kiểm soát phiếu hợp lệ theo kỳ bằng service.
 
@@ -234,7 +234,7 @@ UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` v
 
 ### 6.1 `pl4_issues`
 
-`id PK, issue_code UNIQUE, source_type (PL3/MANUAL), source_inspection_id NULL FK, source_inspection_result_id NULL FK UNIQUE, room_id FK, source_item_code_snapshot NULL, source_fail_remarks_snapshot NULL, title, description, priority, location_equipment NULL, reporter_name, reporter_email NULL, status (OPEN/IN_PROGRESS/PENDING_UOA_CONFIRMATION/CLOSED), created_at, updated_at`.
+`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), issue_code UNIQUE, source_type (PL3/MANUAL), source_inspection_id NULL FK, source_inspection_result_id NULL FK UNIQUE, room_id FK, source_item_code_snapshot NULL, source_fail_remarks_snapshot NULL, title, description, priority, location_equipment NULL, reporter_name, reporter_email NULL, status (OPEN/IN_PROGRESS/PENDING_UOA_CONFIRMATION/CLOSED), created_at, updated_at`.
 
 Nếu MySQL cho phép nhiều NULL trong UNIQUE, unique `source_inspection_result_id` bảo đảm một FAIL item chỉ sinh tối đa một issue nguồn PL3. Cần thêm kiểm tra source_type và source FK nhất quán ở service/constraint phù hợp.
 
@@ -270,7 +270,7 @@ Nếu MySQL cho phép nhiều NULL trong UNIQUE, unique `source_inspection_resul
 
 ### 7.4 `pl5_work_requests`
 
-- Định danh/phạm vi: `id PK, work_code UNIQUE, room_id FK, catalog_item_id FK NULL, maintenance_plan_id FK NULL`.
+- Định danh/phạm vi: `id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), work_code UNIQUE, room_id FK, catalog_item_id FK NULL, maintenance_plan_id FK NULL`.
 - Requester: `requester_name, requester_email, requester_organization NULL`.
 - Nội dung: `title, work_description, work_window_start, work_window_end, implementing_organization, implementing_personnel TEXT, related_equipment TEXT, expected_service_impact TEXT NULL, rollback_plan TEXT`.
 - Snapshot duyệt: `approver_name_snapshot, approver_email_snapshot`.
@@ -303,8 +303,8 @@ Nếu MySQL cho phép nhiều NULL trong UNIQUE, unique `source_inspection_resul
 | event_key | VARCHAR(190) | NO | UNIQUE idempotency |
 | module_code | VARCHAR(10) | NO | PL1–PL5 / SYSTEM |
 | event_type | VARCHAR(80) | NO | Loại email |
-| entity_type | VARCHAR(60) | YES | Loại hồ sơ |
-| entity_id | BIGINT UNSIGNED | YES | ID hồ sơ |
+| business_entity_id | BIGINT UNSIGNED | YES | FK business_entities; NULL chỉ với event hệ thống không gắn hồ sơ |
+
 | recipient | VARCHAR(500) | NO | Người nhận |
 | cc_json, bcc_json | JSON | YES | CC/BCC |
 | subject | VARCHAR(255) | NO | Tiêu đề |
@@ -333,7 +333,7 @@ UNIQUE `event_key`; INDEX `(status, next_attempt_at, id)`. Có thể cần `emai
 | module | VARCHAR(10) | NO | PL1–PL5 / SYSTEM |
 | entity_type | VARCHAR(60) | YES | Loại hồ sơ |
 | entity_id | BIGINT UNSIGNED | YES | ID hồ sơ |
-| parent_entity_type, parent_entity_id | VARCHAR(60)/BIGINT | YES | Quan hệ cha nếu có |
+| parent_business_entity_id | BIGINT UNSIGNED | YES | FK business_entities nếu có quan hệ hồ sơ cha |
 | workflow_step | VARCHAR(60) | YES | Bước workflow |
 | event_code | VARCHAR(100) | NO | Mã sự kiện |
 | event_name | VARCHAR(160) | NO | Tên hiển thị |
