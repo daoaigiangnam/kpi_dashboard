@@ -263,11 +263,11 @@ UNIQUE `source_inspection_result_id` (cho phép nhiều NULL với issue MANUAL)
 
 `id PK, issue_id FK NOT NULL UNIQUE, source_form_id VARCHAR(190) NOT NULL, form_response_id VARCHAR(190) NOT NULL, reporter_name_snapshot VARCHAR(160) NULL, reporter_email_snapshot VARCHAR(190) NULL, submitted_at DATETIME(3) NOT NULL, created_at DATETIME(3) NOT NULL`.
 
-UNIQUE `(source_form_id, form_response_id)` và UNIQUE `(issue_id)`. Mỗi cặp Form ID + Form Response ID chỉ liên kết một ISSUE. Khi nhận lại cùng cặp khóa, trả về ISSUE đã liên kết và không tạo ISSUE/Audit/Email event mới. Submission, Business Entity + Issue, Audit Log và Email Queue record được ghi trong cùng MySQL/InnoDB transaction theo ADR-007. Email Queue chỉ được enqueue trong transaction; Worker gửi SMTP sau Commit. Nếu có lỗi ghi DB, rollback toàn bộ.
+UNIQUE `(source_form_id, form_response_id)` và UNIQUE `(issue_id)`. Mỗi cặp Form ID + Form Response ID chỉ liên kết một ISSUE. Khi nhận lại cùng cặp khóa, trả về ISSUE đã liên kết và không tạo ISSUE/Audit/Email event mới. Submission, Business Entity + Issue + Assignment đầu tiên (`ASSIGNED`) + Audit Log + Email Queue + SLA Instance/Cycle (nếu Policy hợp lệ) được ghi trong cùng MySQL/InnoDB transaction theo ADR-007. Manual Form bắt buộc có Assignee hợp lệ; không tạo Issue MANUAL chưa phân công. Email Queue chỉ được enqueue trong transaction; Worker gửi SMTP sau Commit. Nếu có lỗi ghi DB, rollback toàn bộ.
 
 ### 6.4 `pl4_assignments`
 
-`id PK, issue_id FK, assignee_name_snapshot, assignee_email_snapshot, assigned_by_user_id NULL FK users, assigned_by_name_snapshot, assigned_by_email_snapshot, assigned_at, claimed_at NULL, released_at NULL, status (ASSIGNED/CLAIMED/DECLINED/EXPIRED/RELEASED), active_issue_id BIGINT GENERATED ALWAYS AS (CASE WHEN status IN ('ASSIGNED','CLAIMED') THEN issue_id ELSE NULL END) STORED UNIQUE, note NULL, created_at, updated_at`. Mỗi lần phân công là một dòng mới; không xóa lịch sử. Mỗi ISSUE chỉ có tối đa một Assignment đang hiệu lực (ASSIGNED hoặc CLAIMED). Service khóa dòng ISSUE và kiểm tra trạng thái trong cùng transaction khi tạo, claim, decline hoặc release; `active_issue_id` generated column UNIQUE (nhiều NULL được phép) là ràng buộc DB đề xuất để bảo đảm invariant này; đồng thời INDEX (issue_id, status) và (assignee_email_snapshot, status). Link nhận việc gắn đúng Assignment/ISSUE, token lưu hash, có expiry/revocation/used_at. Không cho Work Report tham chiếu Assignment đã kết thúc.
+`id PK, issue_id FK, assignee_name_snapshot, assignee_email_snapshot, assigned_by_user_id NULL FK users, assigned_by_name_snapshot, assigned_by_email_snapshot, assigned_at, claimed_at NULL, released_at NULL, status (ASSIGNED/CLAIMED/DECLINED/EXPIRED/RELEASED), active_issue_id BIGINT GENERATED ALWAYS AS (CASE WHEN status IN ('ASSIGNED','CLAIMED') THEN issue_id ELSE NULL END) STORED UNIQUE, note NULL, created_at, updated_at`. Mỗi lần phân công là một dòng mới; không xóa lịch sử. ISSUE MANUAL tạo Assignment đầu tiên ngay trong transaction tạo Issue; ISSUE PL3 vẫn được tạo chưa có Assignee và phân công sau. Mỗi ISSUE chỉ có tối đa một Assignment đang hiệu lực (ASSIGNED hoặc CLAIMED). Service khóa dòng ISSUE và kiểm tra trạng thái trong cùng transaction khi tạo, claim, decline hoặc release; `active_issue_id` generated column UNIQUE (nhiều NULL được phép) là ràng buộc DB đề xuất để bảo đảm invariant này; đồng thời INDEX (issue_id, status) và (assignee_email_snapshot, status). Link nhận việc gắn đúng Assignment/ISSUE, token lưu hash, có expiry/revocation/used_at. Không cho Work Report tham chiếu Assignment đã kết thúc.
 
 ### 6.5 `pl4_work_reports`
 
@@ -507,7 +507,7 @@ Default Policy dùng Business Settings key PL4_DEFAULT_SLA_POLICY_VERSION_ID, l�
 pl4_issue_sla_instances:
 id PK, issue_id FK pl4_issues UNIQUE, policy_version_id FK NULL, calendar_version_id FK NULL, assignment_rule_id FK NULL, assignment_source VARCHAR(30) (RULE/DEFAULT/NOT_CONFIGURED), policy_code_snapshot NULL, policy_name_snapshot NULL, policy_version_snapshot NULL, assignment_response_target_minutes_snapshot NULL, assignee_resolution_target_minutes_snapshot NULL, uoa_confirmation_target_minutes_snapshot NULL, timezone_snapshot NULL, status (ACTIVE/NOT_CONFIGURED/COMPLETED), created_at, updated_at.
 
-Mỗi Issue có tối đa một Instance. Khi NOT_CONFIGURED, Policy/Calendar/targets có thể NULL; không tạo due date giả định. Instance snapshot giữ nguyên sau khi cấu hình hiện hành thay đổi.
+Mỗi Issue có tối đa một Instance. Khi NOT_CONFIGURED, Policy/Calendar/targets có thể NULL; không tạo due date giả định và Instance giữ NOT_CONFIGURED kể cả khi Issue đóng. ACTIVE được tạo khi Policy hợp lệ; khi Issue CLOSED do UOA CONFIRMED, Instance ACTIVE chuyển COMPLETED trong cùng transaction. ACTIVE có thể chưa có Cycle RUNNING nếu Issue PL3 chưa được phân công. Instance snapshot giữ nguyên sau khi cấu hình hiện hành thay đổi.
 
 ### 12.6 SLA Cycle
 
@@ -520,8 +520,10 @@ Ràng buộc:
 - Assignment Response gắn Assignment.
 - Assignee Resolution gắn Assignment; khi kết thúc gắn Work Report. Một Assignment có thể có nhiều chu kỳ Assignee Resolution.
 - Không đặt UNIQUE (assignment_id, cycle_type) cho ASSIGNEE_RESOLUTION.
-- Mỗi Issue tối đa một Cycle RUNNING; kiểm soát bằng transaction/row lock và constraint phù hợp.
-- STOPPED/CANCELLED không được tính MET; BREACHED không chuyển ngược MET.
+- Mỗi Issue tối đa một Cycle RUNNING; `active_issue_id BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN status = 'RUNNING' THEN issue_id ELSE NULL END) STORED` có UNIQUE index; nhiều NULL được phép. Service vẫn khóa Issue/SLA Instance trong transaction.
+- UNIQUE `(work_report_id, cycle_type)`; `work_report_id` NULL khi Assignee Resolution đang RUNNING, được gắn khi submit Work Report. Mỗi Work Report tối đa một Assignee Resolution Cycle kết thúc và một UOA Confirmation Cycle.
+- Không UNIQUE `(assignment_id, cycle_type)` vì Assignee Resolution có thể lặp trên cùng Assignment.
+- STOPPED/CANCELLED không được tính MET; nếu đã quá hạn tại thời điểm dừng thì BREACHED. Khi event kết thúc cycle, phải tính elapsed ngay; không chờ SLA Worker. BREACHED không chuyển ngược MET hoặc STOPPED.
 
 ### 12.7 Tính thời gian và chỉ mục
 
@@ -545,3 +547,8 @@ R08-01 Issue Register; R08-02 Issue Aging; R08-03 Priority Analysis; R08-04 Assi
 Assignment Response, Assignee Resolution và UOA Confirmation được báo cáo riêng. Tỷ lệ tuân thủ tính trên chu kỳ hoàn tất có dữ liệu hợp lệ; STOPPED/CANCELLED/NOT_CONFIGURED báo cáo riêng. BREACHED vẫn là vi phạm nếu hoàn tất muộn.
 
 **Trạng thái:** Thiết kế Data Dictionary PL4-R08 đã phê duyệt theo ADR-010; DRAFT, chưa phải Migration.
+
+
+### 12.9. Chu kỳ Manual Issue đã phân công
+
+Manual Form bắt buộc chọn Assignee. Trong một transaction tạo `business_entities`, `pl4_issues`, `pl4_manual_submissions`, `pl4_assignments` (`ASSIGNED`), `pl4_issue_sla_instances`, Cycle `ASSIGNMENT_RESPONSE` nếu SLA Instance ACTIVE, Audit và Email Queue. Email event `PL4_ISSUE_CREATED_MANUAL` đồng thời thông báo Assignment đầu tiên; không tạo thêm event `PL4_ASSIGNMENT_ASSIGNED` cho cùng Assignment. ISSUE PL3 vẫn có thể chưa có Assignment khi khởi tạo.
