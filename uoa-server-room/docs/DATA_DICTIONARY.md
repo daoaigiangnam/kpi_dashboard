@@ -208,7 +208,7 @@ INDEX `(approval_status, created_at)`, `(room_id, planned_entry_at)`, `(visit_st
 
 ### 5.2 `pl3_inspections`
 
-`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), inspection_code UNIQUE, room_id FK, inspection_date DATE, inspection_date DATE, inspection_time TIME, inspector_name, inspector_email NULL, temperature_c DECIMAL(5,2) NULL, humidity_percent DECIMAL(5,2) NULL, conclusion, form_response_id NULL, uoa_acknowledgement_status, submitted_at, created_at, updated_at`.
+`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), inspection_code UNIQUE, room_id FK, inspection_date DATE, inspection_time TIME, inspector_name, inspector_email NULL, temperature_c DECIMAL(5,2) NULL, humidity_percent DECIMAL(5,2) NULL, conclusion, form_response_id NULL, uoa_acknowledgement_status, submitted_at, created_at, updated_at`.
 
 UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` vì cần xác nhận quy tắc nhiều lần kiểm tra/tần suất. Dùng `idempotency_keys` theo Form Response ID; kiểm soát phiếu hợp lệ theo kỳ bằng service.
 
