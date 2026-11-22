@@ -1,5 +1,5 @@
 # ERD TỔNG THỂ – UOA SERVER ROOM MANAGEMENT
-**Phiên bản:** 0.1 – Thiết kế logic để rà soát, chưa phải migration chính thức  
+**Phiên bản:** 0.2 – Đã áp dụng ADR-001, vẫn là thiết kế để rà soát, chưa phải migration chính thức  
 **Ngày:** 22/11/2026  
 **Phạm vi:** PL1–PL5, Admin, Email Queue, Evidence và Audit Center  
 **Nhánh:** `feature/ITSMWEB`
@@ -32,6 +32,7 @@ Nguyên tắc:
 | `user_roles` | Gán nhiều vai trò cho tài khoản | PK ghép `user_id, role_id`; FK users, roles |
 | `role_permissions` | Ma trận quyền theo vai trò | PK ghép `role_id, permission_id`; FK roles, permissions |
 | `server_rooms` | Danh mục phòng Server dùng chung PL1–PL5 | PK `id`; unique `room_code` |
+| `business_entities` | Định danh chung cho hồ sơ nghiệp vụ gốc PL1–PL5 | PK `id`; unique `(module_code, entity_type, business_code)`; FK được tham chiếu từ bảng hồ sơ, Audit và Evidence |
 | `room_contacts` | Đầu mối theo phòng: Approver, MSTAR, Manager... | FK `room_id`; user_id nullable; lưu tên/email snapshot |
 | `system_settings` | Cấu hình kỹ thuật và cấu hình hệ thống | unique `setting_key`; secret tách kho bảo mật |
 | `business_settings` | Cấu hình nghiệp vụ động theo PL/phòng/nhóm | key + scope; kiểu dữ liệu, đơn vị, phạm vi, hiệu lực |
@@ -145,9 +146,10 @@ Quy tắc:
 |---|---|---|
 | `email_queue` | Hàng đợi email nghiệp vụ | module + entity reference; event_key unique |
 | `email_queue_attempts` | Lịch sử từng lần gửi | FK email_queue |
-| `system_audit_logs` | Audit Log tập trung PL1–PL5 | actor, module, entity, event, channel, correlation |
+| `business_entities` | Định danh thống nhất cho hồ sơ nghiệp vụ gốc PL1–PL5 | PK `id`; một dòng tương ứng một hồ sơ gốc; FK từ Audit/Evidence |
+| `system_audit_logs` | Audit Log tập trung PL1–PL5 | FK `business_entity_id` nullable; actor, event, channel, correlation |
 | `evidence_files` | Metadata file và checksum | owner/uploader; storage key |
-| `entity_evidence_links` | Liên kết file với nhiều loại hồ sơ | polymorphic entity reference có kiểm soát |
+| `entity_evidence_links` | Liên kết file với hồ sơ nghiệp vụ | FK `business_entity_id`; không dùng polymorphic reference |
 | `integration_events` | Theo dõi request/response tích hợp ngoài | module, event key, correlation; không lưu secret |
 | `idempotency_keys` | Chống xử lý trùng từ Form/API/action callback | scope + key unique; result reference |
 | `scheduled_job_runs` | Theo dõi từng lần chạy scheduler/worker | job code, started/finished, outcome |
@@ -168,10 +170,12 @@ Quy tắc:
 - `server_rooms 1 — N pl5_work_requests / pl5_maintenance_plans`
 - `pl5_work_requests 1 — N approvals / assignments / execution_events / verifications / attachments`
 - `email_queue 1 — N email_queue_attempts`
-- `mọi entity nghiệp vụ 1 — N system_audit_logs` theo entity_type + entity_id và correlation ID
+- `business_entities 1 — N system_audit_logs` qua `business_entity_id` (NULL chỉ với sự kiện hệ thống không gắn hồ sơ)
+- `business_entities 1 — N entity_evidence_links` qua `business_entity_id`
+- Mỗi hồ sơ nghiệp vụ gốc PL1–PL5 có đúng một `business_entities` record; quan hệ 1–1 được kiểm soát bằng UNIQUE FK và transaction
 - `evidence_files 1 — N entity_evidence_links`
 
-## 4. Các điểm phải sửa so với schema.sql khởi tạo
+## 4. Mô hình định danh hồ sơ nghiệp vụ dùng chung (ADR-001 đã phê duyệt)\n\nÁp dụng mô hình Supertype/Subtype cho các hồ sơ nghiệp vụ gốc cần Audit/Evidence. `business_entities` là supertype; bảng PL tương ứng giữ toàn bộ thuộc tính nghiệp vụ riêng và có thêm `business_entity_id` UNIQUE NOT NULL FK tới `business_entities.id`. PK nội bộ `id` hiện tại của bảng PL được giữ trong giai đoạn thiết kế này; không tự ý thay PK khi chưa có quyết định riêng.\n\nPhạm vi hồ sơ gốc: `pl1_access_requests`, `pl1_access_records`, `pl2_visits`, `pl3_inspections`, `pl4_issues`, `pl5_work_requests`. Nếu sau rà soát cần Audit/Evidence độc lập cho loại hồ sơ gốc khác (ví dụ maintenance plan), phải bổ sung rõ vào phạm vi trước Migration. Các bảng con như history, attempts, checklist results và execution events không tạo registry riêng; Audit của chúng gắn về hồ sơ gốc tương ứng.\n\nQuy tắc tạo: tạo `business_entities` và dòng hồ sơ PL trong cùng transaction; nếu một bước lỗi phải rollback cả hai. UNIQUE trên `business_entity_id` tại từng bảng subtype ngăn một định danh chung gắn nhiều dòng cùng loại. Service phải kiểm soát `entity_type` khớp đúng bảng subtype; FK đơn thuần không tự bảo đảm đúng loại subtype hoặc bắt buộc mọi dòng cha có con. Không xóa cứng business entity đã có lịch sử.\n\n## 5. Các điểm phải sửa so với schema.sql khởi tạo
 
 Schema hiện tại trong `database/schema.sql` chỉ là skeleton khởi tạo, chưa đủ điều kiện dùng production. Khi thiết kế migration chính thức cần xử lý ít nhất:
 
@@ -189,7 +193,7 @@ Schema hiện tại trong `database/schema.sql` chỉ là skeleton khởi tạo,
 12. Bổ sung PL1 Access Record History và các lịch sử approval/action.
 13. Không dùng soft-delete cho hồ sơ nghiệp vụ đã phát sinh; danh mục có thể inactive, dữ liệu lịch sử phải còn truy vết.
 
-## 5. Quy tắc khóa và dữ liệu
+## 6. Quy tắc khóa và dữ liệu
 
 - PK nội bộ: `BIGINT UNSIGNED` hoặc UUID/ULID; mã nghiệp vụ hiển thị riêng như ACCESS-..., VISIT-..., INSP-..., ISSUE-..., WORK-....
 - Email chuẩn hóa lowercase + trim trước khi so sánh; giữ giá trị gốc đã nhận nếu cần bằng chứng.
@@ -201,7 +205,7 @@ Schema hiện tại trong `database/schema.sql` chỉ là skeleton khởi tạo,
 - File lưu ngoài webroot/object storage; DB chỉ lưu storage key, MIME, size, checksum SHA-256, uploader, created_at.
 - Không lưu OTP, password, API secret dạng rõ trong DB/log.
 
-## 6. Những quyết định ERD chưa được tự ý chốt
+## 7. Những quyết định ERD chưa được tự ý chốt
 
 Các mục dưới đây phải đối chiếu câu hỏi còn mở trong WORKFLOW_SPECIFICATION.md và xác nhận trước khi tạo migration:
 - PL1 Valid Until tính hết ngày hay hết thời điểm; thời điểm/cadence scheduler chuyển EXPIRED.
@@ -215,7 +219,7 @@ Các mục dưới đây phải đối chiếu câu hỏi còn mở trong WORKFL
 - Cấu trúc actor identity: có cần danh mục external contacts riêng hay chỉ snapshot trên từng hồ sơ.
 - Phạm vi liên kết file và thời hạn lưu Evidence theo từng PL.
 
-## 7. Trạng thái
+## 8. Trạng thái
 
-**ERD logic v0.1 – DRAFT, chưa phê duyệt triển khai.**  
+**ERD logic v0.2 – DRAFT, đã áp dụng quyết định kiến trúc ADR-001; chưa phê duyệt triển khai Migration.**  
 Đây là bản đồ thực thể và quan hệ để rà soát. Chưa thay thế `database/schema.sql`, chưa tạo migration, chưa tạo PHP nghiệp vụ. Sau khi rà soát các quan hệ và chốt các điểm chặn, mới chuyển thành ERD vật lý, Data Dictionary, rồi Migration theo từng nhóm.
