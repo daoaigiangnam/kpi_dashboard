@@ -32,7 +32,8 @@
 - [ ] FAIL tạo PL4 qua Outbox/PHP Worker; khóa nguồn `pl3_inspection_results.id`, chống trùng theo ADR-005; snapshot Checklist bất biến trên ISSUE.
 
 ## Giai đoạn 5 – PL4 Incident / Violation
-- [ ] Tạo từ PL3 FAIL hoặc tạo độc lập.
+- [ ] Tạo từ PL3 FAIL hoặc tạo độc lập; ISSUE PL3 ban đầu OPEN/chưa có Assignee.
+- [ ] Phân công/claim/tái phân công theo ADR-006; chỉ Assignee được chỉ định claim, một Assignment hiệu lực/ISSUE, chống claim đồng thời.
 - [ ] Mức độ ảnh hưởng, xử lý ban đầu, nguyên nhân, owner, due date.
 - [ ] Theo dõi khắc phục, xác minh và đóng phiếu.
 - [ ] Gửi yêu cầu xác nhận và email kết quả qua queue.
