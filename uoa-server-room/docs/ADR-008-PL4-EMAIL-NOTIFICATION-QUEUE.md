@@ -27,9 +27,9 @@ PHP mục tiêu dùng chung MySQL và Email Queue Worker cho PL1–PL5. Cần th
 
 | Event | Người nhận | Quy tắc |
 |---|---|---|
-| `PL4_ISSUE_CREATED_MANUAL` | Assignee được phân công | Gửi thông báo ISSUE mới sau khi Issue/Assignment và queue item commit |
+| `PL4_ISSUE_CREATED_MANUAL` | Assignee được chọn trên Manual Form | Gửi một email thông báo ISSUE mới và Assignment đầu tiên sau khi Issue/Assignment/Queue commit; event này đồng thời là thông báo phân công ban đầu, không enqueue thêm `PL4_ASSIGNMENT_ASSIGNED` cho cùng Assignment |
 | `PL4_ISSUE_CREATED_FROM_PL3` | Reporter PL3 | Thông báo đã tiếp nhận FAIL và tạo ISSUE; không gửi MSTAR mặc định |
-| `PL4_ASSIGNMENT_ASSIGNED` | Assignee được chỉ định | Gửi khi Assignment mới được tạo; link chỉ gắn đúng Issue + Assignment |
+| `PL4_ASSIGNMENT_ASSIGNED` | Assignee được chỉ định | Gửi khi tạo Assignment sau thời điểm tạo Issue, bao gồm phân công lần đầu cho Issue PL3 và tái phân công; link chỉ gắn đúng Issue + Assignment |
 | `PL4_WORK_REPORT_SUBMITTED` | Reporter và UOA Approver theo Room | **Hai queue item riêng**. Đây là phương án A được chủ nghiệp vụ xác nhận: Reporter biết kết quả; UOA nhận yêu cầu xác nhận |
 | `PL4_UOA_CONFIRMED` | Reporter và Assignee của Work Report | Thông báo UOA đã xác nhận, ISSUE chuyển CLOSED |
 | `PL4_UOA_NOT_CONFIRMED` | Assignee và Reporter | Assignee nhận lý do cần tiếp tục xử lý; Reporter nhận thông tin trạng thái quay lại IN_PROGRESS |
@@ -74,7 +74,7 @@ Nếu thiếu hoặc không xác định duy nhất được địa chỉ ngư�
 
 ## 4. Quy tắc event_key đề xuất
 
-- Event tạo ISSUE MANUAL: định danh theo `pl4_manual_submissions.id + recipient_role`.
+- Event tạo ISSUE MANUAL: định danh theo `pl4_manual_submissions.id + recipient_role`; email này đồng thời thông báo Assignment đầu tiên, không tạo event `PL4_ASSIGNMENT_ASSIGNED` trùng cho cùng Assignment.
 - Event tạo ISSUE từ PL3: định danh theo `pl3_inspection_results.id + recipient_role`.
 - Event phân công: định danh theo `pl4_assignments.id + recipient_role`.
 - Event Work Report: định danh theo `pl4_work_reports.id + recipient_role`; Reporter và UOA Approver phải có key khác nhau.
