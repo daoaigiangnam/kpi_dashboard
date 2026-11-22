@@ -78,3 +78,18 @@
 - PL3 → PL4: một checklist FAIL chỉ tạo tối đa một PL4 issue.
 - PL4: đóng phiếu phải có kết quả UOA xác nhận; Assignee report không tự đóng. Assignment/claim/tái phân công theo ADR-006 và giữ lịch sử.
 - PL5: phải lưu phương án dự phòng/hoàn tác và kết quả kiểm tra sau công việc.
+
+
+## PL4-R08 – Bổ sung kế hoạch theo ADR-010 (thiết kế, chưa triển khai)
+
+Thêm các hạng mục vào Giai đoạn 5 – PL4 Incident / Violation:
+- [ ] Xây dựng SLA Calendar và Calendar Version: 24/7, giờ hành chính, lịch tùy chỉnh, ngày nghỉ/ngày làm bù.
+- [ ] Xây dựng SLA Policy và Policy Version; cấu hình ba target độc lập: Assignment Response, Assignee Resolution, UOA Confirmation.
+- [ ] Xây dựng Default Policy và Conditional Assignment Rules theo Room + Source Type; kiểm tra thời gian hiệu lực, xung đột và thứ tự ưu tiên.
+- [ ] Gán Policy và tạo Issue SLA Instance trong cùng transaction tạo Issue theo ADR-005/007; giữ snapshot Policy/Calendar/Rule/targets.
+- [ ] Xây dựng SLA Cycle cho Assignment Response, Assignee Resolution và UOA Confirmation; giữ lịch sử qua reassignment và UOA NOT_CONFIRMED.
+- [ ] Xây dựng SLA Worker nền, tính thời gian theo Calendar Version, concurrency-safe và idempotent.
+- [ ] Xây dựng Dashboard và 8 báo cáo R08-01 đến R08-08; tách riêng ba nhóm SLA.
+- [ ] Kiểm thử Policy assignment, lịch hiệu lực, xung đột Rule, NOT_CONFIGURED, cycle transitions, SLA breach, permissions và concurrency.
+
+Các hạng mục trên mới ở trạng thái thiết kế đã phê duyệt theo ADR-010. Chưa viết Migration, PHP, Worker, giao diện hoặc SQL báo cáo.
