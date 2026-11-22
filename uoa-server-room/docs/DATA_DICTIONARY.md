@@ -261,11 +261,11 @@ UNIQUE `source_inspection_result_id` (cho phép nhiều NULL với issue MANUAL)
 
 ### 6.3 `pl4_assignments`
 
-`id PK, issue_id FK, assignee_name_snapshot, assignee_email_snapshot, assigned_by_user_id NULL, assigned_at, claimed_at NULL, released_at NULL, status, note NULL, created_at`. Một Issue có thể có nhiều lần phân công theo thời gian.
+`id PK, issue_id FK, assignee_name_snapshot, assignee_email_snapshot, assigned_by_user_id NULL FK users, assigned_by_name_snapshot, assigned_by_email_snapshot, assigned_at, claimed_at NULL, released_at NULL, status (ASSIGNED/CLAIMED/DECLINED/EXPIRED/RELEASED), note NULL, created_at, updated_at`. Mỗi lần phân công là một dòng mới; không xóa lịch sử. Mỗi ISSUE chỉ có tối đa một Assignment đang hiệu lực (ASSIGNED hoặc CLAIMED). Service khóa dòng ISSUE và kiểm tra trạng thái trong cùng transaction khi tạo, claim, decline hoặc release; cần unique/index hỗ trợ invariant này. Link nhận việc gắn đúng Assignment/ISSUE, token lưu hash, có expiry/revocation/used_at. Không cho Work Report tham chiếu Assignment đã kết thúc.
 
 ### 6.4 `pl4_work_reports`
 
-`id PK, issue_id FK, assignment_id FK NULL, report_result (COMPLETED/NOT_COMPLETED), action_taken TEXT, resolution_notes TEXT, evidence_summary TEXT NULL, submitted_by_name, submitted_by_email, submitted_at, created_at`. Append-only.
+`id PK, issue_id FK, assignment_id FK NOT NULL, report_result (COMPLETED/NOT_COMPLETED), action_taken TEXT, resolution_notes TEXT, evidence_summary TEXT NULL, submitted_by_name, submitted_by_email, submitted_at, created_at`. Append-only.
 
 ### 6.5 `pl4_uoa_confirmations`
 
@@ -411,7 +411,8 @@ INDEX đề xuất: `(business_entity_id, occurred_at)`, `(event_code, occurred_
 | pl3_integration_outbox | UNIQUE event_key; INDEX status + next_attempt_at |
 | pl4_priorities | UNIQUE code; INDEX is_active + sort_order |
 | pl4_issues | UNIQUE issue_code; UNIQUE source_inspection_result_id nullable; FK priority_id; INDEX priority_id + created_at |
-| pl4_work_reports | INDEX issue + submitted_at |
+| pl4_assignments | INDEX issue + status; INDEX assignee_email_snapshot + status; ràng buộc tối đa một Assignment hiệu lực/Issue |
+| pl4_work_reports | INDEX issue + submitted_at; INDEX assignment_id |
 | pl4_uoa_confirmations | INDEX issue + decided_at |
 | pl5_work_requests | UNIQUE work_code; INDEX room + work window; INDEX statuses |
 | email_queue | UNIQUE event_key; INDEX status + next_attempt_at |
