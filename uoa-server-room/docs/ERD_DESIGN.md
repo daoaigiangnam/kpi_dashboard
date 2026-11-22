@@ -108,7 +108,8 @@ Quy tắc:
 
 | Bảng | Mục đích | Quan hệ |
 |---|---|---|
-| `pl4_issues` | Hồ sơ sự cố/vi phạm | FK room; source inspection result nullable |
+| `pl4_priorities` | Danh mục Priority động do Super Admin quản lý | unique code; active flag; không xóa mã đã dùng |
+| `pl4_issues` | Hồ sơ sự cố/vi phạm | FK room, Priority; source inspection result nullable; Priority snapshot |
 | `pl4_assignments` | Lịch sử phân công/nhận việc | FK issue; assignee snapshot; actor |
 | `pl4_work_reports` | Mỗi lần Assignee báo cáo COMPLETED/NOT_COMPLETED | FK issue; actor; result; notes |
 | `pl4_uoa_confirmations` | Mỗi lần UOA xác nhận/không xác nhận | FK issue + work_report; UOA actor; reason |
@@ -116,8 +117,12 @@ Quy tắc:
 | `pl4_manual_submissions` | Idempotency/source metadata cho Form thủ công nếu cần | form response ID unique |
 
 Quy tắc:
-- ISSUE nguồn PL3 tham chiếu đúng Inspection Result/Item; một FAIL item chỉ sinh tối đa một ISSUE.
+- ISSUE nguồn PL3 tham chiếu đúng `pl3_inspection_results.id`; một FAIL result chỉ sinh tối đa một ISSUE (UNIQUE `source_inspection_result_id`). Không dùng `item_code` làm khóa liên kết duy nhất.
 - ISSUE MANUAL không có nguồn PL3.
+- `pl4_priorities` là danh mục động; khởi tạo LOW/MEDIUM/HIGH/CRITICAL. Không xóa cứng Priority đã sử dụng; mã đã dùng không đổi.
+- `pl4_issues` lưu `priority_id`, `priority_code_snapshot`, `priority_name_snapshot`; snapshot không đổi khi danh mục được chỉnh sửa.
+- ISSUE MANUAL chọn Priority đang active. ISSUE PL3 lấy Priority mặc định từ `business_settings` key `PL4_PL3_DEFAULT_PRIORITY_CODE`, khởi tạo HIGH; nếu cấu hình không hợp lệ/inactive thì chặn tạo và ghi Audit Log, không tự fallback.
+- Priority không tự gắn SLA/escalation và không thay đổi state machine PL4.
 - Một ISSUE có thể có nhiều Assignment, Work Report, UOA Confirmation và Status History.
 - COMPLETED và NOT_COMPLETED đều chuyển PENDING_UOA_CONFIRMATION.
 - UOA xác nhận → CLOSED; UOA không xác nhận (bắt buộc lý do) → IN_PROGRESS.
@@ -171,7 +176,8 @@ Quy tắc:
 - `pl2_visits 1 — N pl2_approval_history / pl2_action_tokens / pl2_otp_challenges / pl2_visit_events`
 - `pl3_inspections 1 — N pl3_inspection_results`
 - `pl3_checklist_items 1 — N pl3_checklist_version_items`; `pl3_checklist_versions 1 — N pl3_checklist_version_items`; `pl3_checklist_version_items 1 — N pl3_inspection_results` theo các Inspection đã lưu.
-- `pl3_inspection_results 1 — 0..1 pl4_issues` (nguồn PL3; unique source reference)
+- `pl3_inspection_results 1 — 0..1 pl4_issues` (nguồn PL3; unique source result reference)
+- `pl4_priorities 1 — N pl4_issues` (Priority hiện hành được snapshot trên từng ISSUE)
 - `pl4_issues 1 — N pl4_assignments / pl4_work_reports / pl4_uoa_confirmations / pl4_issue_status_history`
 - `server_rooms 1 — N pl5_work_requests / pl5_maintenance_plans`
 - `pl5_work_requests 1 — N approvals / assignments / execution_events / verifications / attachments`
