@@ -552,3 +552,9 @@ Assignment Response, Assignee Resolution và UOA Confirmation được báo cáo
 ### 12.9. Chu kỳ Manual Issue đã phân công
 
 Manual Form bắt buộc chọn Assignee. Trong một transaction tạo `business_entities`, `pl4_issues`, `pl4_manual_submissions`, `pl4_assignments` (`ASSIGNED`), `pl4_issue_sla_instances`, Cycle `ASSIGNMENT_RESPONSE` nếu SLA Instance ACTIVE, Audit và Email Queue. Email event `PL4_ISSUE_CREATED_MANUAL` đồng thời thông báo Assignment đầu tiên; không tạo thêm event `PL4_ASSIGNMENT_ASSIGNED` cho cùng Assignment. ISSUE PL3 vẫn có thể chưa có Assignment khi khởi tạo.
+
+### 12.10. Điểm còn mở trước Migration – Assignment Claim Token
+
+ADR-006 yêu cầu token Claim gắn đúng Issue + Assignment + action, chỉ lưu hash, có expiry/revocation/used_at; tuy nhiên Data Dictionary hiện chưa xác định bảng/cột PL4 lưu token. Không dùng `pl1_action_tokens` hoặc `pl2_action_tokens` vì chúng FK vào hồ sơ PL1/PL2 và có scope nghiệp vụ khác.
+
+Khuyến nghị thiết kế: bảng riêng `pl4_assignment_claim_tokens` với `id PK`, `assignment_id FK NOT NULL`, `token_hash CHAR(64) UNIQUE NOT NULL`, `expires_at`, `used_at NULL`, `revoked_at NULL`, `created_at`; quan hệ `pl4_assignments 1 — N pl4_assignment_claim_tokens`. Token hash và Email Queue item/link phải được tạo trong cùng transaction khi Assignment được tạo; raw token chỉ được đưa vào email link sau commit, không lưu DB/Audit. Cần chủ nghiệp vụ xác nhận bảng riêng này trước khi chốt Migration.
