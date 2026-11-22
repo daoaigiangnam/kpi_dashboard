@@ -417,7 +417,7 @@ erDiagram
     SERVER_ROOMS ||--o{ PL4_ISSUES : contains
     PL3_INSPECTION_RESULTS o|--o| PL4_ISSUES : may_create
     PL3_CHECKLIST_VERSION_ITEMS o|--o{ PL4_ISSUES : snapshot_source
-    PL4_ISSUES ||--o{ PL4_ASSIGNMENTS : assigned
+    PL4_ISSUES ||--o{ PL4_MANUAL_SUBMISSIONS : source_submission\n    PL4_ISSUES ||--o{ PL4_ASSIGNMENTS : assigned
     PL4_ISSUES ||--o{ PL4_WORK_REPORTS : receives
     PL4_ASSIGNMENTS o|--o{ PL4_WORK_REPORTS : context
     PL4_ISSUES ||--o{ PL4_UOA_CONFIRMATIONS : reviewed
@@ -457,7 +457,7 @@ erDiagram
       varchar source_type
       varchar status
     }
-    PL4_ASSIGNMENTS {
+    PL4_MANUAL_SUBMISSIONS {\n      bigint id PK\n      bigint issue_id FK\n      varchar source_form_id\n      varchar form_response_id\n      varchar reporter_name_snapshot\n      varchar reporter_email_snapshot\n      datetime submitted_at\n      datetime created_at\n    }\n\n    PL4_ASSIGNMENTS {
       bigint id PK
       bigint issue_id FK
       varchar assignee_name_snapshot
@@ -497,7 +497,7 @@ erDiagram
     }
 ```
 
-**Ràng buộc:** `source_inspection_result_id` UNIQUE và NULL được phép. Với MySQL, nhiều NULL vẫn có thể tồn tại trong UNIQUE; do đó ISSUE MANUAL không bị chặn. Một kết quả checklist PL3 chỉ được liên kết tối đa một ISSUE PL4.
+**Ràng buộc:** `source_inspection_result_id` UNIQUE và NULL được phép. Với MySQL, nhiều NULL vẫn có thể tồn tại trong UNIQUE; do đó ISSUE MANUAL không bị chặn. Một kết quả checklist PL3 chỉ được liên kết tối đa một ISSUE PL4. Với ISSUE MANUAL, `pl4_manual_submissions` có UNIQUE `(source_form_id, form_response_id)`; mỗi submission liên kết đúng một Issue và được dùng làm khóa idempotency theo ADR-007.
 
 ## 7. PL5 – Work Catalog / Maintenance / Approval / Execution / Verification
 
