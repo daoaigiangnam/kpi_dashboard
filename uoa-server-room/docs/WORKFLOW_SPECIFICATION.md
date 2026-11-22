@@ -503,3 +503,110 @@ Yêu cầu quản trị:
 5. Cần xác định quyền Admin nào được thay đổi từng nhóm cấu hình trong thiết kế phân quyền; không mặc định mọi tài khoản đều có quyền này.
 
 | D13 | Nguyên tắc cấu hình động | ĐÃ CHỐT: Các mốc thời gian và tham số cấu hình nghiệp vụ phải định nghĩa/thay đổi động trên Admin, có lưu Audit Log; không hard-code và không cần deploy lại cho thay đổi cấu hình thông thường. |
+
+
+---
+
+## 14. Danh mục cấu hình trích xuất từ Apps Script gốc
+
+Danh mục dưới đây được trích từ năm file Apps Script đã cung cấp. Đây là **inventory nguồn hiện trạng**, không đồng nghĩa tất cả các khóa đều phải đưa nguyên xi lên giao diện Admin. Khi thiết kế PHP cần phân loại thành:
+- Cấu hình nghiệp vụ: Admin được phép thay đổi theo quyền.
+- Cấu hình vận hành: Admin/System Admin được thay đổi có kiểm soát.
+- Bí mật và định danh triển khai: lưu trong môi trường bảo mật, không hiển thị giá trị secret trên Admin.
+- Hằng số kỹ thuật: chỉ đưa lên Admin nếu có nhu cầu vận hành thực tế và có kiểm tra giới hạn; nếu không thì giữ là thông số nội bộ có tài liệu.
+
+### 14.1. PL1 – Settings và Email Queue
+
+| Khóa / tham số | Giá trị hiện tại đọc được từ mã | Phân loại / ghi chú |
+|---|---:|---|
+| TOKEN_EXPIRY_DAYS | Mặc định 7 ngày | Cấu hình nghiệp vụ; thời hạn link phê duyệt, không phải thời hạn quyền truy cập |
+| SYSTEM_STATUS | ACTIVE / INACTIVE | Công tắc vận hành phân hệ |
+| EMAIL_QUEUE batch size | 8 | Tham số vận hành queue |
+| EMAIL_QUEUE max attempts | 12 | Tham số vận hành queue |
+| EMAIL_QUEUE retry base | 5 phút | Tham số vận hành; backoff tăng theo cấp số nhân, giới hạn 6 giờ trong mã |
+| EMAIL_QUEUE stale SENDING | 15 phút | Tham số khôi phục queue |
+| EMAIL_QUEUE worker interval | 5 phút | Chu kỳ worker được cài trong trigger |
+| WEB_APP_URL | Script Properties | URL triển khai; không phải cấu hình nghiệp vụ thông thường |
+
+PL1 còn có Approval_Timeout_Hours theo từng phòng trong bảng Room Approvers. Đây là cấu hình theo từng phòng, cần giữ đúng phạm vi dữ liệu thay vì thay bằng một timeout chung.
+
+### 14.2. PL2 – Settings và quy tắc OTP
+
+| Khóa / tham số | Giá trị / hành vi hiện tại đọc được | Phân loại / ghi chú |
+|---|---|---|
+| PL1_SPREADSHEET_ID | Có giá trị mặc định trong mã, có thể đọc từ Settings | Định danh tích hợp; không cho người dùng nghiệp vụ tùy ý sửa |
+| APPROVER_ENABLED | TRUE/FALSE | Công tắc tương thích/cấu hình phê duyệt cũ; luồng thực tế lấy Approver theo phòng từ PL1 |
+| APPROVER_EMAIL / APPROVER_NAME | Cấu hình approver cũ | Cần đánh dấu legacy nếu không còn dùng trong luồng thực tế |
+| APPROVAL_METHOD | Mặc định EMAIL; mã hiện chỉ hỗ trợ EMAIL | Cấu hình phương thức; không hiển thị lựa chọn chưa hỗ trợ |
+| APPROVAL_TIMEOUT_HOURS | Mặc định 24 giờ trong hàm cấu hình approver cũ | Luồng thực tế lưu Room_Approval_Timeout_Hours lấy theo từng phòng PL1 |
+| WEB_APP_URL | Settings hoặc URL runtime | Cấu hình triển khai |
+| Room_Approval_Timeout_Hours | Theo từng phòng, đọc từ PL1 Room Approvers; mẫu mặc định 24 giờ | Cấu hình nghiệp vụ theo phòng |
+| OTP length | 6 chữ số | Quy tắc bảo mật; không nên cho chỉnh tùy ý nếu chưa có đánh giá bảo mật |
+| OTP validity | 10 phút sau khi email gửi thành công | Cấu hình nghiệp vụ/bảo mật có thể quản trị nếu đặt giới hạn an toàn |
+| OTP max wrong attempts | 5 lần | Cấu hình bảo mật có thể quản trị trong giới hạn |
+| Email worker interval | 5 phút theo mô tả triển khai PL2 | Tham số vận hành queue |
+| Reminder at 12h / EXPIRED at 24h | Chưa có đầy đủ trong Apps Script cũ; đã chốt bổ sung | Cấu hình nghiệp vụ mới trên Admin |
+
+Lưu ý: không được dùng APPROVAL_TIMEOUT_HOURS chung để ghi đè timeout riêng từng phòng nếu nguồn PL1 đang cung cấp timeout theo Room_ID.
+
+### 14.3. PL3 – Settings
+
+| Khóa | Giá trị hiện tại đọc được từ mã | Phân loại / ghi chú |
+|---|---|---|
+| SYSTEM_STATUS | INACTIVE mặc định khi tạo Settings | Công tắc vận hành |
+| DAILY_DEADLINE | HH:mm, ban đầu để trống | Cấu hình nghiệp vụ |
+| WORK_DAYS | MON,TUE,WED,THU,FRI | Cấu hình lịch làm việc |
+| ALERT_LEVEL1_DELAY_MINUTES | Ban đầu để trống | Cấu hình thời điểm cấp 1 tính từ deadline |
+| ALERT_LEVEL2_DELAY_MINUTES | Ban đầu để trống | Cấu hình khoảng trễ cấp 2 |
+| ALERT_LEVEL3_DELAY_MINUTES | Ban đầu để trống | Cấu hình khoảng trễ cấp 3 |
+| ALERT_CHECK_INTERVAL_MINUTES | Mặc định 5 phút | Chu kỳ scheduler; mã chỉ chấp nhận các mức 1, 5, 10, 15, 30 phút |
+| FAIL_ALERT_ENABLED | TRUE | Bật/tắt thông báo khi checklist có FAIL |
+| DAILY_ALERT_ENABLED | FALSE mặc định | Bật/tắt cảnh báo thiếu phiếu |
+| EMAIL_SENDER_NAME | UOA Server Room Management | Tên hiển thị email |
+| WEB_APP_URL | URL Web App | Cấu hình triển khai |
+| Holidays | Bảng Holidays riêng | Ngày nghỉ dùng để loại trừ ngày không làm việc |
+
+Người nhận cảnh báo theo quyết định D12: Cấp 1 MSTAR, Cấp 2 Approver, Cấp 3 Manager. Admin cần cấu hình/ánh xạ người nhận theo vai trò và từng phòng; không tự đổi thành người thực hiện kiểm tra.
+
+### 14.4. PL4 – Settings
+
+| Khóa | Giá trị hiện tại đọc được từ mã | Phân loại / ghi chú |
+|---|---|---|
+| SYSTEM_STATUS | ACTIVE | Công tắc vận hành |
+| ALLOW_MANUAL_CREATION | TRUE | Cho phép tạo ISSUE thủ công từ PL4 Form |
+| EMAIL_SENDER_NAME | UOA Server Room Management | Tên hiển thị email |
+| PL1_SPREADSHEET_ID | ID nguồn PL1 | Định danh tích hợp; chuyển thành cấu hình liên kết hệ thống được bảo vệ |
+| PL3_SPREADSHEET_ID | Script Properties | Định danh tích hợp PL3 |
+| PL4_API_SECRET | Secret trong Script Properties | Bí mật tích hợp; tuyệt đối không hiển thị giá trị trong Admin hoặc log |
+| PL4_WEB_APP_URL | Script Properties | URL triển khai |
+| Email queue | Mã được rà soát dùng MailApp trực tiếp ở các luồng đã kiểm tra | Chưa có queue/retry thống nhất được xác nhận; cần xử lý trong thiết kế vận hành email |
+
+### 14.5. PL5 – Work_Settings và Work Catalog
+
+| Khóa / tham số | Giá trị hiện tại đọc được từ mã | Phân loại / ghi chú |
+|---|---|---|
+| SYSTEM_STATUS | ACTIVE | Công tắc vận hành |
+| ALLOW_NEW_REQUESTS | TRUE | Bật/tắt nhận yêu cầu mới |
+| EMAIL_SENDER_NAME | UOA Server Room Management | Tên hiển thị email |
+| PL1_SPREADSHEET_ID | ID nguồn PL1 | Định danh tích hợp |
+| PL5_WEB_APP_URL | Work_Settings / Script Properties | URL triển khai |
+| Work_Catalog | Danh mục loại công việc, có cột mô tả, hướng dẫn/rủi ro và Is_Active | Danh mục nghiệp vụ cần quản trị trên Admin; không hard-code lựa chọn Form |
+
+### 14.6. Nguyên tắc thiết kế System Configuration
+
+1. Admin hiển thị cấu hình theo nhóm PL1, PL2, PL3, PL4, PL5, Email/Queue, Tích hợp và Lịch làm việc.
+2. Cấu hình theo phòng (ví dụ Approval_Timeout_Hours, Approver, MSTAR, Manager) phải gắn Room_ID; không chuyển thành một giá trị toàn hệ thống nếu nghiệp vụ hiện tại là theo phòng.
+3. Giá trị cấu hình phải có kiểu dữ liệu, đơn vị, min/max hoặc tập giá trị hợp lệ, giá trị mặc định, mô tả tác động và trạng thái đang áp dụng.
+4. Với thời gian escalation, Admin phải cho chọn cách tính rõ ràng: tính từ deadline hay tính nối tiếp từ lần gửi cấp trước. Không suy luận hoặc hard-code một cách tính khi chưa có quyết định.
+5. Khi đổi cấu hình, phải lưu phiên bản/giá trị trước-sau, người thay đổi, thời điểm, lý do thay đổi (nếu được yêu cầu) và hiệu lực áp dụng.
+6. Secret, token ký, mật khẩu SMTP/API key và thông tin kết nối phải được quản lý riêng trong cấu hình bảo mật; giao diện chỉ cho phép cập nhật theo quy trình an toàn, không trả lại secret dạng rõ.
+7. Thay đổi cấu hình thông thường có hiệu lực mà không cần deploy lại; các thay đổi ảnh hưởng trigger/scheduler phải được áp dụng an toàn và ghi Audit Log.
+8. Không đưa giá trị mặc định minh họa hoặc legacy vào sản xuất nếu chưa kiểm tra Settings đang vận hành thực tế.
+
+### 14.7. Những thông tin chưa được kết luận từ mã nguồn
+
+- Không phải mọi Settings PL2 đều còn được dùng trong luồng ENTRY thực tế; một số khóa APPROVER_* là cấu hình tương thích/kiểm tra cũ.
+- Chưa xác nhận toàn bộ giá trị Settings hiện đang triển khai thực tế khác với giá trị seed/default trong Apps Script.
+- Cần kiểm tra trigger đang cài thực tế ở từng project trước khi quyết định chu kỳ scheduler cuối cùng.
+- PL4 chưa được xác nhận có email queue/retry; không được giả định đã có.
+- Giá trị 12h reminder và 24h EXPIRED của PL2 là quyết định mới, không phải hành vi đầy đủ sẵn có trong mã cũ.
