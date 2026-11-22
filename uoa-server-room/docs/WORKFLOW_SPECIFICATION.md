@@ -430,7 +430,7 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 
 ## 8. Quy tắc kỹ thuật có ảnh hưởng trực tiếp đến nghiệp vụ
 
-1. **Idempotency:** PL1, PL2, PL3, PL5 dùng Form Response ID hoặc Event_Key để ngăn xử lý trùng. PL4 dùng khóa tham chiếu PL3 để ngăn tạo ISSUE trùng.
+1. **Idempotency:** PL1, PL2, PL3, PL5 dùng Form Response ID hoặc Event_Key để ngăn xử lý trùng. PL4 nguồn PL3 dùng UNIQUE `source_inspection_result_id`; PL4 MANUAL dùng UNIQUE `(source_form_id, form_response_id)` trong `pl4_manual_submissions` theo ADR-007.
 2. **Token:** Token phê duyệt/thực hiện là credential theo từng quy trình; cần lưu hash hoặc cơ chế bảo vệ tương đương, giới hạn mục đích, hết hạn/vô hiệu hóa sau khi dùng. Không đưa token thực tế vào log/tài liệu.
 3. **Audit:** Giữ sự kiện, actor, timestamp, đối tượng và chi tiết; không thay bằng một trường Last_Updated duy nhất.
 4. **Email không được đảo ngược nghiệp vụ:** Nếu quyết định đã được ghi nhận, lỗi gửi email không được làm mất quyết định; phải có trạng thái gửi và cơ chế xử lý lại phù hợp.
@@ -452,7 +452,7 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 | Q05 | PL3 cách tính mốc cấp 2/cấp 3 | ĐÃ CHỐT theo ADR-002: tính tuần tự từ timestamp cấp trước; Level 1 từ DAILY_DEADLINE + delay cấp 1; timestamp SKIPPED là mốc tiếp theo. Delay cấu hình động trong Admin. |
 | Q06 | Xác minh deployment thực tế chỉ kích hoạt tích hợp API PL3 ID + Token | Chủ nghiệp vụ đã chọn cơ chế ID PL3 + Token; cần kiểm tra trigger/deployment đang chạy |
 | Q07 | State machine PL4: Assignee báo cáo, UOA xác nhận cuối cùng; không cho Assignee tự đóng | ĐÃ CHỐT theo quyết định D10; thay thế bước APPROVE/REJECT sau báo cáo trong Apps Script |
-| Q08 | PL4 có queue/retry email ở bản đang triển khai không | Mã nguồn đã đọc cho thấy gửi MailApp trực tiếp ở các nhánh; cần kiểm tra các nhánh còn lại |
+| Q08 | PL4 có queue/retry email ở bản đang triển khai không | Mã Apps Script được rà soát có gửi MailApp trực tiếp; hệ thống PHP mục tiêu dùng Email Queue chung, enqueue cùng transaction và gửi sau Commit theo ADR-007 | ĐÃ CHỐT CHO THIẾT KẾ PHP – ADR-007 |
 | Q09 | Chốt phạm vi read-only PL5 Dashboard và nhóm tài khoản được xem | ĐÃ CHỐT: read-only; nhóm được xem gồm nhân sự UOA và nhóm MSTAR |
 | Q10 | Danh sách trường Form đang phát hành có khác mã Apps Script/workbook không | Chưa truy cập trực tiếp được giao diện Google Forms |
 
