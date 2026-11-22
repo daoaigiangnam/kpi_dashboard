@@ -314,7 +314,7 @@ UOA là bên xác nhận cuối cùng; không bắt buộc có bước UOA duy�
 ### 6.6. Cấu hình và tích hợp
 
 - PL4 đọc danh mục phòng/người duyệt từ PL1.
-- PL4 có API secret để nhận dữ liệu PL3; phải lưu secret an toàn, không ghi vào tài liệu hoặc log công khai.
+- Luồng PL3 → PL4 trong PHP là Outbox/PHP Worker nội bộ trên cùng MySQL theo ADR-005; không cần public Web App/API secret giữa hai phân hệ. API secret/endpoint chỉ thuộc cơ chế Apps Script legacy và không được tiếp tục sử dụng khi vận hành PHP.
 - PL4 có ALLOW_MANUAL_CREATION và SYSTEM_STATUS.
 - Priority được quản lý động bởi Super Admin; danh mục khởi tạo LOW/MEDIUM/HIGH/CRITICAL. Mỗi ISSUE lưu Priority ID cùng snapshot mã/tên.
 - ISSUE MANUAL chọn Priority active. ISSUE từ PL3 mặc định HIGH qua Business Settings `PL4_PL3_DEFAULT_PRIORITY_CODE`; Super Admin được đổi cấu hình. Cấu hình không hợp lệ phải chặn tạo ISSUE và ghi Audit Log.
