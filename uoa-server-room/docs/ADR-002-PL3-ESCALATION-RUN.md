@@ -1,8 +1,8 @@
 # ADR-002 – Mô hình chu kỳ PL3 Escalation Run
 
-**Phiên bản:** 0.1 – Đề xuất chờ phê duyệt  
+**Phiên bản:** 1.0 – Đã phê duyệt  
 **Phạm vi:** PL3 Scheduler, Escalation Run, Escalation Events, Business Settings  
-**Trạng thái:** PROPOSED – CHƯA ĐƯỢC PHÊ DUYỆT  
+**Trạng thái:** APPROVED – ĐÃ ĐƯỢC CHỦ NGHIỆP VỤ PHÊ DUYỆT  
 **Nguồn đối chiếu:** `Code PL3.txt` (Apps Script hiện tại)
 
 ## 1. Kết quả đối chiếu mã nguồn hiện tại
@@ -76,13 +76,9 @@ Mã nguồn hiện tại sử dụng cách tính **tuần tự sau thời điể
 - Level 2 due = thời điểm cấp 1 được ghi nhận + delay cấp 2.
 - Level 3 due = thời điểm cấp 2 được ghi nhận + delay cấp 3.
 
-**Khuyến nghị:** giữ chế độ tuần tự này khi chuyển đổi để tương thích hành vi đang chạy. Tuy nhiên, D13 trước đây đã xác định cách tính thời gian cảnh báo phải cấu hình động và còn mở lựa chọn tính từ deadline hoặc từ lần cảnh báo trước. Do đó, chế độ tuần tự phải được người phụ trách xác nhận trước khi chốt.
+**Quyết định đã phê duyệt D3:** giữ chế độ tuần tự. Level 1 đến hạn tại `DAILY_DEADLINE + ALERT_LEVEL1_DELAY_MINUTES`; Level 2 đến hạn tại thời điểm ghi nhận kết quả Level 1 cộng `ALERT_LEVEL2_DELAY_MINUTES`; Level 3 tương tự theo Level 2 và `ALERT_LEVEL3_DELAY_MINUTES`. Các giá trị delay vẫn là cấu hình động trong Admin, không hard-code.
 
-Nếu cấp trước bị SKIPPED do thiếu người nhận, có hai lựa chọn cần xác nhận:
-- A. Giữ tương thích nguồn: ghi nhận thời điểm SKIPPED làm mốc tính delay cấp kế tiếp.
-- B. Không cho cấp sau chạy cho đến khi cấu hình người nhận được sửa.
-
-Nguồn Apps Script hiện tại đang thực hiện lựa chọn A.
+**Quyết định đã phê duyệt D4:** nếu cấp trước bị `SKIPPED` do thiếu recipient hợp lệ, thời điểm ghi nhận `SKIPPED` vẫn là mốc tính delay của cấp kế tiếp. Đây là hành vi tương thích Apps Script hiện tại.
 
 ## 6. Khi phiếu PL3 được nộp
 
@@ -110,21 +106,26 @@ Khi phiếu hợp lệ được commit:
 - Dùng Audit Log ghi các sự kiện RUN_CREATED, LEVEL_SCHEDULED, LEVEL_SENT, LEVEL_SKIPPED, LEVEL_FAILED, RUN_STOPPED_BY_INSPECTION.
 - Không xóa Run/Event để làm sạch state; áp dụng retention/archive theo chính sách riêng.
 
-## 8. Quyết định cần phê duyệt
+## 8. Quyết định đã phê duyệt
 
-- [ ] **D1:** Xác nhận phạm vi hiện tại chỉ có DAILY; Weekly/Monthly chưa triển khai.
-- [ ] **D2:** Chấp nhận khóa UNIQUE `(room_id, work_date, schedule_type)`, với `schedule_type = DAILY`.
-- [ ] **D3:** Giữ tính delay tuần tự từ mốc cấp cảnh báo trước như Apps Script hiện tại.
-- [ ] **D4:** Nếu cấp trước SKIPPED do thiếu recipient, vẫn lấy thời điểm SKIPPED làm mốc cấp tiếp theo (tương thích nguồn).
-- [ ] **D5:** Khi có phiếu hợp lệ, dừng các cấp chưa gửi; giữ nguyên lịch sử các cấp đã gửi.
-- [ ] **D6:** Email Queue xử lý gửi/retry; Escalation Event lưu trạng thái nghiệp vụ từng cấp.
+Ngày phê duyệt: **22/11/2026**  
+Người phê duyệt: **Chủ nghiệp vụ hệ thống UOA Server Room Management**
+
+| Mã | Quyết định | Kết quả |
+|---|---|---|
+| D1 | Phạm vi hiện tại chỉ có lịch `DAILY`; chưa xác nhận/triển khai `WEEKLY` hoặc `MONTHLY` | **ĐỒNG Ý** |
+| D2 | Khóa duy nhất Run là `(room_id, work_date, schedule_type)`; `schedule_type = DAILY` trong phạm vi hiện tại | **ĐỒNG Ý** |
+| D3 | Tính delay tuần tự từ mốc cấp cảnh báo trước; Level 1 tính từ `DAILY_DEADLINE + ALERT_LEVEL1_DELAY_MINUTES` | **ĐỒNG Ý** |
+| D4 | Nếu cấp trước `SKIPPED` do thiếu recipient, lấy thời điểm `SKIPPED` làm mốc tính cấp kế tiếp | **ĐỒNG Ý** |
+| D5 | Khi có Inspection hợp lệ đúng phòng/ngày, dừng các event chưa gửi; giữ nguyên lịch sử event đã xử lý | **ĐỒNG Ý** |
+| D6 | Gửi email qua Email Queue có retry; Escalation Event lưu trạng thái từng cấp và liên kết queue | **ĐỒNG Ý** |
+
+Tất cả 6/6 quyết định đã được xác nhận. ADR-002 có hiệu lực làm căn cứ cập nhật ERD và Data Dictionary. Việc phê duyệt ADR không đồng nghĩa đã triển khai Migration hoặc PHP Scheduler.
 
 ## 9. Trạng thái và phạm vi cập nhật
 
-ADR-002 đang chờ phê duyệt. Chưa cập nhật Data Dictionary/ERD theo các đề xuất trong tài liệu này; chưa tạo Migration hoặc PHP Scheduler.
-
-Sau khi được duyệt, cập nhật đồng bộ:
+Các tài liệu kiến trúc được cập nhật đồng bộ theo ADR-002:
 - `ERD_DESIGN.md`
 - `DATA_DICTIONARY.md`
 - `ERD_PHYSICAL.md`
-- `WORKFLOW_SPECIFICATION.md` nếu có quyết định nghiệp vụ mới.
+- `WORKFLOW_SPECIFICATION.md`
