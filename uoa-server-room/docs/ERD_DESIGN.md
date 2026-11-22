@@ -112,7 +112,7 @@ Quy tắc:
 |---|---|---|
 | `pl4_priorities` | Danh mục Priority động do Super Admin quản lý | unique code; active flag; không xóa mã đã dùng |
 | `pl4_issues` | Hồ sơ sự cố/vi phạm | FK room, Priority; source inspection result nullable; Priority snapshot |
-| `pl4_assignments` | Lịch sử phân công/nhận việc | FK issue; assignee snapshot; actor |
+| `pl4_assignments` | Lịch sử phân công/nhận việc/tái phân công | FK issue; assignee/assigner snapshot; claim/release time; status |
 | `pl4_work_reports` | Mỗi lần Assignee báo cáo COMPLETED/NOT_COMPLETED | FK issue; actor; result; notes |
 | `pl4_uoa_confirmations` | Mỗi lần UOA xác nhận/không xác nhận | FK issue + work_report; UOA actor; reason |
 | `pl4_issue_status_history` | Lịch sử chuyển trạng thái | FK issue; from/to; actor; reason |
@@ -125,7 +125,7 @@ Quy tắc:
 - `pl4_issues` lưu `priority_id`, `priority_code_snapshot`, `priority_name_snapshot`; snapshot không đổi khi danh mục được chỉnh sửa.
 - ISSUE MANUAL chọn Priority đang active. ISSUE PL3 lấy Priority mặc định từ `business_settings` key `PL4_PL3_DEFAULT_PRIORITY_CODE`, khởi tạo HIGH; nếu cấu hình không hợp lệ/inactive thì chặn tạo và ghi Audit Log, không tự fallback.
 - Priority không tự gắn SLA/escalation và không thay đổi state machine PL4.
-- Một ISSUE có thể có nhiều Assignment, Work Report, UOA Confirmation và Status History.
+- Một ISSUE có thể có nhiều Assignment, Work Report, UOA Confirmation và Status History. ISSUE PL3 mới tạo ở OPEN, chưa có Assignee; Reporter/người có quyền phân công tạo Assignment mới, Assignee được chỉ định nhận qua link bảo mật. Mỗi ISSUE chỉ có tối đa một Assignment đang hiệu lực (ASSIGNED hoặc CLAIMED). Claim phải khóa/kiểm tra nguyên tử; hai người không thể cùng nhận. Từ chối/hết hạn/giải phóng/tái phân công tạo trạng thái hoặc Assignment lịch sử mới, không xóa Assignment cũ. Work Report tham chiếu Assignment đã nhận.
 - COMPLETED và NOT_COMPLETED đều chuyển PENDING_UOA_CONFIRMATION.
 - UOA xác nhận → CLOSED; UOA không xác nhận (bắt buộc lý do) → IN_PROGRESS.
 - Assignee không có quyền tự đóng ISSUE; mọi lần báo cáo và xác nhận phải lưu riêng, không ghi đè.
@@ -180,7 +180,7 @@ Quy tắc:
 - `pl3_checklist_items 1 — N pl3_checklist_version_items`; `pl3_checklist_versions 1 — N pl3_checklist_version_items`; `pl3_checklist_version_items 1 — N pl3_inspection_results` theo các Inspection đã lưu.
 - `pl3_inspection_results 1 — 0..1 pl4_issues` (nguồn PL3; unique source result reference)
 - `pl4_priorities 1 — N pl4_issues` (Priority hiện hành được snapshot trên từng ISSUE)
-- `pl4_issues 1 — N pl4_assignments / pl4_work_reports / pl4_uoa_confirmations / pl4_issue_status_history`
+- `pl4_issues 1 — N pl4_assignments / pl4_work_reports / pl4_uoa_confirmations / pl4_issue_status_history`; mỗi Work Report tham chiếu Assignment thực hiện nếu có.
 - `server_rooms 1 — N pl5_work_requests / pl5_maintenance_plans`
 - `pl5_work_requests 1 — N approvals / assignments / execution_events / verifications / attachments`
 - `email_queue 1 — N email_queue_attempts`
