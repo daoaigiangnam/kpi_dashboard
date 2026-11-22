@@ -85,12 +85,12 @@ Không cần lưu toàn bộ câu trả lời Form thành bản sao JSON nếu c
 
 1. Hai request đồng thời cùng Form ID + Response ID chỉ tạo một ISSUE, một Assignment đầu tiên và tối đa một Email Queue event tạo Issue.
 2. Manual Form thiếu Assignee hoặc Assignee không hợp lệ bị từ chối trước khi commit; không tạo Issue mồ côi/chờ phân công.
-2. Trigger/request retry cùng Response ID trả về ISSUE cũ, không tạo ISSUE thứ hai.
-3. UNIQUE constraint chặn duplicate ngay cả khi PHP pre-check bị race.
-4. Lỗi khi tạo Issue/submission/audit/email queue làm rollback toàn bộ dữ liệu trong transaction.
-5. ISSUE đã commit vẫn tồn tại khi SMTP lỗi; queue chuyển RETRY/FAILED theo policy.
-6. Retry duplicate không tạo Audit `CREATED_MANUAL` hoặc Email Queue event tạo Issue thứ hai.
-7. Submission luôn truy ngược được tới đúng ISSUE.
+3. Trigger/request retry cùng Response ID trả về ISSUE cũ, không tạo ISSUE thứ hai.
+4. UNIQUE constraint chặn duplicate ngay cả khi PHP pre-check bị race.
+5. Lỗi khi tạo Issue/submission/assignment/audit/email queue/SLA instance làm rollback toàn bộ dữ liệu trong transaction.
+6. ISSUE đã commit vẫn tồn tại khi SMTP lỗi; queue chuyển RETRY/FAILED theo policy.
+7. Retry duplicate không tạo Audit `CREATED_MANUAL` hoặc Email Queue event tạo Issue thứ hai.
+8. Submission luôn truy ngược được tới đúng ISSUE.
 
 ## 7. Tài liệu liên quan
 
