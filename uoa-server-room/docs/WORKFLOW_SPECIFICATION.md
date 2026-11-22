@@ -239,7 +239,7 @@ Quy tắc từ mã:
 - Nếu thiếu email người nhận cấp tương ứng, ghi sự kiện SKIPPED và chuyển cấp trong trạng thái escalation.
 - Hệ thống ghi Audit Log cho từng cấp cảnh báo.
 
-**Quyết định người nhận đã xác nhận:** Cấp 1 gửi Người thực hiện kiểm tra; Cấp 2 gửi Nhóm MSTAR và Quản lý Phòng Server; Cấp 3 gửi Quản lý của Quản lý Phòng Server. **Đề xuất thời gian mặc định chờ chốt:** Cấp 1 ngay tại DAILY_DEADLINE; Cấp 2 sau 30 phút nếu chưa có phiếu; Cấp 3 sau 60 phút nếu vẫn chưa có phiếu. Tất cả mốc thời gian phải cấu hình được. Khi phiếu hợp lệ được ghi nhận cho đúng Room_ID/ngày, dừng các cấp cảnh báo còn lại.
+**Quyết định người nhận đã xác nhận:** Cấp 1 gửi Người thực hiện kiểm tra; Cấp 2 gửi Nhóm MSTAR và Quản lý Phòng Server; Cấp 3 gửi Quản lý của Quản lý Phòng Server. **Quyết định đã chốt:** Cấp 1 gửi ngay tại DAILY_DEADLINE; Cấp 2 gửi sau 30 phút nếu vẫn chưa có phiếu; Cấp 3 gửi sau 60 phút nếu vẫn chưa có phiếu. Các mốc thời gian phải cấu hình được. Khi phiếu hợp lệ được ghi nhận cho đúng Room_ID/ngày, dừng các cấp cảnh báo còn lại.
 
 ### 5.4. Tích hợp PL3 → PL4
 
@@ -405,7 +405,7 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 | Q02 | Thời hạn token phê duyệt PL1 và cách xử lý khi hết hạn | Cần đối chiếu giá trị Settings triển khai |
 | Q03 | PL2: nhắc ở 12 giờ, EXPIRED ở 24 giờ, không tự duyệt | ĐÃ CHỐT theo quyết định D08 |
 | Q04 | PL2 có giới hạn thời gian được CHECK-IN sau khi duyệt hay không | Chưa chốt từ các đoạn mã đã rà |
-| Q05 | PL3 ánh xạ cấp cảnh báo 1/2/3 tới MSTAR/Approver/Manager và delay thực tế | Cần lấy đúng giá trị Settings đang chạy |
+| Q05 | PL3 ánh xạ cấp cảnh báo 1/2/3 tới MSTAR/Approver/Manager và delay thực tế | Người nhận đã xác nhận; lịch deadline, +30 phút, +60 phút đã chốt theo D09; các mốc cấu hình được |
 | Q06 | Xác minh deployment thực tế chỉ kích hoạt tích hợp API PL3 ID + Token | Chủ nghiệp vụ đã chọn cơ chế ID PL3 + Token; cần kiểm tra trigger/deployment đang chạy |
 | Q07 | Chốt state machine PL4 mới: Assignee báo cáo, UOA xác nhận cuối cùng; không cho Assignee tự đóng | Đã có đề xuất nghiệp vụ; cần chủ nghiệp vụ duyệt thay đổi so với Apps Script |
 | Q08 | PL4 có queue/retry email ở bản đang triển khai không | Mã nguồn đã đọc cho thấy gửi MailApp trực tiếp ở các nhánh; cần kiểm tra các nhánh còn lại |
@@ -436,14 +436,13 @@ Chỉ chuyển sang bước chốt ERD, migration và code khi:
 | D01 | PL1 tự hết hạn quyền truy cập | ĐÃ XÁC NHẬN: có hiệu lực theo khoảng thời gian Valid From/Valid Until; tự hết hạn, không xóa lịch sử. Đề xuất trạng thái EXPIRED riêng với REVOKED. |
 | D02 | PL2 yêu cầu chờ duyệt quá 24 giờ | ĐÃ CHỐT: nhắc người duyệt ở giờ thứ 12; đủ 24 giờ từ Created_At mà vẫn PENDING thì chuyển EXPIRED, vô hiệu hóa link duyệt, ghi Audit Log; không tự động duyệt. |
 | D03 | PL3 người nhận cảnh báo | ĐÃ XÁC NHẬN: Cấp 1 Người thực hiện; Cấp 2 Nhóm MSTAR và Quản lý Phòng Server; Cấp 3 Quản lý của Quản lý Phòng Server. |
-| D04 | PL3 thời gian cảnh báo | ĐỀ XUẤT: Cấp 1 tại deadline; Cấp 2 +30 phút; Cấp 3 +60 phút nếu chưa có phiếu. Cho phép cấu hình. |
+| D04 | PL3 thời gian cảnh báo | ĐÃ CHỐT: Cấp 1 tại deadline; Cấp 2 sau 30 phút; Cấp 3 sau 60 phút nếu chưa có phiếu. Các mốc cấu hình được. Khi có phiếu hợp lệ thì dừng cảnh báo còn lại. |
 | D05 | PL3 → PL4 | ĐÃ XÁC NHẬN: tích hợp bằng ID PL3 (Inspection_ID), checklist item ID và Token xác thực; cần chống gửi/tạo ISSUE trùng. |
 | D06 | PL4 xác nhận hoàn thành | ĐỀ XUẤT: Assignee báo cáo đã/chưa hoàn thành; UOA xác nhận cuối cùng. UOA xác nhận thì CLOSED; không xác nhận thì về IN_PROGRESS. Assignee không được tự đóng ISSUE. |
 | D07 | PL5 Dashboard | ĐÃ XÁC NHẬN: giai đoạn đầu chỉ xem; không có thao tác ghi/sửa/duyệt/xóa trên Dashboard. |
 
 ### 11.1. Những điểm cần chủ nghiệp vụ duyệt tiếp
 
-1. PL3: Có đồng ý lịch cảnh báo tại deadline, +30 phút, +60 phút không?
 2. PL4: Có đồng ý bỏ bước UOA APPROVE/REJECT hiện tại để chuyển thành UOA xác nhận hoàn thành/không hoàn thành không?
 3. PL4: Người thực hiện chọn COMPLETED/NOT_COMPLETED; cả hai đều gửi UOA xác nhận, hay NOT_COMPLETED được giữ IN_PROGRESS và không cần gửi UOA?
 4. PL5: Nhóm người dùng được xem Dashboard là toàn bộ nhân sự UOA, chỉ UOA, hay thêm nhóm MSTAR/đối tác?
@@ -451,3 +450,4 @@ Chỉ chuyển sang bước chốt ERD, migration và code khi:
 
 
 | D08 | Xác nhận phương án xử lý PL2 quá hạn | ĐÃ CHỐT: nhắc ở 12 giờ; tự EXPIRED ở 24 giờ tính từ Created_At nếu chưa duyệt; vô hiệu hóa token; không tự động APPROVED. |
+| D09 | Lịch cảnh báo PL3 | ĐÃ CHỐT: Cấp 1 tại DAILY_DEADLINE; cấp 2 sau 30 phút; cấp 3 sau 60 phút nếu chưa có phiếu hợp lệ; dừng cảnh báo khi đã ghi nhận phiếu hợp lệ. |
