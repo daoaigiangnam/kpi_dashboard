@@ -129,6 +129,8 @@ Quy tắc:
 - COMPLETED và NOT_COMPLETED đều chuyển PENDING_UOA_CONFIRMATION.
 - UOA xác nhận → CLOSED; UOA không xác nhận (bắt buộc lý do) → IN_PROGRESS.
 - Assignee không có quyền tự đóng ISSUE; mọi lần báo cáo và xác nhận phải lưu riêng, không ghi đè.
+- ISSUE MANUAL được tiếp nhận qua `pl4_manual_submissions`; cặp `source_form_id + form_response_id` là khóa idempotency UNIQUE. Retry cùng submission trả về ISSUE hiện hữu, không tạo ISSUE mới.
+- Tạo `business_entities` + `pl4_issues` + `pl4_manual_submissions` + `system_audit_logs` + `email_queue` trong cùng MySQL/InnoDB transaction. Lỗi ghi DB ở bất kỳ bước nào rollback toàn bộ; Email Queue Worker chỉ gửi SMTP sau Commit theo ADR-007.
 
 ### 2.6. PL5 – Work & Maintenance
 
