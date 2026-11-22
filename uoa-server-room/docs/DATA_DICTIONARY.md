@@ -216,7 +216,7 @@ UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` v
 
 ### 5.3 `pl3_inspection_results`
 
-`id PK, inspection_id FK, checklist_item_id FK, result (PASS/FAIL/NA), remarks_action TEXT NULL, created_at`. UNIQUE `(inspection_id, checklist_item_id)`. CHECK nghiệp vụ: FAIL bắt buộc remarks_action.
+`id PK, inspection_id FK, checklist_item_id FK, result (PASS/FAIL/NA), remarks_action TEXT NULL, created_at`. UNIQUE `(inspection_id, checklist_item_id)`. Khi Inspection được SUBMITTED, service bắt buộc xác nhận đủ đúng 12 checklist item I01–I12 có hiệu lực; UNIQUE ngăn một item xuất hiện hai lần. FAIL bắt buộc remarks_action.
 
 ### 5.4 `pl3_acknowledgements`
 
@@ -234,7 +234,7 @@ UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` v
 
 ### 5.6 `pl3_integration_outbox`
 
-`id PK, event_key VARCHAR(190) UNIQUE, inspection_id FK, inspection_result_id FK, target_system, payload JSON, status (PENDING/PROCESSING/RETRY/SENT/FAILED), attempts, next_attempt_at, last_error, created_at, updated_at`. Không lưu API secret; payload chỉ chứa dữ liệu nghiệp vụ cần thiết.
+`id PK, event_key VARCHAR(190) UNIQUE, inspection_result_id FK UNIQUE, target_system, payload JSON, status (PENDING/PROCESSING/RETRY/SENT/FAILED), attempts, next_attempt_at, last_error, created_at, updated_at`. `inspection_result_id` là nguồn chuẩn; suy ra Inspection qua `pl3_inspection_results.inspection_id`, không lưu thêm `inspection_id` để tránh hai FK không nhất quán. `event_key` ổn định theo nguồn, ví dụ `PL3_FAIL:{inspection_result_id}`. Mỗi FAIL item chỉ có tối đa một outbox row; retry cập nhật row đó và tăng attempts. Không lưu API secret; payload chỉ chứa dữ liệu nghiệp vụ cần thiết.
 
 ## 6. PL4 – Issue Management
 
@@ -242,7 +242,7 @@ UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` v
 
 `id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), issue_code UNIQUE, source_type (PL3/MANUAL), source_inspection_id NULL FK, source_inspection_result_id NULL FK UNIQUE, room_id FK, source_item_code_snapshot NULL, source_fail_remarks_snapshot NULL, title, description, priority, location_equipment NULL, reporter_name, reporter_email NULL, status (OPEN/IN_PROGRESS/PENDING_UOA_CONFIRMATION/CLOSED), created_at, updated_at`.
 
-Nếu MySQL cho phép nhiều NULL trong UNIQUE, unique `source_inspection_result_id` bảo đảm một FAIL item chỉ sinh tối đa một issue nguồn PL3. Cần thêm kiểm tra source_type và source FK nhất quán ở service/constraint phù hợp.
+UNIQUE `source_inspection_result_id` (cho phép nhiều NULL với issue MANUAL) bảo đảm một kết quả PL3 chỉ sinh tối đa một Issue; service chỉ tạo Issue khi kết quả nguồn là FAIL. Cần thêm kiểm tra source_type và source FK nhất quán ở service/constraint phù hợp.
 
 ### 6.2 `pl4_assignments`
 
