@@ -321,6 +321,27 @@ UOA là bên xác nhận cuối cùng; không bắt buộc có bước UOA duy�
 
 ---
 
+
+
+### 6.7. Kết quả rà soát mã nguồn PL4 – các sai khác cần xử lý khi chuyển PHP
+
+Các điểm dưới đây là kết quả đọc `Code PL4.txt`; đây là hiện trạng mã Apps Script được cung cấp, không phải hành vi đã xác minh trên deployment/live Form.
+
+| Mã | Hiện trạng trong Apps Script | Rủi ro / yêu cầu khi chuyển PHP | Trạng thái |
+|---|---|---|---|
+| PL4-R01 | PL3 integration đọc trực tiếp hai sheet `Inspections` và `Inspection Details`; payload chỉ truyền Inspection_ID/Room_ID và API secret. | PHP phải nhận sự kiện từ PL3 Outbox và liên kết trực tiếp `pl3_inspection_results.id`; không đọc Google Sheets làm nguồn dữ liệu vận hành. | Thiết kế cần chốt tại ADR-005 |
+| PL4-R02 | Kiểm tra Item ID bằng regex `/^I\\d{2}$/` ở cả khâu nhận và đọc nguồn. | Không dùng regex hoặc mã hiển thị làm khóa; Checklist động cần dùng ID kết quả ổn định, đồng thời lưu snapshot item code/title/remarks. | Cần thay |
+| PL4-R03 | Khóa trùng hiện tại là chuỗi `Inspection_ID|Item_ID` trong cột PL3_Reference_Key. | Dùng UNIQUE `source_inspection_result_id`; retry cùng nguồn phải cập nhật cùng Outbox/Issue, không tạo bản ghi mới. | Thiết kế ERD đã định hướng |
+| PL4-R04 | Header `Form_Response_ID` có trong PL4 Form Responses, nhưng mã handler được đọc không lấy response ID để kiểm tra trùng trước khi tạo Issue. | Phải idempotent theo Form Response ID; đặt UNIQUE trong DB và ghi nhận response + Issue trong cùng transaction. | Cần triển khai |
+| PL4-R05 | Manual submit tạo Issue trước, sau đó mới append Form Response và Audit Log; không thấy transaction bao trọn các bước. | PHP phải tạo business entity, Issue, nguồn submission và Audit Log trong cùng transaction; lỗi giữa chừng rollback toàn bộ. | Cần triển khai |
+| PL4-R06 | Mã có các lời gọi `MailApp.sendEmail` trực tiếp trong thông báo Assignee, Reporter và Approver. | PHP phải enqueue qua Email Queue; email thất bại không rollback Issue/Report/Confirmation; retry theo policy queue chung. | Cần thay |
+| PL4-R07 | Mã dùng `PENDING_APPROVAL`, `REJECTED`, APPROVE/REJECT sau báo cáo. | Không mang trạng thái legacy sang PHP. Dùng state machine đã chốt: Assignee report COMPLETED/NOT_COMPLETED → PENDING_UOA_CONFIRMATION; UOA CONFIRMED → CLOSED; NOT_CONFIRMED + reason → IN_PROGRESS. | Đã chốt, bắt buộc tuân thủ |
+| PL4-R08 | Hàm tạo Issue có fallback Priority `MEDIUM - Trung bình` nếu không truyền Priority; PL3 integration lại truyền cứng HIGH. | PHP phải validate Priority MANUAL được chọn từ danh mục active; PL3 đọc `PL4_PL3_DEFAULT_PRIORITY_CODE`. Không fallback ngầm. | Đã chốt theo ADR-004 |
+| PL4-R09 | PL3-generated Issue ban đầu không có Assignee; Reporter nhận link và chuyển tiếp cho người xử lý. | Cần xác định rõ bước tạo Assignment/claim, quyền nhận việc, chống hai người claim đồng thời và cách tái phân công trong workflow PHP. | Cần rà soát nghiệp vụ |
+| PL4-R10 | PL4 source hiện lưu token thao tác trực tiếp ở các cột Assignee_Token/Approval_Token; có luồng tìm Issue theo token. | PHP chỉ lưu token hash, ràng buộc token với đúng Issue/action, expiry/revocation/used_at; không ghi token vào Audit Log. | Nguyên tắc bảo mật đã chốt |
+
+**Kết luận rà soát:** Không port nguyên trạng Apps Script sang PHP. Giữ lại dữ liệu nghiệp vụ cần thiết và các hành vi còn phù hợp; thay phần tích hợp, idempotency, state machine, Priority và gửi email theo kiến trúc PHP đã phê duyệt. Chưa triển khai Migration/PHP trong giai đoạn rà soát.
+
 ## 7. PL5 – Quản lý công việc và bảo trì
 
 **Form URL:** https://forms.gle/Ej6Toof1Y6KAi4qFA  
