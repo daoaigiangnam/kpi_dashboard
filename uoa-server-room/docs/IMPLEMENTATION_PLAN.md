@@ -34,8 +34,8 @@
 ## Giai đoạn 5 – PL4 Incident / Violation
 - [ ] Tạo từ PL3 FAIL hoặc tạo độc lập; ISSUE PL3 ban đầu OPEN/chưa có Assignee.
 - [ ] PL4-R04/R05: tạo ISSUE MANUAL idempotent theo Form ID + Form Response ID; UNIQUE tại `pl4_manual_submissions`; retry trả ISSUE cũ.
-- [ ] Tạo Business Entity + Issue + Manual Submission + Audit Log + Email Queue trong cùng MySQL Transaction; rollback toàn bộ khi lỗi DB.
-- [ ] Email thông báo ISSUE MANUAL gửi sau Commit qua Email Queue Worker; không SMTP trực tiếp trong Transaction (ADR-007).
+- [ ] Manual Form bắt buộc chọn Assignee; tạo Business Entity + Issue + Manual Submission + Assignment `ASSIGNED` + SLA Instance/Cycle (nếu Policy hợp lệ) + Audit Log + Email Queue trong cùng MySQL Transaction; rollback toàn bộ khi lỗi DB.
+- [ ] Email `PL4_ISSUE_CREATED_MANUAL` thông báo Issue mới và Assignment đầu tiên; không enqueue thêm `PL4_ASSIGNMENT_ASSIGNED` cho cùng Assignment. Worker gửi sau Commit, không SMTP trực tiếp trong Transaction (ADR-007/008).
 - [ ] Phân công/claim/tái phân công theo ADR-006; chỉ Assignee được chỉ định claim, một Assignment hiệu lực/ISSUE, chống claim đồng thời.
 - [ ] Mức độ ảnh hưởng, xử lý ban đầu, nguyên nhân, owner, due date.
 - [ ] Theo dõi khắc phục, xác minh và đóng phiếu.
