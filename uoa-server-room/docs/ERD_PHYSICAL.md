@@ -321,8 +321,7 @@ erDiagram
     SERVER_ROOMS ||--o{ PL3_ESCALATION_RUNS : schedules
     PL3_ESCALATION_RUNS ||--o{ PL3_ESCALATION_EVENTS : emits
     EMAIL_QUEUE o|--o| PL3_ESCALATION_EVENTS : delivers
-    PL3_INSPECTIONS ||--o{ PL3_INTEGRATION_OUTBOX : produces
-    PL3_INSPECTION_RESULTS ||--o{ PL3_INTEGRATION_OUTBOX : references
+    PL3_INSPECTION_RESULTS ||--o| PL3_INTEGRATION_OUTBOX : queues_fail
 
     PL3_INSPECTIONS {
       bigint id PK
@@ -378,8 +377,7 @@ erDiagram
     }
     PL3_INTEGRATION_OUTBOX {
       bigint id PK
-      bigint inspection_id FK
-      bigint inspection_result_id FK
+      bigint inspection_result_id FK,UK
       varchar event_key UK
       varchar status
     }
