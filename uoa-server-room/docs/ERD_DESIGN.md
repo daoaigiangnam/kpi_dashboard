@@ -132,6 +132,7 @@ Quy tắc:
 - ISSUE MANUAL được tiếp nhận qua `pl4_manual_submissions`; cặp `source_form_id + form_response_id` là khóa idempotency UNIQUE. Retry cùng submission trả về ISSUE hiện hữu, không tạo ISSUE mới.
 - Tạo `business_entities` + `pl4_issues` + `pl4_manual_submissions` + `system_audit_logs` + `email_queue` trong cùng MySQL/InnoDB transaction. Lỗi ghi DB ở bất kỳ bước nào rollback toàn bộ; Email Queue Worker chỉ gửi SMTP sau Commit theo ADR-007.
 - Theo ADR-008, email PL4 dùng Email Queue chung; Assignee gửi Work Report phải enqueue hai email riêng cho Reporter và UOA Approver theo Room trong cùng transaction với Work Report, Status History và Audit. Không gửi MSTAR ở sự kiện này; email lỗi không rollback nghiệp vụ.
+- Theo ADR-009, Timeline ISSUE tổng hợp dữ liệu từ Issue Status History, Assignments, Work Reports, UOA Confirmations, system_audit_logs, email_queue và email_queue_attempts. Không tạo bảng PL4 audit/notification history riêng; Audit của mọi thao tác trên bản ghi con liên kết về business_entities.id của ISSUE.
 
 ### 2.6. PL5 – Work & Maintenance
 
@@ -164,6 +165,8 @@ Quy tắc:
 | `email_queue_attempts` | Lịch sử từng lần gửi | FK email_queue |
 | `business_entities` | Định danh thống nhất cho hồ sơ nghiệp vụ gốc PL1–PL5 | PK `id`; một dòng tương ứng một hồ sơ gốc; FK từ Audit/Evidence |
 | `system_audit_logs` | Audit Log tập trung PL1–PL5 | FK `business_entity_id` nullable; actor, event, channel, correlation |
+
+Theo ADR-009, `system_audit_logs.business_entity_id` là FK trực tiếp tới `business_entities.id`; sự kiện trên Assignment/Work Report/Confirmation vẫn gắn ISSUE gốc, ID bản ghi con chỉ nằm trong metadata an toàn. Timeline là truy vấn hợp nhất, không phải bảng lưu trữ mới.
 | `evidence_files` | Metadata file và checksum | owner/uploader; storage key |
 | `entity_evidence_links` | Liên kết file với hồ sơ nghiệp vụ | FK `business_entity_id`; không dùng polymorphic reference |
 | `integration_events` | Theo dõi request/response tích hợp ngoài | module, event key, correlation; không lưu secret |
