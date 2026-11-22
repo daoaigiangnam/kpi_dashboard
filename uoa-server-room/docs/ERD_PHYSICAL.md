@@ -93,6 +93,11 @@ flowchart TB
     BE --- Work
     BE --- Audit
     BE --- ELink
+    Issue --- EQ
+    Assign --- EQ
+    Report --- EQ
+    Confirm --- EQ
+    EQ --- EQA
     SR --- RC
     SR --- AReq
     SR --- ARec
@@ -683,7 +688,7 @@ Audit event không gắn hồ sơ (ví dụ sự kiện hệ thống) được p
 7. **PL3 → PL4:** ghi Outbox trong transaction; worker tạo Issue với UNIQUE source result; retry an toàn.
 8. **PL4 UOA:** mỗi quyết định gắn với Work Report cụ thể; chỉ chuyển CLOSED khi UOA xác nhận đúng báo cáo.
 9. **PL5 approval/verification:** conditional transition theo trạng thái hiện tại; không để requester tự approve hoặc executor tự verify.
-10. **Email:** enqueue cùng transaction nghiệp vụ qua outbox; worker claim bằng lock; không giữ transaction DB trong lúc gọi SMTP.
+10. **Email:** enqueue cùng transaction nghiệp vụ qua Email Queue; worker claim bằng lock; không giữ transaction DB trong lúc gọi SMTP. Theo ADR-008, PL4 Work Report tạo hai queue item riêng cho Reporter và UOA Approver theo Room; cả hai cùng commit với Work Report/Status History/Audit. Không gửi MSTAR; SMTP failure không rollback nghiệp vụ.
 11. **Audit:** ghi Audit event cùng transaction với thay đổi nghiệp vụ; lỗi ghi Audit bắt buộc rollback thay đổi quan trọng.
 12. **Evidence:** upload file vào vùng quarantine, kiểm tra MIME/kích thước/virus nếu có, tính SHA-256 rồi mới cho liên kết vào hồ sơ.
 
