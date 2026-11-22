@@ -262,11 +262,12 @@ Khi có sự kiện kết thúc Cycle, service phải tính elapsed theo Calenda
 - Cycle đã `BREACHED` không bao giờ chuyển về `MET` hoặc `STOPPED`.
 - SLA Worker độc lập Dashboard; phải phát hiện và đánh dấu các Cycle quá hạn chưa kết thúc. Cập nhật phải idempotent, khóa an toàn và chỉ ghi Audit breach một lần.
 
-### 11.5. Calendar Exceptions
+### 11.5. Calendar Exceptions – quy tắc đề xuất, chờ chủ nghiệp vụ xác nhận
 - Cho phép nhiều dòng `SPECIAL_WORKING` cho cùng `calendar_version_id + exception_date` để biểu diễn nhiều khoảng giờ trong một ngày.
 - Mỗi khoảng phải có `start_time < end_time`; các khoảng SPECIAL_WORKING cùng ngày không được chồng lấn.
-- Với cùng ngày, `HOLIDAY` hoặc `CLOSED` là ngoại lệ đóng cả ngày và loại trừ mọi `SPECIAL_WORKING` trong ngày đó. Một ngày chỉ có tối đa một bản ghi đóng cả ngày.
-- Khi tồn tại bất kỳ Exception cho một ngày, tập Exception thay thế lịch tuần của ngày đó; không cộng dồn với Calendar Period.
+- Đề xuất: `HOLIDAY` hoặc `CLOSED` là ngoại lệ đóng cả ngày, loại trừ mọi `SPECIAL_WORKING` trong ngày đó; một ngày chỉ có tối đa một bản ghi đóng cả ngày.
+- Đề xuất: khi tồn tại bất kỳ Exception cho một ngày, tập Exception thay thế lịch tuần của ngày đó; không cộng dồn với Calendar Period.
+- Hai quy tắc precedence ở trên là quyết định nghiệp vụ về cách xử lý ngày ngoại lệ; cần chủ nghiệp vụ xác nhận trước Migration, không coi là nội dung D1–D22 đã được phê duyệt.
 
 ### 11.6. Assignment khởi tạo cho Manual Issue
 Theo ADR-007 đã được làm rõ: Manual Form bắt buộc chọn Assignee; tạo Issue, Manual Submission, Assignment `ASSIGNED`, Audit, Email Queue và SLA Instance trong cùng transaction. Nếu Policy hợp lệ, tạo Cycle `ASSIGNMENT_RESPONSE` ngay từ `assigned_at`. Nếu NOT_CONFIGURED, vẫn tạo Issue và Assignment nhưng không tạo Cycle; ghi Audit cấu hình.
