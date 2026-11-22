@@ -707,6 +707,26 @@ Admin cần có khu vực Approval Center để người dùng được phân qu
 
 Danh sách và số liệu hiển thị phải được truy vấn theo quyền Backend; không được tải dữ liệu ngoài phạm vi rồi chỉ ẩn bằng giao diện.
 
+
+### 16.4. Email dành cho Requester / User / Executor
+
+**Làm rõ quyết định:** Việc bổ sung Admin Approval chỉ áp dụng cho người có trách nhiệm phê duyệt/xác nhận nghiệp vụ. Người dùng thông thường (Requester/User/Executor/Assignee) vẫn tiếp tục nhận Email để thực hiện các bước được giao trong quy trình; không bắt buộc phải đăng nhập Admin.
+
+Email cho người dùng có thể chứa liên kết riêng theo hồ sơ và theo hành động, ví dụ:
+- Requester nhận email xác nhận tiếp nhận, kết quả phê duyệt/từ chối hoặc liên kết thực hiện bước tiếp theo.
+- Người đăng ký PL2 nhận liên kết CHECK-IN và CHECK-OUT; OTP vẫn gửi qua email theo quy trình PL2.
+- Assignee/Executor nhận email thông báo công việc được giao và liên kết để nhận việc, cập nhật tiến độ hoặc gửi kết quả.
+- Người gửi yêu cầu nhận thông báo trạng thái và liên kết tra cứu/thực hiện khi quy trình yêu cầu.
+
+Yêu cầu bảo mật:
+1. Link dành cho User phải gắn với đúng hồ sơ và đúng hành động; token có phạm vi, thời hạn, khả năng thu hồi và chỉ dùng theo trạng thái hợp lệ.
+2. User không được dùng link tác nghiệp để truy cập Admin, xem hồ sơ khác hoặc thực hiện hành động phê duyệt thay UOA.
+3. Các thao tác qua link Email phải được Backend kiểm tra token, trạng thái hồ sơ, điều kiện nghiệp vụ và ghi Audit Log.
+4. Audit Log phải phân biệt rõ người thao tác qua EMAIL_LINK với người phê duyệt qua EMAIL_APPROVAL hoặc ADMIN; không gộp các kênh này thành một loại chung.
+5. Admin Approval không loại bỏ Email thông báo và Email tác nghiệp dành cho User.
+
+| D20 | Phân biệt kênh phê duyệt và kênh tác nghiệp User | ĐÃ CHỐT: Người có quyền phê duyệt có thể quyết định qua Email hoặc Admin. Requester/User/Executor/Assignee vẫn nhận Email và dùng liên kết xác thực để thực hiện các bước nghiệp vụ được giao; không bắt buộc đăng nhập Admin. Hai nhóm kênh có quyền hạn, token và Audit Log phân biệt. |
+
 | D16 | Public Form và Approval Engine | ĐÃ CHỐT: PL1–PL5 có thể cung cấp Form Public để người dùng tự gửi đăng ký/yêu cầu. Bổ sung phê duyệt trên Admin bên cạnh Email; hai kênh dùng chung Approval Engine, chung trạng thái và kiểm soát quyền, chống quyết định trùng, ghi Audit Log. |
 
 
