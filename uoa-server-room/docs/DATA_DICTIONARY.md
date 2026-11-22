@@ -208,11 +208,11 @@ INDEX `(approval_status, created_at)`, `(room_id, planned_entry_at)`, `(visit_st
 
 ### 5.2 `pl3_inspections`
 
-`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), inspection_code UNIQUE, room_id FK, frequency (DAILY/WEEKLY/MONTHLY), inspection_date DATE, inspection_time TIME, inspector_name, inspector_email NULL, temperature_c DECIMAL(5,2) NULL, humidity_percent DECIMAL(5,2) NULL, conclusion, form_response_id NULL, uoa_acknowledgement_status, submitted_at, created_at, updated_at`.
+`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), inspection_code UNIQUE, room_id FK, inspection_date DATE, inspection_date DATE, inspection_time TIME, inspector_name, inspector_email NULL, temperature_c DECIMAL(5,2) NULL, humidity_percent DECIMAL(5,2) NULL, conclusion, form_response_id NULL, uoa_acknowledgement_status, submitted_at, created_at, updated_at`.
 
 UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` vì cần xác nhận quy tắc nhiều lần kiểm tra/tần suất. Dùng `idempotency_keys` theo Form Response ID; kiểm soát phiếu hợp lệ theo kỳ bằng service.
 
-**Lưu ý chờ ADR-003:** `frequency` hiện chỉ là thuộc tính dự kiến trong bản thiết kế, chưa được xác nhận là dữ liệu thực tế của Form đang triển khai. Phụ lục 3 PDF có Daily when MSTAR is onsite / Weekly / Monthly; tuy nhiên Apps Script được cung cấp không khai báo cột Frequency, không tạo câu hỏi Frequency và không lưu giá trị này. Không đặt NOT NULL hoặc áp dụng lịch Weekly/Monthly trước khi chốt ADR-003.
+**Theo ADR-003 đã phê duyệt:** PL3 chỉ triển khai kiểm tra DAILY; không có trường `inspection_frequency` trong Form hoặc bảng `pl3_inspections`. Weekly/Monthly ngoài phạm vi số hóa hiện tại.
 
 ### 5.3 `pl3_inspection_results`
 
@@ -408,7 +408,7 @@ INDEX đề xuất: `(business_entity_id, occurred_at)`, `(event_code, occurred_
 1. PL1 Valid Until có hiệu lực hết ngày hay hết thời điểm; scheduler chạy chu kỳ nào.
 2. PL1 thời hạn approval token chính thức và cấu hình hiện hành.
 3. PL2 hạn CHECK-IN sau APPROVED; xử lý Visit đã APPROVED nhưng không CHECK-IN.
-4. PL3 khóa một inspection theo ngày/phòng hay theo frequency/period; cách xử lý Weekly/Monthly.
+4. PL3 khóa một inspection theo ngày/phòng; Weekly/Monthly ngoài phạm vi theo ADR-003.
 5. PL3 một hay nhiều chu kỳ escalation trong một ngày/phòng và cách dừng khi phiếu đến.
 6. Xác minh API trigger PL3 → PL4 đang triển khai để không nhân đôi integration.
 7. PL4 queue/retry thực tế; xác nhận có dùng queue chung.
