@@ -414,13 +414,25 @@ erDiagram
     PL4_ASSIGNMENTS o|--o{ PL4_WORK_REPORTS : context
     PL4_ISSUES ||--o{ PL4_UOA_CONFIRMATIONS : reviewed
     PL4_WORK_REPORTS ||--o{ PL4_UOA_CONFIRMATIONS : evaluated
+    PL4_PRIORITIES ||--o{ PL4_ISSUES : selected_for
     PL4_ISSUES ||--o{ PL4_ISSUE_STATUS_HISTORY : changes
+
+    PL4_PRIORITIES {
+      bigint id PK
+      varchar code UK
+      varchar name_vi
+      boolean is_active
+      smallint sort_order
+    }
 
     PL4_ISSUES {
       bigint id PK
       bigint business_entity_id FK,UK\n      varchar issue_code UK
       bigint room_id FK
-      bigint source_inspection_result_id FK
+      bigint source_inspection_result_id FK,UK
+      bigint priority_id FK
+      varchar priority_code_snapshot
+      varchar priority_name_snapshot
       varchar source_type
       varchar status
     }
