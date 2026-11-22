@@ -524,6 +524,8 @@ erDiagram
     }
 ```
 
+**Audit/Timeline theo ADR-009:** `system_audit_logs.business_entity_id` FK trực tiếp tới `business_entities.id`. Timeline ISSUE là truy vấn hợp nhất từ `pl4_issues`, `pl4_issue_status_history`, `pl4_assignments`, `pl4_work_reports`, `pl4_uoa_confirmations`, `system_audit_logs`, `email_queue` và `email_queue_attempts`; không tạo bảng audit/notification history PL4 riêng.
+
 **Ràng buộc:** `source_inspection_result_id` UNIQUE và NULL được phép. Với MySQL, nhiều NULL vẫn có thể tồn tại trong UNIQUE; do đó ISSUE MANUAL không bị chặn. Một kết quả checklist PL3 chỉ được liên kết tối đa một ISSUE PL4. Với ISSUE MANUAL, `pl4_manual_submissions` có UNIQUE `(source_form_id, form_response_id)`; mỗi submission liên kết đúng một Issue và được dùng làm khóa idempotency theo ADR-007.
 
 ## 7. PL5 – Work Catalog / Maintenance / Approval / Execution / Verification
@@ -628,8 +630,8 @@ erDiagram
       bigint id PK
       char event_uuid UK
       varchar module
-      varchar entity_type
-      bigint entity_id
+      bigint business_entity_id FK
+      varchar workflow_step
       varchar event_code
       varchar result
       varchar action_channel
@@ -672,7 +674,7 @@ Các bảng hồ sơ gốc trong phạm vi phải có `business_entity_id BIGINT
 
 FK từ Audit/Evidence tới supertype bảo đảm định danh được tham chiếu tồn tại. Tuy nhiên, MySQL FK không tự bảo đảm mọi supertype có đúng một subtype hoặc `entity_type` khớp bảng subtype. Service phải kiểm tra điều này; UNIQUE FK bảo đảm một supertype không gắn nhiều dòng cùng bảng subtype.
 
-Audit event không gắn hồ sơ (ví dụ sự kiện hệ thống) được phép để `business_entity_id = NULL`. Các bảng con/lịch sử không có registry riêng; sự kiện của chúng liên kết về hồ sơ gốc.
+Audit event không gắn hồ sơ (ví dụ sự kiện hệ thống) được phép để `business_entity_id = NULL`. Các bảng con/lịch sử không có registry riêng; sự kiện của chúng liên kết về hồ sơ gốc. Theo ADR-009, thao tác trên PL4 Assignment/Work Report/UOA Confirmation cũng liên kết về Business Entity của ISSUE; ID bản ghi con chỉ lưu trong metadata. Không dùng `entity_type + entity_id` hoặc `parent_business_entity_id` làm khóa liên kết Audit.
 
 ## 9. Quy tắc transaction và concurrency cần thể hiện trong code
 
