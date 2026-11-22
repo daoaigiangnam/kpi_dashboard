@@ -1,68 +1,46 @@
-# ADR-003 – Phạm vi và dữ liệu tần suất kiểm tra PL3
+# ADR-003 – Phạm vi tần suất kiểm tra PL3
 
-**Phiên bản:** 0.1 – Đề xuất, chờ xác nhận nghiệp vụ  
-**Trạng thái:** PROPOSED – CHƯA ĐƯỢC PHÊ DUYỆT  
+**Phiên bản:** 1.0  
+**Trạng thái:** APPROVED – ĐÃ ĐƯỢC CHỦ NGHIỆP VỤ XÁC NHẬN  
+**Ngày phê duyệt:** 22/11/2026  
 **Phạm vi:** PL3 Inspection Frequency; không thay đổi ADR-002 về Escalation Run
 
-## 1. Mục đích
+## 1. Bối cảnh
 
-Làm rõ sự khác nhau giữa:
-- Tần suất kiểm tra được nêu trong Phụ lục 3.
-- Tần suất mà Google Form/Apps Script hiện tại thực sự thu thập và tự động xử lý.
-- Tần suất chạy cảnh báo thiếu phiếu.
+Phụ lục 3 PDF có ba lựa chọn Inspection Frequency: Daily when MSTAR is onsite, Weekly và Monthly. Tuy nhiên, Apps Script PL3 được cung cấp không có trường Frequency trong `INSPECTION_HEADERS`, không tạo câu hỏi Frequency trong `createForm_()`, không đọc/lưu Frequency trong `handlePL3Submit()`; scheduler được rà soát là `runDailyAlertScheduler()`.
 
-ADR-002 chỉ phê duyệt lịch cảnh báo thiếu phiếu DAILY. ADR này không tự động mở rộng lịch cảnh báo sang WEEKLY/MONTHLY.
+Để hệ thống online có một quy trình thống nhất, chủ nghiệp vụ chọn chỉ triển khai kiểm tra hằng ngày.
 
-## 2. Bằng chứng từ nguồn đã kiểm tra
+## 2. Quyết định được phê duyệt
 
-### 2.1. Phụ lục 3 PDF
+**D1 – Chọn phương án B: Chỉ triển khai DAILY.**
 
-Phần “Inspection Frequency / Lựa chọn tần suất” hiển thị ba lựa chọn:
-- Daily when MSTAR is onsite / Hằng ngày khi MSTAR làm việc Onsite.
-- Weekly / Hằng tuần.
-- Monthly / Hằng tháng.
+1. Form PL3 online chỉ có quy trình kiểm tra **DAILY – hằng ngày**.
+2. Không tạo trường lựa chọn Inspection Frequency.
+3. Không lưu cột `inspection_frequency` trong `pl3_inspections`.
+4. Không triển khai nghiệp vụ kiểm tra Weekly hoặc Monthly trong phạm vi hiện tại.
+5. Lịch cảnh báo thiếu phiếu tiếp tục chỉ là `DAILY`, tuân thủ ADR-002.
+6. Cụm từ “Daily when MSTAR is onsite” trong Phụ lục 3 được ghi nhận là nội dung nguồn; quy tắc xác định ngày làm việc/không làm việc tiếp tục căn cứ cấu hình lịch DAILY, WORK_DAYS và Holidays đã có, không tự suy diễn lịch Weekly/Monthly.
 
-### 2.2. Apps Script PL3
+## 3. Phân biệt phạm vi
 
-Trong `Code PL3.txt`:
-- `INSPECTION_HEADERS` không có cột `Frequency`.
-- Hàm `createForm_()` tạo Form nhưng không thêm câu hỏi Inspection Frequency.
-- `handlePL3Submit()` không đọc/lưu giá trị Frequency.
-- Scheduler hiện tại là `runDailyAlertScheduler()`, sử dụng `DAILY_DEADLINE`, `WORK_DAYS`, Holidays và `DAILY_ALERT_ENABLED`.
-- Chưa thấy scheduler Weekly hoặc Monthly trong phần mã nguồn đã rà soát.
+- **Inspection cadence:** quy trình kiểm tra được số hóa trong phiên bản hiện tại – DAILY.
+- **Escalation schedule:** lịch Scheduler tạo Run cảnh báo thiếu phiếu – DAILY theo ADR-002.
 
-Do đó chưa thể kết luận giá trị Frequency trong bản PDF đang được lưu trong hệ thống hiện tại. Cũng chưa thể xác nhận giao diện Google Form đang triển khai thực tế có khác với mã setup được cung cấp hay không.
+Hai nội dung cùng đang là DAILY nhưng là hai khái niệm nghiệp vụ/kỹ thuật riêng; không gộp trường hoặc bảng chỉ để biểu diễn chúng.
 
-## 3. Hai khái niệm không được gộp
+## 4. Ngoài phạm vi và thay đổi tương lai
 
-1. `inspection_frequency`: tần suất/loại kiểm tra được người thực hiện chọn hoặc được quy định cho hồ sơ.
-2. `schedule_type` của `pl3_escalation_runs`: lịch mà Scheduler dùng để tạo chu kỳ cảnh báo thiếu phiếu.
+Weekly/Monthly không được triển khai trong Form, database hoặc Scheduler hiện tại. Nếu phát sinh nhu cầu, phải lập ADR mới xác định tối thiểu: định nghĩa kỳ, ngày đến hạn, ngày làm việc/ngoại lệ, số phiếu cần có trong kỳ, cách xác định thiếu phiếu, cảnh báo/escalation và báo cáo tuân thủ. Không mở rộng bằng cách chỉ thêm một giá trị enum.
 
-Theo ADR-002, `schedule_type` hiện chỉ là `DAILY`. Không được suy ra Weekly/Monthly escalation chỉ vì Phụ lục 3 có các lựa chọn Frequency.
+## 5. Ảnh hưởng thiết kế
 
-## 4. Phương án cần xác nhận
+- Không thêm `inspection_frequency` vào `pl3_inspections`.
+- Không thêm lựa chọn Weekly/Monthly vào Form PL3.
+- Các báo cáo PL3 hiện tại là báo cáo kiểm tra DAILY.
+- Giữ nguyên `pl3_escalation_runs.schedule_type = DAILY` và các quy tắc đã phê duyệt trong ADR-002.
+- Đây là quyết định nghiệp vụ và thiết kế; chưa đồng nghĩa đã triển khai Migration hoặc PHP.
 
-### Phương án A – Ghi nhận tần suất kiểm tra, chỉ tự động cảnh báo DAILY
+## 6. Nguồn và giới hạn xác minh
 
-- Form PHP có trường Inspection Frequency với ba lựa chọn đúng như Phụ lục 3.
-- Lưu giá trị vào `pl3_inspections.inspection_frequency`.
-- Giá trị này là dữ liệu nghiệp vụ của từng phiếu; không tự tạo Weekly/Monthly Scheduler.
-- Escalation Run tiếp tục tuân thủ ADR-002: chỉ DAILY.
-- Chỉ triển khai khi chủ nghiệp vụ xác nhận trường Frequency thực sự cần có trong Form mới.
-
-### Phương án B – Chỉ triển khai kiểm tra DAILY
-
-- Không đưa Frequency vào Form hoặc bảng Inspection.
-- Ghi nhận rằng lựa chọn Weekly/Monthly trên PDF chưa được triển khai trong hệ thống số hóa hiện tại.
-- Nếu cần Weekly/Monthly sau này, phải có quyết định riêng về lịch, kỳ, ngày đến hạn, nhiều phiếu trong một kỳ và cảnh báo tương ứng.
-
-## 5. Quyết định cần chủ nghiệp vụ xác nhận
-
-- [ ] **D1:** Chọn Phương án A – Form PHP thu thập Frequency theo Phụ lục 3, nhưng cảnh báo tự động vẫn chỉ DAILY.
-- [ ] **D2:** Chọn Phương án B – hệ thống số hóa chỉ triển khai DAILY, chưa đưa Frequency vào Form/Inspection.
-- [ ] **D3:** Dù chọn A hay B, xác nhận không tự động triển khai Weekly/Monthly escalation trong phạm vi ADR-002.
-
-## 6. Điều kiện trước Migration
-
-Chưa áp đặt NOT NULL, CHECK enum hoặc quy tắc kỳ Weekly/Monthly cho đến khi D1–D3 được xác nhận và đối chiếu bản Form thực tế. Nếu không truy cập được Form đang triển khai, cần ghi nhận đây là giới hạn xác minh nguồn, không được coi mã setup là bằng chứng tuyệt đối về giao diện live.
-
+Quyết định được đưa ra sau khi đối chiếu Phụ lục 3 PDF và mã Apps Script PL3 được cung cấp. Giao diện Google Form đang triển khai thực tế chưa được truy cập/xác minh độc lập; vì vậy không khẳng định bản live hiện tại có đúng hoặc khác mã setup. Quyết định này áp dụng cho hệ thống PHP online sẽ xây dựng.
