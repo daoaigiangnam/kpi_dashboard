@@ -416,6 +416,7 @@ erDiagram
 erDiagram
     SERVER_ROOMS ||--o{ PL4_ISSUES : contains
     PL3_INSPECTION_RESULTS o|--o| PL4_ISSUES : may_create
+    PL3_CHECKLIST_VERSION_ITEMS o|--o{ PL4_ISSUES : snapshot_source
     PL4_ISSUES ||--o{ PL4_ASSIGNMENTS : assigned
     PL4_ISSUES ||--o{ PL4_WORK_REPORTS : receives
     PL4_ASSIGNMENTS o|--o{ PL4_WORK_REPORTS : context
@@ -444,6 +445,7 @@ erDiagram
       varchar source_room_location_snapshot
       bigint source_checklist_version_id_snapshot
       varchar source_checklist_version_code_snapshot
+      bigint source_checklist_version_item_id FK
       bigint source_checklist_version_item_id FK
       varchar source_item_code_snapshot
       varchar source_item_title_snapshot
