@@ -85,7 +85,15 @@ flowchart TB
     R --- UR
     R --- RP
     P --- RP
-    BE --- AReq\n    BE --- ARec\n    BE --- Visit\n    BE --- Insp\n    BE --- Issue\n    BE --- Work\n    BE --- Audit\n    BE --- ELink\n    SR --- RC
+    BE --- AReq
+    BE --- ARec
+    BE --- Visit
+    BE --- Insp
+    BE --- Issue
+    BE --- Work
+    BE --- Audit
+    BE --- ELink
+    SR --- RC
     SR --- AReq
     SR --- ARec
     SR --- Visit
@@ -203,7 +211,8 @@ erDiagram
 
     PL1_ACCESS_REQUESTS {
       bigint id PK
-      bigint business_entity_id FK,UK\n      varchar request_code UK
+      bigint business_entity_id FK,UK
+      varchar request_code UK
       bigint room_id FK
       varchar request_type
       varchar person_email
@@ -227,7 +236,8 @@ erDiagram
     }
     PL1_ACCESS_RECORDS {
       bigint id PK
-      bigint business_entity_id FK,UK\n      bigint room_id FK
+      bigint business_entity_id FK,UK
+      bigint room_id FK
       bigint created_from_request_id FK
       bigint last_changed_by_request_id FK
       varchar person_email
@@ -260,7 +270,8 @@ erDiagram
 
     PL2_VISITS {
       bigint id PK
-      bigint business_entity_id FK,UK\n      varchar visit_code UK
+      bigint business_entity_id FK,UK
+      varchar visit_code UK
       bigint room_id FK
       varchar requester_email
       varchar approver_email_snapshot
@@ -328,7 +339,8 @@ erDiagram
 
     PL3_INSPECTIONS {
       bigint id PK
-      bigint business_entity_id FK,UK\n      varchar inspection_code UK
+      bigint business_entity_id FK,UK
+      varchar inspection_code UK
       bigint room_id FK
       bigint checklist_version_id FK
       date inspection_date
@@ -417,7 +429,8 @@ erDiagram
     SERVER_ROOMS ||--o{ PL4_ISSUES : contains
     PL3_INSPECTION_RESULTS o|--o| PL4_ISSUES : may_create
     PL3_CHECKLIST_VERSION_ITEMS o|--o{ PL4_ISSUES : snapshot_source
-    PL4_ISSUES ||--o{ PL4_MANUAL_SUBMISSIONS : source_submission\n    PL4_ISSUES ||--o{ PL4_ASSIGNMENTS : assigned
+    PL4_ISSUES ||--o{ PL4_MANUAL_SUBMISSIONS : source_submission
+    PL4_ISSUES ||--o{ PL4_ASSIGNMENTS : assigned
     PL4_ISSUES ||--o{ PL4_WORK_REPORTS : receives
     PL4_ASSIGNMENTS o|--o{ PL4_WORK_REPORTS : context
     PL4_ISSUES ||--o{ PL4_UOA_CONFIRMATIONS : reviewed
@@ -435,7 +448,8 @@ erDiagram
 
     PL4_ISSUES {
       bigint id PK
-      bigint business_entity_id FK,UK\n      varchar issue_code UK
+      bigint business_entity_id FK,UK
+      varchar issue_code UK
       bigint room_id FK
       bigint source_inspection_result_id FK,UK
       varchar source_inspection_code_snapshot
@@ -457,7 +471,18 @@ erDiagram
       varchar source_type
       varchar status
     }
-    PL4_MANUAL_SUBMISSIONS {\n      bigint id PK\n      bigint issue_id FK\n      varchar source_form_id\n      varchar form_response_id\n      varchar reporter_name_snapshot\n      varchar reporter_email_snapshot\n      datetime submitted_at\n      datetime created_at\n    }\n\n    PL4_ASSIGNMENTS {
+    PL4_MANUAL_SUBMISSIONS {
+      bigint id PK
+      bigint issue_id FK
+      varchar source_form_id
+      varchar form_response_id
+      varchar reporter_name_snapshot
+      varchar reporter_email_snapshot
+      datetime submitted_at
+      datetime created_at
+    }
+
+    PL4_ASSIGNMENTS {
       bigint id PK
       bigint issue_id FK
       varchar assignee_name_snapshot
@@ -536,7 +561,8 @@ erDiagram
     }
     PL5_WORK_REQUESTS {
       bigint id PK
-      bigint business_entity_id FK,UK\n      varchar work_code UK
+      bigint business_entity_id FK,UK
+      varchar work_code UK
       bigint room_id FK
       bigint catalog_item_id FK
       bigint maintenance_plan_id FK
@@ -576,7 +602,9 @@ erDiagram
 ```mermaid
 erDiagram
     EMAIL_QUEUE ||--o{ EMAIL_QUEUE_ATTEMPTS : attempts
-    BUSINESS_ENTITIES o|--o{ SYSTEM_AUDIT_LOGS : audited\n    BUSINESS_ENTITIES ||--o{ ENTITY_EVIDENCE_LINKS : evidence_for\n    USERS o|--o{ SYSTEM_AUDIT_LOGS : acts
+    BUSINESS_ENTITIES o|--o{ SYSTEM_AUDIT_LOGS : audited
+    BUSINESS_ENTITIES ||--o{ ENTITY_EVIDENCE_LINKS : evidence_for
+    USERS o|--o{ SYSTEM_AUDIT_LOGS : acts
     USERS o|--o{ EVIDENCE_FILES : uploads
     EVIDENCE_FILES ||--o{ ENTITY_EVIDENCE_LINKS : linked
     USERS ||--o{ DATA_EXPORTS : requests
