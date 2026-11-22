@@ -281,6 +281,19 @@ UNIQUE `(source_form_id, form_response_id)` và UNIQUE `(issue_id)`. Mỗi cặp
 
 `id PK, issue_id FK, from_status, to_status, actor_type, actor_user_id NULL, actor_name_snapshot, channel, reason NULL, changed_at`. Append-only.
 
+### 6.8 Quy tắc Email Notification PL4 (ADR-008)
+
+| Event | Recipient | Queue rule |
+|---|---|---|
+| `PL4_ISSUE_CREATED_MANUAL` | Assignee | Một queue item sau khi Issue/Assignment commit |
+| `PL4_ISSUE_CREATED_FROM_PL3` | Reporter | Một queue item theo Inspection Result nguồn |
+| `PL4_ASSIGNMENT_ASSIGNED` | Assignee mới | Một queue item theo Assignment ID |
+| `PL4_WORK_REPORT_SUBMITTED` | Reporter + UOA Approver theo Room | Hai queue item riêng, mỗi recipient có event_key riêng |
+| `PL4_UOA_CONFIRMED` | Reporter + Assignee | Queue item riêng theo Confirmation ID/recipient role |
+| `PL4_UOA_NOT_CONFIRMED` | Assignee + Reporter | Queue item riêng; nêu lý do và trạng thái IN_PROGRESS |
+
+Với Work Report, hai email Reporter/UOA được enqueue cùng transaction với Work Report, Issue state, Status History và Audit. Retry cùng command không tạo report hoặc queue item mới. Email gửi độc lập; lỗi SMTP không rollback nghiệp vụ. Không gửi MSTAR trong thông báo Work Report. Xem ADR-008.
+
 ## 7. PL5 – Work & Maintenance
 
 ### 7.1 `pl5_work_catalog_categories`
@@ -345,7 +358,9 @@ UNIQUE `(source_form_id, form_response_id)` và UNIQUE `(issue_id)`. Mỗi cặp
 | sent_at | DATETIME(3) | YES | Gửi thành công |
 | created_at, updated_at | DATETIME(3) | NO | UTC |
 
-UNIQUE `event_key`; INDEX `(status, next_attempt_at, id)`. Có thể cần `email_queue_attempts` riêng lưu mỗi lần gửi. Không lưu mật khẩu SMTP hoặc API secret trong queue.
+UNIQUE `event_key`; INDEX `(status, next_attempt_at, id)`. Mỗi recipient là một queue item riêng; event_key phải ổn định theo business event + đối tượng nhận để retry không enqueue trùng. `email_queue_attempts` lưu từng lần gửi. Không lưu mật khẩu SMTP, API secret, raw OTP hoặc raw action token trong queue.
+
+PL4 theo ADR-008: khi Assignee gửi Work Report, tạo hai queue item riêng cho Reporter và UOA Approver theo Room; không gửi MSTAR. Hai item được enqueue cùng transaction với Work Report, chuyển Issue sang `PENDING_UOA_CONFIRMATION`, Status History và Audit. SMTP chỉ chạy sau Commit. UOA Approver thiếu/không duy nhất là lỗi cấu hình phải được Audit, không âm thầm bỏ qua.
 
 ### 8.2 `email_queue_attempts`
 
