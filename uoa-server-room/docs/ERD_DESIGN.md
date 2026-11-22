@@ -102,7 +102,9 @@ Quy tắc:
 - Run lưu snapshot cấu hình áp dụng. Event lưu recipient snapshot, mốc dự kiến/thử/gửi, trạng thái và liên kết Email Queue.
 - Level 1 đến hạn tại `DAILY_DEADLINE + ALERT_LEVEL1_DELAY_MINUTES`; Level 2/3 tính tuần tự từ thời điểm ghi nhận kết quả cấp trước cộng delay cấu hình tương ứng. Nếu cấp trước `SKIPPED`, timestamp SKIPPED vẫn là mốc tính cấp kế tiếp.
 - Khi Inspection hợp lệ đúng phòng/ngày được ghi nhận, Run dừng các Event chưa gửi; Event đã xử lý được giữ nguyên lịch sử.
-- PL3 → PL4 dùng duy nhất API ID + token. Mỗi `pl3_inspection_results` có tối đa một outbox event (UNIQUE `inspection_result_id`) và tối đa một PL4 Issue (UNIQUE `source_inspection_result_id`); retry cập nhật cùng outbox row, không tạo event/Issue mới. Outbox xác định Inspection thông qua `inspection_result_id → inspection_id`, tránh lưu hai FK nguồn có thể lệch nhau.
+- PL3 → PL4 dùng Outbox nội bộ trên cùng MySQL trong ứng dụng PHP. Outbox row được tạo cùng transaction với Inspection Result; PHP Worker claim/xử lý/retry an toàn khi chạy đồng thời. Không tiếp tục Apps Script Web App hoặc Google Sheets làm nguồn tích hợp khi vận hành PHP.
+- Mỗi `pl3_inspection_results` có tối đa một outbox event (UNIQUE `inspection_result_id`) và tối đa một PL4 Issue (UNIQUE `source_inspection_result_id`); retry cập nhật cùng outbox row, không tạo event/Issue mới. Outbox xác định Inspection thông qua `inspection_result_id → inspection_id`, tránh lưu hai FK nguồn có thể lệch nhau.
+- ISSUE PL3 lưu FK nguồn để truy nguyên và snapshot Inspection/Room/Checklist version/item/FAIL remarks tại thời điểm tạo. Snapshot bất biến; thay đổi Checklist về sau không cập nhật ISSUE đã tạo.
 
 ### 2.5. PL4 – Issue Management
 
