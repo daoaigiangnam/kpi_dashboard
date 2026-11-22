@@ -40,6 +40,8 @@
 - [ ] Mức độ ảnh hưởng, xử lý ban đầu, nguyên nhân, owner, due date.
 - [ ] Theo dõi khắc phục, xác minh và đóng phiếu.
 - [ ] Gửi yêu cầu xác nhận và email kết quả qua queue.
+- [ ] Theo ADR-008: email PL4 dùng Queue chung; Work Report enqueue hai email riêng cho Reporter và UOA Approver trong cùng transaction; thông báo UOA CONFIRMED/NOT_CONFIRMED cho Reporter + Assignee; không gửi MSTAR trong sự kiện Work Report.
+- [ ] Bảo đảm event_key riêng theo business event + recipient role; retry cùng command không tạo thêm Work Report/Queue item; ghi attempt/audit và hỗ trợ retry FAILED theo quyền.
 
 ## Giai đoạn 6 – PL5 Work / Maintenance
 - [ ] Đăng ký khung thời gian, đơn vị thực hiện, thiết bị/hệ thống.
