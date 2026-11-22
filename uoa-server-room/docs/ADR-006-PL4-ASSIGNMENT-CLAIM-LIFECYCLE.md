@@ -12,15 +12,16 @@ ISSUE PL3 có thể được tạo tự động mà chưa xác định Assignee.
 ## 2. Quyết định đã phê duyệt
 
 1. ISSUE PL3 được tạo ở trạng thái `OPEN`, chưa có Assignee.
-2. Reporter hoặc người có quyền phân công được chỉ định Assignee. Mỗi lần chỉ định tạo một dòng `pl4_assignments` mới; không ghi đè Assignment cũ.
-3. Assignee được chỉ định nhận liên kết bảo mật gắn với đúng ISSUE và Assignment. Chỉ email/actor đã được chỉ định mới được chấp nhận thao tác nhận việc; không coi việc chuyển tiếp URL là chuyển quyền.
-4. Khi Assignee chấp nhận, hệ thống cập nhật Assignment sang `CLAIMED`, ghi `claimed_at`, actor và Audit Log; ISSUE chuyển từ `OPEN` sang `IN_PROGRESS`.
-5. Tại một thời điểm, một ISSUE chỉ có tối đa một Assignment đang hiệu lực. Thao tác claim phải được thực hiện nguyên tử bằng transaction/row lock và kiểm tra trạng thái hiện tại. Hai yêu cầu đồng thời không được cùng thành công.
-6. Nếu Assignee từ chối, không nhận hoặc cần thay người, người có quyền phân công kết thúc Assignment hiện tại bằng trạng thái phù hợp (`DECLINED`, `EXPIRED` hoặc `RELEASED`) và tạo Assignment mới. Không xóa lịch sử.
-7. Tái phân công sau khi ISSUE đã `IN_PROGRESS` không tự ý xóa lịch sử trạng thái ISSUE; Assignment mới phải được nhận trước khi người mới thực hiện hành động nghiệp vụ. Chuyển trạng thái ISSUE tiếp tục tuân thủ state machine PL4 đã duyệt.
-8. Work Report phải tham chiếu Assignment thực hiện (`assignment_id`) để xác định đúng người xử lý và lịch sử phân công.
-9. Liên kết nhận việc dùng token bảo mật lưu hash, giới hạn đúng ISSUE/Assignment/action, có expiry, revocation và used_at; không lưu token rõ hoặc ghi token vào Audit Log.
-10. Mọi lần phân công, nhận việc, từ chối, hết hạn, giải phóng và tái phân công phải được ghi Audit Log; dữ liệu Assignment là append-only về mặt lịch sử, chỉ cập nhật các mốc/trạng thái vòng đời cần thiết.
+2. ISSUE MANUAL theo ADR-007 được chọn Assignee ngay trên Form; Assignment đầu tiên được tạo trong cùng transaction với Issue, Manual Submission, Audit, Email Queue và SLA Instance. Assignment khởi tạo ở `ASSIGNED`.
+3. Với ISSUE PL3, Reporter hoặc người có quyền phân công được chỉ định Assignee sau khi Issue được tạo. Mỗi lần chỉ định tạo một dòng `pl4_assignments` mới; không ghi đè Assignment cũ.
+4. Assignee được chỉ định nhận liên kết bảo mật gắn với đúng ISSUE và Assignment. Chỉ email/actor đã được chỉ định mới được chấp nhận thao tác nhận việc; không coi việc chuyển tiếp URL là chuyển quyền.
+5. Khi Assignee chấp nhận, hệ thống cập nhật Assignment sang `CLAIMED`, ghi `claimed_at`, actor và Audit Log; ISSUE chuyển từ `OPEN` sang `IN_PROGRESS`.
+6. Tại một thời điểm, một ISSUE chỉ có tối đa một Assignment đang hiệu lực. Thao tác claim phải được thực hiện nguyên tử bằng transaction/row lock và kiểm tra trạng thái hiện tại. Hai yêu cầu đồng thời không được cùng thành công.
+7. Nếu Assignee từ chối, không nhận hoặc cần thay người, người có quyền phân công kết thúc Assignment hiện tại bằng trạng thái phù hợp (`DECLINED`, `EXPIRED` hoặc `RELEASED`) và tạo Assignment mới. Không xóa lịch sử.
+8. Tái phân công sau khi ISSUE đã `IN_PROGRESS` không tự ý xóa lịch sử trạng thái ISSUE; Assignment mới phải được nhận trước khi người mới thực hiện hành động nghiệp vụ. Chuyển trạng thái ISSUE tiếp tục tuân thủ state machine PL4 đã duyệt.
+9. Work Report phải tham chiếu Assignment thực hiện (`assignment_id`) để xác định đúng người xử lý và lịch sử phân công.
+10. Liên kết nhận việc dùng token bảo mật lưu hash, giới hạn đúng ISSUE/Assignment/action, có expiry, revocation và used_at; không lưu token rõ hoặc ghi token vào Audit Log.
+11. Mọi lần phân công, nhận việc, từ chối, hết hạn, giải phóng và tái phân công phải được ghi Audit Log; dữ liệu Assignment là append-only về mặt lịch sử, chỉ cập nhật các mốc/trạng thái vòng đời cần thiết.
 
 ## 3. Trạng thái Assignment
 
