@@ -1,7 +1,7 @@
 # ADR-005 – Hợp đồng tích hợp PL3 → PL4
 
-**Phiên bản:** 0.2  
-**Trạng thái:** PROPOSED – D1 ĐÃ CHỐT; D2–D3 CHỜ XÁC NHẬN  
+**Phiên bản:** 0.3  
+**Trạng thái:** PROPOSED – D1, D2 ĐÃ CHỐT; D3 CHỜ XÁC NHẬN  
 **Ngày lập:** 22/11/2026  
 **Phạm vi:** Định danh nguồn FAIL, idempotency và giao nhận sự kiện giữa PL3 và PL4 khi chuyển sang PHP/MySQL.
 
@@ -33,10 +33,15 @@ Thiết kế Checklist PL3 động đã xác định `pl3_inspection_results` v�
 
 Ngày 22/11/2026, chủ nghiệp vụ xác nhận dùng `pl3_inspection_results.id` làm khóa nguồn chuẩn và đặt UNIQUE trên `pl4_issues.source_inspection_result_id`. Một kết quả Inspection Result chỉ được liên kết tối đa một Issue PL4. D1 được xem là đã chốt; D2 và D3 vẫn đang chờ xác nhận.
 
-### Các điểm còn chờ xác nhận
+### D2 – Cùng MySQL, xử lý Outbox bằng PHP Worker: ĐÃ ĐỒNG Ý
 
-- **D2:** Đồng ý PL3 Outbox và PL4 cùng dùng MySQL trong một ứng dụng PHP, worker xử lý nội bộ; không tiếp tục gọi Apps Script Web App/Google Sheets khi vận hành PHP?
-- **D3:** Khi một Issue PL3 đã được tạo, nếu Checklist version hoặc nội dung item thay đổi về sau, Issue giữ nguyên snapshot tại thời điểm tạo; không đồng bộ ngược các thay đổi sau đó?
+Ngày 22/11/2026, chủ nghiệp vụ xác nhận PL3 Outbox và PL4 cùng dùng MySQL trong ứng dụng PHP; PHP Worker xử lý Outbox nội bộ. Khi vận hành hệ thống PHP mới, không tiếp tục gọi Apps Script Web App hoặc đọc Google Sheets làm nguồn dữ liệu tích hợp.
+
+Hệ quả thiết kế: Outbox row được tạo trong cùng transaction với Inspection Result; Worker claim và xử lý theo cơ chế an toàn khi chạy đồng thời; retry cùng event/source ID; ghi trạng thái, số lần thử, thời điểm thử tiếp theo và lỗi đã làm sạch; Issue được tạo trong transaction có UNIQUE `source_inspection_result_id`. Worker không gửi email trực tiếp mà tạo Email Queue record trong transaction nghiệp vụ phù hợp.
+
+### D3 – Snapshot dữ liệu PL3 trên Issue: CHỜ XÁC NHẬN
+
+Khi một Issue PL3 đã được tạo, nếu Checklist version hoặc nội dung item thay đổi về sau, Issue có giữ nguyên snapshot tại thời điểm tạo và không đồng bộ ngược các thay đổi sau đó hay không?
 
 ## 4. Các nguyên tắc không thay đổi
 
