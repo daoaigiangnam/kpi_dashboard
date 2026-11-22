@@ -469,6 +469,7 @@ erDiagram
       datetime claimed_at
       datetime released_at
       varchar status
+      bigint active_issue_id GENERATED,UK
       text note
     }
     PL4_WORK_REPORTS {
