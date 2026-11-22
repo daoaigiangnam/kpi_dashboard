@@ -55,7 +55,7 @@ Nếu bất kỳ bước ghi DB nào thất bại, rollback toàn bộ transacti
 
 Bảng `pl4_manual_submissions` gồm tối thiểu:
 - `id` PK.
-- `issue_id` FK `pl4_issues(id)`, NOT NULL.
+- `issue_id` FK `pl4_issues(id)`, NOT NULL, UNIQUE; mỗi ISSUE MANUAL chỉ có một submission nguồn.
 - `source_form_id` VARCHAR(190), NOT NULL.
 - `form_response_id` VARCHAR(190), NOT NULL.
 - `reporter_name_snapshot` VARCHAR(160) NULL.
