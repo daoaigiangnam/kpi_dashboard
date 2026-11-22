@@ -105,6 +105,7 @@ INDEX `(room_id, contact_type, is_active)`. Cần bảo đảm chỉ có một p
 | Cột | Kiểu | Null | Ý nghĩa |
 |---|---|---:|---|
 | id | BIGINT UNSIGNED | NO | PK |
+| business_entity_id | BIGINT UNSIGNED | NO | UNIQUE FK business_entities(id); định danh supertype của hồ sơ gốc |
 | request_code | VARCHAR(50) | NO | UNIQUE |
 | request_type | VARCHAR(20) | NO | NEW / CHANGE / REVOKE |
 | room_id | BIGINT UNSIGNED | NO | FK server_rooms |
@@ -136,6 +137,7 @@ INDEX `(room_id, person_email, approval_status)`, `(approval_status, submitted_a
 | Cột | Kiểu | Null | Ý nghĩa |
 |---|---|---:|---|
 | id | BIGINT UNSIGNED | NO | PK |
+| business_entity_id | BIGINT UNSIGNED | NO | UNIQUE FK business_entities(id); định danh supertype của hồ sơ gốc |
 | room_id | BIGINT UNSIGNED | NO | FK server_rooms |
 | person_name | VARCHAR(160) | NO | Người có quyền |
 | person_email | VARCHAR(190) | NO | Email |
