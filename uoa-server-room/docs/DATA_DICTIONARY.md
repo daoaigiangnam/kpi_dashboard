@@ -212,6 +212,8 @@ INDEX `(approval_status, created_at)`, `(room_id, planned_entry_at)`, `(visit_st
 
 UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` vì cần xác nhận quy tắc nhiều lần kiểm tra/tần suất. Dùng `idempotency_keys` theo Form Response ID; kiểm soát phiếu hợp lệ theo kỳ bằng service.
 
+**Lưu ý chờ ADR-003:** `frequency` hiện chỉ là thuộc tính dự kiến trong bản thiết kế, chưa được xác nhận là dữ liệu thực tế của Form đang triển khai. Phụ lục 3 PDF có Daily when MSTAR is onsite / Weekly / Monthly; tuy nhiên Apps Script được cung cấp không khai báo cột Frequency, không tạo câu hỏi Frequency và không lưu giá trị này. Không đặt NOT NULL hoặc áp dụng lịch Weekly/Monthly trước khi chốt ADR-003.
+
 ### 5.3 `pl3_inspection_results`
 
 `id PK, inspection_id FK, checklist_item_id FK, result (PASS/FAIL/NA), remarks_action TEXT NULL, created_at`. UNIQUE `(inspection_id, checklist_item_id)`. CHECK nghiệp vụ: FAIL bắt buộc remarks_action.
