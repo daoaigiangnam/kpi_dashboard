@@ -262,7 +262,7 @@ Token xác thực API phải tách biệt token thao tác của người thực 
 - `PL3`: tự động từ từng checklist item FAIL.
 - `MANUAL`: người dùng tạo thủ công qua Form PL4; Settings có ALLOW_MANUAL_CREATION.
 
-Với nguồn PL3, mỗi FAIL item là một ISSUE riêng. Khóa PL3_Reference_Key dùng để ngăn tạo trùng theo nguồn Inspection và Checklist Item.
+Với nguồn PL3, mỗi kết quả checklist FAIL là một ISSUE riêng. Trong hệ thống PHP, khóa nguồn chuẩn là `pl3_inspection_results.id` (`source_inspection_result_id` UNIQUE), không phụ thuộc mã hiển thị của checklist item; mã và nội dung câu hỏi được lưu snapshot để giữ lịch sử khi PL3 thay đổi Checklist động.
 
 ### 6.2. Dữ liệu ISSUE
 
@@ -270,7 +270,7 @@ Các trường chính trong PL4 Issues:
 - Issue_ID, Created_At, Source_Type;
 - Source_Inspection_ID, Source_Room_ID, Source_Room_Name, Source_Location;
 - Source_Checklist_Item_ID, Source_Checklist_Item, Source_FAIL_Remarks;
-- Title, Description, Priority;
+- Title, Description, Priority (chọn từ danh mục Priority động);
 - Room_ID, Room_Name, Location;
 - Reporter_Name, Reporter_Email;
 - Assignee_Name, Assignee_Email;
@@ -314,7 +314,10 @@ UOA là bên xác nhận cuối cùng; không bắt buộc có bước UOA duy�
 - PL4 đọc danh mục phòng/người duyệt từ PL1.
 - PL4 có API secret để nhận dữ liệu PL3; phải lưu secret an toàn, không ghi vào tài liệu hoặc log công khai.
 - PL4 có ALLOW_MANUAL_CREATION và SYSTEM_STATUS.
-- Mã PL4 hiện dùng MailApp trực tiếp ở các luồng email được rà soát; chưa thấy queue-first retry tương đương PL1/PL2/PL5.
+- Priority được quản lý động bởi Super Admin; danh mục khởi tạo LOW/MEDIUM/HIGH/CRITICAL. Mỗi ISSUE lưu Priority ID cùng snapshot mã/tên.
+- ISSUE MANUAL chọn Priority active. ISSUE từ PL3 mặc định HIGH qua Business Settings `PL4_PL3_DEFAULT_PRIORITY_CODE`; Super Admin được đổi cấu hình. Cấu hình không hợp lệ phải chặn tạo ISSUE và ghi Audit Log.
+- ADR-004 không gắn SLA/escalation vào Priority và không cho cấu hình state machine.
+- Mã PL4 hiện dùng MailApp trực tiếp ở các luồng email được rà soát; chưa thấy queue-first retry tương đương PL1/PL2/PL5. PHP phải enqueue email qua dịch vụ Email Queue dùng chung, không gửi SMTP trực tiếp trong request nghiệp vụ.
 
 ---
 
@@ -1086,3 +1089,11 @@ Gói xuất là bản chụp dữ liệu tại thời điểm tạo; không thay
 - Inspection lưu phiên bản Checklist đã áp dụng; mỗi kết quả liên kết tới version item để truy xuất đúng câu hỏi, nội dung và thứ tự tại thời điểm kiểm tra.
 - Form DAILY chỉ tải phiên bản PUBLISHED có hiệu lực. Nếu không có phiên bản hợp lệ, không cho mở/nộp phiếu và ghi Audit Log lỗi cấu hình.
 - Phiên bản đầu tiên khởi tạo đủ 12 câu hỏi I01–I12 theo Phụ lục 3. Số lượng câu hỏi về sau lấy theo version items, không hard-code trong PHP.
+
+
+### Quyết định ADR-004 – PL4 Priority (đã phê duyệt 22/11/2026)
+
+- D1: Quản lý Priority bằng danh mục động, khởi tạo LOW/MEDIUM/HIGH/CRITICAL.
+- D2: Mỗi ISSUE lưu `priority_id`, `priority_code_snapshot`, `priority_name_snapshot`; snapshot không đổi theo các lần chỉnh sửa danh mục.
+- D3: ISSUE từ PL3 mặc định HIGH qua Business Settings `PL4_PL3_DEFAULT_PRIORITY_CODE`; Super Admin có thể thay đổi. Cấu hình sai hoặc Priority inactive thì chặn tạo ISSUE, ghi Audit Log và cho phép retry sau khi sửa cấu hình.
+- Priority không tự quyết định SLA, escalation hoặc state transition. State machine PL4 đã chốt giữ nguyên.
