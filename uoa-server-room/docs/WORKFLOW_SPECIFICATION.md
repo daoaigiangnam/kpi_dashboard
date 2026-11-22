@@ -207,6 +207,8 @@ Quy tắc:
 - Phòng gửi lên phải khớp chính xác với danh mục phòng ACTIVE hiện tại của PL1.
 - Form Response ID chống xử lý lặp.
 
+**Đối chiếu tần suất:** Phụ lục 3 PDF có lựa chọn Daily when MSTAR is onsite / Weekly / Monthly. Tuy nhiên, mã Apps Script PL3 được cung cấp không tạo câu hỏi Frequency, không có cột Frequency trong `INSPECTION_HEADERS` và không đọc/lưu Frequency khi submit. Vì vậy danh sách trường Form ở trên phản ánh mã setup được cung cấp, chưa xác nhận giao diện live. Quyết định có đưa Frequency vào Form PHP được theo dõi riêng tại `ADR-003-PL3-INSPECTION-FREQUENCY.md`; không đồng nhất Frequency kiểm tra với lịch cảnh báo DAILY đã chốt tại ADR-002.
+
 ### 5.2. Ghi nhận và xác nhận UOA
 
 1. Khi nhận Form, hệ thống tạo Inspection_ID.
@@ -413,13 +415,14 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 | Q08 | PL4 có queue/retry email ở bản đang triển khai không | Mã nguồn đã đọc cho thấy gửi MailApp trực tiếp ở các nhánh; cần kiểm tra các nhánh còn lại |
 | Q09 | Chốt phạm vi read-only PL5 Dashboard và nhóm tài khoản được xem | ĐÃ CHỐT: read-only; nhóm được xem gồm nhân sự UOA và nhóm MSTAR |
 | Q10 | Danh sách trường Form đang phát hành có khác mã Apps Script/workbook không | Chưa truy cập trực tiếp được giao diện Google Forms |
+| Q11 | Có đưa lựa chọn Inspection Frequency (Daily when MSTAR is onsite / Weekly / Monthly) vào Form PHP và `pl3_inspections` không | Phụ lục 3 PDF có lựa chọn này nhưng Apps Script setup hiện tại không thu thập/lưu; chờ ADR-003 |
 
 ---
 
 ## 10. Điều kiện để chuyển sang thiết kế PHP/MySQL
 
 Chỉ chuyển sang bước chốt ERD, migration và code khi:
-- Các câu hỏi Q01–Q10 được xác nhận hoặc được chủ nghiệp vụ chấp thuận cách xử lý.
+- Các câu hỏi Q01–Q11 được xác nhận hoặc được chủ nghiệp vụ chấp thuận cách xử lý.
 - Bản đồ trạng thái PL1–PL5 được duyệt.
 - Danh sách vai trò và quyền theo phòng được duyệt.
 - Danh sách email event/recipient và quy tắc retry được duyệt.
@@ -479,7 +482,7 @@ Mục này phân biệt rõ hành vi đang có trong mã cũ và hành vi cần 
 4. PL4: Không giữ trạng thái PENDING_APPROVAL/REJECTED làm luồng nghiệm thu mới, trừ khi cần lưu dữ liệu lịch sử di trú; phải lưu dấu vết các quyết định cũ.
 5. PL5: Phân quyền UOA/MSTAR phải kiểm tra ở backend trước khi trả Dashboard và dữ liệu chi tiết; người ngoài hai nhóm không được truy cập.
 
-**Trạng thái rà soát:** Đã xác định được các sai khác lớn nêu trên. Các câu hỏi Q01, Q02, Q04, Q06, Q08 và Q10 vẫn cần được giải quyết/đối chiếu trước khi thiết kế ERD và migration. Q05 được chốt theo nguyên tắc cấu hình động trên Admin. Chưa thay đổi Schema hoặc viết nghiệp vụ PHP.
+**Trạng thái rà soát:** Đã xác định được các sai khác lớn nêu trên. Các câu hỏi Q01, Q02, Q04, Q06, Q08, Q10 và Q11 vẫn cần được giải quyết/đối chiếu trước khi thiết kế ERD và migration. Riêng Q11 có ADR-003 đề xuất phương án; chưa được coi là quyết định đã chốt. Q05 được chốt theo nguyên tắc cấu hình động trên Admin. Chưa thay đổi Schema hoặc viết nghiệp vụ PHP.
 
 | D12 | Xác nhận lại người nhận cảnh báo PL3 | ĐÃ CHỐT: giữ nguyên theo Apps Script hiện tại — cấp 1 MSTAR, cấp 2 Approver (người phụ trách phòng), cấp 3 Manager. Thay thế quyết định ánh xạ người nhận trước đó. |
 
