@@ -243,7 +243,7 @@ UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` v
 
 ### 5.8 `pl3_integration_outbox`
 
-`id PK, event_key VARCHAR(190) UNIQUE, inspection_result_id FK UNIQUE, target_system, payload JSON, status (PENDING/PROCESSING/RETRY/SENT/FAILED), attempts, next_attempt_at, last_error, created_at, updated_at`. `inspection_result_id` là nguồn chuẩn; suy ra Inspection qua `pl3_inspection_results.inspection_id`, không lưu thêm `inspection_id` để tránh hai FK không nhất quán. `event_key` ổn định theo nguồn, ví dụ `PL3_FAIL:{inspection_result_id}`. Mỗi FAIL item chỉ có tối đa một outbox row; retry cập nhật row đó và tăng attempts. Không lưu API secret; payload chỉ chứa dữ liệu nghiệp vụ cần thiết.
+`id PK, event_key VARCHAR(190) UNIQUE, inspection_result_id FK UNIQUE, target_system, payload JSON, status (PENDING/PROCESSING/RETRY/SENT/FAILED), attempts, next_attempt_at, locked_at NULL, processed_at NULL, last_error NULL, created_at, updated_at`. `inspection_result_id` là nguồn chuẩn; suy ra Inspection qua `pl3_inspection_results.inspection_id`, không lưu thêm `inspection_id` để tránh hai FK không nhất quán. `event_key` ổn định theo nguồn, ví dụ `PL3_FAIL:{inspection_result_id}`. Mỗi FAIL result chỉ có tối đa một outbox row; retry cập nhật row đó và tăng attempts. Outbox được tạo trong cùng transaction với Inspection Result; PHP Worker nội bộ trên cùng ứng dụng/MySQL claim và xử lý an toàn khi chạy đồng thời. Khi vận hành PHP không tiếp tục Apps Script Web App/Google Sheets làm nguồn tích hợp. Không lưu API secret; payload chỉ chứa dữ liệu nghiệp vụ cần thiết.
 
 ## 6. PL4 – Issue Management
 
@@ -255,9 +255,9 @@ Khởi tạo LOW, MEDIUM, HIGH, CRITICAL theo nguồn PL4. Không xóa cứng Pr
 
 ### 6.2 `pl4_issues`
 
-`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), issue_code UNIQUE, source_type (PL3/MANUAL), source_inspection_result_id NULL FK UNIQUE, room_id FK, source_item_code_snapshot NULL, source_item_title_snapshot NULL, source_fail_remarks_snapshot NULL, title, description, priority_id FK, priority_code_snapshot VARCHAR(30), priority_name_snapshot VARCHAR(100), location_equipment NULL, reporter_name, reporter_email NULL, status (OPEN/IN_PROGRESS/PENDING_UOA_CONFIRMATION/CLOSED), created_at, updated_at`.
+`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), issue_code UNIQUE, source_type (PL3/MANUAL), source_inspection_result_id NULL FK UNIQUE, room_id FK, source_inspection_code_snapshot NULL, source_inspection_date_snapshot DATE NULL, source_room_code_snapshot NULL, source_room_name_snapshot NULL, source_room_location_snapshot NULL, source_checklist_version_id_snapshot BIGINT NULL, source_checklist_version_code_snapshot NULL, source_checklist_version_item_id FK NULL, source_item_code_snapshot NULL, source_item_title_snapshot NULL, source_item_description_snapshot NULL, source_result_snapshot (FAIL) NULL, source_fail_remarks_snapshot TEXT NULL, title, description, priority_id FK, priority_code_snapshot VARCHAR(30), priority_name_snapshot VARCHAR(100), location_equipment NULL, reporter_name, reporter_email NULL, status (OPEN/IN_PROGRESS/PENDING_UOA_CONFIRMATION/CLOSED), created_at, updated_at`.
 
-UNIQUE `source_inspection_result_id` (cho phép nhiều NULL với issue MANUAL) bảo đảm một kết quả PL3 chỉ sinh tối đa một Issue; service chỉ tạo Issue khi kết quả nguồn là FAIL. Cần thêm kiểm tra source_type và source FK nhất quán ở service/constraint phù hợp.
+UNIQUE `source_inspection_result_id` (cho phép nhiều NULL với issue MANUAL) bảo đảm một kết quả PL3 chỉ sinh tối đa một Issue; service chỉ tạo Issue khi kết quả nguồn là FAIL. Với ISSUE PL3, các trường `source_*_snapshot` là bản chụp tại thời điểm tạo và không được đồng bộ ngược khi Checklist, Room hoặc Inspection metadata thay đổi. FK `source_inspection_result_id` và `source_checklist_version_item_id` dùng truy nguyên; snapshot dùng làm bằng chứng lịch sử. ISSUE MANUAL để NULL toàn bộ trường snapshot nguồn PL3. Cần kiểm tra source_type và source FK nhất quán ở service/constraint phù hợp.
 
 ### 6.3 `pl4_assignments`
 
