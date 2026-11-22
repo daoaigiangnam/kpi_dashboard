@@ -325,6 +325,20 @@ UOA là bên xác nhận cuối cùng; không bắt buộc có bước UOA duy�
 
 
 
+### 6.7. Quy trình phân công / nhận việc ISSUE (ADR-006 đã phê duyệt)
+
+1. ISSUE PL3 được tạo ở trạng thái `OPEN`, chưa có Assignee.
+2. Reporter hoặc người có quyền phân công chỉ định người xử lý. Mỗi lần chỉ định tạo một dòng `pl4_assignments` mới với trạng thái `ASSIGNED`; không ghi đè Assignment cũ.
+3. Hệ thống gửi liên kết nhận việc bảo mật gắn đúng ISSUE và Assignment. Chỉ email/actor được chỉ định mới được chấp nhận; chuyển tiếp URL không chuyển quyền nhận việc.
+4. Assignee chấp nhận liên kết: Assignment chuyển `CLAIMED`, ghi `claimed_at`, actor và Audit Log; ISSUE chuyển `OPEN → IN_PROGRESS`.
+5. Mỗi ISSUE chỉ có tối đa một Assignment đang hiệu lực (`ASSIGNED` hoặc `CLAIMED`). Claim phải khóa dòng ISSUE, kiểm tra trạng thái và cập nhật trong cùng transaction. Hai request đồng thời không thể cùng thành công.
+6. Assignee từ chối, link hết hạn hoặc người có quyền giải phóng Assignment thì lưu trạng thái `DECLINED`, `EXPIRED` hoặc `RELEASED`. Tái phân công tạo Assignment mới; không xóa lịch sử.
+7. Khi thay Assignee sau khi ISSUE đã IN_PROGRESS, giữ nguyên lịch sử trạng thái ISSUE. Người mới phải claim Assignment mới trước khi gửi Work Report/thao tác thực hiện. Work Report tham chiếu đúng Assignment đã claim.
+8. Token nhận việc lưu hash, giới hạn đúng ISSUE/Assignment/action, có expiry/revocation/used_at; không ghi token rõ vào Audit Log. Claim callback phải idempotent.
+9. Assignment đã kết thúc không được dùng để gửi Work Report.
+
+Assignment statuses: `ASSIGNED`, `CLAIMED`, `DECLINED`, `EXPIRED`, `RELEASED`. Đây là vòng đời phân công, không thay thế state machine ISSUE.
+
 ### 6.7. Kết quả rà soát mã nguồn PL4 – các sai khác cần xử lý khi chuyển PHP
 
 Các điểm dưới đây là kết quả đọc `Code PL4.txt`; đây là hiện trạng mã Apps Script được cung cấp, không phải hành vi đã xác minh trên deployment/live Form.
@@ -339,7 +353,7 @@ Các điểm dưới đây là kết quả đọc `Code PL4.txt`; đây là hi�
 | PL4-R06 | Mã có các lời gọi `MailApp.sendEmail` trực tiếp trong thông báo Assignee, Reporter và Approver. | PHP phải enqueue qua Email Queue; email thất bại không rollback Issue/Report/Confirmation; retry theo policy queue chung. | Cần thay |
 | PL4-R07 | Mã dùng `PENDING_APPROVAL`, `REJECTED`, APPROVE/REJECT sau báo cáo. | Không mang trạng thái legacy sang PHP. Dùng state machine đã chốt: Assignee report COMPLETED/NOT_COMPLETED → PENDING_UOA_CONFIRMATION; UOA CONFIRMED → CLOSED; NOT_CONFIRMED + reason → IN_PROGRESS. | Đã chốt, bắt buộc tuân thủ |
 | PL4-R08 | Hàm tạo Issue có fallback Priority `MEDIUM - Trung bình` nếu không truyền Priority; PL3 integration lại truyền cứng HIGH. | PHP phải validate Priority MANUAL được chọn từ danh mục active; PL3 đọc `PL4_PL3_DEFAULT_PRIORITY_CODE`. Không fallback ngầm. | Đã chốt theo ADR-004 |
-| PL4-R09 | PL3-generated Issue ban đầu không có Assignee; Reporter nhận link và chuyển tiếp cho người xử lý. | Cần xác định rõ bước tạo Assignment/claim, quyền nhận việc, chống hai người claim đồng thời và cách tái phân công trong workflow PHP. | Cần rà soát nghiệp vụ |
+| PL4-R09 | PL3-generated Issue ban đầu không có Assignee; Reporter nhận link và chuyển tiếp cho người xử lý. | Thực hiện theo ADR-006: Reporter/người có quyền tạo Assignment; chỉ Assignee được chỉ định claim; mỗi ISSUE tối đa một Assignment hiệu lực; claim nguyên tử; từ chối/hết hạn/giải phóng và tái phân công giữ nguyên lịch sử. | Đã chốt theo ADR-006 |
 | PL4-R10 | PL4 source hiện lưu token thao tác trực tiếp ở các cột Assignee_Token/Approval_Token; có luồng tìm Issue theo token. | PHP chỉ lưu token hash, ràng buộc token với đúng Issue/action, expiry/revocation/used_at; không ghi token vào Audit Log. | Nguyên tắc bảo mật đã chốt |
 
 **Kết luận rà soát:** Không port nguyên trạng Apps Script sang PHP. Giữ lại dữ liệu nghiệp vụ cần thiết và các hành vi còn phù hợp; thay phần tích hợp, idempotency, state machine, Priority và gửi email theo kiến trúc PHP đã phê duyệt. Chưa triển khai Migration/PHP trong giai đoạn rà soát.
