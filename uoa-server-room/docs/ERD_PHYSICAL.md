@@ -711,3 +711,49 @@ Tài liệu liên quan:
 - `ERD_DESIGN.md` – ERD logic.
 - `DATA_DICTIONARY.md` – cột, kiểu dữ liệu, ràng buộc.
 - `WORKFLOW_SPECIFICATION.md` – nghiệp vụ và quyết định đã chốt.
+
+
+## 12. PL4-R08 – Physical Relationship Addendum (ADR-010)
+
+### 12.1 SLA Calendar
+- pl4_sla_calendars 1 — N pl4_sla_calendar_versions.
+- pl4_sla_calendar_versions 1 — N pl4_sla_calendar_periods.
+- pl4_sla_calendar_versions 1 — N pl4_sla_calendar_exceptions.
+- pl4_sla_policy_versions N — 1 pl4_sla_calendar_versions.
+
+Calendar Version PUBLISHED là snapshot bất biến; nhiều Policy Version có thể dùng chung một Calendar Version.
+
+### 12.2 SLA Policy và Assignment
+- pl4_sla_policies 1 — N pl4_sla_policy_versions.
+- pl4_sla_policy_versions 1 — N pl4_sla_policy_assignment_rules.
+- server_rooms 1 — N pl4_sla_policy_assignment_rules (room_id nullable để áp dụng mọi Room).
+- Default Policy Version được tham chiếu từ Business Settings key PL4_DEFAULT_SLA_POLICY_VERSION_ID; setting history lưu các lần thay đổi và thời gian hiệu lực.
+
+Rule dùng điều kiện Room + Source Type. Thứ tự: Room+Source → Room → Source → Default. Rule có effective interval [effective_from, effective_to). Không cho Rule cùng độ cụ thể và điều kiện có khoảng hiệu lực giao nhau.
+
+### 12.3 Issue SLA và Cycles
+- pl4_issues 1 — 0..1 pl4_issue_sla_instances (UNIQUE issue_id).
+- pl4_issue_sla_instances 1 — N pl4_sla_cycles.
+- pl4_issues 1 — N pl4_sla_cycles.
+- pl4_assignments 1 — N pl4_sla_cycles qua assignment_id.
+- pl4_work_reports 1 — 0..N pl4_sla_cycles qua work_report_id; UOA Confirmation Cycle tối đa một dòng cho mỗi Work Report; Assignee Resolution Cycle cũng gắn Work Report khi đã kết thúc.
+
+Một Issue tối đa một SLA Cycle RUNNING tại một thời điểm. Bảo đảm bằng transaction/row lock và constraint thích hợp. Không đặt UNIQUE assignment_id + cycle_type cho Assignee Resolution vì một Assignment có thể có nhiều Work Report/chu kỳ khi UOA NOT_CONFIRMED.
+
+### 12.4 Luồng chu kỳ
+Assignment tạo → Assignment Response; Assignee claim → kết thúc Response và bắt đầu Assignee Resolution; Work Report gửi → kết thúc Assignee Resolution và bắt đầu UOA Confirmation; UOA NOT_CONFIRMED → kết thúc UOA cycle và bắt đầu Assignee Resolution mới; UOA CONFIRMED → kết thúc UOA cycle và Issue CLOSED.
+
+SLA Worker chạy nền, tính thời gian theo Calendar Version snapshot, cập nhật BREACHED idempotent. Audit liên kết Business Entity của Issue; không tạo bảng Audit/Notification riêng.
+
+### 12.5 Bảng PL4-R08
+1. pl4_sla_calendars
+2. pl4_sla_calendar_versions
+3. pl4_sla_calendar_periods
+4. pl4_sla_calendar_exceptions
+5. pl4_sla_policies
+6. pl4_sla_policy_versions
+7. pl4_sla_policy_assignment_rules
+8. pl4_issue_sla_instances
+9. pl4_sla_cycles
+
+Đây là ERD vật lý ở mức thiết kế, chưa phải DDL/Migration. Chi tiết cột và constraint nằm trong DATA_DICTIONARY.md và ADR-010.
