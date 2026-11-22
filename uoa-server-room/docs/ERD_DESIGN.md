@@ -266,3 +266,13 @@ SLA Cycle có ba loại ASSIGNMENT_RESPONSE, ASSIGNEE_RESOLUTION, UOA_CONFIRMATI
 Elapsed time và due_at tính theo Calendar Version snapshot, không dùng phép trừ timestamp thuần. SLA Worker chạy nền, idempotent, đánh dấu BREACHED một lần. STOPPED/CANCELLED không được tính MET; BREACHED không chuyển ngược MET.
 
 Dashboard/Reports gồm R08-01 đến R08-08; ba nhóm Response, Assignee Resolution và UOA Confirmation được báo cáo riêng. Priority không tự quyết định SLA. Phân quyền UOA/MSTAR/Super Admin giữ nguyên D18/D19; Audit dùng system_audit_logs liên kết business_entity_id Issue theo ADR-009. Chi tiết đầy đủ tại ADR-010-PL4-SLA-POLICY-DASHBOARD-REPORTS.md.
+
+
+## 2.5.1. Làm rõ Manual Assignment và SLA (ADR-006/007/008/010)
+
+- Manual Form phải chọn Assignee; không tạo ISSUE MANUAL ở trạng thái chưa phân công.
+- Transaction tạo Manual Issue bao gồm Business Entity, Issue, Manual Submission, Assignment `ASSIGNED`, SLA Instance, Cycle `ASSIGNMENT_RESPONSE` nếu Instance ACTIVE, Audit và Email Queue. Nếu bất kỳ thao tác ghi DB bắt buộc nào lỗi, rollback toàn bộ.
+- `PL4_ISSUE_CREATED_MANUAL` là email duy nhất cho sự kiện tạo Manual Issue và phân công đầu tiên; không enqueue thêm `PL4_ASSIGNMENT_ASSIGNED` cho cùng Assignment.
+- ISSUE PL3 vẫn khởi tạo OPEN/chưa có Assignee; Assignment Response chỉ bắt đầu khi Assignment được tạo.
+- Một Cycle RUNNING trên mỗi Issue được bảo vệ bằng generated column `active_issue_id` STORED UNIQUE và transaction/row lock. UNIQUE `(work_report_id, cycle_type)` cho các Cycle gắn Work Report; không UNIQUE `(assignment_id, cycle_type)`.
+- SLA Instance ACTIVE chuyển COMPLETED khi Issue CLOSED; NOT_CONFIGURED giữ nguyên NOT_CONFIGURED. Khi kết thúc Cycle, kiểm tra elapsed ngay để phân loại MET/BREACHED/STOPPED chính xác, không phụ thuộc thời điểm Worker chạy.
