@@ -429,7 +429,7 @@ erDiagram
     SERVER_ROOMS ||--o{ PL4_ISSUES : contains
     PL3_INSPECTION_RESULTS o|--o| PL4_ISSUES : may_create
     PL3_CHECKLIST_VERSION_ITEMS o|--o{ PL4_ISSUES : snapshot_source
-    PL4_ISSUES ||--o{ PL4_MANUAL_SUBMISSIONS : source_submission
+    PL4_ISSUES ||--o| PL4_MANUAL_SUBMISSIONS : source_submission
     PL4_ISSUES ||--o{ PL4_ASSIGNMENTS : assigned
     PL4_ISSUES ||--o{ PL4_WORK_REPORTS : receives
     PL4_ASSIGNMENTS o|--o{ PL4_WORK_REPORTS : context
@@ -473,7 +473,7 @@ erDiagram
     }
     PL4_MANUAL_SUBMISSIONS {
       bigint id PK
-      bigint issue_id FK
+      bigint issue_id FK,UK
       varchar source_form_id
       varchar form_response_id
       varchar reporter_name_snapshot
