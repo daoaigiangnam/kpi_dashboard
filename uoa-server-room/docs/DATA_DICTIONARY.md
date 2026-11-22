@@ -459,4 +459,4 @@ INDEX: (business_entity_id, occurred_at), (event_code, occurred_at), (actor_user
 
 ## 11. Kết luận và trạng thái
 
-**Data Dictionary v0.2 – DRAFT, đã áp dụng ADR-001; chưa phải Migration sẵn sàng chạy.** Đây là cấu trúc vật lý đề xuất để rà soát, không phải migration sẵn sàng chạy. Các cột/constraint có thể điều chỉnh sau khi giải quyết các điểm ở Mục 10. Sau khi chốt các điểm nghiệp vụ còn mở và rà soát đầy đủ subtype, bước kế tiếp mới là Migration theo thứ tự phụ thuộc.
+**Data Dictionary v0.4 – DRAFT, đã đồng bộ ADR-001 đến ADR-009; chưa phải Migration sẵn sàng chạy.** Đây là cấu trúc vật lý đề xuất để rà soát, không phải migration sẵn sàng chạy. Các cột/constraint có thể điều chỉnh sau khi giải quyết các điểm ở Mục 10. Sau khi chốt các điểm nghiệp vụ còn mở và rà soát đầy đủ subtype, bước kế tiếp mới là Migration theo thứ tự phụ thuộc.
