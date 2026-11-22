@@ -740,3 +740,332 @@ Yêu cầu bảo mật:
 
 
 | D21 | Ghi nhận sự kiện thành công và thất bại | ĐÃ CHỐT: Audit Log chung ghi nhận cả SUCCESS và FAILED, bao gồm thao tác nghiệp vụ, xác thực, truy cập bị từ chối, gửi Email, tích hợp API và tác vụ tự động. Không ghi mật khẩu, OTP, token hoặc API Secret dạng rõ. |
+
+
+---
+
+## 17. Thiết kế Audit Log tập trung và danh mục sự kiện PL1–PL5
+
+### 17.1. Mục tiêu và nguyên tắc kiến trúc
+
+**Quyết định đã chốt:** PL1, PL2, PL3, PL4 và PL5 sử dụng chung một bảng nhật ký tập trung là `system_audit_logs`. Bảng này ghi nhận cả sự kiện thành công (`SUCCESS`) và thất bại (`FAILED`).
+
+Một bảng chung không có nghĩa thay thế các bảng nghiệp vụ hoặc bảng lịch sử chi tiết của từng phân hệ. Mỗi PL vẫn lưu dữ liệu nghiệp vụ theo cấu trúc riêng; `system_audit_logs` là lớp nhật ký xuyên suốt để trả lời:
+- Hồ sơ nào đã phát sinh sự kiện?
+- Sự kiện thuộc PL nào, bước workflow nào?
+- Ai hoặc thành phần hệ thống thực hiện?
+- Thực hiện lúc nào, qua kênh nào?
+- Trạng thái trước và sau là gì?
+- Kết quả thành công/thất bại, lý do và bằng chứng liên quan?
+- Sự kiện này liên quan đến các sự kiện/hồ sơ nào khác?
+
+Nguyên tắc:
+1. Mỗi hành động hoặc sự kiện có ý nghĩa kiểm soát tạo một bản ghi riêng; không ghi đè sự kiện cũ.
+2. Ghi nhận được cả sự kiện nghiệp vụ, bảo mật, tích hợp, email, scheduler và thay đổi cấu hình có ảnh hưởng.
+3. Sự kiện phải gắn với `module`, `entity_type`, `entity_id`, `workflow_step` và `event_code` khi có hồ sơ liên quan.
+4. Sự kiện hệ thống chưa gắn hồ sơ cụ thể vẫn phải ghi nhận, ví dụ lỗi scheduler hoặc thay đổi cấu hình; khi đó entity có thể để NULL và phải có context phù hợp.
+5. Các bản ghi Audit Log là append-only đối với ứng dụng nghiệp vụ: không cung cấp chức năng sửa/xóa cho Super Admin, UOA hoặc MSTAR.
+6. Super Admin quản trị hệ thống/cấu hình nhưng không được xem hoặc can thiệp dữ liệu nghiệp vụ PL1–PL5. Không cấp quyền đọc Audit Log nghiệp vụ cho Super Admin chỉ vì có quyền quản trị.
+7. Audit Log không thay thế Approval History, Execution History, Verification History, Inspection Details hoặc các bằng chứng nghiệp vụ chuyên biệt.
+
+### 17.2. Cấu trúc dữ liệu đề xuất cho `system_audit_logs`
+
+| Trường | Kiểu/ý nghĩa đề xuất | Quy tắc |
+|---|---|---|
+| `id` | BIGINT hoặc UUID/ULID | Khóa chính, duy nhất |
+| `event_uuid` | UUID | Mã sự kiện duy nhất, chống ghi nhận trùng khi retry |
+| `module` | VARCHAR/ENUM | PL1, PL2, PL3, PL4, PL5, SYSTEM |
+| `entity_type` | VARCHAR | Loại hồ sơ, ví dụ ACCESS_REQUEST, VISIT, INSPECTION, ISSUE, WORK |
+| `entity_id` | VARCHAR | ID hồ sơ nguồn; giữ được ID dạng chuỗi |
+| `parent_entity_type` | VARCHAR, nullable | Hồ sơ cha/liên kết nếu có |
+| `parent_entity_id` | VARCHAR, nullable | ID hồ sơ cha/liên kết |
+| `workflow_step` | VARCHAR | Bước quy trình, ví dụ REQUEST, APPROVAL, CHECK_IN, EXECUTION |
+| `event_code` | VARCHAR | Mã sự kiện ổn định, không phụ thuộc câu chữ hiển thị |
+| `event_name` | VARCHAR | Tên sự kiện hiển thị |
+| `event_category` | VARCHAR | WORKFLOW, APPROVAL, SECURITY, EMAIL, INTEGRATION, SCHEDULER, CONFIGURATION |
+| `result` | VARCHAR | SUCCESS, FAILED, DENIED, SKIPPED, INFO |
+| `old_status` | VARCHAR, nullable | Trạng thái trước hành động |
+| `new_status` | VARCHAR, nullable | Trạng thái sau hành động |
+| `actor_type` | VARCHAR | UOA, MSTAR, REQUESTER, EXECUTOR, ASSIGNEE, SYSTEM, API_CLIENT, SUPER_ADMIN |
+| `actor_id` | VARCHAR, nullable | ID tài khoản nếu có |
+| `actor_email` | VARCHAR, nullable | Email đã xác minh/được dùng cho hành động; không tự coi email Form là đã xác minh |
+| `actor_label` | VARCHAR, nullable | Tên hiển thị tại thời điểm phát sinh |
+| `action_channel` | VARCHAR | ADMIN, EMAIL_APPROVAL, EMAIL_LINK_ACTION, PUBLIC_FORM, API, SCHEDULER, SYSTEM |
+| `description` | TEXT | Mô tả ngắn, dễ đọc |
+| `reason` | TEXT, nullable | Lý do/ghi chú do người thao tác cung cấp hoặc lý do hệ thống |
+| `old_values` | JSON, nullable | Các trường nghiệp vụ liên quan trước thay đổi; chỉ lưu phần cần thiết |
+| `new_values` | JSON, nullable | Các trường nghiệp vụ liên quan sau thay đổi; chỉ lưu phần cần thiết |
+| `metadata` | JSON, nullable | Chi tiết sự kiện, mã lỗi, số lần thử, cấu hình áp dụng... |
+| `correlation_id` | UUID/VARCHAR, nullable | Liên kết chuỗi sự kiện của cùng một yêu cầu/luồng xử lý |
+| `causation_id` | UUID/VARCHAR, nullable | Sự kiện trực tiếp gây ra sự kiện hiện tại |
+| `request_id` | VARCHAR, nullable | Mã request HTTP/job/API để truy vết kỹ thuật |
+| `ip_address` | VARCHAR, nullable | IP nguồn khi có và được phép thu thập |
+| `user_agent` | TEXT, nullable | Thiết bị/trình duyệt khi có |
+| `occurred_at` | DATETIME(6) | Thời điểm sự kiện thực tế xảy ra |
+| `recorded_at` | DATETIME(6) | Thời điểm ghi vào hệ thống |
+| `error_code` | VARCHAR, nullable | Mã lỗi chuẩn hóa |
+| `error_message` | TEXT, nullable | Thông báo lỗi đã làm sạch, không chứa secret/PII không cần thiết |
+
+**Lưu ý thiết kế:** `entity_id` dùng kiểu chuỗi để có thể liên kết các mã hồ sơ hiện tại và tương lai; không ép mọi PL dùng cùng một kiểu ID. Cần index tối thiểu cho `event_uuid`, `module + entity_type + entity_id`, `event_code`, `occurred_at`, `actor_id/actor_email`, `correlation_id` và `result`. Kiểu cột, độ dài, JSON support và chiến lược partition/index sẽ được chốt trong ERD/migration theo MySQL 8 và quy mô dữ liệu thực tế.
+
+### 17.3. Danh mục sự kiện dùng chung
+
+Các event code dưới đây là mã chuẩn hóa đề xuất cho PHP. Mã không được đổi tùy tiện sau khi đã phát sinh dữ liệu; nội dung hiển thị có thể dịch/chỉnh sửa mà không đổi mã.
+
+| Nhóm | Event code dùng chung | Ý nghĩa |
+|---|---|---|
+| Tiếp nhận | `FORM_OPENED` | Form được mở nếu hệ thống có theo dõi sự kiện này |
+| Tiếp nhận | `FORM_SUBMITTED` | Form được gửi |
+| Tiếp nhận | `REQUEST_CREATED` | Hồ sơ được tạo |
+| Tiếp nhận | `REQUEST_VALIDATED` | Dữ liệu hợp lệ |
+| Tiếp nhận | `REQUEST_VALIDATION_FAILED` | Dữ liệu không hợp lệ |
+| Chống trùng | `DUPLICATE_SUBMISSION_BLOCKED` | Chặn gửi/trình xử lý trùng |
+| Quy trình | `WORKFLOW_TRANSITIONED` | Chuyển bước/trạng thái |
+| Phê duyệt | `APPROVAL_REQUESTED` | Phát sinh bước cần phê duyệt |
+| Phê duyệt | `APPROVAL_EMAIL_QUEUED` | Email phê duyệt được đưa vào queue |
+| Phê duyệt | `APPROVAL_EMAIL_SENT` | Email phê duyệt gửi thành công |
+| Phê duyệt | `APPROVAL_EMAIL_FAILED` | Gửi Email phê duyệt thất bại |
+| Phê duyệt | `APPROVAL_APPROVED` | Phê duyệt thành công |
+| Phê duyệt | `APPROVAL_REJECTED` | Từ chối |
+| Phê duyệt | `APPROVAL_DENIED` | Thao tác phê duyệt bị từ chối do sai quyền/điều kiện |
+| Phê duyệt | `APPROVAL_DUPLICATE_BLOCKED` | Chặn quyết định trùng |
+| Email | `EMAIL_QUEUED` | Email được đưa vào hàng đợi |
+| Email | `EMAIL_SEND_ATTEMPTED` | Bắt đầu một lần gửi |
+| Email | `EMAIL_SENT` | Gửi thành công |
+| Email | `EMAIL_SEND_FAILED` | Gửi thất bại |
+| Email | `EMAIL_RETRY_SCHEDULED` | Lên lịch gửi lại |
+| Email | `EMAIL_RETRY_EXHAUSTED` | Hết số lần retry |
+| Email | `EMAIL_CANCELLED` | Email bị hủy theo quy tắc |
+| Token | `TOKEN_ISSUED` | Phát hành token; chỉ ghi ID/hash fingerprint an toàn, không ghi token rõ |
+| Token | `TOKEN_USED` | Token được sử dụng hợp lệ |
+| Token | `TOKEN_EXPIRED` | Token hết hạn |
+| Token | `TOKEN_REVOKED` | Token bị vô hiệu hóa |
+| Token | `TOKEN_INVALID_ATTEMPT` | Token không hợp lệ hoặc không đúng phạm vi |
+| Bảo mật | `ACCESS_DENIED` | Truy cập bị từ chối |
+| Bảo mật | `AUTHENTICATION_SUCCEEDED` | Xác thực thành công |
+| Bảo mật | `AUTHENTICATION_FAILED` | Xác thực thất bại |
+| Bảo mật | `RATE_LIMIT_TRIGGERED` | Vượt giới hạn tần suất |
+| Bảo mật | `CAPTCHA_FAILED` | CAPTCHA không hợp lệ |
+| Tích hợp | `INTEGRATION_REQUESTED` | Gửi yêu cầu tích hợp |
+| Tích hợp | `INTEGRATION_SUCCEEDED` | Tích hợp thành công |
+| Tích hợp | `INTEGRATION_FAILED` | Tích hợp thất bại |
+| Tác vụ nền | `SCHEDULER_STARTED` | Bắt đầu tác vụ |
+| Tác vụ nền | `SCHEDULER_COMPLETED` | Tác vụ hoàn tất |
+| Tác vụ nền | `SCHEDULER_FAILED` | Tác vụ thất bại |
+| Cấu hình | `CONFIGURATION_CHANGED` | Thay đổi cấu hình; lưu trước/sau và người thay đổi |
+| Cấu hình | `CONFIGURATION_APPLIED` | Cấu hình mới được áp dụng |
+| Tệp | `EVIDENCE_UPLOADED` | Tệp minh chứng được tải lên |
+| Tệp | `EVIDENCE_ACCESS_DENIED` | Truy cập minh chứng bị từ chối |
+| Hệ thống | `DATA_EXPORT_CREATED` | Tạo gói xuất dữ liệu/báo cáo |
+| Hệ thống | `DATA_EXPORT_FAILED` | Xuất dữ liệu thất bại |
+
+Không bắt buộc ghi `FORM_OPENED` cho mọi lượt mở trang nếu gây khối lượng log không cần thiết; chỉ bật khi có mục tiêu bảo mật/đo lường rõ ràng. Sự kiện đọc báo cáo thông thường có thể ghi ở mức truy cập/export theo chính sách, tránh biến Audit Log thành access log quá tải.
+
+### 17.4. Danh mục sự kiện chi tiết theo từng PL
+
+#### PL1 – Access Management
+
+| Event code | Bước | Nội dung bắt buộc trong metadata |
+|---|---|---|
+| `PL1_ACCESS_REQUEST_CREATED` | REQUEST | Request_Type NEW/CHANGE/REVOKE, Room_ID, người đề xuất, người được cấp quyền |
+| `PL1_ACCESS_REQUEST_VALIDATED` | VALIDATION | Kết quả kiểm tra email + Room_ID, điều kiện nghiệp vụ |
+| `PL1_ACCESS_REQUEST_REJECTED_VALIDATION` | VALIDATION | Mã lỗi/điều kiện không đạt |
+| `PL1_APPROVAL_REQUESTED` | APPROVAL | Người duyệt theo phòng, Approval_ID |
+| `PL1_APPROVAL_DECIDED` | APPROVAL | APPROVED/REJECTED, người duyệt, ý kiến, kênh |
+| `PL1_ACCESS_REGISTER_CREATED` | ACCESS_REGISTER | Access Record ID, trạng thái và thời hạn |
+| `PL1_ACCESS_REGISTER_UPDATED` | ACCESS_REGISTER | Các trường thay đổi, before/after |
+| `PL1_ACCESS_REVOKED` | ACCESS_REGISTER | Lý do thu hồi, người thực hiện, thời điểm |
+| `PL1_ACCESS_EXPIRED` | ACCESS_REGISTER | Valid_Until, thời điểm hệ thống xác định hết hạn |
+| `PL1_ACCESS_REACTIVATED` | ACCESS_REGISTER | Chỉ khi có luồng tái kích hoạt được phê duyệt; tham chiếu quyết định |
+| `PL1_APPROVAL_TOKEN_EXPIRED` | APPROVAL | Token phê duyệt hết hạn; không ghi token |
+| `PL1_RESULT_NOTIFICATION_SENT` | NOTIFICATION | Người nhận, loại thông báo, Email Queue ID |
+| `PL1_RESULT_NOTIFICATION_FAILED` | NOTIFICATION | Người nhận, mã lỗi gửi Email |
+
+#### PL2 – Entry / Check-in / Check-out
+
+| Event code | Bước | Nội dung bắt buộc trong metadata |
+|---|---|---|
+| `PL2_VISIT_REQUEST_CREATED` | ENTRY | Visit_ID, Room_ID, requester, thời gian dự kiến |
+| `PL2_APPROVAL_REQUESTED` | APPROVAL | Approver theo phòng, timeout áp dụng |
+| `PL2_APPROVAL_DECIDED` | APPROVAL | APPROVED/REJECTED, approver, kênh, ghi chú |
+| `PL2_APPROVAL_REMINDER_SENT` | REMINDER | Mốc 12 giờ, người nhận, thời điểm |
+| `PL2_VISIT_EXPIRED` | EXPIRY | Mốc 24 giờ từ Created_At, trạng thái trước/sau |
+| `PL2_APPROVAL_TOKEN_INVALIDATED` | TOKEN | Lý do vô hiệu hóa |
+| `PL2_CHECKIN_LINK_SENT` | CHECK_IN | Email nhận, thời điểm gửi |
+| `PL2_OTP_REQUESTED` | OTP | Visit_ID, email đích đã che một phần, OTP attempt ID |
+| `PL2_OTP_SENT` | OTP | Thời điểm email gửi thành công, thời hạn bắt đầu |
+| `PL2_OTP_SEND_FAILED` | OTP | Mã lỗi gửi, không ghi OTP |
+| `PL2_OTP_VERIFICATION_FAILED` | OTP | Số lần sai, loại lỗi; không ghi OTP |
+| `PL2_OTP_VERIFIED` | OTP | Thời điểm xác minh, attempt ID |
+| `PL2_OTP_LOCKED` | OTP | Đạt giới hạn 5 lần sai |
+| `PL2_CHECKIN_COMPLETED` | CHECK_IN | Entry_Time, Checkin_By, tên người thực tế vào |
+| `PL2_CHECKOUT_LINK_SENT` | CHECK_OUT | Email nhận, Visit_ID |
+| `PL2_CHECKOUT_COMPLETED` | CHECK_OUT | Exit_Time, Checkout_By, Work_Result, Evidence reference |
+| `PL2_VISIT_CLOSED` | CLOSE | Visit_ID, trạng thái OPEN → CLOSED |
+| `PL2_VISIT_ACTION_DENIED` | SECURITY | Lý do: chưa APPROVED, không OPEN, token sai/hết hạn... |
+
+#### PL3 – Daily Inspection
+
+| Event code | Bước | Nội dung bắt buộc trong metadata |
+|---|---|---|
+| `PL3_INSPECTION_SUBMITTED` | SUBMISSION | Inspection_ID, Room_ID, Inspection_Date, người kiểm tra, Form Response ID |
+| `PL3_INSPECTION_VALIDATION_FAILED` | VALIDATION | Checklist item/điều kiện thiếu hoặc sai |
+| `PL3_CHECKLIST_ITEM_RECORDED` | CHECKLIST | Item_ID, PASS/FAIL/N/A, remarks |
+| `PL3_INSPECTION_COMPLETED` | COMPLETION | Kết luận tổng thể, nhiệt độ, độ ẩm |
+| `PL3_FAIL_DETECTED` | DETECTION | Các Item_ID FAIL và tham chiếu |
+| `PL3_UOA_ACKNOWLEDGMENT_REQUESTED` | ACKNOWLEDGMENT | Người nhận, token reference |
+| `PL3_UOA_ACKNOWLEDGED` | ACKNOWLEDGMENT | Người xác nhận, thời điểm, kênh |
+| `PL3_ALERT_LEVEL1_SENT` | ESCALATION | MSTAR, mốc thời gian, cấu hình áp dụng |
+| `PL3_ALERT_LEVEL2_SENT` | ESCALATION | Approver, mốc thời gian, cấu hình áp dụng |
+| `PL3_ALERT_LEVEL3_SENT` | ESCALATION | Manager, mốc thời gian, cấu hình áp dụng |
+| `PL3_ALERT_SKIPPED` | ESCALATION | Cấp cảnh báo, lý do bỏ qua |
+| `PL3_ESCALATION_STOPPED` | ESCALATION | Lý do dừng, Inspection_ID/ngày/phòng |
+| `PL3_PL4_INTEGRATION_REQUESTED` | INTEGRATION | Inspection_ID, Item_ID, correlation ID |
+| `PL3_PL4_INTEGRATION_SUCCEEDED` | INTEGRATION | PL4 Issue_ID, tham chiếu nguồn |
+| `PL3_PL4_INTEGRATION_FAILED` | INTEGRATION | Mã lỗi, số lần thử, trạng thái retry |
+
+#### PL4 – Issue Management
+
+| Event code | Bước | Nội dung bắt buộc trong metadata |
+|---|---|---|
+| `PL4_ISSUE_CREATED` | INTAKE | Issue_ID, Source_Type PL3/MANUAL, nguồn liên kết |
+| `PL4_ISSUE_DUPLICATE_BLOCKED` | INTAKE | PL3_Reference_Key hoặc khóa trùng |
+| `PL4_ISSUE_ASSIGNED` | ASSIGNMENT | Assignee, người phân công, thời điểm |
+| `PL4_ISSUE_CLAIMED` | CLAIM | Assignee, thời điểm nhận |
+| `PL4_ISSUE_STARTED` | EXECUTION | Người thực hiện, thời điểm |
+| `PL4_ISSUE_REPORT_SUBMITTED` | REPORT | COMPLETED/NOT_COMPLETED, Action_Taken, Resolution_Notes, Evidence refs |
+| `PL4_UOA_CONFIRMATION_REQUESTED` | UOA_CONFIRMATION | Người nhận, thời điểm gửi |
+| `PL4_UOA_CONFIRMED` | UOA_CONFIRMATION | Người xác nhận, ghi chú, thời điểm |
+| `PL4_UOA_NOT_CONFIRMED` | UOA_CONFIRMATION | Lý do bắt buộc, trạng thái trả về IN_PROGRESS |
+| `PL4_ISSUE_CLOSED` | CLOSE | Người/luồng đóng theo quyết định UOA, thời điểm |
+| `PL4_ISSUE_REOPENED` | REOPEN | Chỉ nếu quy trình được phê duyệt có cho phép mở lại; lý do và tham chiếu |
+| `PL4_ISSUE_ACTION_DENIED` | SECURITY | Người thử thao tác, lý do từ chối |
+
+#### PL5 – Work & Maintenance Management
+
+| Event code | Bước | Nội dung bắt buộc trong metadata |
+|---|---|---|
+| `PL5_WORK_REQUEST_CREATED` | REQUEST | Work_ID, Room_ID, requester, catalog item |
+| `PL5_WORK_REQUEST_CANCELLED` | REQUEST | Người hủy, lý do, trạng thái trước/sau |
+| `PL5_WORK_APPROVAL_REQUESTED` | APPROVAL | Approver theo phòng |
+| `PL5_WORK_APPROVED` | APPROVAL | Người duyệt, ghi chú, kênh |
+| `PL5_WORK_REJECTED` | APPROVAL | Người từ chối, lý do/ghi chú |
+| `PL5_WORK_ASSIGNED` | ASSIGNMENT | Executor, người phân công |
+| `PL5_WORK_STARTED` | EXECUTION | Executor, thời điểm |
+| `PL5_WORK_ON_HOLD` | EXECUTION | Người tạm dừng, lý do nếu quy định |
+| `PL5_WORK_RESUMED` | EXECUTION | Người tiếp tục, thời điểm |
+| `PL5_WORK_RESULT_SUBMITTED` | RESULT | Kết quả, ghi chú, Evidence refs |
+| `PL5_WORK_VERIFICATION_REQUESTED` | VERIFICATION | Người xác minh, thời điểm |
+| `PL5_WORK_VERIFIED_PASS` | VERIFICATION | Verifier, kết quả, ghi chú |
+| `PL5_WORK_VERIFIED_FAIL` | VERIFICATION | Verifier, lý do, ghi chú |
+| `PL5_WORK_REWORK_REQUIRED` | REWORK | Lý do, người nhận làm lại |
+| `PL5_WORK_CLOSED` | CLOSE | Người/luồng đóng, thời điểm |
+
+Các event code là danh mục chuẩn hóa đề xuất, cần ánh xạ chính xác vào từng trạng thái/action đã được chốt và không được phát sinh event trái với state machine. Nếu một thao tác bị từ chối trước khi hồ sơ được tạo, vẫn ghi event SECURITY với entity nullable và request/correlation ID.
+
+### 17.5. Mẫu một sự kiện Audit Log
+
+Ví dụ: Assignee báo cáo ISSUE đã hoàn thành.
+
+| Trường | Giá trị minh họa |
+|---|---|
+| module | PL4 |
+| entity_type | ISSUE |
+| entity_id | ISS-2026-001 |
+| workflow_step | ASSIGNEE_REPORT |
+| event_code | PL4_ISSUE_REPORT_SUBMITTED |
+| result | SUCCESS |
+| old_status | IN_PROGRESS |
+| new_status | PENDING_UOA_CONFIRMATION |
+| actor_type | ASSIGNEE |
+| action_channel | EMAIL_LINK_ACTION hoặc ADMIN theo kênh thật |
+| description | Assignee gửi báo cáo COMPLETED |
+| reason | Nội dung ghi nhận theo biểu mẫu |
+| metadata | report_id, report_result, evidence_ids, submitted_at |
+| correlation_id | Mã liên kết toàn bộ vòng đời ISSUE |
+
+Không ghi toàn bộ nội dung file nhị phân vào JSON; chỉ ghi ID/tên tệp an toàn, checksum, dung lượng, loại MIME, người tải lên và thời điểm. Bản thân tệp được lưu trong kho minh chứng có kiểm soát quyền.
+
+### 17.6. Quy tắc ghi Log và tính toàn vẹn
+
+1. Với thay đổi dữ liệu nghiệp vụ trong MySQL, cập nhật hồ sơ và ghi Audit Log trong cùng transaction. Nếu ghi Log bắt buộc thất bại thì rollback thay đổi nghiệp vụ.
+2. Với email/API/tác vụ ngoài transaction DB, ghi sự kiện yêu cầu/attempt và kết quả riêng; dùng queue/outbox và correlation ID để truy vết retry. Không ghi SUCCESS trước khi hệ thống bên ngoài xác nhận thành công.
+3. Khi thao tác bị từ chối do sai quyền, sai trạng thái, token sai/hết hạn hoặc OTP sai, ghi FAILED/DENIED theo event code tương ứng; tránh lưu dữ liệu nhạy cảm nhập vào.
+4. Khi scheduler chạy, ghi run ID, job name, thời gian bắt đầu/kết thúc, số lượng xử lý thành công/thất bại và mã lỗi tổng hợp; sự kiện chi tiết theo hồ sơ vẫn phải có khi có thay đổi nghiệp vụ.
+5. Không ghi mật khẩu, OTP dạng rõ, token, API Secret, session ID, nội dung xác thực bí mật hoặc dữ liệu cá nhân không cần thiết. Email/điện thoại trong metadata phải được giới hạn/che khi không cần đầy đủ.
+6. Bảng Audit Log không có chức năng UPDATE/DELETE trong ứng dụng. Quyền DB trực tiếp được giới hạn; mọi truy cập quản trị DB ngoài luồng ứng dụng phải theo quy trình vận hành và được ghi nhận ở lớp hạ tầng phù hợp.
+7. Bổ sung backup, giám sát dung lượng, kiểm tra tính toàn vẹn và cảnh báo khi ghi Log lỗi. Thời hạn lưu giữ (retention), yêu cầu pháp lý và phương án lưu trữ dài hạn cần được chủ hệ thống phê duyệt trước production.
+8. Đồng bộ thời gian máy chủ theo NTP và lưu thời gian thống nhất; hiển thị theo Asia/Ho_Chi_Minh. Lưu `occurred_at` và `recorded_at` để phân biệt lúc sự kiện xảy ra và lúc hệ thống ghi nhận.
+9. Tránh ghi log quá mức cho thao tác đọc thông thường; ưu tiên ghi sự kiện có ý nghĩa kiểm soát, thay đổi, xác thực, xuất dữ liệu, lỗi và truy cập nhạy cảm.
+10. Audit Log là dữ liệu bằng chứng; không dùng nó làm nguồn duy nhất để tính trạng thái hiện tại. Trạng thái hiện tại lấy từ bảng nghiệp vụ; Audit Log dùng để tái dựng lịch sử.
+
+### 17.7. Tra cứu Timeline và Audit & Compliance Center
+
+Chức năng đề xuất:
+
+- **Entity Timeline:** Từ một hồ sơ PL1–PL5 xem toàn bộ sự kiện theo thời gian; có bộ lọc theo event category, actor, result và action channel.
+- **Audit Search:** Tìm theo mã hồ sơ, phân hệ, phòng Server, event code, người thao tác, khoảng thời gian, kết quả SUCCESS/FAILED.
+- **Cross-PL Trace:** Tra cứu các hồ sơ liên kết, ví dụ PL3 Inspection → PL4 Issue; một sự kiện có thể có parent entity và correlation ID.
+- **Audit Summary:** Tổng hợp số hồ sơ, quyết định, sự kiện lỗi, sự kiện bị từ chối, email/API thất bại, quá hạn và tình trạng tuân thủ.
+- **Evidence Package:** Tập hợp dữ liệu hồ sơ, timeline, phê duyệt, lịch sử thực hiện/xác minh và tham chiếu minh chứng thành bộ hồ sơ phục vụ kỳ Audit.
+- **Export:** Xuất Excel/PDF theo bộ lọc; ghi Audit Log cho thao tác tạo/xuất gói dữ liệu, người xuất, phạm vi và thời điểm.
+- **Read-only:** Không cung cấp chức năng sửa/xóa dữ liệu nghiệp vụ hoặc Audit Log từ màn hình báo cáo.
+
+Phân quyền:
+- **UOA:** Được tra cứu Audit Timeline và Audit Search đối với dữ liệu nghiệp vụ PL1–PL5 theo quyền xem báo cáo đã chốt; có thể xuất Evidence Package phục vụ Audit.
+- **MSTAR:** Chỉ xem báo cáo read-only theo quyết định D18; được xem báo cáo tổng hợp và PL5 Dashboard toàn bộ phòng Server. Việc xem raw Audit Timeline chi tiết và dữ liệu cá nhân/nhật ký bảo mật không mặc định cấp cho MSTAR.
+- **Super Admin:** Quản trị cấu hình và hệ thống; không được xem dữ liệu nghiệp vụ, báo cáo nghiệp vụ hoặc Audit Evidence của PL1–PL5. System Administration Log chỉ bao gồm sự kiện quản trị/kỹ thuật không chứa nội dung nghiệp vụ.
+
+### 17.8. Bộ báo cáo phục vụ Audit
+
+| Mã | Báo cáo | Nội dung/bằng chứng |
+|---|---|---|
+| AUD-01 | Access Rights Register | Quyền theo người/phòng, Valid From/Until, ACTIVE/EXPIRED/REVOKED |
+| AUD-02 | Access Approval History | Yêu cầu, người đề xuất, người duyệt, quyết định, kênh, thời gian |
+| AUD-03 | Access Expiry & Revocation | Quyền hết hạn/thu hồi, thời điểm, lý do, lịch sử |
+| AUD-04 | Server Room Entry/Exit Register | Người đăng ký, người thực tế vào, mục đích, Entry/Exit Time, Work Result |
+| AUD-05 | Entry Approval & OTP Evidence | Phê duyệt, reminder/expiry, OTP attempt result, Check-in/Check-out link events |
+| AUD-06 | Daily Inspection Register | Inspection theo ngày/phòng, người kiểm tra, kết luận, nhiệt độ/độ ẩm |
+| AUD-07 | Inspection Checklist Evidence | I01–I12, PASS/FAIL/N/A, remarks, evidence |
+| AUD-08 | Inspection Compliance & Escalation | Ngày phải kiểm tra, ngày thiếu phiếu, cấp cảnh báo, người nhận, thời điểm, skipped/stopped |
+| AUD-09 | Issue Register & SLA | Nguồn PL3/MANUAL, mức độ ưu tiên, assignee, trạng thái, thời gian xử lý |
+| AUD-10 | Issue Resolution & UOA Acceptance | Các lần báo cáo, minh chứng, UOA confirm/not confirm, lý do, thời điểm đóng |
+| AUD-11 | Work & Maintenance Register | Work request, catalog, requester, room, approval, executor, status |
+| AUD-12 | Work Execution & Verification | START/HOLD/RESUME/SUBMIT_RESULT, verifier, PASS/FAIL, rework, closure |
+| AUD-13 | Approval Channel & Decision Report | Quyết định qua EMAIL_APPROVAL hoặc ADMIN, actor, thời điểm, kết quả |
+| AUD-14 | Failed Events & Exception Report | OTP/token sai, access denied, email/API/job lỗi, retry và xử lý |
+| AUD-15 | Audit Trail by User | Các sự kiện do một actor thực hiện trong kỳ |
+| AUD-16 | Cross-PL Evidence Trace | Chuỗi liên kết PL3 → PL4 và các hồ sơ liên quan khác |
+| AUD-17 | System Configuration Change History | Ai thay đổi cấu hình, trước/sau, thời điểm và hiệu lực; chỉ UOA được xem các cấu hình nghiệp vụ liên quan theo quyền báo cáo, Super Admin quản trị cấu hình |
+| AUD-18 | Audit Export Register | Ai xuất bộ hồ sơ nào, phạm vi, bộ lọc, thời điểm, kết quả |
+
+Các báo cáo phải hỗ trợ lọc theo kỳ, Room, PL, trạng thái, người thực hiện và mã hồ sơ khi dữ liệu nguồn có trường tương ứng. Không tự tạo số liệu hoặc suy diễn SLA nếu chưa có quy tắc SLA được chốt.
+
+### 17.9. Cấu trúc Evidence Package
+
+Một gói bằng chứng Audit cho hồ sơ hoặc kỳ kiểm toán nên gồm:
+1. Thông tin hồ sơ và mã định danh.
+2. Dữ liệu đăng ký/tiếp nhận gốc.
+3. Trạng thái hiện tại và lịch sử chuyển trạng thái.
+4. Approval History: người duyệt, quyết định, kênh, thời điểm, ghi chú.
+5. Execution/Inspection/Verification History tương ứng.
+6. Audit Timeline đầy đủ SUCCESS/FAILED liên quan.
+7. Danh sách file minh chứng, metadata và checksum.
+8. Các email thông báo liên quan ở mức metadata: loại email, người nhận, thời điểm, trạng thái gửi, Email Queue ID; không đưa secret hoặc nội dung nhạy cảm không cần thiết.
+9. Các liên kết PL liên quan và correlation ID.
+10. Thông tin tạo gói: người xuất, thời điểm, bộ lọc/phạm vi, phiên bản mẫu báo cáo.
+
+Gói xuất là bản chụp dữ liệu tại thời điểm tạo; không thay thế dữ liệu gốc trong hệ thống. Nên có manifest liệt kê các tệp và checksum để phát hiện thay đổi sau khi xuất.
+
+### 17.10. Các điểm cần xác định trước production
+
+- Thời hạn lưu Audit Log và Evidence theo yêu cầu kiểm toán, hợp đồng và chính sách lưu trữ.
+- Chính sách lưu IP/User-Agent và thời gian lưu dữ liệu cá nhân.
+- Ai được xem raw Audit Timeline ngoài UOA; hiện không mặc định cấp cho MSTAR.
+- Có yêu cầu ký số hoặc lưu trữ bất biến/WORM cho Evidence Package hay không.
+- Dung lượng dự kiến, chiến lược partition/archive và kiểm tra hiệu năng.
+- Danh sách event code phải được đối chiếu lần cuối với ERD, state machine và từng handler PHP trước nghiệm thu.
+
+**Trạng thái:** Đây là thiết kế nghiệp vụ/kỹ thuật chi tiết đề xuất cho Audit Log và Audit & Compliance Center. Các quyết định đã chốt về một bảng Log chung, ghi SUCCESS/FAILED, phân quyền Super Admin/UOA/MSTAR và kênh Email/Admin/Public Form được giữ nguyên. Chưa tạo migration hoặc code PHP cho đến khi hoàn tất ERD và ma trận sự kiện.
+
+| D22 | Kiến trúc Audit Log tập trung | ĐÃ CHỐT NGUYÊN TẮC: Một bảng `system_audit_logs` dùng chung PL1–PL5; ghi cả SUCCESS và FAILED; không ghi đè; liên kết hồ sơ, bước workflow, actor, channel, thời gian và correlation ID. Các bảng lịch sử nghiệp vụ chi tiết vẫn được giữ riêng. |
