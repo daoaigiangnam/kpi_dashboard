@@ -315,8 +315,11 @@ erDiagram
 ```mermaid
 erDiagram
     SERVER_ROOMS ||--o{ PL3_INSPECTIONS : inspected
+    PL3_CHECKLIST_ITEMS ||--o{ PL3_CHECKLIST_VERSION_ITEMS : versioned_as
+    PL3_CHECKLIST_VERSIONS ||--|{ PL3_CHECKLIST_VERSION_ITEMS : contains
+    PL3_CHECKLIST_VERSIONS ||--o{ PL3_INSPECTIONS : selected_for
     PL3_INSPECTIONS ||--|{ PL3_INSPECTION_RESULTS : contains
-    PL3_CHECKLIST_ITEMS ||--o{ PL3_INSPECTION_RESULTS : evaluated
+    PL3_CHECKLIST_VERSION_ITEMS ||--o{ PL3_INSPECTION_RESULTS : evaluated
     PL3_INSPECTIONS ||--o{ PL3_ACKNOWLEDGEMENTS : acknowledged
     SERVER_ROOMS ||--o{ PL3_ESCALATION_RUNS : schedules
     PL3_ESCALATION_RUNS ||--o{ PL3_ESCALATION_EVENTS : emits
@@ -327,19 +330,36 @@ erDiagram
       bigint id PK
       bigint business_entity_id FK,UK\n      varchar inspection_code UK
       bigint room_id FK
+      bigint checklist_version_id FK
       date inspection_date
       varchar conclusion
     }
     PL3_CHECKLIST_ITEMS {
       bigint id PK
       varchar item_code UK
-      varchar title_vi
       boolean is_active
+    }
+    PL3_CHECKLIST_VERSIONS {
+      bigint id PK
+      varchar version_code UK
+      varchar status
+      datetime effective_from
+      datetime published_at
+    }
+    PL3_CHECKLIST_VERSION_ITEMS {
+      bigint id PK
+      bigint checklist_version_id FK
+      bigint checklist_item_id FK
+      varchar item_code_snapshot
+      varchar title_vi_snapshot
+      varchar answer_type
+      boolean fail_requires_remarks
+      smallint sort_order
     }
     PL3_INSPECTION_RESULTS {
       bigint id PK
       bigint inspection_id FK
-      bigint checklist_item_id FK
+      bigint checklist_version_item_id FK
       varchar result
       text remarks_action
     }
