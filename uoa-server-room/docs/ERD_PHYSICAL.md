@@ -1,10 +1,10 @@
 # ERD VẬT LÝ – SƠ ĐỒ QUAN HỆ PL1–PL5
-**Phiên bản:** 0.3 – Đã áp dụng ADR-001 và ADR-002; dự thảo trực quan hóa từ ERD logic và Data Dictionary  
+**Phiên bản:** 0.3 – Đã đồng bộ các quyết định ADR-001 đến ADR-008; dự thảo trực quan hóa từ ERD logic và Data Dictionary  
 **Nhánh:** `feature/ITSMWEB`  
 **CSDL mục tiêu:** MySQL 8.0 / InnoDB  
 **Trạng thái:** DRAFT – chưa triển khai Migration
 
-> Sơ đồ dưới đây biểu diễn quan hệ logic và FK dự kiến. Các bảng được chia thành nhóm để dễ đọc; các cột chi tiết xem tại `DATA_DICTIONARY.md`. Audit và Evidence liên kết bằng FK tới supertype `business_entities` theo ADR-001.
+> Sơ đồ dưới đây biểu diễn quan hệ logic và FK dự kiến. Các bảng được chia thành nhóm để dễ đọc; các cột chi tiết xem tại `DATA_DICTIONARY.md`. Audit và Evidence liên kết bằng FK tới supertype `business_entities` theo ADR-001. Email Queue liên kết với hồ sơ gốc qua `business_entity_id`; các ID Work Report/Assignment/Confirmation dùng để tạo `event_key` và metadata truy vết, không ngụ ý FK trực tiếp từ Queue tới bảng con.
 
 ## 1. Tổng quan các miền dữ liệu
 
@@ -94,9 +94,6 @@ flowchart TB
     BE --- Audit
     BE --- ELink
     Issue --- EQ
-    Assign --- EQ
-    Report --- EQ
-    Confirm --- EQ
     EQ --- EQA
     SR --- RC
     SR --- AReq
