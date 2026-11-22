@@ -1,5 +1,5 @@
 # ERD TỔNG THỂ – UOA SERVER ROOM MANAGEMENT
-**Phiên bản:** 0.2 – Đã áp dụng ADR-001, vẫn là thiết kế để rà soát, chưa phải migration chính thức  
+**Phiên bản:** 0.3 – Đã áp dụng ADR-001 và ADR-002, vẫn là thiết kế để rà soát, chưa phải migration chính thức  
 **Ngày:** 22/11/2026  
 **Phạm vi:** PL1–PL5, Admin, Email Queue, Evidence và Audit Center  
 **Nhánh:** `feature/ITSMWEB`
@@ -85,17 +85,20 @@ Quy tắc:
 | `pl3_checklist_items` | Danh mục I01–I12 | unique item_code |
 | `pl3_inspection_results` | Kết quả từng item của phiếu | FK inspection + checklist item |
 | `pl3_acknowledgements` | UOA xác nhận đã tiếp nhận hồ sơ | FK inspection; actor/channel/time |
-| `pl3_escalation_runs` | Theo dõi chu kỳ cảnh báo thiếu inspection | room + work date; config snapshot |
-| `pl3_escalation_events` | Từng cấp cảnh báo SENT/SKIPPED/STOPPED | FK escalation_run; recipient snapshot |
+| `pl3_escalation_runs` | Một chu kỳ cảnh báo thiếu inspection theo phòng/ngày/lịch | UNIQUE `(room_id, work_date, schedule_type)`; DAILY hiện tại; config snapshot |
+| `pl3_escalation_events` | Từng cấp cảnh báo, có trạng thái queue/retry riêng | FK escalation_run; recipient snapshot; email queue |
 | `calendar_holidays` | Ngày nghỉ áp dụng lịch kiểm tra | ngày; tên; active |
 | `pl3_integration_outbox` | Gửi FAIL sang PL4 có retry/idempotency | FK inspection result; event key; trạng thái |
 
 Quy tắc:
 - Một Inspection có đúng 12 kết quả checklist theo danh mục đang áp dụng; mỗi item chỉ có một kết quả trong cùng Inspection.
 - FAIL bắt buộc có remarks/action.
-- Một Inspection có thể có nhiều acknowledgement/escalation events.
-- Một Room/ngày làm việc có một chu kỳ kiểm tra/cảnh báo phù hợp với quy tắc idempotency; khóa chính xác cần chốt cùng lịch/tần suất.
-- Cấp 1 gửi MSTAR tại DAILY_DEADLINE; cấp 2 Approver, cấp 3 Manager theo cấu hình động; khi phiếu hợp lệ đến thì dừng cảnh báo còn lại.
+- Một Inspection có thể có nhiều acknowledgement; mỗi Run có tối đa một Event logic cho mỗi cấp.
+- Phạm vi lịch đã phê duyệt hiện chỉ là `DAILY`; `WEEKLY/MONTHLY` chưa được triển khai hoặc suy diễn.
+- Mỗi Run được định danh duy nhất bằng `(room_id, work_date, schedule_type)`; trong phạm vi hiện tại `schedule_type = DAILY`.
+- Run lưu snapshot cấu hình áp dụng. Event lưu recipient snapshot, mốc dự kiến/thử/gửi, trạng thái và liên kết Email Queue.
+- Level 1 đến hạn tại `DAILY_DEADLINE + ALERT_LEVEL1_DELAY_MINUTES`; Level 2/3 tính tuần tự từ thời điểm ghi nhận kết quả cấp trước cộng delay cấu hình tương ứng. Nếu cấp trước `SKIPPED`, timestamp SKIPPED vẫn là mốc tính cấp kế tiếp.
+- Khi Inspection hợp lệ đúng phòng/ngày được ghi nhận, Run dừng các Event chưa gửi; Event đã xử lý được giữ nguyên lịch sử.
 - PL3 → PL4 dùng duy nhất API ID + token; outbox giữ retry và không tạo ISSUE trùng.
 
 ### 2.5. PL4 – Issue Management
@@ -211,7 +214,7 @@ Các mục dưới đây phải đối chiếu câu hỏi còn mở trong WORKFL
 - PL1 Valid Until tính hết ngày hay hết thời điểm; thời điểm/cadence scheduler chuyển EXPIRED.
 - PL1 approval token expiry thực tế/cấu hình có cần giữ chính xác như Apps Script hay thay đổi.
 - PL2 thời hạn CHECK-IN sau khi APPROVED và cơ chế xử lý không check-in.
-- PL3 một chu kỳ inspection/escalation được khóa theo Room + ngày hay Room + tần suất + kỳ; xử lý Weekly/Monthly.
+- PL3 hiện chỉ áp dụng escalation `DAILY`; khóa Run `(room_id, work_date, schedule_type)` đã được chốt tại ADR-002. Nếu bổ sung Weekly/Monthly phải có quyết định nghiệp vụ/ADR riêng.
 - PL3 xác minh chỉ một trigger API PL3 → PL4 đang được dùng.
 - PL4 email queue/retry hiện tại và yêu cầu tương thích.
 - Các trường live Form chưa xác minh trực tiếp; phải đối chiếu workbook + Apps Script trước khi migration.
