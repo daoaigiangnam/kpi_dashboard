@@ -130,7 +130,7 @@ Quy tắc:
 - UOA xác nhận → CLOSED; UOA không xác nhận (bắt buộc lý do) → IN_PROGRESS.
 - Assignee không có quyền tự đóng ISSUE; mọi lần báo cáo và xác nhận phải lưu riêng, không ghi đè.
 - ISSUE MANUAL được tiếp nhận qua `pl4_manual_submissions`; cặp `source_form_id + form_response_id` là khóa idempotency UNIQUE. Retry cùng submission trả về ISSUE hiện hữu, không tạo ISSUE mới.
-- Tạo `business_entities` + `pl4_issues` + `pl4_manual_submissions` + `system_audit_logs` + `email_queue` trong cùng MySQL/InnoDB transaction. Lỗi ghi DB ở bất kỳ bước nào rollback toàn bộ; Email Queue Worker chỉ gửi SMTP sau Commit theo ADR-007.
+- Tạo `business_entities` + `pl4_issues` + `pl4_manual_submissions` + Assignment đầu tiên (`ASSIGNED`) + SLA Instance/Cycle (nếu Policy hợp lệ) + `system_audit_logs` + `email_queue` trong cùng MySQL/InnoDB transaction. Manual Form bắt buộc chọn Assignee hợp lệ; lỗi ghi DB ở bất kỳ bước nào rollback toàn bộ; Email Queue Worker chỉ gửi SMTP sau Commit theo ADR-007.
 - Theo ADR-008, email PL4 dùng Email Queue chung; Assignee gửi Work Report phải enqueue hai email riêng cho Reporter và UOA Approver theo Room trong cùng transaction với Work Report, Status History và Audit. Không gửi MSTAR ở sự kiện này; email lỗi không rollback nghiệp vụ.
 - Theo ADR-009, Timeline ISSUE tổng hợp dữ liệu từ Issue Status History, Assignments, Work Reports, UOA Confirmations, system_audit_logs, email_queue và email_queue_attempts. Không tạo bảng PL4 audit/notification history riêng; Audit của mọi thao tác trên bản ghi con liên kết về business_entities.id của ISSUE.
 
