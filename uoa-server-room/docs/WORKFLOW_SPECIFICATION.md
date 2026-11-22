@@ -247,9 +247,11 @@ Quy tắc từ mã và quyết định ADR-002 đã được phê duyệt:
 
 ### 5.4. Tích hợp PL3 → PL4
 
-Mã PL3 có cơ chế gửi các checklist FAIL sang Web App PL4 qua HTTP API, có PL4_WEB_APP_URL và PL4_API_SECRET. Theo xác nhận nghiệp vụ, dữ liệu liên kết tối thiểu phải có `Inspection_ID` (ID PL3), `Inspection_Item_ID` và token xác thực. PL4 lưu khóa tham chiếu ngược về PL3 và chống tạo trùng khi nhận lại cùng sự kiện.
+**Thiết kế PHP đã được phê duyệt theo ADR-005:** PL3 và PL4 dùng chung MySQL trong một ứng dụng PHP. Khi kết quả Inspection là FAIL hợp lệ, cùng transaction tạo `pl3_integration_outbox` row với UNIQUE `inspection_result_id` và event_key ổn định. PHP Worker nội bộ claim/xử lý Outbox; không tiếp tục gọi Apps Script Web App hoặc đọc Google Sheets khi vận hành PHP.
 
-Token xác thực API phải tách biệt token thao tác của người thực hiện/người duyệt; không ghi secret hoặc token nhạy cảm vào log công khai. Trong cùng file PL3 còn các hàm PL4 legacy; cần chọn duy nhất cơ chế API ID + Token làm luồng tích hợp chính thức, không kích hoạt song song cơ chế tạo ISSUE khác.
+PL4 lấy nguồn chuẩn bằng `pl3_inspection_results.id`; `pl4_issues.source_inspection_result_id` là FK UNIQUE nullable. Retry xử lý cùng Outbox/source ID, không tạo ISSUE trùng. Worker không gửi email trực tiếp; các thông báo cần thiết được đưa vào Email Queue theo transaction phù hợp. Worker phải có cơ chế claim an toàn khi chạy đồng thời, retry có backoff, lưu attempts/next_attempt_at/last_error đã làm sạch và xử lý lỗi cuối cùng để vận hành có thể theo dõi.
+
+ISSUE PL3 lưu FK nguồn để truy nguyên và snapshot Inspection code/date, Room code/name/location, Checklist version, item code/title/description, kết quả FAIL và remarks/action tại thời điểm tạo. Snapshot là bất biến; thay đổi Checklist hoặc metadata nguồn sau đó không cập nhật ISSUE đã tạo. Không dùng mã Item hoặc regex định dạng làm khóa định danh.
 
 ---
 
@@ -262,7 +264,7 @@ Token xác thực API phải tách biệt token thao tác của người thực 
 - `PL3`: tự động từ từng checklist item FAIL.
 - `MANUAL`: người dùng tạo thủ công qua Form PL4; Settings có ALLOW_MANUAL_CREATION.
 
-Với nguồn PL3, mỗi kết quả checklist FAIL là một ISSUE riêng. Trong hệ thống PHP, khóa nguồn chuẩn là `pl3_inspection_results.id` (`source_inspection_result_id` UNIQUE), không phụ thuộc mã hiển thị của checklist item; mã và nội dung câu hỏi được lưu snapshot để giữ lịch sử khi PL3 thay đổi Checklist động.
+Với nguồn PL3, mỗi kết quả checklist FAIL là một ISSUE riêng. Trong hệ thống PHP, khóa nguồn chuẩn là `pl3_inspection_results.id` (`source_inspection_result_id` UNIQUE), không phụ thuộc mã hiển thị của checklist item. ISSUE lưu snapshot đầy đủ tại thời điểm tạo; snapshot không thay đổi khi Checklist/Room/Inspection metadata được cập nhật về sau.
 
 ### 6.2. Dữ liệu ISSUE
 
@@ -329,9 +331,9 @@ Các điểm dưới đây là kết quả đọc `Code PL4.txt`; đây là hi�
 
 | Mã | Hiện trạng trong Apps Script | Rủi ro / yêu cầu khi chuyển PHP | Trạng thái |
 |---|---|---|---|
-| PL4-R01 | PL3 integration đọc trực tiếp hai sheet `Inspections` và `Inspection Details`; payload chỉ truyền Inspection_ID/Room_ID và API secret. | PHP phải nhận sự kiện từ PL3 Outbox và liên kết trực tiếp `pl3_inspection_results.id`; không đọc Google Sheets làm nguồn dữ liệu vận hành. | Thiết kế cần chốt tại ADR-005 |
-| PL4-R02 | Kiểm tra Item ID bằng regex `/^I\\d{2}$/` ở cả khâu nhận và đọc nguồn. | Không dùng regex hoặc mã hiển thị làm khóa; Checklist động cần dùng ID kết quả ổn định, đồng thời lưu snapshot item code/title/remarks. | Cần thay |
-| PL4-R03 | Khóa trùng hiện tại là chuỗi `Inspection_ID|Item_ID` trong cột PL3_Reference_Key. | Dùng UNIQUE `source_inspection_result_id`; retry cùng nguồn phải cập nhật cùng Outbox/Issue, không tạo bản ghi mới. | Thiết kế ERD đã định hướng |
+| PL4-R01 | PL3 integration đọc trực tiếp hai sheet `Inspections` và `Inspection Details`; payload chỉ truyền Inspection_ID/Room_ID và API secret. | PHP dùng chung MySQL; PL3 Outbox được xử lý bởi PHP Worker nội bộ, không đọc Google Sheets khi vận hành. | Đã chốt theo ADR-005 |
+| PL4-R02 | Kiểm tra Item ID bằng regex `/^I\\d{2}$/` ở cả khâu nhận và đọc nguồn. | Không dùng regex hoặc mã hiển thị làm khóa; dùng ID kết quả ổn định và lưu snapshot item code/title/remarks. | Đã chốt theo ADR-005 |
+| PL4-R03 | Khóa trùng hiện tại là chuỗi `Inspection_ID|Item_ID` trong cột PL3_Reference_Key. | Dùng UNIQUE `source_inspection_result_id`; retry cùng nguồn phải xử lý cùng Outbox/Issue, không tạo bản ghi mới. | Đã chốt theo ADR-005 |
 | PL4-R04 | Header `Form_Response_ID` có trong PL4 Form Responses, nhưng mã handler được đọc không lấy response ID để kiểm tra trùng trước khi tạo Issue. | Phải idempotent theo Form Response ID; đặt UNIQUE trong DB và ghi nhận response + Issue trong cùng transaction. | Cần triển khai |
 | PL4-R05 | Manual submit tạo Issue trước, sau đó mới append Form Response và Audit Log; không thấy transaction bao trọn các bước. | PHP phải tạo business entity, Issue, nguồn submission và Audit Log trong cùng transaction; lỗi giữa chừng rollback toàn bộ. | Cần triển khai |
 | PL4-R06 | Mã có các lời gọi `MailApp.sendEmail` trực tiếp trong thông báo Assignee, Reporter và Approver. | PHP phải enqueue qua Email Queue; email thất bại không rollback Issue/Report/Confirmation; retry theo policy queue chung. | Cần thay |
