@@ -1,5 +1,5 @@
 # ERD VẬT LÝ – SƠ ĐỒ QUAN HỆ PL1–PL5
-**Phiên bản:** 0.3 – Đã đồng bộ các quyết định ADR-001 đến ADR-008; dự thảo trực quan hóa từ ERD logic và Data Dictionary  
+**Phiên bản:** 0.4 – Đã đồng bộ các quyết định ADR-001 đến ADR-009; dự thảo trực quan hóa từ ERD logic và Data Dictionary  
 **Nhánh:** `feature/ITSMWEB`  
 **CSDL mục tiêu:** MySQL 8.0 / InnoDB  
 **Trạng thái:** DRAFT – chưa triển khai Migration
@@ -648,9 +648,10 @@ erDiagram
     ENTITY_EVIDENCE_LINKS {
       bigint id PK
       bigint evidence_file_id FK
-      varchar module_code
-      varchar entity_type
-      bigint entity_id
+      bigint business_entity_id FK
+      varchar purpose
+      bigint linked_by_user_id FK
+      datetime linked_at
     }
     IDEMPOTENCY_KEYS {
       bigint id PK
