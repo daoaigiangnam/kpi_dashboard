@@ -1175,3 +1175,71 @@ Gói xuất là bản chụp dữ liệu tại thời điểm tạo; không thay
 - D2: Mỗi ISSUE lưu `priority_id`, `priority_code_snapshot`, `priority_name_snapshot`; snapshot không đổi theo các lần chỉnh sửa danh mục.
 - D3: ISSUE từ PL3 mặc định HIGH qua Business Settings `PL4_PL3_DEFAULT_PRIORITY_CODE`; Super Admin có thể thay đổi. Cấu hình sai hoặc Priority inactive thì chặn tạo ISSUE, ghi Audit Log và cho phép retry sau khi sửa cấu hình.
 - Priority không tự quyết định SLA, escalation hoặc state transition. State machine PL4 đã chốt giữ nguyên.
+
+
+## 18. PL4-R08 – SLA Policy, Calendar, Assignment, Dashboard và Reports (ADR-010)
+
+**Trạng thái:** ĐÃ PHÊ DUYỆT D1–D22 ngày 22/11/2026. Thiết kế; chưa triển khai Migration/PHP.
+
+### 18.1. Nguyên tắc SLA
+SLA Assignee và UOA độc lập. Ba chỉ tiêu đo:
+- Assignment Response: Assignment được giao → Assignee claim.
+- Assignee Resolution: Assignee claim → Work Report gửi.
+- UOA Confirmation: Work Report gửi → UOA CONFIRMED/NOT_CONFIRMED.
+
+Khi Assignee gửi Work Report, Assignee Resolution dừng và UOA Confirmation bắt đầu. UOA NOT_CONFIRMED dừng chu kỳ UOA, Issue về IN_PROGRESS và bắt đầu chu kỳ Assignee Resolution mới khi Assignment còn hiệu lực. Assignment Response là KPI bổ sung; hai SLA chính là Assignee Resolution và UOA Confirmation.
+
+### 18.2. SLA Calendar
+Super Admin quản lý Calendar và Calendar Version. Calendar Version có timezone, khung giờ theo thứ, ngày nghỉ/ngày đặc biệt/ngày làm bù. Hỗ trợ 24/7, giờ hành chính và lịch tùy chỉnh. Một ngày có thể có nhiều khoảng làm việc. Thời gian lưu DB UTC; timezone mặc định Asia/Ho_Chi_Minh.
+
+Calendar Version phải PUBLISHED trước khi được Policy sử dụng; đã PUBLISHED/được sử dụng thì bất biến. Thay đổi phải tạo Version mới. Issue giữ Calendar Version snapshot.
+
+### 18.3. SLA Policy và Policy Version
+Mỗi Policy Version tham chiếu một Calendar Version và có ba target: Assignment Response, Assignee Resolution, UOA Confirmation. Cả ba target phải lớn hơn 0; chỉ Publish khi Calendar Version hợp lệ. Policy Version PUBLISHED/đã sử dụng bất biến.
+
+Priority không tự quyết định SLA. Không thay đổi ADR-004.
+
+### 18.4. SLA Policy Assignment
+Cơ chế kết hợp Default Policy và Conditional Rules. Điều kiện Rule:
+- Room (room_id nullable).
+- Source Type: PL3 hoặc MANUAL (nullable).
+
+Ưu tiên: Room+Source → Room → Source → Default. Không dùng Priority làm điều kiện.
+
+Rule có effective_from/effective_to; cấu hình có thể áp dụng ngay hoặc đặt lịch. Khoảng hiệu lực là [from, to), lưu UTC. Không cho Rule cùng độ cụ thể, cùng điều kiện chồng lấn thời gian. Nếu Rule cụ thể đã khớp nhưng Policy Version không hợp lệ, không bỏ qua Rule để dùng Default.
+
+Default Policy dùng Business Settings key PL4_DEFAULT_SLA_POLICY_VERSION_ID và setting change history, có thời gian hiệu lực; tại một thời điểm chỉ có một Default Policy hợp lệ.
+
+Khi tạo Issue, resolve Policy theo thời điểm tạo. Nếu Rule phù hợp, dùng Rule; nếu không có Rule thì dùng Default. Nếu không có Policy hợp lệ, Issue vẫn tạo, SLA Instance là NOT_CONFIGURED và ghi Audit. Không fallback ngầm hoặc đặt due date giả.
+
+### 18.5. Snapshot và SLA Instance
+Một Issue tối đa một SLA Instance. Instance lưu Policy Version, Calendar Version, Rule nguồn, Policy/Version snapshot, timezone và ba target snapshot. Thay đổi cấu hình chỉ ảnh hưởng Issue mới. Không tự tái áp dụng Policy cho Issue cũ.
+
+### 18.6. SLA Cycle và state transitions
+Ba loại Cycle:
+- ASSIGNMENT_RESPONSE: bắt đầu khi giao Assignment; kết thúc khi claim hoặc Assignment bị DECLINED/EXPIRED/RELEASED.
+- ASSIGNEE_RESOLUTION: bắt đầu khi claim; kết thúc khi gửi Work Report; khi kết thúc liên kết Work Report.
+- UOA_CONFIRMATION: bắt đầu khi gửi Work Report; kết thúc khi UOA CONFIRMED/NOT_CONFIRMED và liên kết chính xác Work Report.
+
+Một Issue tối đa một Cycle RUNNING tại một thời điểm. Một Assignment có thể có nhiều Assignee Resolution Cycle do nhiều vòng Work Report/NOT_CONFIRMED. Không dùng UNIQUE assignment_id + cycle_type cho Assignee Resolution.
+
+Reassignment tạo Assignment và Cycle mới, không xóa lịch sử. STOPPED/CANCELLED/DECLINED/RELEASED không được tính MET. Nếu quá hạn trước khi dừng thì giữ BREACHED. BREACHED không chuyển ngược MET.
+
+### 18.7. SLA Worker và Audit
+SLA Worker chạy nền, độc lập Dashboard, tính elapsed theo Calendar Version snapshot và due_at theo giờ làm việc. Worker phải idempotent, an toàn khi chạy đồng thời, ghi BREACHED một lần. Dashboard chỉ đọc.
+
+Audit dùng system_audit_logs; Issue events liên kết business_entity_id của Issue. Không tạo PL4 SLA Audit History riêng. Không gửi SMTP trực tiếp từ SLA Worker; nếu có cảnh báo email trong tương lai phải qua Email Queue và có quyết định riêng.
+
+### 18.8. Dashboard và Reports
+R08-01 Issue Register; R08-02 Issue Aging; R08-03 Priority Analysis; R08-04 Assignee Performance; R08-05 Assignee SLA Compliance; R08-06 UOA SLA Compliance; R08-07 UOA Confirmation History; R08-08 PL3 → PL4 Analysis.
+
+Bộ lọc: thời gian, Room, Priority, Issue Status, Assignee, UOA Approver, Source Type, Policy/Version, Calendar Version. Ba nhóm SLA Response, Assignee Resolution và UOA Confirmation hiển thị riêng. Chu kỳ hoàn tất có dữ liệu hợp lệ là mẫu số compliance; STOPPED/CANCELLED/NOT_CONFIGURED báo cáo riêng.
+
+### 18.9. Phân quyền
+UOA xem Dashboard/báo cáo nghiệp vụ theo phạm vi được cấp; MSTAR xem số liệu tổng hợp read-only; Super Admin quản lý cấu hình nhưng không mặc nhiên xem dữ liệu nghiệp vụ; Assignee chỉ xem SLA Issue được giao. Giữ nguyên D18/D19 và mô hình quyền đã chốt.
+
+### 18.10. Transaction và tương thích ADR
+Policy Assignment + SLA Instance nằm trong transaction tạo Issue. Manual tuân thủ ADR-007; PL3 Outbox tuân thủ ADR-005. Không thay đổi ADR-006 Assignment/Claim, ADR-008 Email Queue hoặc ADR-009 Audit. Không thay đổi state machine PL4.
+
+### 18.11. Danh mục bảng
+Bổ sung 9 bảng: pl4_sla_calendars, pl4_sla_calendar_versions, pl4_sla_calendar_periods, pl4_sla_calendar_exceptions, pl4_sla_policies, pl4_sla_policy_versions, pl4_sla_policy_assignment_rules, pl4_issue_sla_instances, pl4_sla_cycles.
