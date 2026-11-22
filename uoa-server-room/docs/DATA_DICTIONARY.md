@@ -240,7 +240,7 @@ UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` v
 
 ### 6.1 `pl4_issues`
 
-`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), issue_code UNIQUE, source_type (PL3/MANUAL), source_inspection_id NULL FK, source_inspection_result_id NULL FK UNIQUE, room_id FK, source_item_code_snapshot NULL, source_fail_remarks_snapshot NULL, title, description, priority, location_equipment NULL, reporter_name, reporter_email NULL, status (OPEN/IN_PROGRESS/PENDING_UOA_CONFIRMATION/CLOSED), created_at, updated_at`.
+`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), issue_code UNIQUE, source_type (PL3/MANUAL), source_inspection_result_id NULL FK UNIQUE, room_id FK, source_item_code_snapshot NULL, source_fail_remarks_snapshot NULL, title, description, priority, location_equipment NULL, reporter_name, reporter_email NULL, status (OPEN/IN_PROGRESS/PENDING_UOA_CONFIRMATION/CLOSED), created_at, updated_at`.
 
 UNIQUE `source_inspection_result_id` (cho phép nhiều NULL với issue MANUAL) bảo đảm một kết quả PL3 chỉ sinh tối đa một Issue; service chỉ tạo Issue khi kết quả nguồn là FAIL. Cần thêm kiểm tra source_type và source FK nhất quán ở service/constraint phù hợp.
 
