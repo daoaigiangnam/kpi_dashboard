@@ -25,11 +25,15 @@ Hệ thống PHP mục tiêu dùng MySQL/InnoDB. Cần bảo đảm một lần 
 
 ### D2 – Một MySQL Transaction cho toàn bộ ghi nhận
 
+Manual Form bắt buộc cung cấp Assignee hợp lệ ngay tại thời điểm gửi. Không tạo Manual Issue ở trạng thái chờ phân công.
+
 Trong cùng một transaction InnoDB, PHP phải thực hiện:
 1. Tạo `business_entities` và `pl4_issues` theo ADR-001, với source type MANUAL và snapshot Priority theo ADR-004.
 2. Tạo `pl4_manual_submissions`, lưu Form ID, Response ID, Issue FK, reporter snapshot và thời điểm tiếp nhận.
-3. Ghi `system_audit_logs` event `PL4_ISSUE_CREATED` / `CREATED_MANUAL` gắn đúng Business Entity.
-4. Tạo Email Queue record thông báo Assignee, với `event_key` ổn định và duy nhất cho submission/sự kiện tạo Issue.
+3. Tạo Assignment đầu tiên trong `pl4_assignments`, trạng thái `ASSIGNED`, lưu snapshot Assignee/assigner và `assigned_at`; Assignment tham chiếu Issue vừa tạo.
+4. Resolve Policy và tạo `pl4_issue_sla_instances` theo ADR-010 trong cùng transaction. Nếu SLA hợp lệ, tạo Cycle `ASSIGNMENT_RESPONSE` gắn Assignment vừa tạo; nếu NOT_CONFIGURED thì không tạo Cycle.
+5. Ghi `system_audit_logs` event `PL4_ISSUE_CREATED` / `CREATED_MANUAL` và Audit cho Assignment ban đầu, cùng liên kết Business Entity.
+6. Tạo Email Queue record thông báo Manual Issue mới cho Assignee, với `event_key` ổn định và duy nhất cho submission/sự kiện tạo Issue.
 
 Nếu bất kỳ bước ghi DB nào thất bại, rollback toàn bộ transaction; không để sót Issue, submission, audit hoặc email queue record. Việc enqueue email ở đây chỉ là ghi hàng đợi vào DB, không thực hiện gửi SMTP trong transaction.
 
@@ -47,7 +51,7 @@ Nếu bất kỳ bước ghi DB nào thất bại, rollback toàn bộ transacti
 2. Mở transaction.
 3. Thử tạo submission theo unique key (hoặc khóa/đọc submission hiện hữu theo chiến lược xử lý duplicate an toàn).
 4. Nếu đã tồn tại: lấy ISSUE liên kết, không tạo Issue/Audit/Email event mới; kết thúc theo nhánh duplicate.
-5. Nếu mới: tạo Business Entity + Issue, liên kết submission, ghi Audit và enqueue email trong cùng transaction.
+5. Nếu mới: tạo Business Entity + Issue + Manual Submission + Assignment đầu tiên + SLA Instance/Cycle (nếu cấu hình hợp lệ), ghi Audit và enqueue email trong cùng transaction.
 6. Commit; sau commit Worker gửi email.
 7. Nếu lỗi DB: rollback; request có thể retry với cùng khóa nguồn.
 
@@ -79,7 +83,8 @@ Không cần lưu toàn bộ câu trả lời Form thành bản sao JSON nếu c
 
 ## 6. Tiêu chí nghiệm thu
 
-1. Hai request đồng thời cùng Form ID + Response ID chỉ tạo một ISSUE.
+1. Hai request đồng thời cùng Form ID + Response ID chỉ tạo một ISSUE, một Assignment đầu tiên và tối đa một Email Queue event tạo Issue.
+2. Manual Form thiếu Assignee hoặc Assignee không hợp lệ bị từ chối trước khi commit; không tạo Issue mồ côi/chờ phân công.
 2. Trigger/request retry cùng Response ID trả về ISSUE cũ, không tạo ISSUE thứ hai.
 3. UNIQUE constraint chặn duplicate ngay cả khi PHP pre-check bị race.
 4. Lỗi khi tạo Issue/submission/audit/email queue làm rollback toàn bộ dữ liệu trong transaction.
