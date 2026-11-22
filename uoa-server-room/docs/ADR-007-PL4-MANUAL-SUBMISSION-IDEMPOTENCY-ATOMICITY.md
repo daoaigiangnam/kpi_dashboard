@@ -47,13 +47,13 @@ Nếu bất kỳ bước ghi DB nào thất bại, rollback toàn bộ transacti
 
 ## 3. Luồng xử lý chuẩn
 
-1. Nhận Form ID + Form Response ID và validate payload.
-2. Mở transaction.
-3. Thử tạo submission theo unique key (hoặc khóa/đọc submission hiện hữu theo chiến lược xử lý duplicate an toàn).
-4. Nếu đã tồn tại: lấy ISSUE liên kết, không tạo Issue/Audit/Email event mới; kết thúc theo nhánh duplicate.
-5. Nếu mới: tạo Business Entity + Issue + Manual Submission + Assignment đầu tiên + SLA Instance/Cycle (nếu cấu hình hợp lệ), ghi Audit và enqueue email trong cùng transaction.
+1. Nhận Form ID + Form Response ID, validate payload và Assignee.
+2. Mở transaction; tạo Business Entity + Issue trong transaction, chưa commit.
+3. Tạo `pl4_manual_submissions` với `issue_id` và cặp khóa UNIQUE `(source_form_id, form_response_id)`. Vì `issue_id` là FK NOT NULL, không insert Submission trước khi có Issue.
+4. Nếu insert Submission vi phạm UNIQUE do request đồng thời đã xử lý cùng Form Response: rollback toàn bộ transaction hiện tại, sau rollback đọc Submission đã commit và trả về ISSUE liên kết; không tạo Assignment/Audit/Email/SLA phụ trùng. Nếu transaction cạnh tranh chưa commit, chờ kết quả unique check theo cơ chế InnoDB rồi xử lý nhánh duplicate.
+5. Nếu Submission mới: tạo Assignment đầu tiên `ASSIGNED`, resolve Policy/tạo SLA Instance và Cycle `ASSIGNMENT_RESPONSE` nếu ACTIVE, ghi Audit và enqueue Email Queue trong cùng transaction.
 6. Commit; sau commit Worker gửi email.
-7. Nếu lỗi DB: rollback; request có thể retry với cùng khóa nguồn.
+7. Nếu lỗi DB khác: rollback; request có thể retry với cùng khóa nguồn.
 
 ## 4. Mô hình dữ liệu
 
