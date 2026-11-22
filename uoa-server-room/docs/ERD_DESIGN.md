@@ -116,7 +116,7 @@ Quy tắc:
 | `pl4_work_reports` | Mỗi lần Assignee báo cáo COMPLETED/NOT_COMPLETED | FK issue + Assignment; actor; result; notes |
 | `pl4_uoa_confirmations` | Mỗi lần UOA xác nhận/không xác nhận | FK issue + work_report; UOA actor; reason |
 | `pl4_issue_status_history` | Lịch sử chuyển trạng thái | FK issue; from/to; actor; reason |
-| `pl4_manual_submissions` | Idempotency/source metadata cho Form thủ công nếu cần | form response ID unique |
+| `pl4_manual_submissions` | Nguồn tiếp nhận/idempotency cho ISSUE MANUAL; một Form Response liên kết đúng một ISSUE | FK issue; UNIQUE (source_form_id, form_response_id) |
 
 Quy tắc:
 - ISSUE nguồn PL3 tham chiếu đúng `pl3_inspection_results.id`; một FAIL result chỉ sinh tối đa một ISSUE (UNIQUE `source_inspection_result_id`). Không dùng `item_code` làm khóa liên kết duy nhất.
