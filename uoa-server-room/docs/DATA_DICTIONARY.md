@@ -360,7 +360,7 @@ Với Work Report, hai email Reporter/UOA được enqueue cùng transaction v�
 
 UNIQUE `event_key`; INDEX `(status, next_attempt_at, id)`. Mỗi recipient là một queue item riêng; event_key phải ổn định theo business event + đối tượng nhận để retry không enqueue trùng. `email_queue_attempts` lưu từng lần gửi. Không lưu mật khẩu SMTP, API secret, raw OTP hoặc raw action token trong queue.
 
-PL4 theo ADR-008: khi Assignee gửi Work Report, tạo hai queue item riêng cho Reporter và UOA Approver theo Room; không gửi MSTAR. Hai item được enqueue cùng transaction với Work Report, chuyển Issue sang `PENDING_UOA_CONFIRMATION`, Status History và Audit. SMTP chỉ chạy sau Commit. UOA Approver thiếu/không duy nhất là lỗi cấu hình phải được Audit, không âm thầm bỏ qua.
+PL4 theo ADR-008: khi Assignee gửi Work Report, tạo hai queue item riêng cho Reporter và UOA Approver theo Room; không gửi MSTAR. Hai item được enqueue cùng transaction với Work Report, chuyển Issue sang `PENDING_UOA_CONFIRMATION`, Status History và Audit. SMTP chỉ chạy sau Commit. UOA Approver thiếu/không duy nhất là lỗi cấu hình phải được Audit, không âm thầm bỏ qua. Queue item tham chiếu Issue qua `business_entity_id`; ID Work Report/Assignment/Confirmation được giữ trong event metadata/correlation, không tạo FK đa hình tới các bảng con.
 
 ### 8.2 `email_queue_attempts`
 
