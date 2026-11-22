@@ -174,7 +174,7 @@ Các trạng thái nghiệp vụ đã thấy trong mã:
 
 PL2 có Email Queue riêng, worker chạy mỗi 5 phút, có trạng thái SENDING/PENDING/RETRY/SENT/FAILED/CANCELLED theo các nhánh xử lý. OTP chỉ bắt đầu tính hạn sau callback gửi email thành công.
 
-**Đề xuất nghiệp vụ chờ phê duyệt:** Nếu yêu cầu vẫn PENDING sau 12 giờ, gửi email nhắc người duyệt. Khi đủ 24 giờ tính từ Created_At mà chưa có quyết định, tự chuyển sang `EXPIRED`, vô hiệu hóa Approval_Token và ghi Audit Log. Không tự động APPROVED. Người đăng ký cần tạo yêu cầu mới nếu vẫn có nhu cầu. Yêu cầu EXPIRED không được duyệt bằng link cũ. Giá trị 12 giờ là đề xuất mới; 24 giờ lấy từ cấu hình timeout trong workbook mẫu và cần được chủ nghiệp vụ chốt.
+**Quyết định đã chốt:** Nếu yêu cầu vẫn PENDING sau 12 giờ, gửi email nhắc người duyệt. Khi đủ 24 giờ tính từ Created_At mà chưa có quyết định, tự chuyển sang `EXPIRED`, vô hiệu hóa Approval_Token và ghi Audit Log. Không tự động APPROVED. Người đăng ký cần tạo yêu cầu mới nếu vẫn có nhu cầu. Yêu cầu EXPIRED không được duyệt bằng link cũ.
 
 ---
 
@@ -403,7 +403,7 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 |---|---|---|
 | Q01 | Chốt thời điểm biên và chu kỳ chạy tác vụ tự động EXPIRED của PL1 | Đã xác nhận có tự hết hạn theo Valid From/Valid Until; còn cần chốt thời điểm biên |
 | Q02 | Thời hạn token phê duyệt PL1 và cách xử lý khi hết hạn | Cần đối chiếu giá trị Settings triển khai |
-| Q03 | Chốt đề xuất PL2: nhắc ở 12 giờ, EXPIRED ở 24 giờ, không tự duyệt | 24 giờ theo cấu hình mẫu; mốc nhắc 12 giờ là đề xuất mới |
+| Q03 | PL2: nhắc ở 12 giờ, EXPIRED ở 24 giờ, không tự duyệt | ĐÃ CHỐT theo quyết định D08 |
 | Q04 | PL2 có giới hạn thời gian được CHECK-IN sau khi duyệt hay không | Chưa chốt từ các đoạn mã đã rà |
 | Q05 | PL3 ánh xạ cấp cảnh báo 1/2/3 tới MSTAR/Approver/Manager và delay thực tế | Cần lấy đúng giá trị Settings đang chạy |
 | Q06 | Xác minh deployment thực tế chỉ kích hoạt tích hợp API PL3 ID + Token | Chủ nghiệp vụ đã chọn cơ chế ID PL3 + Token; cần kiểm tra trigger/deployment đang chạy |
@@ -434,7 +434,7 @@ Chỉ chuyển sang bước chốt ERD, migration và code khi:
 | Mã | Nội dung | Kết quả |
 |---|---|---|
 | D01 | PL1 tự hết hạn quyền truy cập | ĐÃ XÁC NHẬN: có hiệu lực theo khoảng thời gian Valid From/Valid Until; tự hết hạn, không xóa lịch sử. Đề xuất trạng thái EXPIRED riêng với REVOKED. |
-| D02 | PL2 yêu cầu chờ duyệt quá 24 giờ | ĐỀ XUẤT: nhắc ở giờ thứ 12; quá 24 giờ chuyển EXPIRED, vô hiệu hóa link duyệt, không tự duyệt; cần chủ nghiệp vụ chốt mốc nhắc 12 giờ. |
+| D02 | PL2 yêu cầu chờ duyệt quá 24 giờ | ĐÃ CHỐT: nhắc người duyệt ở giờ thứ 12; đủ 24 giờ từ Created_At mà vẫn PENDING thì chuyển EXPIRED, vô hiệu hóa link duyệt, ghi Audit Log; không tự động duyệt. |
 | D03 | PL3 người nhận cảnh báo | ĐÃ XÁC NHẬN: Cấp 1 Người thực hiện; Cấp 2 Nhóm MSTAR và Quản lý Phòng Server; Cấp 3 Quản lý của Quản lý Phòng Server. |
 | D04 | PL3 thời gian cảnh báo | ĐỀ XUẤT: Cấp 1 tại deadline; Cấp 2 +30 phút; Cấp 3 +60 phút nếu chưa có phiếu. Cho phép cấu hình. |
 | D05 | PL3 → PL4 | ĐÃ XÁC NHẬN: tích hợp bằng ID PL3 (Inspection_ID), checklist item ID và Token xác thực; cần chống gửi/tạo ISSUE trùng. |
@@ -443,9 +443,11 @@ Chỉ chuyển sang bước chốt ERD, migration và code khi:
 
 ### 11.1. Những điểm cần chủ nghiệp vụ duyệt tiếp
 
-1. PL2: Có đồng ý nhắc người duyệt ở giờ thứ 12 và tự EXPIRED ở giờ thứ 24 không?
-2. PL3: Có đồng ý lịch cảnh báo tại deadline, +30 phút, +60 phút không?
-3. PL4: Có đồng ý bỏ bước UOA APPROVE/REJECT hiện tại để chuyển thành UOA xác nhận hoàn thành/không hoàn thành không?
-4. PL4: Người thực hiện chọn COMPLETED/NOT_COMPLETED; cả hai đều gửi UOA xác nhận, hay NOT_COMPLETED được giữ IN_PROGRESS và không cần gửi UOA? Khuyến nghị gửi UOA nếu cần theo dõi mọi lần báo cáo, nhưng có thể tạo thêm thông báo.
-5. PL5: Nhóm người dùng được xem Dashboard là toàn bộ nhân sự UOA, chỉ UOA, hay thêm nhóm MSTAR/đối tác?
+1. PL3: Có đồng ý lịch cảnh báo tại deadline, +30 phút, +60 phút không?
+2. PL4: Có đồng ý bỏ bước UOA APPROVE/REJECT hiện tại để chuyển thành UOA xác nhận hoàn thành/không hoàn thành không?
+3. PL4: Người thực hiện chọn COMPLETED/NOT_COMPLETED; cả hai đều gửi UOA xác nhận, hay NOT_COMPLETED được giữ IN_PROGRESS và không cần gửi UOA?
+4. PL5: Nhóm người dùng được xem Dashboard là toàn bộ nhân sự UOA, chỉ UOA, hay thêm nhóm MSTAR/đối tác?
 
+
+
+| D08 | Xác nhận phương án xử lý PL2 quá hạn | ĐÃ CHỐT: nhắc ở 12 giờ; tự EXPIRED ở 24 giờ tính từ Created_At nếu chưa duyệt; vô hiệu hóa token; không tự động APPROVED. |
