@@ -261,9 +261,9 @@ UNIQUE `source_inspection_result_id` (cho phép nhiều NULL với issue MANUAL)
 
 ### 6.3 `pl4_manual_submissions`
 
-`id PK, issue_id FK NOT NULL, source_form_id VARCHAR(190) NOT NULL, form_response_id VARCHAR(190) NOT NULL, reporter_name_snapshot VARCHAR(160) NULL, reporter_email_snapshot VARCHAR(190) NULL, submitted_at DATETIME(3) NOT NULL, created_at DATETIME(3) NOT NULL`.
+`id PK, issue_id FK NOT NULL UNIQUE, source_form_id VARCHAR(190) NOT NULL, form_response_id VARCHAR(190) NOT NULL, reporter_name_snapshot VARCHAR(160) NULL, reporter_email_snapshot VARCHAR(190) NULL, submitted_at DATETIME(3) NOT NULL, created_at DATETIME(3) NOT NULL`.
 
-UNIQUE `(source_form_id, form_response_id)`; INDEX `(issue_id)`. Mỗi cặp Form ID + Form Response ID chỉ liên kết một ISSUE. Khi nhận lại cùng cặp khóa, trả về ISSUE đã liên kết và không tạo ISSUE/Audit/Email event mới. Submission, Business Entity + Issue, Audit Log và Email Queue record được ghi trong cùng MySQL/InnoDB transaction theo ADR-007. Email Queue chỉ được enqueue trong transaction; Worker gửi SMTP sau Commit. Nếu có lỗi ghi DB, rollback toàn bộ.
+UNIQUE `(source_form_id, form_response_id)` và UNIQUE `(issue_id)`. Mỗi cặp Form ID + Form Response ID chỉ liên kết một ISSUE. Khi nhận lại cùng cặp khóa, trả về ISSUE đã liên kết và không tạo ISSUE/Audit/Email event mới. Submission, Business Entity + Issue, Audit Log và Email Queue record được ghi trong cùng MySQL/InnoDB transaction theo ADR-007. Email Queue chỉ được enqueue trong transaction; Worker gửi SMTP sau Commit. Nếu có lỗi ghi DB, rollback toàn bộ.
 
 ### 6.4 `pl4_assignments`
 
