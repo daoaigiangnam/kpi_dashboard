@@ -202,27 +202,36 @@ INDEX `(approval_status, created_at)`, `(room_id, planned_entry_at)`, `(visit_st
 
 ## 5. PL3 – Inspection
 
-### 5.1 `pl3_checklist_items`
+### 5.1 `pl3_checklist_items` – danh mục gốc
 
-`id PK, item_code VARCHAR(20) UNIQUE, title_vi, description_vi, description_en NULL, sort_order SMALLINT, is_active, effective_from DATE NULL, effective_until DATE NULL`. Không xóa item đã được dùng trong phiếu.
+`id PK, item_code VARCHAR(20) UNIQUE, is_active, created_at, updated_at`. Đây là mã định danh ổn định của câu hỏi; không xóa item đã từng được dùng. Nội dung hiển thị được quản lý theo phiên bản, không cập nhật đè lên câu hỏi lịch sử.
 
-### 5.2 `pl3_inspections`
+### 5.2 `pl3_checklist_versions`
 
-`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), inspection_code UNIQUE, room_id FK, inspection_date DATE, inspection_time TIME, inspector_name, inspector_email NULL, temperature_c DECIMAL(5,2) NULL, humidity_percent DECIMAL(5,2) NULL, conclusion, form_response_id NULL, uoa_acknowledgement_status, submitted_at, created_at, updated_at`.
+`id PK, version_code VARCHAR(30) UNIQUE, title, status (DRAFT/PUBLISHED/RETIRED), effective_from DATETIME NULL, published_at DATETIME NULL, published_by_user_id FK users NULL, created_by_user_id FK users, created_at, updated_at`. Chỉ một phiên bản PUBLISHED có hiệu lực tại một thời điểm cho Form DAILY của cùng phạm vi áp dụng. Publish phải kiểm tra không có khoảng hiệu lực chồng lấn. Phiên bản PUBLISHED/RETIRED không được sửa nội dung; muốn thay đổi phải clone sang DRAFT.
+
+### 5.3 `pl3_checklist_version_items`
+
+`id PK, checklist_version_id FK, checklist_item_id FK, item_code_snapshot, title_vi_snapshot, description_vi_snapshot NULL, title_en_snapshot NULL, description_en_snapshot NULL, sort_order SMALLINT, answer_type (PASS_FAIL_NA), fail_requires_remarks TINYINT(1), is_required TINYINT(1), created_at`. UNIQUE (checklist_version_id, checklist_item_id) và UNIQUE (checklist_version_id, sort_order). Snapshot giữ nguyên câu hỏi, thứ tự và quy tắc trả lời cho lịch sử. Không xóa version item sau khi phiên bản đã PUBLISHED.
+
+
+### 5.4 `pl3_inspections`
+
+`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), inspection_code UNIQUE, room_id FK, checklist_version_id FK pl3_checklist_versions, inspection_date DATE, inspection_time TIME, inspector_name, inspector_email NULL, temperature_c DECIMAL(5,2) NULL, humidity_percent DECIMAL(5,2) NULL, conclusion, form_response_id NULL, uoa_acknowledgement_status, submitted_at, created_at, updated_at`.
 
 UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` vì cần xác nhận quy tắc nhiều lần kiểm tra/tần suất. Dùng `idempotency_keys` theo Form Response ID; kiểm soát phiếu hợp lệ theo kỳ bằng service.
 
 **Theo ADR-003 đã phê duyệt:** PL3 chỉ triển khai kiểm tra DAILY; không có trường `inspection_frequency` trong Form hoặc bảng `pl3_inspections`. Weekly/Monthly ngoài phạm vi số hóa hiện tại.
 
-### 5.3 `pl3_inspection_results`
+### 5.5 `pl3_inspection_results`
 
-`id PK, inspection_id FK, checklist_item_id FK, result (PASS/FAIL/NA), remarks_action TEXT NULL, created_at`. UNIQUE `(inspection_id, checklist_item_id)`. Khi Inspection được SUBMITTED, service bắt buộc xác nhận đủ đúng 12 checklist item I01–I12 có hiệu lực; UNIQUE ngăn một item xuất hiện hai lần. FAIL bắt buộc remarks_action.
+`id PK, inspection_id FK, checklist_version_item_id FK, result (PASS/FAIL/NA), remarks_action TEXT NULL, created_at`. UNIQUE (inspection_id, checklist_version_item_id). Khi SUBMITTED, service xác nhận đủ chính xác toàn bộ version items của phiên bản Checklist gắn với Inspection; không hard-code số lượng 12. FAIL bắt buộc remarks_action theo cấu hình của version item.
 
-### 5.4 `pl3_acknowledgements`
+### 5.6 `pl3_acknowledgements`
 
 `id PK, inspection_id FK, status, actor_user_id NULL, actor_name_snapshot, actor_email_snapshot, channel, note NULL, acknowledged_at, created_at`. Là xác nhận tiếp nhận, không phải xác nhận khắc phục.
 
-### 5.5 `pl3_escalation_runs` và `pl3_escalation_events` – theo ADR-002 đã phê duyệt
+### 5.7 `pl3_escalation_runs` và `pl3_escalation_events` – theo ADR-002 đã phê duyệt
 
 - Run: `id PK, room_id FK, work_date DATE, schedule_type VARCHAR(20) CHECK/ENUM DAILY, deadline_at DATETIME, status (PENDING/IN_PROGRESS/STOPPED_INSPECTION_RECEIVED/COMPLETED/ERROR), config_snapshot JSON, started_at DATETIME, stopped_at DATETIME NULL, stop_reason VARCHAR/TEXT NULL, created_at, updated_at`.
 - UNIQUE: `(room_id, work_date, schedule_type)`. Phạm vi hiện tại chỉ tạo `schedule_type = DAILY`; không tạo WEEKLY/MONTHLY khi chưa có quyết định riêng.
@@ -232,7 +241,7 @@ UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` v
 - Khi Inspection hợp lệ đúng `room_id + work_date` được commit, Run chuyển `STOPPED_INSPECTION_RECEIVED`; Event chưa gửi chuyển `STOPPED`; Event đã gửi/SKIPPED giữ nguyên lịch sử.
 - Email được enqueue qua `email_queue`; Event tham chiếu queue bằng `email_queue_id`. Không gửi SMTP trực tiếp trong transaction Scheduler.
 
-### 5.6 `pl3_integration_outbox`
+### 5.8 `pl3_integration_outbox`
 
 `id PK, event_key VARCHAR(190) UNIQUE, inspection_result_id FK UNIQUE, target_system, payload JSON, status (PENDING/PROCESSING/RETRY/SENT/FAILED), attempts, next_attempt_at, last_error, created_at, updated_at`. `inspection_result_id` là nguồn chuẩn; suy ra Inspection qua `pl3_inspection_results.inspection_id`, không lưu thêm `inspection_id` để tránh hai FK không nhất quán. `event_key` ổn định theo nguồn, ví dụ `PL3_FAIL:{inspection_result_id}`. Mỗi FAIL item chỉ có tối đa một outbox row; retry cập nhật row đó và tăng attempts. Không lưu API secret; payload chỉ chứa dữ liệu nghiệp vụ cần thiết.
 
