@@ -94,7 +94,7 @@ Quy tắc:
 - Một Inspection có đúng 12 kết quả checklist theo danh mục đang áp dụng; mỗi item chỉ có một kết quả trong cùng Inspection.
 - FAIL bắt buộc có remarks/action.
 - Một Inspection có thể có nhiều acknowledgement; mỗi Run có tối đa một Event logic cho mỗi cấp.
-- Phạm vi lịch cảnh báo đã phê duyệt hiện chỉ là `DAILY`; `WEEKLY/MONTHLY` chưa được triển khai hoặc suy diễn. Tần suất kiểm tra trên Phụ lục 3 là vấn đề riêng, đang chờ ADR-003 vì PDF có 3 lựa chọn nhưng Apps Script setup không thu thập trường này.
+- Phạm vi kiểm tra được số hóa theo ADR-003 đã phê duyệt là DAILY; Form không có trường Inspection Frequency và bảng `pl3_inspections` không lưu `inspection_frequency`. Weekly/Monthly ngoài phạm vi hiện tại. Lịch cảnh báo thiếu phiếu cũng chỉ là DAILY theo ADR-002.
 - Mỗi Run được định danh duy nhất bằng `(room_id, work_date, schedule_type)`; trong phạm vi hiện tại `schedule_type = DAILY`.
 - Run lưu snapshot cấu hình áp dụng. Event lưu recipient snapshot, mốc dự kiến/thử/gửi, trạng thái và liên kết Email Queue.
 - Level 1 đến hạn tại `DAILY_DEADLINE + ALERT_LEVEL1_DELAY_MINUTES`; Level 2/3 tính tuần tự từ thời điểm ghi nhận kết quả cấp trước cộng delay cấu hình tương ứng. Nếu cấp trước `SKIPPED`, timestamp SKIPPED vẫn là mốc tính cấp kế tiếp.
