@@ -230,3 +230,43 @@ ADR này phê duyệt thiết kế. Chưa viết Migration, schema.sql, PHP Cont
 13. Không có thay đổi state machine PL4 hoặc Priority behavior.
 
 **Kết luận:** ADR-010 được chủ nghiệp vụ phê duyệt D1–D22 ngày 22/11/2026. Tài liệu này là chuẩn thiết kế cho PL4-R08; mọi thay đổi tiếp theo phải được ghi nhận bằng ADR hoặc quyết định bổ sung.
+
+
+## 11. Làm rõ kỹ thuật sau rà soát thiết kế – 22/11/2026
+
+Các nội dung dưới đây làm rõ cách thực thi ADR-010, không thay đổi D1–D22 đã được phê duyệt.
+
+### 11.1. SLA Instance status
+- Khi tạo Issue và resolve được Policy Version hợp lệ: tạo Instance `ACTIVE`.
+- Khi không có Policy hợp lệ hoặc cấu hình bị lỗi theo D9: tạo Instance `NOT_CONFIGURED`; Policy/Calendar/targets có thể NULL. Instance này giữ `NOT_CONFIGURED` kể cả khi Issue về sau đóng, vì Issue không có SLA hợp lệ để hoàn tất.
+- Khi Instance `ACTIVE` và Issue chuyển `CLOSED` do UOA `CONFIRMED`: chuyển Instance sang `COMPLETED` trong cùng transaction. Không xóa hoặc sửa kết quả các Cycle đã kết thúc.
+- `ACTIVE` có thể không có Cycle RUNNING, ví dụ Issue PL3 vừa tạo nhưng chưa được phân công. Đây không phải lỗi; SLA Response chỉ bắt đầu khi Assignment thực sự được tạo.
+
+### 11.2. Ràng buộc một Cycle RUNNING trên mỗi Issue
+Bổ sung ràng buộc DB cho `pl4_sla_cycles`:
+- `active_issue_id BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN status = 'RUNNING' THEN issue_id ELSE NULL END) STORED`.
+- UNIQUE KEY trên `active_issue_id`; nhiều NULL được phép.
+- Mọi thao tác tạo/chuyển trạng thái Cycle vẫn phải khóa dòng Issue/SLA Instance và kiểm tra trong transaction. Constraint DB là lớp bảo vệ cuối, không thay thế concurrency control ở service.
+
+### 11.3. Liên kết Work Report và Cycle
+- UOA Confirmation Cycle bắt buộc có `work_report_id`; UNIQUE `(work_report_id, cycle_type)` bảo đảm một UOA cycle cho mỗi Work Report.
+- Assignee Resolution Cycle khi đã kết thúc phải gắn Work Report đã được tạo bởi đúng Assignment; UNIQUE `(work_report_id, cycle_type)` ngăn gắn nhiều Assignee Resolution cycle vào cùng Work Report.
+- Không UNIQUE `(assignment_id, cycle_type)` vì cùng Assignment có thể có nhiều vòng Assignee Resolution sau UOA NOT_CONFIRMED.
+- `work_report_id` có thể NULL khi Assignee Resolution đang RUNNING; khi submit Work Report, cập nhật liên kết trong cùng transaction dừng Cycle.
+
+### 11.4. Kết quả khi kết thúc Cycle và Worker
+Khi có sự kiện kết thúc Cycle, service phải tính elapsed theo Calendar Version snapshot ngay tại transaction:
+- Nếu đã vượt target, kết quả là `BREACHED` dù SLA Worker chưa kịp chạy.
+- Nếu kết thúc trước hoặc đúng hạn, sự kiện kết thúc hợp lệ là `MET`.
+- Nếu Assignment bị DECLINED/EXPIRED/RELEASED hoặc bị hủy trước hạn, Cycle là `STOPPED`/`CANCELLED`, không phải MET. Nếu đã quá hạn tại thời điểm dừng thì giữ `BREACHED`.
+- Cycle đã `BREACHED` không bao giờ chuyển về `MET` hoặc `STOPPED`.
+- SLA Worker độc lập Dashboard; phải phát hiện và đánh dấu các Cycle quá hạn chưa kết thúc. Cập nhật phải idempotent, khóa an toàn và chỉ ghi Audit breach một lần.
+
+### 11.5. Calendar Exceptions
+- Cho phép nhiều dòng `SPECIAL_WORKING` cho cùng `calendar_version_id + exception_date` để biểu diễn nhiều khoảng giờ trong một ngày.
+- Mỗi khoảng phải có `start_time < end_time`; các khoảng SPECIAL_WORKING cùng ngày không được chồng lấn.
+- Với cùng ngày, `HOLIDAY` hoặc `CLOSED` là ngoại lệ đóng cả ngày và loại trừ mọi `SPECIAL_WORKING` trong ngày đó. Một ngày chỉ có tối đa một bản ghi đóng cả ngày.
+- Khi tồn tại bất kỳ Exception cho một ngày, tập Exception thay thế lịch tuần của ngày đó; không cộng dồn với Calendar Period.
+
+### 11.6. Assignment khởi tạo cho Manual Issue
+Theo ADR-007 đã được làm rõ: Manual Form bắt buộc chọn Assignee; tạo Issue, Manual Submission, Assignment `ASSIGNED`, Audit, Email Queue và SLA Instance trong cùng transaction. Nếu Policy hợp lệ, tạo Cycle `ASSIGNMENT_RESPONSE` ngay từ `assigned_at`. Nếu NOT_CONFIGURED, vẫn tạo Issue và Assignment nhưng không tạo Cycle; ghi Audit cấu hình.
