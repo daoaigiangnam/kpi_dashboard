@@ -93,3 +93,14 @@ Thêm các hạng mục vào Giai đoạn 5 – PL4 Incident / Violation:
 - [ ] Kiểm thử Policy assignment, lịch hiệu lực, xung đột Rule, NOT_CONFIGURED, cycle transitions, SLA breach, permissions và concurrency.
 
 Các hạng mục trên mới ở trạng thái thiết kế đã phê duyệt theo ADR-010. Chưa viết Migration, PHP, Worker, giao diện hoặc SQL báo cáo.
+
+
+### Bổ sung PL4 sau cross-review ADR-006 đến ADR-010
+
+- [ ] Manual Issue phải có Assignee ngay trên Form; Assignment đầu tiên được tạo atomically cùng Issue.
+- [ ] `PL4_ISSUE_CREATED_MANUAL` là email thông báo Issue và Assignment đầu tiên; không gửi thêm `PL4_ASSIGNMENT_ASSIGNED` cho cùng Assignment.
+- [ ] Tạo Assignment Response Cycle ngay từ `assigned_at` nếu SLA Instance ACTIVE; nếu NOT_CONFIGURED thì không tạo Cycle và phải Audit cấu hình.
+- [ ] Enforce tối đa một SLA Cycle RUNNING/Issue bằng generated column STORED UNIQUE kết hợp transaction/row lock.
+- [ ] Enforce UNIQUE `(work_report_id, cycle_type)`; tuyệt đối không UNIQUE `(assignment_id, cycle_type)` cho Assignee Resolution.
+- [ ] Kiểm thử SLA Instance ACTIVE/NOT_CONFIGURED/COMPLETED, terminal Cycle MET/BREACHED/STOPPED, Worker trễ hoặc chạy đồng thời.
+- [ ] Kiểm thử Calendar Exception nhiều khoảng giờ/ngày, overlap và precedence HOLIDAY/CLOSED.
