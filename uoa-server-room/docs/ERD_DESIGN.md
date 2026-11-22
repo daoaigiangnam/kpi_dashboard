@@ -91,7 +91,7 @@ Quy tắc:
 | `pl3_integration_outbox` | Gửi FAIL sang PL4 có retry/idempotency | FK inspection result; event key; trạng thái |
 
 Quy tắc:
-- Một Inspection có đúng 12 kết quả checklist theo danh mục đang áp dụng; mỗi item chỉ có một kết quả trong cùng Inspection.
+- Một Inspection khi SUBMITTED phải có đủ đúng 12 kết quả tương ứng 12 checklist item I01–I12 đang có hiệu lực tại thời điểm nộp; mỗi item chỉ có một kết quả trong cùng Inspection. Service kiểm tra đủ 12 item trong transaction trước khi chuyển trạng thái hợp lệ; UNIQUE `(inspection_id, checklist_item_id)` ngăn kết quả trùng.
 - FAIL bắt buộc có remarks/action.
 - Một Inspection có thể có nhiều acknowledgement; mỗi Run có tối đa một Event logic cho mỗi cấp.
 - Phạm vi kiểm tra được số hóa theo ADR-003 đã phê duyệt là DAILY; Form không có trường Inspection Frequency và bảng `pl3_inspections` không lưu `inspection_frequency`. Weekly/Monthly ngoài phạm vi hiện tại. Lịch cảnh báo thiếu phiếu cũng chỉ là DAILY theo ADR-002.
@@ -99,7 +99,7 @@ Quy tắc:
 - Run lưu snapshot cấu hình áp dụng. Event lưu recipient snapshot, mốc dự kiến/thử/gửi, trạng thái và liên kết Email Queue.
 - Level 1 đến hạn tại `DAILY_DEADLINE + ALERT_LEVEL1_DELAY_MINUTES`; Level 2/3 tính tuần tự từ thời điểm ghi nhận kết quả cấp trước cộng delay cấu hình tương ứng. Nếu cấp trước `SKIPPED`, timestamp SKIPPED vẫn là mốc tính cấp kế tiếp.
 - Khi Inspection hợp lệ đúng phòng/ngày được ghi nhận, Run dừng các Event chưa gửi; Event đã xử lý được giữ nguyên lịch sử.
-- PL3 → PL4 dùng duy nhất API ID + token; outbox giữ retry và không tạo ISSUE trùng.
+- PL3 → PL4 dùng duy nhất API ID + token. Mỗi `pl3_inspection_results` có tối đa một outbox event (UNIQUE `inspection_result_id`) và tối đa một PL4 Issue (UNIQUE `source_inspection_result_id`); retry cập nhật cùng outbox row, không tạo event/Issue mới. Outbox xác định Inspection thông qua `inspection_result_id → inspection_id`, tránh lưu hai FK nguồn có thể lệch nhau.
 
 ### 2.5. PL4 – Issue Management
 
