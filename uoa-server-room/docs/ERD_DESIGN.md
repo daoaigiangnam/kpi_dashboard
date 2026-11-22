@@ -94,7 +94,7 @@ Quy tắc:
 - Một Inspection có đúng 12 kết quả checklist theo danh mục đang áp dụng; mỗi item chỉ có một kết quả trong cùng Inspection.
 - FAIL bắt buộc có remarks/action.
 - Một Inspection có thể có nhiều acknowledgement; mỗi Run có tối đa một Event logic cho mỗi cấp.
-- Phạm vi lịch đã phê duyệt hiện chỉ là `DAILY`; `WEEKLY/MONTHLY` chưa được triển khai hoặc suy diễn.
+- Phạm vi lịch cảnh báo đã phê duyệt hiện chỉ là `DAILY`; `WEEKLY/MONTHLY` chưa được triển khai hoặc suy diễn. Tần suất kiểm tra trên Phụ lục 3 là vấn đề riêng, đang chờ ADR-003 vì PDF có 3 lựa chọn nhưng Apps Script setup không thu thập trường này.
 - Mỗi Run được định danh duy nhất bằng `(room_id, work_date, schedule_type)`; trong phạm vi hiện tại `schedule_type = DAILY`.
 - Run lưu snapshot cấu hình áp dụng. Event lưu recipient snapshot, mốc dự kiến/thử/gửi, trạng thái và liên kết Email Queue.
 - Level 1 đến hạn tại `DAILY_DEADLINE + ALERT_LEVEL1_DELAY_MINUTES`; Level 2/3 tính tuần tự từ thời điểm ghi nhận kết quả cấp trước cộng delay cấu hình tương ứng. Nếu cấp trước `SKIPPED`, timestamp SKIPPED vẫn là mốc tính cấp kế tiếp.
@@ -215,6 +215,7 @@ Các mục dưới đây phải đối chiếu câu hỏi còn mở trong WORKFL
 - PL1 approval token expiry thực tế/cấu hình có cần giữ chính xác như Apps Script hay thay đổi.
 - PL2 thời hạn CHECK-IN sau khi APPROVED và cơ chế xử lý không check-in.
 - PL3 hiện chỉ áp dụng escalation `DAILY`; khóa Run `(room_id, work_date, schedule_type)` đã được chốt tại ADR-002. Nếu bổ sung Weekly/Monthly phải có quyết định nghiệp vụ/ADR riêng.
+- Trường tần suất kiểm tra `frequency` trong `pl3_inspections` chưa được chốt để triển khai: Phụ lục 3 PDF có Daily/Weekly/Monthly, nhưng `Code PL3.txt` không khai báo cột Frequency trong `INSPECTION_HEADERS`, không tạo câu hỏi này trong `createForm_()` và không đọc giá trị trong `handlePL3Submit()`. Theo dõi tại ADR-003.
 - PL3 xác minh chỉ một trigger API PL3 → PL4 đang được dùng.
 - PL4 email queue/retry hiện tại và yêu cầu tương thích.
 - Các trường live Form chưa xác minh trực tiếp; phải đối chiếu workbook + Apps Script trước khi migration.
