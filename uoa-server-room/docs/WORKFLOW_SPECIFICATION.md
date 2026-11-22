@@ -1239,7 +1239,17 @@ Bộ lọc: thời gian, Room, Priority, Issue Status, Assignee, UOA Approver, S
 UOA xem Dashboard/báo cáo nghiệp vụ theo phạm vi được cấp; MSTAR xem số liệu tổng hợp read-only; Super Admin quản lý cấu hình nhưng không mặc nhiên xem dữ liệu nghiệp vụ; Assignee chỉ xem SLA Issue được giao. Giữ nguyên D18/D19 và mô hình quyền đã chốt.
 
 ### 18.10. Transaction và tương thích ADR
-Policy Assignment + SLA Instance nằm trong transaction tạo Issue. Manual tuân thủ ADR-007; PL3 Outbox tuân thủ ADR-005. Không thay đổi ADR-006 Assignment/Claim, ADR-008 Email Queue hoặc ADR-009 Audit. Không thay đổi state machine PL4.
+Policy Assignment + SLA Instance nằm trong transaction tạo Issue. Manual tuân thủ ADR-007 và tạo Assignment đầu tiên `ASSIGNED` trong cùng transaction; PL3 Outbox tuân thủ ADR-005 và có thể tạo Issue chưa có Assignment. Không thay đổi ADR-006 Assignment/Claim, ADR-008 Email Queue hoặc ADR-009 Audit. Không thay đổi state machine PL4.
 
 ### 18.11. Danh mục bảng
 Bổ sung 9 bảng: pl4_sla_calendars, pl4_sla_calendar_versions, pl4_sla_calendar_periods, pl4_sla_calendar_exceptions, pl4_sla_policies, pl4_sla_policy_versions, pl4_sla_policy_assignment_rules, pl4_issue_sla_instances, pl4_sla_cycles.
+
+
+### 18.12. Làm rõ sau cross-review ADR-006 đến ADR-010
+
+- Manual Form bắt buộc chọn Assignee. Transaction tạo Manual Issue gồm Business Entity, Issue, Manual Submission, Assignment `ASSIGNED`, SLA Instance, Cycle Assignment Response nếu Instance ACTIVE, Audit và Email Queue. Email `PL4_ISSUE_CREATED_MANUAL` đồng thời thông báo Assignment đầu tiên; không enqueue thêm `PL4_ASSIGNMENT_ASSIGNED` cho cùng Assignment.
+- ISSUE PL3 vẫn tạo OPEN/chưa có Assignee; Assignment Response bắt đầu khi Assignment thực sự được tạo.
+- SLA Instance: ACTIVE → COMPLETED khi Issue CLOSED do UOA CONFIRMED; NOT_CONFIGURED giữ nguyên NOT_CONFIGURED kể cả khi Issue đóng.
+- Một Issue tối đa một Cycle RUNNING: generated `active_issue_id` STORED UNIQUE + transaction/row lock. UNIQUE `(work_report_id, cycle_type)`; không UNIQUE `(assignment_id, cycle_type)`.
+- Kết thúc Cycle phải tính elapsed ngay theo Calendar snapshot để xác định MET/BREACHED/STOPPED; Worker không được là điều kiện duy nhất quyết định kết quả terminal.
+- Calendar Exception: nhiều SPECIAL_WORKING intervals/ngày, không chồng lấn; HOLIDAY/CLOSED đóng cả ngày, loại trừ SPECIAL_WORKING; Exception thay thế lịch tuần.
