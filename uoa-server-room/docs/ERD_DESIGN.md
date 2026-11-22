@@ -85,12 +85,12 @@ Quy tắc:
 | `pl3_checklist_items` | Danh mục gốc câu hỏi/checklist item | unique item_code; không xóa item đã sử dụng |
 | `pl3_checklist_versions` | Phiên bản bộ checklist DAILY | version_code; trạng thái DRAFT/PUBLISHED/RETIRED |
 | `pl3_checklist_version_items` | Nội dung câu hỏi được chụp theo từng phiên bản | FK version + item; snapshot nội dung, thứ tự, quy tắc trả lời |
-| `pl3_inspection_results` | Kết quả từng item của phiếu | FK inspection + checklist item |
+| `pl3_inspection_results` | Kết quả từng item của phiếu | FK inspection + checklist version item |
 | `pl3_acknowledgements` | UOA xác nhận đã tiếp nhận hồ sơ | FK inspection; actor/channel/time |
 | `pl3_escalation_runs` | Một chu kỳ cảnh báo thiếu inspection theo phòng/ngày/lịch | UNIQUE `(room_id, work_date, schedule_type)`; DAILY hiện tại; config snapshot |
 | `pl3_escalation_events` | Từng cấp cảnh báo, có trạng thái queue/retry riêng | FK escalation_run; recipient snapshot; email queue |
 | `calendar_holidays` | Ngày nghỉ áp dụng lịch kiểm tra | ngày; tên; active |
-| `pl3_integration_outbox` | Gửi FAIL sang PL4 có retry/idempotency | FK inspection result; event key; trạng thái |
+| `pl3_integration_outbox` | Outbox PL3 → PL4 xử lý nội bộ bằng PHP Worker | FK inspection result UNIQUE; event key UNIQUE; trạng thái/retry/lock |
 
 Quy tắc:
 - Bộ checklist được quản lý theo phiên bản. Phiên bản PUBLISHED là bất biến; muốn sửa/thêm/ngừng câu hỏi phải tạo phiên bản DRAFT mới rồi publish. Mỗi Inspection lưu checklist_version_id và dùng đúng nội dung câu hỏi đã chụp trong phiên bản đó.
@@ -227,7 +227,7 @@ Các mục dưới đây phải đối chiếu câu hỏi còn mở trong WORKFL
 - PL2 thời hạn CHECK-IN sau khi APPROVED và cơ chế xử lý không check-in.
 - PL3 hiện chỉ áp dụng escalation `DAILY`; khóa Run `(room_id, work_date, schedule_type)` đã được chốt tại ADR-002. Nếu bổ sung Weekly/Monthly phải có quyết định nghiệp vụ/ADR riêng.
 - Trường tần suất kiểm tra `frequency` trong `pl3_inspections` chưa được chốt để triển khai: Phụ lục 3 PDF có Daily/Weekly/Monthly, nhưng `Code PL3.txt` không khai báo cột Frequency trong `INSPECTION_HEADERS`, không tạo câu hỏi này trong `createForm_()` và không đọc giá trị trong `handlePL3Submit()`. Theo dõi tại ADR-003.
-- PL3 xác minh chỉ một trigger API PL3 → PL4 đang được dùng.
+- PL3 → PL4 khi vận hành PHP dùng Outbox/PHP Worker nội bộ; không chạy song song Apps Script Web App/Google Sheets integration legacy.
 - PL4 email queue/retry hiện tại và yêu cầu tương thích.
 - Các trường live Form chưa xác minh trực tiếp; phải đối chiếu workbook + Apps Script trước khi migration.
 - Retention, privacy, IP/User-Agent, WORM/signature và partitioning cho Audit/Evidence.
