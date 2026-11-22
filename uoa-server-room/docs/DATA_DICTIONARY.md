@@ -259,19 +259,25 @@ Khởi tạo LOW, MEDIUM, HIGH, CRITICAL theo nguồn PL4. Không xóa cứng Pr
 
 UNIQUE `source_inspection_result_id` (cho phép nhiều NULL với issue MANUAL) bảo đảm một kết quả PL3 chỉ sinh tối đa một Issue; service chỉ tạo Issue khi kết quả nguồn là FAIL. Với ISSUE PL3, các trường `source_*_snapshot` là bản chụp tại thời điểm tạo và không được đồng bộ ngược khi Checklist, Room hoặc Inspection metadata thay đổi. FK `source_inspection_result_id` và `source_checklist_version_item_id` dùng truy nguyên; snapshot dùng làm bằng chứng lịch sử. ISSUE MANUAL để NULL toàn bộ trường snapshot nguồn PL3. Cần kiểm tra source_type và source FK nhất quán ở service/constraint phù hợp.
 
-### 6.3 `pl4_assignments`
+### 6.3 `pl4_manual_submissions`
+
+`id PK, issue_id FK NOT NULL, source_form_id VARCHAR(190) NOT NULL, form_response_id VARCHAR(190) NOT NULL, reporter_name_snapshot VARCHAR(160) NULL, reporter_email_snapshot VARCHAR(190) NULL, submitted_at DATETIME(3) NOT NULL, created_at DATETIME(3) NOT NULL`.
+
+UNIQUE `(source_form_id, form_response_id)`; INDEX `(issue_id)`. Mỗi cặp Form ID + Form Response ID chỉ liên kết một ISSUE. Khi nhận lại cùng cặp khóa, trả về ISSUE đã liên kết và không tạo ISSUE/Audit/Email event mới. Submission, Business Entity + Issue, Audit Log và Email Queue record được ghi trong cùng MySQL/InnoDB transaction theo ADR-007. Email Queue chỉ được enqueue trong transaction; Worker gửi SMTP sau Commit. Nếu có lỗi ghi DB, rollback toàn bộ.
+
+### 6.4 `pl4_assignments`
 
 `id PK, issue_id FK, assignee_name_snapshot, assignee_email_snapshot, assigned_by_user_id NULL FK users, assigned_by_name_snapshot, assigned_by_email_snapshot, assigned_at, claimed_at NULL, released_at NULL, status (ASSIGNED/CLAIMED/DECLINED/EXPIRED/RELEASED), active_issue_id BIGINT GENERATED ALWAYS AS (CASE WHEN status IN ('ASSIGNED','CLAIMED') THEN issue_id ELSE NULL END) STORED UNIQUE, note NULL, created_at, updated_at`. Mỗi lần phân công là một dòng mới; không xóa lịch sử. Mỗi ISSUE chỉ có tối đa một Assignment đang hiệu lực (ASSIGNED hoặc CLAIMED). Service khóa dòng ISSUE và kiểm tra trạng thái trong cùng transaction khi tạo, claim, decline hoặc release; `active_issue_id` generated column UNIQUE (nhiều NULL được phép) là ràng buộc DB đề xuất để bảo đảm invariant này; đồng thời INDEX (issue_id, status) và (assignee_email_snapshot, status). Link nhận việc gắn đúng Assignment/ISSUE, token lưu hash, có expiry/revocation/used_at. Không cho Work Report tham chiếu Assignment đã kết thúc.
 
-### 6.4 `pl4_work_reports`
+### 6.5 `pl4_work_reports`
 
 `id PK, issue_id FK, assignment_id FK NOT NULL, report_result (COMPLETED/NOT_COMPLETED), action_taken TEXT, resolution_notes TEXT, evidence_summary TEXT NULL, submitted_by_name, submitted_by_email, submitted_at, created_at`. Append-only.
 
-### 6.5 `pl4_uoa_confirmations`
+### 6.6 `pl4_uoa_confirmations`
 
 `id PK, issue_id FK, work_report_id FK, decision (CONFIRMED/NOT_CONFIRMED), uoa_user_id NULL FK users, uoa_name_snapshot, uoa_email_snapshot, note TEXT NULL, reason TEXT NULL, decided_at, created_at`. NOT_CONFIRMED bắt buộc reason; một report có thể được xem xét theo policy, nhưng không được ghi đè quyết định cũ.
 
-### 6.6 `pl4_issue_status_history`
+### 6.7 `pl4_issue_status_history`
 
 `id PK, issue_id FK, from_status, to_status, actor_type, actor_user_id NULL, actor_name_snapshot, channel, reason NULL, changed_at`. Append-only.
 
@@ -410,6 +416,7 @@ INDEX đề xuất: `(business_entity_id, occurred_at)`, `(event_code, occurred_
 | pl3_inspection_results | UNIQUE inspection + checklist item |
 | pl3_integration_outbox | UNIQUE event_key; INDEX status + next_attempt_at |
 | pl4_priorities | UNIQUE code; INDEX is_active + sort_order |
+| pl4_manual_submissions | UNIQUE source_form_id + form_response_id; INDEX issue_id |
 | pl4_issues | UNIQUE issue_code; UNIQUE source_inspection_result_id nullable; FK priority_id; INDEX priority_id + created_at |
 | pl4_assignments | INDEX issue + status; INDEX assignee_email_snapshot + status; ràng buộc tối đa một Assignment hiệu lực/Issue |
 | pl4_work_reports | INDEX issue + submitted_at; INDEX assignment_id |
