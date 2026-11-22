@@ -1,5 +1,5 @@
 # ERD VẬT LÝ – SƠ ĐỒ QUAN HỆ PL1–PL5
-**Phiên bản:** 0.1 – Dự thảo trực quan hóa từ ERD logic và Data Dictionary  
+**Phiên bản:** 0.2 – Đã áp dụng ADR-001; dự thảo trực quan hóa từ ERD logic và Data Dictionary  
 **Nhánh:** `feature/ITSMWEB`  
 **CSDL mục tiêu:** MySQL 8.0 / InnoDB  
 **Trạng thái:** DRAFT – chưa triển khai Migration
@@ -16,7 +16,7 @@ flowchart TB
       P[permissions]
       UR[user_roles]
       RP[role_permissions]
-      SR[server_rooms]
+      SR[server_rooms]\n      BE[business_entities]
       RC[room_contacts]
       BS[business_settings]
       SH[setting_change_history]
@@ -84,7 +84,7 @@ flowchart TB
     R --- UR
     R --- RP
     P --- RP
-    SR --- RC
+    BE --- AReq\n    BE --- ARec\n    BE --- Visit\n    BE --- Insp\n    BE --- Issue\n    BE --- Work\n    BE --- Audit\n    BE --- ELink\n    SR --- RC
     SR --- AReq
     SR --- ARec
     SR --- Visit
@@ -202,7 +202,7 @@ erDiagram
 
     PL1_ACCESS_REQUESTS {
       bigint id PK
-      varchar request_code UK
+      bigint business_entity_id FK,UK\n      varchar request_code UK
       bigint room_id FK
       varchar request_type
       varchar person_email
@@ -226,7 +226,7 @@ erDiagram
     }
     PL1_ACCESS_RECORDS {
       bigint id PK
-      bigint room_id FK
+      bigint business_entity_id FK,UK\n      bigint room_id FK
       bigint created_from_request_id FK
       bigint last_changed_by_request_id FK
       varchar person_email
@@ -259,7 +259,7 @@ erDiagram
 
     PL2_VISITS {
       bigint id PK
-      varchar visit_code UK
+      bigint business_entity_id FK,UK\n      varchar visit_code UK
       bigint room_id FK
       varchar requester_email
       varchar approver_email_snapshot
@@ -324,7 +324,7 @@ erDiagram
 
     PL3_INSPECTIONS {
       bigint id PK
-      varchar inspection_code UK
+      bigint business_entity_id FK,UK\n      varchar inspection_code UK
       bigint room_id FK
       varchar frequency
       date inspection_date
@@ -388,7 +388,7 @@ erDiagram
 
     PL4_ISSUES {
       bigint id PK
-      varchar issue_code UK
+      bigint business_entity_id FK,UK\n      varchar issue_code UK
       bigint room_id FK
       bigint source_inspection_result_id FK
       varchar source_type
@@ -465,7 +465,7 @@ erDiagram
     }
     PL5_WORK_REQUESTS {
       bigint id PK
-      varchar work_code UK
+      bigint business_entity_id FK,UK\n      varchar work_code UK
       bigint room_id FK
       bigint catalog_item_id FK
       bigint maintenance_plan_id FK
@@ -505,7 +505,7 @@ erDiagram
 ```mermaid
 erDiagram
     EMAIL_QUEUE ||--o{ EMAIL_QUEUE_ATTEMPTS : attempts
-    USERS o|--o{ SYSTEM_AUDIT_LOGS : acts
+    BUSINESS_ENTITIES o|--o{ SYSTEM_AUDIT_LOGS : audited\n    BUSINESS_ENTITIES ||--o{ ENTITY_EVIDENCE_LINKS : evidence_for\n    USERS o|--o{ SYSTEM_AUDIT_LOGS : acts
     USERS o|--o{ EVIDENCE_FILES : uploads
     EVIDENCE_FILES ||--o{ ENTITY_EVIDENCE_LINKS : linked
     USERS ||--o{ DATA_EXPORTS : requests
@@ -563,13 +563,15 @@ erDiagram
     }
 ```
 
-### 8.1 Quan hệ polymorphic không có FK trực tiếp
+### 8.1 Định danh hồ sơ bằng Supertype/Subtype
 
-Hai bảng dưới đây tham chiếu hồ sơ theo cặp `module/entity_type + entity_id`, do entity có thể thuộc nhiều bảng PL khác nhau:
-- `system_audit_logs`: `module + entity_type + entity_id`.
-- `entity_evidence_links`: `module_code + entity_type + entity_id`.
+Theo ADR-001 đã được phê duyệt, Audit và Evidence không còn dùng cặp polymorphic `module/entity_type + entity_id` làm khóa liên kết. Cả hai tham chiếu `business_entities.id` bằng FK.
 
-Do MySQL không hỗ trợ một FK trỏ luân phiên tới nhiều bảng, phải bảo đảm tính toàn vẹn bằng service layer, transaction và kiểm tra tồn tại trước khi ghi liên kết. Nếu cần FK cứng tuyệt đối, phải chuyển sang mô hình bảng registry `business_entities` dùng chung; đây là lựa chọn kiến trúc riêng cần cân nhắc trước migration.
+Các bảng hồ sơ gốc trong phạm vi phải có `business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE` FK tới `business_entities.id`: PL1 Access Request, PL1 Access Record, PL2 Visit, PL3 Inspection, PL4 Issue và PL5 Work Request. Mỗi dòng subtype được tạo cùng dòng supertype trong một transaction.
+
+FK từ Audit/Evidence tới supertype bảo đảm định danh được tham chiếu tồn tại. Tuy nhiên, MySQL FK không tự bảo đảm mọi supertype có đúng một subtype hoặc `entity_type` khớp bảng subtype. Service phải kiểm tra điều này; UNIQUE FK bảo đảm một supertype không gắn nhiều dòng cùng bảng subtype.
+
+Audit event không gắn hồ sơ (ví dụ sự kiện hệ thống) được phép để `business_entity_id = NULL`. Các bảng con/lịch sử không có registry riêng; sự kiện của chúng liên kết về hồ sơ gốc.
 
 ## 9. Quy tắc transaction và concurrency cần thể hiện trong code
 
@@ -590,7 +592,7 @@ Do MySQL không hỗ trợ một FK trỏ luân phiên tới nhiều bảng, ph�
 
 | # | Vấn đề | Khuyến nghị thiết kế | Trạng thái |
 |---:|---|---|---|
-| 1 | Audit/Evidence polymorphic FK | Dùng `business_entities` registry nếu ưu tiên FK cứng; nếu không dùng polymorphic + service validation | CHỜ CHỐT |
+| 1 | Audit/Evidence định danh hồ sơ | Supertype/Subtype qua `business_entities`, FK từ Audit/Evidence | ĐÃ PHÊ DUYỆT – ADR-001 |
 | 2 | Access Record identity | Không UNIQUE email+room trên toàn lịch sử; khóa bản ghi hiện hành trong transaction | Nguyên tắc đã xác định |
 | 3 | PL3 escalation run | Khóa theo Room + work date + schedule type sau khi chốt DAILY/WEEKLY/MONTHLY | CHỜ NGHIỆP VỤ |
 | 4 | Form/API idempotency | Dùng `idempotency_keys` với scope + key unique và request hash | Đề xuất |
@@ -599,7 +601,7 @@ Do MySQL không hỗ trợ một FK trỏ luân phiên tới nhiều bảng, ph�
 
 ## 11. Kết luận
 
-Sơ đồ thể hiện cấu trúc quan hệ PL1–PL5 và các bảng dùng chung. Đây là bản ERD vật lý dự thảo, chưa tạo hoặc thay đổi database. Trước khi viết Migration, cần chốt các điểm ở Mục 10 và đối chiếu lại các câu hỏi nghiệp vụ còn mở trong `WORKFLOW_SPECIFICATION.md`.
+Sơ đồ thể hiện cấu trúc quan hệ PL1–PL5 và các bảng dùng chung. Mô hình `business_entities` theo ADR-001 đã được áp dụng cho Audit/Evidence. Đây là bản ERD vật lý dự thảo, chưa tạo hoặc thay đổi database. Trước khi viết Migration, cần chốt các điểm ở Mục 10 và đối chiếu lại các câu hỏi nghiệp vụ còn mở trong `WORKFLOW_SPECIFICATION.md`.
 
 Tài liệu liên quan:
 - `ERD_DESIGN.md` – ERD logic.
