@@ -285,25 +285,25 @@ Các trường chính trong PL4 Issues:
 5. APPROVE chuyển `CLOSED`; REJECT chuyển `REJECTED` và cho phép Assignee tiếp tục cập nhật.
 6. Ghi Audit Log và gửi kết quả cho Reporter, Assignee, Approver.
 
-### 6.4. Quyết định nghiệp vụ đề xuất theo xác nhận của chủ hệ thống
+### 6.4. Quyết định nghiệp vụ đã chốt
 
-Để phân biệt rõ báo cáo của người làm và nghiệm thu của UOA, đề xuất thay bước APPROVE/REJECT hiện tại bằng quy trình:
+Để phân biệt rõ báo cáo của người thực hiện và nghiệm thu của UOA, áp dụng quy trình:
 
 1. Người thực hiện được chọn báo cáo `COMPLETED` (đã xử lý) hoặc `NOT_COMPLETED` (chưa xử lý), bắt buộc ghi kết quả và minh chứng phù hợp.
-2. Cả hai lựa chọn đều chuyển hồ sơ sang `PENDING_UOA_CONFIRMATION`; đây chỉ là trạng thái chờ UOA xem xét, không phải đã đóng.
+2. Cả hai lựa chọn đều chuyển hồ sơ sang `PENDING_UOA_CONFIRMATION`; đây là trạng thái chờ UOA xem xét, không có nghĩa ISSUE đã đóng.
 3. UOA kiểm tra kết quả:
    - Xác nhận hoàn thành: chuyển `CLOSED`.
    - Không xác nhận: bắt buộc ghi lý do, trả về `IN_PROGRESS` để tiếp tục khắc phục.
 4. Người thực hiện không được tự đóng ISSUE.
 5. Mỗi lần báo cáo của Assignee và mỗi lần xác nhận/không xác nhận của UOA phải ghi thành bản ghi lịch sử riêng, không ghi đè kết quả cũ.
 
-Theo thiết kế này, UOA có quyền xác nhận cuối cùng; không bắt buộc có bước UOA duyệt phân công ban đầu. Đây là đề xuất thay đổi so với mã Apps Script hiện tại và cần được chốt trước khi triển khai PHP.
+UOA là bên xác nhận cuối cùng; không bắt buộc có bước UOA duyệt phân công ban đầu. Quy trình này thay thế bước APPROVE/REJECT sau khi Assignee báo cáo trong Apps Script hiện tại.
 
 ### 6.5. Trạng thái
 
 **Trạng thái hiện tại trong mã:** `OPEN`, `IN_PROGRESS`, `PENDING_APPROVAL`, `CLOSED`, `REJECTED`.
 
-**Trạng thái đề xuất sau khi chốt nghiệp vụ:** `OPEN` → `IN_PROGRESS` → `PENDING_UOA_CONFIRMATION` → `CLOSED`; nếu UOA không xác nhận thì quay lại `IN_PROGRESS`. Không dùng `REJECTED` cho kết quả UOA không nghiệm thu; nên ghi quyết định `NOT_CONFIRMED` trong lịch sử xác minh để tránh nhầm với từ chối xử lý.
+**Trạng thái đã chốt:** `OPEN` → `IN_PROGRESS` → `PENDING_UOA_CONFIRMATION` → `CLOSED`; nếu UOA không xác nhận thì quay lại `IN_PROGRESS`. Không dùng `REJECTED` cho kết quả UOA không nghiệm thu; ghi quyết định `NOT_CONFIRMED` trong lịch sử xác minh để tránh nhầm với từ chối xử lý.
 
 ### 6.6. Cấu hình và tích hợp
 
@@ -407,7 +407,7 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 | Q04 | PL2 có giới hạn thời gian được CHECK-IN sau khi duyệt hay không | Chưa chốt từ các đoạn mã đã rà |
 | Q05 | PL3 ánh xạ cấp cảnh báo 1/2/3 tới MSTAR/Approver/Manager và delay thực tế | Người nhận đã xác nhận; lịch deadline, +30 phút, +60 phút đã chốt theo D09; các mốc cấu hình được |
 | Q06 | Xác minh deployment thực tế chỉ kích hoạt tích hợp API PL3 ID + Token | Chủ nghiệp vụ đã chọn cơ chế ID PL3 + Token; cần kiểm tra trigger/deployment đang chạy |
-| Q07 | Chốt state machine PL4 mới: Assignee báo cáo, UOA xác nhận cuối cùng; không cho Assignee tự đóng | Đã có đề xuất nghiệp vụ; cần chủ nghiệp vụ duyệt thay đổi so với Apps Script |
+| Q07 | State machine PL4: Assignee báo cáo, UOA xác nhận cuối cùng; không cho Assignee tự đóng | ĐÃ CHỐT theo quyết định D10; thay thế bước APPROVE/REJECT sau báo cáo trong Apps Script |
 | Q08 | PL4 có queue/retry email ở bản đang triển khai không | Mã nguồn đã đọc cho thấy gửi MailApp trực tiếp ở các nhánh; cần kiểm tra các nhánh còn lại |
 | Q09 | Chốt phạm vi read-only PL5 Dashboard và nhóm tài khoản được xem | Read-only đã xác nhận; nhóm người xem cần xác định |
 | Q10 | Danh sách trường Form đang phát hành có khác mã Apps Script/workbook không | Chưa truy cập trực tiếp được giao diện Google Forms |
@@ -438,16 +438,16 @@ Chỉ chuyển sang bước chốt ERD, migration và code khi:
 | D03 | PL3 người nhận cảnh báo | ĐÃ XÁC NHẬN: Cấp 1 Người thực hiện; Cấp 2 Nhóm MSTAR và Quản lý Phòng Server; Cấp 3 Quản lý của Quản lý Phòng Server. |
 | D04 | PL3 thời gian cảnh báo | ĐÃ CHỐT: Cấp 1 tại deadline; Cấp 2 sau 30 phút; Cấp 3 sau 60 phút nếu chưa có phiếu. Các mốc cấu hình được. Khi có phiếu hợp lệ thì dừng cảnh báo còn lại. |
 | D05 | PL3 → PL4 | ĐÃ XÁC NHẬN: tích hợp bằng ID PL3 (Inspection_ID), checklist item ID và Token xác thực; cần chống gửi/tạo ISSUE trùng. |
-| D06 | PL4 xác nhận hoàn thành | ĐỀ XUẤT: Assignee báo cáo đã/chưa hoàn thành; UOA xác nhận cuối cùng. UOA xác nhận thì CLOSED; không xác nhận thì về IN_PROGRESS. Assignee không được tự đóng ISSUE. |
+| D06 | PL4 xác nhận hoàn thành | ĐÃ CHỐT: Assignee báo cáo COMPLETED/NOT_COMPLETED; cả hai đều chuyển PENDING_UOA_CONFIRMATION. UOA xác nhận thì CLOSED; không xác nhận (bắt buộc lý do) thì về IN_PROGRESS. Assignee không được tự đóng ISSUE. Lưu riêng lịch sử báo cáo và xác minh. |
 | D07 | PL5 Dashboard | ĐÃ XÁC NHẬN: giai đoạn đầu chỉ xem; không có thao tác ghi/sửa/duyệt/xóa trên Dashboard. |
 
 ### 11.1. Những điểm cần chủ nghiệp vụ duyệt tiếp
 
-2. PL4: Có đồng ý bỏ bước UOA APPROVE/REJECT hiện tại để chuyển thành UOA xác nhận hoàn thành/không hoàn thành không?
-3. PL4: Người thực hiện chọn COMPLETED/NOT_COMPLETED; cả hai đều gửi UOA xác nhận, hay NOT_COMPLETED được giữ IN_PROGRESS và không cần gửi UOA?
 4. PL5: Nhóm người dùng được xem Dashboard là toàn bộ nhân sự UOA, chỉ UOA, hay thêm nhóm MSTAR/đối tác?
 
 
 
 | D08 | Xác nhận phương án xử lý PL2 quá hạn | ĐÃ CHỐT: nhắc ở 12 giờ; tự EXPIRED ở 24 giờ tính từ Created_At nếu chưa duyệt; vô hiệu hóa token; không tự động APPROVED. |
 | D09 | Lịch cảnh báo PL3 | ĐÃ CHỐT: Cấp 1 tại DAILY_DEADLINE; cấp 2 sau 30 phút; cấp 3 sau 60 phút nếu chưa có phiếu hợp lệ; dừng cảnh báo khi đã ghi nhận phiếu hợp lệ. |
+
+| D10 | Quy trình xử lý và xác nhận ISSUE PL4 | ĐÃ CHỐT: Assignee báo cáo COMPLETED hoặc NOT_COMPLETED; cả hai đều chờ UOA xác nhận. UOA xác nhận thì CLOSED; không xác nhận phải ghi lý do và trả về IN_PROGRESS. Assignee không tự đóng ISSUE. Lưu lịch sử từng lần báo cáo/xác minh. |
