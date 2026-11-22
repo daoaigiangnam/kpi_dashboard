@@ -399,7 +399,14 @@ erDiagram
       bigint id PK
       bigint inspection_result_id FK,UK
       varchar event_key UK
+      varchar target_system
+      json payload
       varchar status
+      int attempts
+      datetime next_attempt_at
+      datetime locked_at
+      datetime processed_at
+      text last_error
     }
 ```
 
@@ -430,6 +437,19 @@ erDiagram
       bigint business_entity_id FK,UK\n      varchar issue_code UK
       bigint room_id FK
       bigint source_inspection_result_id FK,UK
+      varchar source_inspection_code_snapshot
+      date source_inspection_date_snapshot
+      varchar source_room_code_snapshot
+      varchar source_room_name_snapshot
+      varchar source_room_location_snapshot
+      bigint source_checklist_version_id_snapshot
+      varchar source_checklist_version_code_snapshot
+      bigint source_checklist_version_item_id FK
+      varchar source_item_code_snapshot
+      varchar source_item_title_snapshot
+      text source_item_description_snapshot
+      varchar source_result_snapshot
+      text source_fail_remarks_snapshot
       bigint priority_id FK
       varchar priority_code_snapshot
       varchar priority_name_snapshot
