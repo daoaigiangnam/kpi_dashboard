@@ -328,7 +328,7 @@ erDiagram
       bigint id PK
       bigint business_entity_id FK,UK\n      varchar inspection_code UK
       bigint room_id FK
-      varchar frequency "PENDING ADR-003"
+      date inspection_date
       date inspection_date
       varchar conclusion
     }
