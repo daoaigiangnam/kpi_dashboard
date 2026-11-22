@@ -37,7 +37,7 @@ Không dùng trạng thái Assignment để thay thế trạng thái ISSUE. ISSU
 - Mỗi ISSUE có thể có nhiều Assignment theo thời gian.
 - Mỗi ISSUE có tối đa một Assignment ở trạng thái đang hiệu lực (`ASSIGNED` hoặc `CLAIMED`).
 - Service phải khóa dòng ISSUE khi tạo/claim/release Assignment; kiểm tra trạng thái và quyền trong cùng transaction.
-- Có thể bổ sung unique constraint/index phù hợp để hỗ trợ điều kiện một Assignment hiệu lực; không chỉ dựa vào kiểm tra ở giao diện.
+- MySQL dùng generated column `active_issue_id = CASE WHEN status IN ('ASSIGNED','CLAIMED') THEN issue_id ELSE NULL END` với UNIQUE index; nhiều NULL được phép. Đây là lớp bảo vệ DB cho điều kiện một Assignment hiệu lực/Issue; service vẫn phải khóa ISSUE và kiểm tra trong transaction.
 - Mọi thao tác claim phải idempotent: gửi lại cùng action không tạo thêm Assignment hoặc claim lần hai.
 - Không cho Assignee cũ gửi Work Report bằng Assignment đã RELEASED/DECLINED/EXPIRED.
 
