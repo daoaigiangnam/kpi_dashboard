@@ -358,6 +358,34 @@ Các điểm dưới đây là kết quả đọc `Code PL4.txt`; đây là hi�
 
 **Kết luận rà soát:** Không port nguyên trạng Apps Script sang PHP. Giữ lại dữ liệu nghiệp vụ cần thiết và các hành vi còn phù hợp; thay phần tích hợp, idempotency, state machine, Priority và gửi email theo kiến trúc PHP đã phê duyệt. Chưa triển khai Migration/PHP trong giai đoạn rà soát.
 
+### 6.9. PL4-R07 – Audit Trail và Notification History (ADR-009 đã phê duyệt)
+
+**Mục tiêu:** UOA có thể truy vết toàn bộ vòng đời ISSUE từ lúc tạo đến lúc đóng, gồm người tạo, phân công, nhận việc, báo cáo, quyết định UOA và trạng thái các email liên quan.
+
+**Nguồn dữ liệu Timeline:**
+- `pl4_issues`: thông tin hồ sơ và trạng thái hiện tại.
+- `pl4_issue_status_history`: từng lần chuyển trạng thái.
+- `pl4_assignments`: phân công, CLAIMED, DECLINED, EXPIRED, RELEASED.
+- `pl4_work_reports`: từng lần Assignee báo cáo COMPLETED/NOT_COMPLETED và thông tin minh chứng.
+- `pl4_uoa_confirmations`: từng quyết định CONFIRMED/NOT_CONFIRMED và lý do.
+- `system_audit_logs`: actor, event code, workflow step, channel, kết quả, thời điểm và correlation ID.
+- `email_queue` + `email_queue_attempts`: thông báo, người nhận, trạng thái hiện tại và từng lần gửi.
+
+**Event Audit PL4 tối thiểu:** `PL4_ISSUE_CREATED`, `PL4_ASSIGNMENT_CREATED`, `PL4_ASSIGNMENT_CLAIMED`, `PL4_ASSIGNMENT_DECLINED`, `PL4_ASSIGNMENT_EXPIRED`, `PL4_ASSIGNMENT_RELEASED`, `PL4_WORK_REPORT_SUBMITTED`, `PL4_UOA_CONFIRMED`, `PL4_UOA_NOT_CONFIRMED`, `PL4_ISSUE_STATUS_CHANGED`. Thao tác thất bại/bị từ chối cũng ghi SUCCESS/FAILED/DENIED theo chuẩn Audit chung.
+
+**Nguyên tắc:**
+1. Không tạo bảng `pl4_issue_audit_logs` hoặc `pl4_notification_history`.
+2. Assignment, Work Report, UOA Confirmation và Status History tiếp tục lưu thành các bản ghi lịch sử chuyên biệt; không ghi đè/xóa lịch sử cũ.
+3. Audit của thao tác trên bản ghi con liên kết về `business_entities.id` của ISSUE; ID bản ghi con chỉ nằm trong metadata an toàn.
+4. `system_audit_logs.business_entity_id` là FK trực tiếp tới `business_entities.id`; nullable chỉ với sự kiện hệ thống không gắn hồ sơ. Không dùng polymorphic `entity_type + entity_id` hoặc `parent_business_entity_id`.
+5. Notification History đọc từ Email Queue và Attempts. Retry tiếp tục trên queue item hiện hữu; email lỗi không làm thay đổi trạng thái ISSUE.
+6. Timeline là màn hình truy vấn hợp nhất, sắp xếp theo thời điểm; có thể lọc theo nhóm sự kiện, actor, kết quả và khoảng thời gian. Khi một hành động có cả bản ghi nghiệp vụ và Audit event, giao diện nhóm hợp lý để tránh hiểu nhầm thành hai hành động.
+7. Quyền xem theo D18/D19: UOA xem Timeline nghiệp vụ trong phạm vi được phép; MSTAR không mặc định xem raw Audit chi tiết; Super Admin không xem hồ sơ nghiệp vụ/Audit Evidence.
+
+**State machine PL4, Assignment Lifecycle, idempotency và Notification Matrix giữ nguyên theo ADR-005 đến ADR-008.** ADR-009 chỉ bổ sung cách ghi nhận, liên kết và trình bày lịch sử; chưa triển khai Migration/PHP.
+
+---
+
 ## 7. PL5 – Quản lý công việc và bảo trì
 
 **Form URL:** https://forms.gle/Ej6Toof1Y6KAi4qFA  
