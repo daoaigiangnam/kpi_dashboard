@@ -81,8 +81,10 @@ Quy tắc:
 
 | Bảng | Mục đích | Quan hệ |
 |---|---|---|
-| `pl3_inspections` | Phiếu kiểm tra theo phòng/ngày | FK room; inspector snapshot |
-| `pl3_checklist_items` | Danh mục I01–I12 | unique item_code |
+| `pl3_inspections` | Phiếu kiểm tra theo phòng/ngày | FK room + checklist version; inspector snapshot |
+| `pl3_checklist_items` | Danh mục gốc câu hỏi/checklist item | unique item_code; không xóa item đã sử dụng |
+| `pl3_checklist_versions` | Phiên bản bộ checklist DAILY | version_code; trạng thái DRAFT/PUBLISHED/RETIRED |
+| `pl3_checklist_version_items` | Nội dung câu hỏi được chụp theo từng phiên bản | FK version + item; snapshot nội dung, thứ tự, quy tắc trả lời |
 | `pl3_inspection_results` | Kết quả từng item của phiếu | FK inspection + checklist item |
 | `pl3_acknowledgements` | UOA xác nhận đã tiếp nhận hồ sơ | FK inspection; actor/channel/time |
 | `pl3_escalation_runs` | Một chu kỳ cảnh báo thiếu inspection theo phòng/ngày/lịch | UNIQUE `(room_id, work_date, schedule_type)`; DAILY hiện tại; config snapshot |
@@ -91,7 +93,8 @@ Quy tắc:
 | `pl3_integration_outbox` | Gửi FAIL sang PL4 có retry/idempotency | FK inspection result; event key; trạng thái |
 
 Quy tắc:
-- Một Inspection khi SUBMITTED phải có đủ đúng 12 kết quả tương ứng 12 checklist item I01–I12 đang có hiệu lực tại thời điểm nộp; mỗi item chỉ có một kết quả trong cùng Inspection. Service kiểm tra đủ 12 item trong transaction trước khi chuyển trạng thái hợp lệ; UNIQUE `(inspection_id, checklist_item_id)` ngăn kết quả trùng.
+- Bộ checklist được quản lý theo phiên bản. Phiên bản PUBLISHED là bất biến; muốn sửa/thêm/ngừng câu hỏi phải tạo phiên bản DRAFT mới rồi publish. Mỗi Inspection lưu checklist_version_id và dùng đúng nội dung câu hỏi đã chụp trong phiên bản đó.
+- Phiên bản đầu tiên khởi tạo 12 câu hỏi I01–I12 theo Phụ lục 3. Số lượng câu hỏi không hard-code là 12: khi SUBMITTED, service phải có đúng một kết quả cho mỗi item thuộc phiên bản đã gắn với Inspection, không thiếu/không trùng/không có item ngoài phiên bản. UNIQUE (inspection_id, checklist_version_item_id) bảo đảm không lặp.
 - FAIL bắt buộc có remarks/action.
 - Một Inspection có thể có nhiều acknowledgement; mỗi Run có tối đa một Event logic cho mỗi cấp.
 - Phạm vi kiểm tra được số hóa theo ADR-003 đã phê duyệt là DAILY; Form không có trường Inspection Frequency và bảng `pl3_inspections` không lưu `inspection_frequency`. Weekly/Monthly ngoài phạm vi hiện tại. Lịch cảnh báo thiếu phiếu cũng chỉ là DAILY theo ADR-002.
@@ -167,7 +170,7 @@ Quy tắc:
 - `server_rooms 1 — N pl2_visits`
 - `pl2_visits 1 — N pl2_approval_history / pl2_action_tokens / pl2_otp_challenges / pl2_visit_events`
 - `pl3_inspections 1 — N pl3_inspection_results`
-- `pl3_checklist_items 1 — N pl3_inspection_results`
+- `pl3_checklist_items 1 — N pl3_checklist_version_items`; `pl3_checklist_versions 1 — N pl3_checklist_version_items`; `pl3_checklist_version_items 1 — N pl3_inspection_results` theo các Inspection đã lưu.
 - `pl3_inspection_results 1 — 0..1 pl4_issues` (nguồn PL3; unique source reference)
 - `pl4_issues 1 — N pl4_assignments / pl4_work_reports / pl4_uoa_confirmations / pl4_issue_status_history`
 - `server_rooms 1 — N pl5_work_requests / pl5_maintenance_plans`
