@@ -737,3 +737,6 @@ Yêu cầu bảo mật:
 
 
 | D19 | Phân tách quyền Super Admin và nghiệp vụ | ĐÃ CHỐT: Super Admin chỉ được quản trị hệ thống và cấu hình. Không được tạo/sửa/phân công/phê duyệt/từ chối/xác nhận/xác minh/đóng hoặc thay đổi trạng thái hồ sơ PL1–PL5; không được thay mặt UOA hay người thực hiện ra quyết định nghiệp vụ. |
+
+
+| D21 | Ghi nhận sự kiện thành công và thất bại | ĐÃ CHỐT: Audit Log chung ghi nhận cả SUCCESS và FAILED, bao gồm thao tác nghiệp vụ, xác thực, truy cập bị từ chối, gửi Email, tích hợp API và tác vụ tự động. Không ghi mật khẩu, OTP, token hoặc API Secret dạng rõ. |
