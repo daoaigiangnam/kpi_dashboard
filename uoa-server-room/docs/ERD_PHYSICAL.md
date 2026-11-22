@@ -781,7 +781,7 @@ Instance hợp lệ khởi tạo `ACTIVE`; khi Issue CLOSED do UOA CONFIRMED chu
 
 ### 13.5 Calendar Exceptions
 
-Nhiều `SPECIAL_WORKING` rows được phép cho một ngày; các khoảng giờ không được chồng lấn. HOLIDAY/CLOSED là ngoại lệ đóng cả ngày, tối đa một bản ghi/ngày và không được tồn tại đồng thời với SPECIAL_WORKING. Exception thay thế lịch tuần của ngày đó.
+Nhiều `SPECIAL_WORKING` rows được phép cho một ngày; các khoảng giờ không được chồng lấn. Đề xuất chờ chủ nghiệp vụ xác nhận: HOLIDAY/CLOSED đóng cả ngày, tối đa một bản ghi/ngày và không được tồn tại đồng thời với SPECIAL_WORKING; Exception thay thế lịch tuần của ngày đó.
 
 ### 13.6 Cycle terminal result
 
