@@ -446,7 +446,6 @@ erDiagram
       bigint source_checklist_version_id_snapshot
       varchar source_checklist_version_code_snapshot
       bigint source_checklist_version_item_id FK
-      bigint source_checklist_version_item_id FK
       varchar source_item_code_snapshot
       varchar source_item_title_snapshot
       text source_item_description_snapshot
