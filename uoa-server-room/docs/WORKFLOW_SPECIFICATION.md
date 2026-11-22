@@ -96,7 +96,7 @@ Các điều kiện CHANGE/REVOKE được kiểm tra lúc gửi yêu cầu và 
 - REVOKE: cập nhật bản ghi hiện có, ghi Request ID, thông tin phê duyệt và chuyển Record Status thành `REVOKED`.
 - Khi APPROVED, trạng thái bản ghi quyền tương ứng là `ACTIVE` đối với NEW/CHANGE.
 
-**Điểm cần xác nhận:** Thời hạn hiệu lực Valid From/Valid Until có được tự động dùng để tự chuyển Record Status hay chỉ lưu thông tin thời hạn? Mã nguồn được rà soát hiện chưa đủ căn cứ để khẳng định có bộ lập lịch tự động hết hạn.
+**Quyết định nghiệp vụ đã xác nhận:** Quyền truy cập có hiệu lực theo khoảng thời gian Valid From/Valid Until. Hệ thống PHP phải tự động xác định quyền hết hiệu lực khi đến hạn; không xóa Access Register. Đề xuất trạng thái riêng `EXPIRED` để phân biệt hết hạn theo lịch với `REVOKED` do người có thẩm quyền thu hồi. Cần chốt quy tắc thời điểm biên: quyền còn hiệu lực đến hết ngày Valid Until theo múi giờ Asia/Ho_Chi_Minh, sau đó chuyển EXPIRED.
 
 ### 3.5. Email queue PL1
 
@@ -174,7 +174,7 @@ Các trạng thái nghiệp vụ đã thấy trong mã:
 
 PL2 có Email Queue riêng, worker chạy mỗi 5 phút, có trạng thái SENDING/PENDING/RETRY/SENT/FAILED/CANCELLED theo các nhánh xử lý. OTP chỉ bắt đầu tính hạn sau callback gửi email thành công.
 
-**CHỜ XÁC NHẬN:** Quy tắc hết hạn yêu cầu phê duyệt theo Room_Approval_Timeout_Hours (24 giờ trong workbook mẫu): cần xác minh chính xác trigger xử lý yêu cầu quá hạn và trạng thái cuối cùng; không suy ra chỉ từ giá trị cấu hình.
+**Đề xuất nghiệp vụ chờ phê duyệt:** Nếu yêu cầu vẫn PENDING sau 12 giờ, gửi email nhắc người duyệt. Khi đủ 24 giờ tính từ Created_At mà chưa có quyết định, tự chuyển sang `EXPIRED`, vô hiệu hóa Approval_Token và ghi Audit Log. Không tự động APPROVED. Người đăng ký cần tạo yêu cầu mới nếu vẫn có nhu cầu. Yêu cầu EXPIRED không được duyệt bằng link cũ. Giá trị 12 giờ là đề xuất mới; 24 giờ lấy từ cấu hình timeout trong workbook mẫu và cần được chủ nghiệp vụ chốt.
 
 ---
 
@@ -239,13 +239,13 @@ Quy tắc từ mã:
 - Nếu thiếu email người nhận cấp tương ứng, ghi sự kiện SKIPPED và chuyển cấp trong trạng thái escalation.
 - Hệ thống ghi Audit Log cho từng cấp cảnh báo.
 
-**CHỜ XÁC NHẬN:** Cần chốt bảng ánh xạ chính xác cấp 1/2/3 tới người nhận (MSTAR, Room Approver, Manager) và các giá trị delay thực tế trong workbook/Settings triển khai.
+**Quyết định người nhận đã xác nhận:** Cấp 1 gửi Người thực hiện kiểm tra; Cấp 2 gửi Nhóm MSTAR và Quản lý Phòng Server; Cấp 3 gửi Quản lý của Quản lý Phòng Server. **Đề xuất thời gian mặc định chờ chốt:** Cấp 1 ngay tại DAILY_DEADLINE; Cấp 2 sau 30 phút nếu chưa có phiếu; Cấp 3 sau 60 phút nếu vẫn chưa có phiếu. Tất cả mốc thời gian phải cấu hình được. Khi phiếu hợp lệ được ghi nhận cho đúng Room_ID/ngày, dừng các cấp cảnh báo còn lại.
 
 ### 5.4. Tích hợp PL3 → PL4
 
-Mã PL3 có cơ chế gửi các checklist FAIL sang Web App PL4 qua HTTP API, có PL4_WEB_APP_URL và PL4_API_SECRET; đồng thời có khóa tham chiếu để thử lại khi push lỗi và tránh tạo trùng.
+Mã PL3 có cơ chế gửi các checklist FAIL sang Web App PL4 qua HTTP API, có PL4_WEB_APP_URL và PL4_API_SECRET. Theo xác nhận nghiệp vụ, dữ liệu liên kết tối thiểu phải có `Inspection_ID` (ID PL3), `Inspection_Item_ID` và token xác thực. PL4 lưu khóa tham chiếu ngược về PL3 và chống tạo trùng khi nhận lại cùng sự kiện.
 
-Trong cùng file PL3 cũng còn các hàm mang tên luồng PL4 nội bộ/legacy. Cần kiểm tra cấu hình triển khai thực tế để xác định hàm nào đang được trigger và URL nào đang hoạt động. Không được triển khai đồng thời hai cơ chế tạo ISSUE nếu chưa xác nhận, vì có nguy cơ nhân đôi nghiệp vụ.
+Token xác thực API phải tách biệt token thao tác của người thực hiện/người duyệt; không ghi secret hoặc token nhạy cảm vào log công khai. Trong cùng file PL3 còn các hàm PL4 legacy; cần chọn duy nhất cơ chế API ID + Token làm luồng tích hợp chính thức, không kích hoạt song song cơ chế tạo ISSUE khác.
 
 ---
 
@@ -276,30 +276,36 @@ Các trường chính trong PL4 Issues:
 - Approved_By, Approved_At, Approval_Result, Approval_Notes;
 - Assignee_Token, Approval_Token, PL3_Reference_Key.
 
-### 6.3. Luồng xử lý đọc được từ mã
+### 6.3. Luồng xử lý hiện tại trong Apps Script
 
-1. ISSUE được tạo từ PL3 hoặc MANUAL.
-2. Với ISSUE PL3, thông tin checklist gốc được hiển thị để người xử lý tham chiếu; phần Form PL4 thu thập thông tin xử lý do người thực hiện nhập.
-3. Gửi thông báo cho người được phân công.
-4. Người được phân công mở link token, xác nhận nhận xử lý và gửi biện pháp xử lý, kết quả, minh chứng.
-5. Sau khi gửi kết quả, hệ thống tạo/gửi link yêu cầu người duyệt xem xét.
-6. Người duyệt phải là Approver hiện đang được cấu hình trong PL1 cho đúng phòng; nếu người duyệt đã thay đổi so với snapshot ISSUE, hệ thống từ chối xử lý và yêu cầu cập nhật.
-7. Người duyệt chọn APPROVE hoặc REJECT và bắt buộc có ghi chú.
-8. APPROVE chuyển ISSUE thành `CLOSED`; REJECT chuyển thành `REJECTED`; token phê duyệt bị vô hiệu hóa.
-9. Ghi Audit Log và gửi kết quả cho Reporter, Assignee, Approver.
+1. ISSUE được tạo từ PL3 hoặc MANUAL với trạng thái `OPEN`.
+2. Người được phân công nhận ISSUE bằng Assignee_Token; hệ thống ghi Assignee và chuyển `IN_PROGRESS`.
+3. Người thực hiện nhập Action_Taken, Resolution_Notes và Evidence_URL rồi gửi yêu cầu xem xét; hệ thống chuyển `PENDING_APPROVAL`.
+4. Người duyệt được xác định từ PL1 theo phòng, chọn APPROVE hoặc REJECT và bắt buộc ghi chú.
+5. APPROVE chuyển `CLOSED`; REJECT chuyển `REJECTED` và cho phép Assignee tiếp tục cập nhật.
+6. Ghi Audit Log và gửi kết quả cho Reporter, Assignee, Approver.
 
-### 6.4. Trạng thái
+### 6.4. Quyết định nghiệp vụ đề xuất theo xác nhận của chủ hệ thống
 
-Các trạng thái thấy trong mã và workbook:
-- `OPEN`;
-- `IN_PROGRESS`;
-- `PENDING_APPROVAL`;
-- `CLOSED`;
-- `REJECTED`.
+Để phân biệt rõ báo cáo của người làm và nghiệm thu của UOA, đề xuất thay bước APPROVE/REJECT hiện tại bằng quy trình:
 
-Cần xác nhận chính xác điểm chuyển OPEN → IN_PROGRESS và điều kiện nào cho phép gửi phê duyệt; đồng thời xác nhận ý nghĩa nghiệp vụ của REJECTED (từ chối xử lý hay từ chối kết quả hoàn thành). Không tự đồng nhất REJECTED với CLOSED.
+1. Người thực hiện được chọn báo cáo `COMPLETED` (đã xử lý) hoặc `NOT_COMPLETED` (chưa xử lý), bắt buộc ghi kết quả và minh chứng phù hợp.
+2. Cả hai lựa chọn đều chuyển hồ sơ sang `PENDING_UOA_CONFIRMATION`; đây chỉ là trạng thái chờ UOA xem xét, không phải đã đóng.
+3. UOA kiểm tra kết quả:
+   - Xác nhận hoàn thành: chuyển `CLOSED`.
+   - Không xác nhận: bắt buộc ghi lý do, trả về `IN_PROGRESS` để tiếp tục khắc phục.
+4. Người thực hiện không được tự đóng ISSUE.
+5. Mỗi lần báo cáo của Assignee và mỗi lần xác nhận/không xác nhận của UOA phải ghi thành bản ghi lịch sử riêng, không ghi đè kết quả cũ.
 
-### 6.5. Cấu hình và tích hợp
+Theo thiết kế này, UOA có quyền xác nhận cuối cùng; không bắt buộc có bước UOA duyệt phân công ban đầu. Đây là đề xuất thay đổi so với mã Apps Script hiện tại và cần được chốt trước khi triển khai PHP.
+
+### 6.5. Trạng thái
+
+**Trạng thái hiện tại trong mã:** `OPEN`, `IN_PROGRESS`, `PENDING_APPROVAL`, `CLOSED`, `REJECTED`.
+
+**Trạng thái đề xuất sau khi chốt nghiệp vụ:** `OPEN` → `IN_PROGRESS` → `PENDING_UOA_CONFIRMATION` → `CLOSED`; nếu UOA không xác nhận thì quay lại `IN_PROGRESS`. Không dùng `REJECTED` cho kết quả UOA không nghiệm thu; nên ghi quyết định `NOT_CONFIRMED` trong lịch sử xác minh để tránh nhầm với từ chối xử lý.
+
+### 6.6. Cấu hình và tích hợp
 
 - PL4 đọc danh mục phòng/người duyệt từ PL1.
 - PL4 có API secret để nhận dữ liệu PL3; phải lưu secret an toàn, không ghi vào tài liệu hoặc log công khai.
@@ -372,7 +378,7 @@ VERIFY FAIL ghi thêm hành động REWORK_REQUIRED vào Work Execution. Vì v�
 
 ### 7.5. Dashboard và email
 
-Dashboard hiện thống kê các trạng thái PENDING_APPROVAL, APPROVED, IN_PROGRESS, ON_HOLD, PENDING_VERIFICATION, CLOSED và liệt kê tối đa 100 yêu cầu gần nhất theo mã nguồn.
+**Quyết định đã xác nhận:** Dashboard PL5 giai đoạn đầu chỉ có quyền xem (read-only). Dashboard được phép hiển thị số liệu tổng hợp, danh sách và chi tiết Work_ID, trạng thái, lịch sử duyệt/thực hiện/xác minh. Không được tạo/sửa/hủy phiếu, duyệt/từ chối, thay đổi người thực hiện, xác minh/đóng công việc hoặc xóa dữ liệu. Các thao tác nghiệp vụ tiếp tục theo Form/Token hiện có. Dashboard hiện thống kê các trạng thái PENDING_APPROVAL, APPROVED, IN_PROGRESS, ON_HOLD, PENDING_VERIFICATION, CLOSED và liệt kê tối đa 100 yêu cầu gần nhất theo mã nguồn.
 
 PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/RETRY/SENT/FAILED và khôi phục SENDING bị treo sau 15 phút. Có Email Log. Queue PL5 độc lập PL1.
 
@@ -395,15 +401,15 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 
 | Mã | Nội dung cần xác nhận | Lý do |
 |---|---|---|
-| Q01 | PL1 Valid Until có tự động hết hạn quyền hay chỉ là dữ liệu thời hạn | Chưa đủ bằng chứng về scheduler tự đổi Record Status |
+| Q01 | Chốt thời điểm biên và chu kỳ chạy tác vụ tự động EXPIRED của PL1 | Đã xác nhận có tự hết hạn theo Valid From/Valid Until; còn cần chốt thời điểm biên |
 | Q02 | Thời hạn token phê duyệt PL1 và cách xử lý khi hết hạn | Cần đối chiếu giá trị Settings triển khai |
-| Q03 | PL2 xử lý Visit quá thời hạn phê duyệt 24 giờ như thế nào | Có cấu hình timeout trong workbook; cần xác minh nhánh xử lý |
+| Q03 | Chốt đề xuất PL2: nhắc ở 12 giờ, EXPIRED ở 24 giờ, không tự duyệt | 24 giờ theo cấu hình mẫu; mốc nhắc 12 giờ là đề xuất mới |
 | Q04 | PL2 có giới hạn thời gian được CHECK-IN sau khi duyệt hay không | Chưa chốt từ các đoạn mã đã rà |
 | Q05 | PL3 ánh xạ cấp cảnh báo 1/2/3 tới MSTAR/Approver/Manager và delay thực tế | Cần lấy đúng giá trị Settings đang chạy |
-| Q06 | PL3 đang dùng tích hợp PL4 API độc lập hay các hàm PL4 nội bộ/legacy | Trong Code PL3 tồn tại nhiều hàm PL4; cần xác minh deployment/triggers |
-| Q07 | PL4 chính xác điều kiện chuyển OPEN → IN_PROGRESS và ý nghĩa REJECTED | Cần đọc toàn bộ nhánh assignee và đối chiếu dữ liệu lịch sử |
+| Q06 | Xác minh deployment thực tế chỉ kích hoạt tích hợp API PL3 ID + Token | Chủ nghiệp vụ đã chọn cơ chế ID PL3 + Token; cần kiểm tra trigger/deployment đang chạy |
+| Q07 | Chốt state machine PL4 mới: Assignee báo cáo, UOA xác nhận cuối cùng; không cho Assignee tự đóng | Đã có đề xuất nghiệp vụ; cần chủ nghiệp vụ duyệt thay đổi so với Apps Script |
 | Q08 | PL4 có queue/retry email ở bản đang triển khai không | Mã nguồn đã đọc cho thấy gửi MailApp trực tiếp ở các nhánh; cần kiểm tra các nhánh còn lại |
-| Q09 | Dashboard PL5 phân quyền theo tài khoản/nhóm nào và các thao tác quản trị nào được hiển thị | URL live chưa đọc được trong phiên này |
+| Q09 | Chốt phạm vi read-only PL5 Dashboard và nhóm tài khoản được xem | Read-only đã xác nhận; nhóm người xem cần xác định |
 | Q10 | Danh sách trường Form đang phát hành có khác mã Apps Script/workbook không | Chưa truy cập trực tiếp được giao diện Google Forms |
 
 ---
@@ -419,3 +425,27 @@ Chỉ chuyển sang bước chốt ERD, migration và code khi:
 - Form field và Dashboard actions được đối chiếu với giao diện thực tế.
 
 **Kết luận:** Bản 0.1 đã trích xuất được khung nghiệp vụ và các state machine chính từ mã nguồn. Đây chưa phải bản chốt cuối; các câu hỏi ở Mục 9 phải được giải quyết trước khi sửa schema hoặc viết chức năng nghiệp vụ PHP.
+
+
+---
+
+## 11. Nhật ký quyết định nghiệp vụ – cập nhật 22/11/2026
+
+| Mã | Nội dung | Kết quả |
+|---|---|---|
+| D01 | PL1 tự hết hạn quyền truy cập | ĐÃ XÁC NHẬN: có hiệu lực theo khoảng thời gian Valid From/Valid Until; tự hết hạn, không xóa lịch sử. Đề xuất trạng thái EXPIRED riêng với REVOKED. |
+| D02 | PL2 yêu cầu chờ duyệt quá 24 giờ | ĐỀ XUẤT: nhắc ở giờ thứ 12; quá 24 giờ chuyển EXPIRED, vô hiệu hóa link duyệt, không tự duyệt; cần chủ nghiệp vụ chốt mốc nhắc 12 giờ. |
+| D03 | PL3 người nhận cảnh báo | ĐÃ XÁC NHẬN: Cấp 1 Người thực hiện; Cấp 2 Nhóm MSTAR và Quản lý Phòng Server; Cấp 3 Quản lý của Quản lý Phòng Server. |
+| D04 | PL3 thời gian cảnh báo | ĐỀ XUẤT: Cấp 1 tại deadline; Cấp 2 +30 phút; Cấp 3 +60 phút nếu chưa có phiếu. Cho phép cấu hình. |
+| D05 | PL3 → PL4 | ĐÃ XÁC NHẬN: tích hợp bằng ID PL3 (Inspection_ID), checklist item ID và Token xác thực; cần chống gửi/tạo ISSUE trùng. |
+| D06 | PL4 xác nhận hoàn thành | ĐỀ XUẤT: Assignee báo cáo đã/chưa hoàn thành; UOA xác nhận cuối cùng. UOA xác nhận thì CLOSED; không xác nhận thì về IN_PROGRESS. Assignee không được tự đóng ISSUE. |
+| D07 | PL5 Dashboard | ĐÃ XÁC NHẬN: giai đoạn đầu chỉ xem; không có thao tác ghi/sửa/duyệt/xóa trên Dashboard. |
+
+### 11.1. Những điểm cần chủ nghiệp vụ duyệt tiếp
+
+1. PL2: Có đồng ý nhắc người duyệt ở giờ thứ 12 và tự EXPIRED ở giờ thứ 24 không?
+2. PL3: Có đồng ý lịch cảnh báo tại deadline, +30 phút, +60 phút không?
+3. PL4: Có đồng ý bỏ bước UOA APPROVE/REJECT hiện tại để chuyển thành UOA xác nhận hoàn thành/không hoàn thành không?
+4. PL4: Người thực hiện chọn COMPLETED/NOT_COMPLETED; cả hai đều gửi UOA xác nhận, hay NOT_COMPLETED được giữ IN_PROGRESS và không cần gửi UOA? Khuyến nghị gửi UOA nếu cần theo dõi mọi lần báo cáo, nhưng có thể tạo thêm thông báo.
+5. PL5: Nhóm người dùng được xem Dashboard là toàn bộ nhân sự UOA, chỉ UOA, hay thêm nhóm MSTAR/đối tác?
+
