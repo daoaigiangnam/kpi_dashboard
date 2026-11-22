@@ -460,9 +460,16 @@ erDiagram
     PL4_ASSIGNMENTS {
       bigint id PK
       bigint issue_id FK
+      varchar assignee_name_snapshot
       varchar assignee_email_snapshot
+      bigint assigned_by_user_id FK
+      varchar assigned_by_name_snapshot
+      varchar assigned_by_email_snapshot
       datetime assigned_at
       datetime claimed_at
+      datetime released_at
+      varchar status
+      text note
     }
     PL4_WORK_REPORTS {
       bigint id PK
