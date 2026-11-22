@@ -131,6 +131,7 @@ Quy tắc:
 - Assignee không có quyền tự đóng ISSUE; mọi lần báo cáo và xác nhận phải lưu riêng, không ghi đè.
 - ISSUE MANUAL được tiếp nhận qua `pl4_manual_submissions`; cặp `source_form_id + form_response_id` là khóa idempotency UNIQUE. Retry cùng submission trả về ISSUE hiện hữu, không tạo ISSUE mới.
 - Tạo `business_entities` + `pl4_issues` + `pl4_manual_submissions` + `system_audit_logs` + `email_queue` trong cùng MySQL/InnoDB transaction. Lỗi ghi DB ở bất kỳ bước nào rollback toàn bộ; Email Queue Worker chỉ gửi SMTP sau Commit theo ADR-007.
+- Theo ADR-008, email PL4 dùng Email Queue chung; Assignee gửi Work Report phải enqueue hai email riêng cho Reporter và UOA Approver theo Room trong cùng transaction với Work Report, Status History và Audit. Không gửi MSTAR ở sự kiện này; email lỗi không rollback nghiệp vụ.
 
 ### 2.6. PL5 – Work & Maintenance
 
@@ -159,7 +160,7 @@ Quy tắc:
 
 | Bảng | Mục đích | Quan hệ |
 |---|---|---|
-| `email_queue` | Hàng đợi email nghiệp vụ | module + entity reference; event_key unique |
+| `email_queue` | Hàng đợi email nghiệp vụ dùng chung PL1–PL5; mỗi người nhận là một queue item | module + Business Entity; event_key UNIQUE; trạng thái/retry |
 | `email_queue_attempts` | Lịch sử từng lần gửi | FK email_queue |
 | `business_entities` | Định danh thống nhất cho hồ sơ nghiệp vụ gốc PL1–PL5 | PK `id`; một dòng tương ứng một hồ sơ gốc; FK từ Audit/Evidence |
 | `system_audit_logs` | Audit Log tập trung PL1–PL5 | FK `business_entity_id` nullable; actor, event, channel, correlation |
