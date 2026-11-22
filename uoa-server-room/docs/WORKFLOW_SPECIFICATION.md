@@ -207,7 +207,7 @@ Quy tắc:
 - Phòng gửi lên phải khớp chính xác với danh mục phòng ACTIVE hiện tại của PL1.
 - Form Response ID chống xử lý lặp.
 
-**Đối chiếu tần suất:** Phụ lục 3 PDF có lựa chọn Daily when MSTAR is onsite / Weekly / Monthly. Tuy nhiên, mã Apps Script PL3 được cung cấp không tạo câu hỏi Frequency, không có cột Frequency trong `INSPECTION_HEADERS` và không đọc/lưu Frequency khi submit. Vì vậy danh sách trường Form ở trên phản ánh mã setup được cung cấp, chưa xác nhận giao diện live. Quyết định có đưa Frequency vào Form PHP được theo dõi riêng tại `ADR-003-PL3-INSPECTION-FREQUENCY.md`; không đồng nhất Frequency kiểm tra với lịch cảnh báo DAILY đã chốt tại ADR-002.
+**Đối chiếu tần suất:** Phụ lục 3 PDF có lựa chọn Daily when MSTAR is onsite / Weekly / Monthly. Tuy nhiên, mã Apps Script PL3 được cung cấp không tạo câu hỏi Frequency, không có cột Frequency trong `INSPECTION_HEADERS` và không đọc/lưu Frequency khi submit. Vì vậy danh sách trường Form ở trên phản ánh mã setup được cung cấp, chưa xác nhận giao diện live. Theo ADR-003 đã phê duyệt, Form PHP online chỉ triển khai DAILY và không có trường Frequency; không đồng nhất phạm vi kiểm tra DAILY với lịch cảnh báo thiếu phiếu DAILY theo ADR-002.
 
 ### 5.2. Ghi nhận và xác nhận UOA
 
