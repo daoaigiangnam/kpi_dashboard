@@ -189,7 +189,7 @@ Các trường chính:
 - Ngày kiểm tra, giờ kiểm tra;
 - Người thực hiện;
 - Nhiệt độ (°C), độ ẩm (%), có thể để trống;
-- 12 hạng mục I01–I12;
+- Danh sách hạng mục lấy từ phiên bản Checklist DAILY đang PUBLISHED; phiên bản đầu tiên có 12 hạng mục I01–I12;
 - Mỗi hạng mục chọn PASS / FAIL / N/A;
 - Ghi chú / hành động khắc phục cho từng hạng mục;
 - Kết luận;
@@ -201,7 +201,7 @@ Kết luận hợp lệ:
 - `EMERGENCY - Cần ứng phó khẩn cấp`.
 
 Quy tắc:
-- Phải có kết quả PASS/FAIL/N/A cho đủ I01–I12.
+- Phải có đúng một kết quả PASS/FAIL/N/A cho từng hạng mục thuộc phiên bản Checklist gắn với Inspection; không hard-code số lượng câu hỏi.
 - Nếu một hạng mục FAIL thì bắt buộc có ghi chú/hành động.
 - Nhiệt độ và độ ẩm nếu nhập phải là số.
 - Phòng gửi lên phải khớp chính xác với danh mục phòng ACTIVE hiện tại của PL1.
@@ -212,7 +212,7 @@ Quy tắc:
 ### 5.2. Ghi nhận và xác nhận UOA
 
 1. Khi nhận Form, hệ thống tạo Inspection_ID.
-2. Ghi một bản ghi Inspections và 12 dòng Inspection Details.
+2. Gắn phiên bản Checklist DAILY đang PUBLISHED tại thời điểm tạo phiếu; lưu một bản ghi Inspections và các dòng Inspection Details tương ứng các hạng mục trong phiên bản đó.
 3. Nếu có FAIL, sinh PL4 link token và thực hiện luồng chuyển dữ liệu sang PL4.
 4. Gửi email yêu cầu UOA xem và xác nhận tiếp nhận hồ sơ.
 5. UOA mở token, xem thông tin và xác nhận.
@@ -1076,3 +1076,13 @@ Gói xuất là bản chụp dữ liệu tại thời điểm tạo; không thay
 ## Quyết định ADR-003 – PL3 Inspection Frequency
 
 Đã phê duyệt phương án B ngày 22/11/2026: Form PL3 online chỉ triển khai kiểm tra DAILY; không có trường Inspection Frequency, không lưu `inspection_frequency`, không triển khai Weekly/Monthly. Escalation Scheduler vẫn DAILY theo ADR-002. Nội dung Weekly/Monthly trong Phụ lục 3 được ghi nhận là ngoài phạm vi số hóa hiện tại.
+
+
+### Quản lý danh mục Checklist PL3 (thiết kế)
+
+- Super Admin quản lý danh mục câu hỏi và phiên bản Checklist DAILY.
+- Có thể tạo bản nháp, thêm câu hỏi, cập nhật nội dung, đổi thứ tự, bật/tắt câu hỏi, cấu hình loại trả lời và yêu cầu ghi chú khi FAIL.
+- Khi publish, phiên bản được đóng băng; mọi thay đổi tiếp theo phải tạo phiên bản mới. Không sửa/xóa nội dung của phiên bản đã được dùng cho Inspection.
+- Inspection lưu phiên bản Checklist đã áp dụng; mỗi kết quả liên kết tới version item để truy xuất đúng câu hỏi, nội dung và thứ tự tại thời điểm kiểm tra.
+- Form DAILY chỉ tải phiên bản PUBLISHED có hiệu lực. Nếu không có phiên bản hợp lệ, không cho mở/nộp phiếu và ghi Audit Log lỗi cấu hình.
+- Phiên bản đầu tiên khởi tạo đủ 12 câu hỏi I01–I12 theo Phụ lục 3. Số lượng câu hỏi về sau lấy theo version items, không hard-code trong PHP.
