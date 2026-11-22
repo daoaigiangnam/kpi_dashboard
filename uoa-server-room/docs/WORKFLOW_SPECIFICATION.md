@@ -350,7 +350,7 @@ Các điểm dưới đây là kết quả đọc `Code PL4.txt`; đây là hi�
 | PL4-R03 | Khóa trùng hiện tại là chuỗi `Inspection_ID|Item_ID` trong cột PL3_Reference_Key. | Dùng UNIQUE `source_inspection_result_id`; retry cùng nguồn phải xử lý cùng Outbox/Issue, không tạo bản ghi mới. | Đã chốt theo ADR-005 |
 | PL4-R04 | Header `Form_Response_ID` có trong PL4 Form Responses, nhưng handler không kiểm tra trùng trước khi tạo Issue. | Idempotency theo cặp `source_form_id + form_response_id`; UNIQUE DB trong `pl4_manual_submissions`. Retry cùng Response trả về ISSUE cũ, không tạo ISSUE mới. | Đã chốt theo ADR-007 |
 | PL4-R05 | Manual submit tạo Issue, Form Response và Audit Log bằng các thao tác rời; không có transaction bao trọn. | Cùng MySQL Transaction ghi Business Entity + Issue + Manual Submission + Audit Log + Email Queue record. Bất kỳ lỗi DB nào rollback toàn bộ. Email chỉ gửi sau Commit qua Worker. | Đã chốt theo ADR-007 |
-| PL4-R06 | Mã có các lời gọi `MailApp.sendEmail` trực tiếp trong thông báo Assignee, Reporter và Approver. | PHP phải enqueue qua Email Queue; email thất bại không rollback Issue/Report/Confirmation; retry theo policy queue chung. | Cần thay |
+| PL4-R06 | Mã có các lời gọi `MailApp.sendEmail` trực tiếp trong thông báo Assignee, Reporter và Approver; thông báo tạo ISSUE từ PL3 có hàm gửi Reporter nhưng lời gọi hiện bị comment. | PHP dùng Email Queue chung theo ADR-008. Khi Assignee gửi Work Report, enqueue hai email riêng cho Reporter và UOA Approver theo Room; không gửi MSTAR. SMTP failure không rollback Work Report/Issue; retry theo policy Queue chung. | Đã chốt theo ADR-008 |
 | PL4-R07 | Mã dùng `PENDING_APPROVAL`, `REJECTED`, APPROVE/REJECT sau báo cáo. | Không mang trạng thái legacy sang PHP. Dùng state machine đã chốt: Assignee report COMPLETED/NOT_COMPLETED → PENDING_UOA_CONFIRMATION; UOA CONFIRMED → CLOSED; NOT_CONFIRMED + reason → IN_PROGRESS. | Đã chốt, bắt buộc tuân thủ |
 | PL4-R08 | Hàm tạo Issue có fallback Priority `MEDIUM - Trung bình` nếu không truyền Priority; PL3 integration lại truyền cứng HIGH. | PHP phải validate Priority MANUAL được chọn từ danh mục active; PL3 đọc `PL4_PL3_DEFAULT_PRIORITY_CODE`. Không fallback ngầm. | Đã chốt theo ADR-004 |
 | PL4-R09 | PL3-generated Issue ban đầu không có Assignee; Reporter nhận link và chuyển tiếp cho người xử lý. | Thực hiện theo ADR-006: Reporter/người có quyền tạo Assignment; chỉ Assignee được chỉ định claim; mỗi ISSUE tối đa một Assignment hiệu lực; claim nguyên tử; từ chối/hết hạn/giải phóng và tái phân công giữ nguyên lịch sử. | Đã chốt theo ADR-006 |
@@ -982,6 +982,19 @@ Không bắt buộc ghi `FORM_OPENED` cho mọi lượt mở trang nếu gây kh
 | `PL4_ISSUE_CLOSED` | CLOSE | Người/luồng đóng theo quyết định UOA, thời điểm |
 | `PL4_ISSUE_REOPENED` | REOPEN | Chỉ nếu quy trình được phê duyệt có cho phép mở lại; lý do và tham chiếu |
 | `PL4_ISSUE_ACTION_DENIED` | SECURITY | Người thử thao tác, lý do từ chối |
+
+**Quy tắc thông báo email PL4 – ADR-008 (đã phê duyệt):**
+
+| Business event | Người nhận | Thời điểm / nguyên tắc |
+|---|---|---|
+| `PL4_ISSUE_CREATED_MANUAL` | Assignee | Sau khi Issue, Assignment, Audit và Email Queue commit |
+| `PL4_ISSUE_CREATED_FROM_PL3` | Reporter | Sau khi Issue PL3 được tạo; không gửi MSTAR mặc định |
+| `PL4_ASSIGNMENT_ASSIGNED` | Assignee mới | Sau khi Assignment mới commit; link giới hạn đúng Issue + Assignment |
+| `PL4_WORK_REPORT_SUBMITTED` | Reporter và UOA Approver theo Room | Phương án A: hai email/queue item riêng, enqueue cùng transaction với Work Report + chuyển trạng thái + Status History + Audit |
+| `PL4_UOA_CONFIRMED` | Reporter và Assignee | Thông báo UOA xác nhận, Issue CLOSED |
+| `PL4_UOA_NOT_CONFIRMED` | Assignee và Reporter | Thông báo lý do, Issue quay về IN_PROGRESS |
+
+Không gửi MSTAR trong thông báo Assignee gửi Work Report. Nếu thiếu hoặc không xác định duy nhất UOA Approver theo Room, ghi Audit lỗi cấu hình và không âm thầm bỏ qua recipient bắt buộc. Mỗi recipient là một Email Queue item riêng; event_key chống enqueue trùng. SMTP chạy sau Commit; email thất bại không đảo ngược nghiệp vụ. Giao nhận theo at-least-once, không cam kết exactly-once. Chi tiết tại ADR-008.
 
 #### PL5 – Work & Maintenance Management
 
