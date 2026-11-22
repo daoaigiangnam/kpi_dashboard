@@ -33,7 +33,7 @@ Script Properties không phải nơi lưu trạng thái phù hợp cho hệ th�
 
 ## 3. Phương án khóa chu kỳ
 
-### Đề xuất khóa duy nhất
+### Khóa duy nhất đã được phê duyệt
 
 Một chu kỳ cảnh báo được nhận diện bởi:
 
@@ -46,7 +46,7 @@ Tạo UNIQUE:
 
 Không dùng `frequency` như một thành phần khóa cho đến khi có yêu cầu nghiệp vụ Weekly/Monthly được xác nhận. Nếu sau này phát sinh lịch kiểm tra theo tuần/tháng, cần ADR hoặc quyết định nghiệp vụ riêng để xác định kỳ, ngày đến hạn và quy tắc khi nhiều phiếu được nộp trong một kỳ.
 
-### Trạng thái Run đề xuất
+### Trạng thái Run đã chốt
 
 - `PENDING`: chưa đến deadline hoặc chưa gửi cấp nào.
 - `IN_PROGRESS`: đang xử lý các cấp cảnh báo.
@@ -54,9 +54,9 @@ Không dùng `frequency` như một thành phần khóa cho đến khi có yêu 
 - `COMPLETED`: đã xử lý hết các cấp được cấu hình.
 - `ERROR`: có lỗi cần xử lý/retry; không đồng nghĩa đã gửi thành công.
 
-Tên trạng thái cuối cùng sẽ được chuẩn hóa trong Data Dictionary khi quyết định được phê duyệt.
+Các trạng thái Run ở trên là bộ trạng thái chuẩn để cụ thể hóa trong Data Dictionary và thiết kế vật lý.
 
-## 4. Escalation Events
+## 4. Escalation Events đã được phê duyệt
 
 Mỗi cấp là một event riêng, liên kết FK tới Run:
 - `UNIQUE(escalation_run_id, level)` để mỗi cấp chỉ có một bản ghi logic.
