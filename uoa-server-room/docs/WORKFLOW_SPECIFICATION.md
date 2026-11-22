@@ -651,7 +651,7 @@ Tách **quyền quản trị hệ thống** khỏi **quyền xử lý nghiệp v
 
 1. Quyền Approver/Verifier cần gắn Room_ID và vai trò nghiệp vụ; kiểm tra lại ở server tại thời điểm thực hiện hành động.
 2. PL Admin phải được gán rõ danh sách phân hệ được quản trị; không mặc định quản trị cả năm PL.
-3. MSTAR chỉ có các quyền được nêu rõ; quyết định hiện tại xác nhận MSTAR xem PL5 Dashboard read-only và nhận cảnh báo PL3 cấp 1.
+3. UOA và MSTAR được xem toàn bộ PL5 Dashboard của tất cả phòng Server ở chế độ read-only; quyền xem rộng này không bao gồm quyền tạo, sửa, phân công, phê duyệt, xác minh, đóng hoặc xóa công việc. MSTAR tiếp tục nhận cảnh báo PL3 cấp 1.
 4. Mọi thao tác quản trị cấu hình, thay đổi vai trò, phân quyền, quyết định nghiệp vụ và truy cập dữ liệu nhạy cảm cần Audit Log tương ứng.
 5. Không dựa vào việc ẩn nút giao diện; mọi quyền phải được kiểm tra ở Backend/API.
 6. Tài khoản người dùng có thể có nhiều vai trò, nhưng phải tránh cấp quyền rộng hơn nhu cầu công việc (least privilege).
@@ -660,9 +660,9 @@ Tách **quyền quản trị hệ thống** khỏi **quyền xử lý nghiệp v
 
 - Có đồng ý tách 4 vai trò quản trị/chính là Super Admin, PL Admin, UOA, MSTAR như đề xuất không?
 - PL Admin có được quản lý danh mục nghiệp vụ của phân hệ (ví dụ Work Catalog PL5, checklist PL3) hay chỉ được thay đổi Settings?
-- UOA và MSTAR xem PL5 Dashboard read-only đã chốt; có cần giới hạn dữ liệu theo phòng/đơn vị hay được xem toàn bộ danh sách Work_ID?
+- UOA và MSTAR được xem toàn bộ dữ liệu PL5 Dashboard của tất cả phòng Server ở chế độ read-only; không giới hạn theo phòng/đơn vị.
 
-**Trạng thái:** Đây là đề xuất để lấy ý kiến, chưa phải quyết định đã chốt và chưa được dùng làm căn cứ cấp quyền khi triển khai.
+**Trạng thái:** Các vai trò và ma trận quyền tại mục này vẫn là đề xuất chờ chốt, ngoại trừ phạm vi PL5 Dashboard: UOA và MSTAR được xem toàn bộ dữ liệu của tất cả phòng Server ở chế độ read-only theo quyết định D17.
 
 
 ---
@@ -710,3 +710,6 @@ Admin cần có khu vực Approval Center để người dùng được phân qu
 Danh sách và số liệu hiển thị phải được truy vấn theo quyền Backend; không được tải dữ liệu ngoài phạm vi rồi chỉ ẩn bằng giao diện.
 
 | D16 | Public Form và Approval Engine | ĐÃ CHỐT: PL1–PL5 có thể cung cấp Form Public để người dùng tự gửi đăng ký/yêu cầu. Bổ sung phê duyệt trên Admin bên cạnh Email; hai kênh dùng chung Approval Engine, chung trạng thái và kiểm soát quyền, chống quyết định trùng, ghi Audit Log. |
+
+
+| D17 | Phạm vi xem PL5 Dashboard | ĐÃ CHỐT: UOA và MSTAR được xem toàn bộ danh sách và chi tiết công việc của tất cả phòng Server vì Dashboard chỉ có quyền xem (read-only). Không giới hạn theo phòng/đơn vị; không phát sinh quyền chỉnh sửa hay xử lý nghiệp vụ. |
