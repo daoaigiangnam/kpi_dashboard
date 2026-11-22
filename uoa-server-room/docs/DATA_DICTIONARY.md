@@ -1,5 +1,5 @@
 # DATA DICTIONARY – UOA SERVER ROOM MANAGEMENT
-**Phiên bản:** 0.1 – Dự thảo cấu trúc vật lý  
+**Phiên bản:** 0.2 – Đã áp dụng ADR-001; dự thảo cấu trúc vật lý  
 **CSDL mục tiêu:** MySQL 8.0+, InnoDB, utf8mb4  
 **Múi giờ lưu trữ:** UTC; giao diện Asia/Ho_Chi_Minh  
 **Nhánh:** `feature/ITSMWEB`  
@@ -64,6 +64,22 @@ Các cột chuẩn áp dụng khi phù hợp:
 | created_at, updated_at | DATETIME(3) | NO | UTC |
 
 Không xóa phòng đã có dữ liệu liên quan; chỉ chuyển INACTIVE.
+
+### 2.5 `business_entities` – Định danh chung hồ sơ nghiệp vụ (Supertype)
+
+| Cột | Kiểu | Null | Ràng buộc / ý nghĩa |
+|---|---|---:|---|
+| id | BIGINT UNSIGNED | NO | PK; định danh chung |
+| module_code | VARCHAR(10) | NO | PL1 / PL2 / PL3 / PL4 / PL5 |
+| entity_type | VARCHAR(60) | NO | ACCESS_REQUEST / ACCESS_RECORD / VISIT / INSPECTION / ISSUE / WORK_REQUEST |
+| business_code | VARCHAR(60) | NO | Mã nghiệp vụ của hồ sơ tương ứng |
+| created_at | DATETIME(3) | NO | UTC; thời điểm đăng ký định danh |
+
+UNIQUE `(module_code, entity_type, business_code)`; INDEX `(module_code, entity_type, id)`. Bảng này là supertype định danh. Mỗi bảng hồ sơ gốc trong phạm vi có thêm `business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id)`. PK `id` hiện có của bảng PL được giữ lại; không đổi PK sang `business_entity_id` trong ADR này.
+
+**Phạm vi subtype:** `pl1_access_requests`, `pl1_access_records`, `pl2_visits`, `pl3_inspections`, `pl4_issues`, `pl5_work_requests`. Các bảng con/lịch sử không có registry riêng; Audit/Evidence của chúng liên kết về hồ sơ gốc tương ứng. Mở rộng phạm vi phải được ghi nhận trong ERD trước Migration.
+
+**Toàn vẹn dữ liệu:** tạo supertype và subtype trong cùng transaction; rollback cả hai nếu một bước thất bại. UNIQUE FK ngăn một business_entity gắn nhiều dòng trong cùng bảng subtype. Service phải kiểm tra entity_type/module_code khớp subtype; FK không tự bảo đảm subtype tồn tại cho mọi dòng cha hoặc loại subtype khớp. Không xóa cứng định danh đã phát sinh Audit/Evidence.
 
 ### 2.4 `room_contacts`
 
@@ -338,12 +354,12 @@ UNIQUE `event_key`; INDEX `(status, next_attempt_at, id)`. Có thể cần `emai
 | error_code | VARCHAR(100) | YES | Mã lỗi |
 | error_message | TEXT | YES | Đã làm sạch bí mật |
 
-INDEX đề xuất: `(module, entity_type, entity_id, occurred_at)`, `(event_code, occurred_at)`, `(actor_user_id, occurred_at)`, `(correlation_id)`, `(result, occurred_at)`. Append-only; ứng dụng không có UPDATE/DELETE. FK actor_user_id có thể dùng ON DELETE RESTRICT; tài khoản bị disable chứ không xóa.
+INDEX đề xuất: `(business_entity_id, occurred_at)`, `(event_code, occurred_at)`, `(actor_user_id, occurred_at)`, `(correlation_id)`, `(result, occurred_at)`. Append-only; ứng dụng không có UPDATE/DELETE. FK actor_user_id có thể dùng ON DELETE RESTRICT; tài khoản bị disable chứ không xóa.
 
 ### 8.4 `evidence_files` và `entity_evidence_links`
 
 - `evidence_files`: `id PK, file_uuid UNIQUE, original_name, storage_key UNIQUE, mime_type, file_size_bytes, sha256 CHAR(64), uploaded_by_type, uploaded_by_user_id NULL, uploader_name_snapshot, uploaded_at, scan_status, is_quarantined`.
-- `entity_evidence_links`: `id PK, evidence_file_id FK, module_code, entity_type, entity_id, purpose, linked_by_user_id NULL, linked_at`.
+- `entity_evidence_links`: `id PK, evidence_file_id FK, business_entity_id FK business_entities, purpose, linked_by_user_id NULL, linked_at`. UNIQUE phù hợp để tránh liên kết trùng theo `(evidence_file_id, business_entity_id, purpose)`.
 - Chặn truy cập file trực tiếp; download qua controller kiểm tra quyền. Không cho phép đường dẫn tùy ý hoặc MIME không nằm trong allowlist.
 
 ### 8.5 `idempotency_keys`, `integration_events`, `scheduled_job_runs`, `data_exports`
@@ -359,7 +375,7 @@ INDEX đề xuất: `(module, entity_type, entity_id, occurred_at)`, `(event_cod
 |---|---|
 | users | UNIQUE email |
 | roles / permissions | UNIQUE code |
-| server_rooms | UNIQUE room_code; INDEX status |
+| server_rooms | UNIQUE room_code; INDEX status |\n| business_entities | UNIQUE module_code + entity_type + business_code; INDEX module/type/id |
 | room_contacts | INDEX room_id + contact_type + is_active |
 | pl1_access_requests | UNIQUE request_code; INDEX room/person/status; INDEX status/submitted_at |
 | pl1_access_records | INDEX person_email + room_id + record_status |
@@ -375,7 +391,7 @@ INDEX đề xuất: `(module, entity_type, entity_id, occurred_at)`, `(event_cod
 | pl4_uoa_confirmations | INDEX issue + decided_at |
 | pl5_work_requests | UNIQUE work_code; INDEX room + work window; INDEX statuses |
 | email_queue | UNIQUE event_key; INDEX status + next_attempt_at |
-| system_audit_logs | UNIQUE event_uuid; INDEX entity timeline, actor timeline, correlation |
+| system_audit_logs | UNIQUE event_uuid; INDEX business_entity_id + occurred_at, actor timeline, correlation |\n| entity_evidence_links | FK business_entity_id; UNIQUE evidence + entity + purpose phù hợp policy |
 | evidence_files | UNIQUE file_uuid/storage_key; INDEX sha256 |
 | idempotency_keys | UNIQUE scope + key |
  
@@ -394,4 +410,4 @@ INDEX đề xuất: `(module, entity_type, entity_id, occurred_at)`, `(event_cod
 
 ## 11. Kết luận và trạng thái
 
-**Data Dictionary v0.1 – DRAFT.** Đây là cấu trúc vật lý đề xuất để rà soát, không phải migration sẵn sàng chạy. Các cột/constraint có thể điều chỉnh sau khi giải quyết các điểm ở Mục 10. Sau khi chốt, bước kế tiếp là ERD vật lý dạng sơ đồ, rà soát FK/transaction/idempotency, rồi tạo migration theo thứ tự phụ thuộc.
+**Data Dictionary v0.2 – DRAFT, đã áp dụng ADR-001; chưa phải Migration sẵn sàng chạy.** Đây là cấu trúc vật lý đề xuất để rà soát, không phải migration sẵn sàng chạy. Các cột/constraint có thể điều chỉnh sau khi giải quyết các điểm ở Mục 10. Sau khi chốt các điểm nghiệp vụ còn mở và rà soát đầy đủ subtype, bước kế tiếp mới là Migration theo thứ tự phụ thuộc.
