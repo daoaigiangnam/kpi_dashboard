@@ -4,7 +4,7 @@
 **CSDL mục tiêu:** MySQL 8.0 / InnoDB  
 **Trạng thái:** DRAFT – chưa triển khai Migration
 
-> Sơ đồ dưới đây biểu diễn quan hệ logic và FK dự kiến. Các bảng được chia thành nhóm để dễ đọc; các cột chi tiết xem tại `DATA_DICTIONARY.md`. Các quan hệ polymorphic (Audit/Evidence) được ghi chú riêng vì không thể khai báo FK MySQL trực tiếp tới nhiều bảng đích.
+> Sơ đồ dưới đây biểu diễn quan hệ logic và FK dự kiến. Các bảng được chia thành nhóm để dễ đọc; các cột chi tiết xem tại `DATA_DICTIONARY.md`. Audit và Evidence liên kết bằng FK tới supertype `business_entities` theo ADR-001.
 
 ## 1. Tổng quan các miền dữ liệu
 
@@ -16,7 +16,8 @@ flowchart TB
       P[permissions]
       UR[user_roles]
       RP[role_permissions]
-      SR[server_rooms]\n      BE[business_entities]
+      SR[server_rooms]
+      BE[business_entities]
       RC[room_contacts]
       BS[business_settings]
       SH[setting_change_history]
