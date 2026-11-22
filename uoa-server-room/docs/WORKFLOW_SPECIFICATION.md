@@ -663,3 +663,50 @@ Tách **quyền quản trị hệ thống** khỏi **quyền xử lý nghiệp v
 - UOA và MSTAR xem PL5 Dashboard read-only đã chốt; có cần giới hạn dữ liệu theo phòng/đơn vị hay được xem toàn bộ danh sách Work_ID?
 
 **Trạng thái:** Đây là đề xuất để lấy ý kiến, chưa phải quyết định đã chốt và chưa được dùng làm căn cứ cấp quyền khi triển khai.
+
+
+---
+
+## 16. Public Form và cơ chế phê duyệt đa kênh
+
+### 16.1. Public Form cho PL1–PL5
+
+**Nguyên tắc đã thống nhất:** Cả năm Form PL1–PL5 có thể được công khai bằng đường dẫn để người dùng tự truy cập, nhập thông tin và gửi đăng ký/yêu cầu. Việc Form có thể Public không đồng nghĩa người gửi được cấp tài khoản hệ thống hoặc có quyền xử lý nghiệp vụ.
+
+Yêu cầu thiết kế:
+1. Public Form chỉ cung cấp các thao tác tiếp nhận được quy định cho từng phân hệ; không cấp quyền phê duyệt, quản trị hoặc xem dữ liệu của người khác.
+2. Dữ liệu gửi từ Public Form phải được Backend kiểm tra hợp lệ, kiểm tra trạng thái phân hệ, danh mục tham chiếu và điều kiện nghiệp vụ trước khi tạo hồ sơ.
+3. Có biện pháp chống spam/bot, giới hạn tần suất, chống gửi trùng và ghi nhận nguồn tiếp nhận.
+4. Khi nghiệp vụ yêu cầu xác minh người gửi hoặc người thực hiện, sử dụng OTP/token đúng phạm vi và thời hạn; không mặc định email được nhập trong Form là đã xác minh.
+5. Liên kết tra cứu hoặc thực hiện bước tiếp theo phải gắn với hồ sơ cụ thể, có xác thực và không làm lộ dữ liệu hồ sơ khác.
+6. Mọi hành động nhạy cảm tiếp theo vẫn phải tuân thủ RBAC, trạng thái quy trình và Audit Log.
+
+### 16.2. Approval Engine thống nhất
+
+**Quyết định đã chốt:** Bổ sung khả năng phê duyệt trực tiếp trên Admin, đồng thời tiếp tục duy trì phê duyệt qua Email. Hai kênh là hai giao diện thực hiện trên cùng một Approval Engine; không xây dựng hai luồng phê duyệt độc lập.
+
+- **Email Approval:** Người có quyền nhận email, mở liên kết và thực hiện quyết định theo cơ chế xác thực/token đã quy định.
+- **Admin Approval:** Người có quyền đăng nhập Admin, mở danh sách hồ sơ chờ xử lý, xem chi tiết và thực hiện quyết định.
+- Cả hai kênh phải gọi chung quy tắc nghiệp vụ và cập nhật cùng một trạng thái hồ sơ.
+
+Các điều kiện bắt buộc:
+1. Kiểm tra quyền người phê duyệt, vai trò, phạm vi phòng Server và trạng thái hồ sơ ở Backend tại thời điểm quyết định.
+2. Mỗi hồ sơ chỉ được ghi nhận một quyết định hợp lệ cho cùng một bước phê duyệt; thao tác đồng thời hoặc quyết định lặp phải bị từ chối an toàn.
+3. Nếu Email được xử lý trước, Admin phải phản ánh ngay trạng thái mới; nếu Admin được xử lý trước, liên kết Email cũ phải mất hiệu lực và không thể quyết định lần hai.
+4. Ghi nhận người quyết định, thời điểm, kết quả, ý kiến, kênh thực hiện và thông tin Audit Log.
+5. Giữ nguyên các điều kiện xác thực đặc thù của từng quy trình, bao gồm token, OTP hoặc xác minh email khi được yêu cầu. Đăng nhập Admin không tự động miễn trừ các điều kiện nghiệp vụ khác.
+6. Không áp dụng nút Approve/Reject máy móc cho các bước có ngữ nghĩa khác nhau. PL3 xác nhận tiếp nhận; PL4 UOA xác nhận kết quả ISSUE; PL5 có bước phê duyệt yêu cầu và bước xác minh hoàn thành riêng.
+7. Thông báo email là kênh thông báo/điểm truy cập; lỗi gửi email không được làm sai lệch hoặc đảo ngược quyết định nghiệp vụ đã được ghi nhận thành công.
+
+### 16.3. Trung tâm phê duyệt trên Admin
+
+Admin cần có khu vực Approval Center để người dùng được phân quyền:
+- Xem danh sách hồ sơ đang chờ mình xử lý.
+- Lọc theo phân hệ, phòng Server, trạng thái và thời gian.
+- Mở chi tiết hồ sơ và thông tin liên quan cần thiết cho quyết định.
+- Thực hiện đúng hành động của bước quy trình tương ứng; bắt buộc nhập lý do/ghi chú ở những bước nghiệp vụ yêu cầu.
+- Xem lịch sử quyết định và kênh đã xử lý.
+
+Danh sách và số liệu hiển thị phải được truy vấn theo quyền Backend; không được tải dữ liệu ngoài phạm vi rồi chỉ ẩn bằng giao diện.
+
+| D16 | Public Form và Approval Engine | ĐÃ CHỐT: PL1–PL5 có thể cung cấp Form Public để người dùng tự gửi đăng ký/yêu cầu. Bổ sung phê duyệt trên Admin bên cạnh Email; hai kênh dùng chung Approval Engine, chung trạng thái và kiểm soát quyền, chống quyết định trùng, ghi Audit Log. |
