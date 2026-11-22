@@ -26,10 +26,10 @@
 
 ## Giai đoạn 4 – PL3 Inspection
 - [ ] Danh mục 12 checklist items có cấu hình.
-- [ ] Tần suất Daily / Weekly / Monthly.
+- [ ] Chỉ triển khai Checklist DAILY theo ADR-003; không đưa Weekly/Monthly vào Form/schema hiện tại.
 - [ ] Phiếu kiểm tra, kết quả PASS / FAIL / N/A, ghi chú và nhiệt độ/độ ẩm.
 - [ ] UOA xác nhận đã tiếp nhận hồ sơ; phân biệt với xác nhận khắc phục.
-- [ ] FAIL có liên kết tạo PL4, không tạo trùng cùng Inspection + Item.
+- [ ] FAIL tạo PL4 qua Outbox/PHP Worker; khóa nguồn `pl3_inspection_results.id`, chống trùng theo ADR-005; snapshot Checklist bất biến trên ISSUE.
 
 ## Giai đoạn 5 – PL4 Incident / Violation
 - [ ] Tạo từ PL3 FAIL hoặc tạo độc lập.
@@ -66,5 +66,5 @@
 - PL2: OTP expiry chỉ kích hoạt sau khi SMTP báo gửi thành công; OTP mới hủy các OTP đang chờ cũ.
 - PL3: UOA xác nhận tiếp nhận hồ sơ không đồng nghĩa xác nhận đã khắc phục.
 - PL3 → PL4: một checklist FAIL chỉ tạo tối đa một PL4 issue.
-- PL4: đóng phiếu phải có kết quả xác minh/ghi chú xác nhận.
+- PL4: đóng phiếu phải có kết quả UOA xác nhận; Assignee report không tự đóng. Assignment/claim/tái phân công theo ADR-006 và giữ lịch sử.
 - PL5: phải lưu phương án dự phòng/hoàn tác và kết quả kiểm tra sau công việc.
