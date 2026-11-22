@@ -460,3 +460,88 @@ INDEX: (business_entity_id, occurred_at), (event_code, occurred_at), (actor_user
 ## 11. Kết luận và trạng thái
 
 **Data Dictionary v0.4 – DRAFT, đã đồng bộ ADR-001 đến ADR-009; chưa phải Migration sẵn sàng chạy.** Đây là cấu trúc vật lý đề xuất để rà soát, không phải migration sẵn sàng chạy. Các cột/constraint có thể điều chỉnh sau khi giải quyết các điểm ở Mục 10. Sau khi chốt các điểm nghiệp vụ còn mở và rà soát đầy đủ subtype, bước kế tiếp mới là Migration theo thứ tự phụ thuộc.
+
+
+## 12. PL4-R08 – SLA Calendar, Policy Assignment và SLA Cycle (ADR-010)
+
+### 12.1 Danh mục bảng
+
+Bổ sung 9 bảng:
+- pl4_sla_calendars
+- pl4_sla_calendar_versions
+- pl4_sla_calendar_periods
+- pl4_sla_calendar_exceptions
+- pl4_sla_policies
+- pl4_sla_policy_versions
+- pl4_sla_policy_assignment_rules
+- pl4_issue_sla_instances
+- pl4_sla_cycles
+
+### 12.2 Calendar
+
+- pl4_sla_calendars: id PK, calendar_code UNIQUE, calendar_name, description NULL, status, created_at, updated_at.
+- pl4_sla_calendar_versions: id PK, calendar_id FK, version_no, timezone, status (DRAFT/PUBLISHED/RETIRED), published_at NULL, created_by_user_id NULL, created_at; UNIQUE (calendar_id, version_no).
+- pl4_sla_calendar_periods: id PK, calendar_version_id FK, day_of_week, start_time, end_time, created_at; cho phép nhiều khoảng giờ/ngày; không cho khoảng giờ rỗng hoặc chồng lấn trong cùng ngày.
+- pl4_sla_calendar_exceptions: id PK, calendar_version_id FK, exception_date, exception_type (HOLIDAY/CLOSED/SPECIAL_WORKING), start_time NULL, end_time NULL, name, reason NULL, created_at. CLOSED/HOLIDAY không có giờ làm; SPECIAL_WORKING có một hoặc nhiều khoảng giờ hợp lệ. Ngày ngoại lệ thay thế lịch tuần cho ngày đó.
+
+Calendar Version PUBLISHED/đã sử dụng là bất biến. Muốn sửa tạo version mới. Timezone mặc định Asia/Ho_Chi_Minh; lưu timestamp UTC.
+
+### 12.3 Policy
+
+- pl4_sla_policies: id PK, policy_code UNIQUE, policy_name, description NULL, status, created_at, updated_at.
+- pl4_sla_policy_versions: id PK, policy_id FK, version_no, calendar_version_id FK, assignment_response_target_minutes, assignee_resolution_target_minutes, uoa_confirmation_target_minutes, status (DRAFT/PUBLISHED/RETIRED), published_at NULL, created_by_user_id NULL, created_at; UNIQUE (policy_id, version_no).
+
+Ba target phải NOT NULL và > 0 trước khi Publish. Calendar Version phải PUBLISHED. Policy Version PUBLISHED/đã sử dụng bất biến.
+
+### 12.4 Assignment Rules
+
+pl4_sla_policy_assignment_rules:
+id PK, rule_code UNIQUE, rule_name, room_id FK NULL, source_type VARCHAR(20) NULL (PL3/MANUAL), policy_version_id FK, effective_from DATETIME(3), effective_to DATETIME(3) NULL, status (ACTIVE/INACTIVE), created_by_user_id NULL, created_at, updated_at.
+
+room_id NULL = mọi Room; source_type NULL = mọi nguồn. Không cho cả hai NULL vì Default Policy quản lý bằng Business Settings. Rule chỉ được ACTIVE nếu Policy Version PUBLISHED, Calendar Version PUBLISHED và khoảng hiệu lực không xung đột Rule cùng độ cụ thể/điều kiện. Rule chọn theo Room+Source, Room, Source, sau đó Default. Rule phù hợp nhưng Policy invalid không fallback.
+
+Default Policy dùng Business Settings key PL4_DEFAULT_SLA_POLICY_VERSION_ID, lưu tham chiếu Policy Version và có effective_from/effective_to cùng setting change history. Chỉ một Default Policy có hiệu lực tại một thời điểm.
+
+### 12.5 Issue SLA Instance
+
+pl4_issue_sla_instances:
+id PK, issue_id FK pl4_issues UNIQUE, policy_version_id FK NULL, calendar_version_id FK NULL, assignment_rule_id FK NULL, assignment_source VARCHAR(30) (RULE/DEFAULT/NOT_CONFIGURED), policy_code_snapshot NULL, policy_name_snapshot NULL, policy_version_snapshot NULL, assignment_response_target_minutes_snapshot NULL, assignee_resolution_target_minutes_snapshot NULL, uoa_confirmation_target_minutes_snapshot NULL, timezone_snapshot NULL, status (ACTIVE/NOT_CONFIGURED/COMPLETED), created_at, updated_at.
+
+Mỗi Issue có tối đa một Instance. Khi NOT_CONFIGURED, Policy/Calendar/targets có thể NULL; không tạo due date giả định. Instance snapshot giữ nguyên sau khi cấu hình hiện hành thay đổi.
+
+### 12.6 SLA Cycle
+
+pl4_sla_cycles:
+id PK, issue_sla_instance_id FK, issue_id FK, cycle_type (ASSIGNMENT_RESPONSE/ASSIGNEE_RESOLUTION/UOA_CONFIRMATION), cycle_no, assignment_id FK NULL, work_report_id FK NULL, started_at, stopped_at NULL, target_minutes, elapsed_seconds NULL, due_at, breached_at NULL, status (RUNNING/MET/BREACHED/STOPPED/CANCELLED), start_reason NULL, stop_reason NULL, created_at, updated_at.
+
+Ràng buộc:
+- cycle_no duy nhất theo (issue_sla_instance_id, cycle_type, cycle_no).
+- UOA Confirmation Cycle gắn một Work Report và chỉ có tối đa một UOA Cycle cho mỗi Work Report.
+- Assignment Response gắn Assignment.
+- Assignee Resolution gắn Assignment; khi kết thúc gắn Work Report. Một Assignment có thể có nhiều chu kỳ Assignee Resolution.
+- Không đặt UNIQUE (assignment_id, cycle_type) cho ASSIGNEE_RESOLUTION.
+- Mỗi Issue tối đa một Cycle RUNNING; kiểm soát bằng transaction/row lock và constraint phù hợp.
+- STOPPED/CANCELLED không được tính MET; BREACHED không chuyển ngược MET.
+
+### 12.7 Tính thời gian và chỉ mục
+
+elapsed_seconds tính theo các khoảng làm việc của Calendar Version snapshot. due_at là thời điểm đạt đủ target theo Calendar. Không dùng phép trừ timestamp thuần với lịch không phải 24/7.
+
+Chỉ mục tối thiểu:
+- pl4_sla_policy_assignment_rules(status, effective_from, effective_to, room_id, source_type).
+- pl4_sla_policy_versions(policy_id, status, version_no).
+- pl4_issue_sla_instances(status, policy_version_id).
+- pl4_sla_cycles(status, due_at).
+- pl4_sla_cycles(issue_id, cycle_type, cycle_no).
+- pl4_sla_cycles(assignment_id, cycle_type).
+- pl4_sla_cycles(work_report_id, cycle_type).
+
+SLA Worker phải claim/lock an toàn, tính elapsed theo Calendar, đánh dấu BREACHED idempotent và Audit một lần. Các chỉ mục/ràng buộc vật lý cuối cùng phải được xác nhận khi chuẩn hóa Migration; mục này chưa phải DDL.
+
+### 12.8 Dashboard và Reports
+
+R08-01 Issue Register; R08-02 Issue Aging; R08-03 Priority Analysis; R08-04 Assignee Performance; R08-05 Assignee SLA Compliance; R08-06 UOA SLA Compliance; R08-07 UOA Confirmation History; R08-08 PL3 → PL4 Analysis.
+
+Assignment Response, Assignee Resolution và UOA Confirmation được báo cáo riêng. Tỷ lệ tuân thủ tính trên chu kỳ hoàn tất có dữ liệu hợp lệ; STOPPED/CANCELLED/NOT_CONFIGURED báo cáo riêng. BREACHED vẫn là vi phạm nếu hoàn tất muộn.
+
+**Trạng thái:** Thiết kế Data Dictionary PL4-R08 đã phê duyệt theo ADR-010; DRAFT, chưa phải Migration.
