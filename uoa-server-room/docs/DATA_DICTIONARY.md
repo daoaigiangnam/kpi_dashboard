@@ -247,25 +247,31 @@ UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` v
 
 ## 6. PL4 – Issue Management
 
-### 6.1 `pl4_issues`
+### 6.1 `pl4_priorities`
 
-`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), issue_code UNIQUE, source_type (PL3/MANUAL), source_inspection_result_id NULL FK UNIQUE, room_id FK, source_item_code_snapshot NULL, source_fail_remarks_snapshot NULL, title, description, priority, location_equipment NULL, reporter_name, reporter_email NULL, status (OPEN/IN_PROGRESS/PENDING_UOA_CONFIRMATION/CLOSED), created_at, updated_at`.
+`id PK, code VARCHAR(30) UNIQUE, name_vi VARCHAR(100), description TEXT NULL, color_code VARCHAR(20) NULL, sort_order SMALLINT, is_active BOOLEAN, created_at, updated_at`.
+
+Khởi tạo LOW, MEDIUM, HIGH, CRITICAL theo nguồn PL4. Không xóa cứng Priority đã được tham chiếu; không đổi code đã sử dụng. Super Admin quản lý danh mục. Thay đổi tên/mô tả/màu/thứ tự chỉ tác động cách hiển thị danh mục, không ghi đè snapshot trên ISSUE.
+
+### 6.2 `pl4_issues`
+
+`id PK, business_entity_id BIGINT UNSIGNED NOT NULL UNIQUE FK business_entities(id), issue_code UNIQUE, source_type (PL3/MANUAL), source_inspection_result_id NULL FK UNIQUE, room_id FK, source_item_code_snapshot NULL, source_item_title_snapshot NULL, source_fail_remarks_snapshot NULL, title, description, priority_id FK, priority_code_snapshot VARCHAR(30), priority_name_snapshot VARCHAR(100), location_equipment NULL, reporter_name, reporter_email NULL, status (OPEN/IN_PROGRESS/PENDING_UOA_CONFIRMATION/CLOSED), created_at, updated_at`.
 
 UNIQUE `source_inspection_result_id` (cho phép nhiều NULL với issue MANUAL) bảo đảm một kết quả PL3 chỉ sinh tối đa một Issue; service chỉ tạo Issue khi kết quả nguồn là FAIL. Cần thêm kiểm tra source_type và source FK nhất quán ở service/constraint phù hợp.
 
-### 6.2 `pl4_assignments`
+### 6.3 `pl4_assignments`
 
 `id PK, issue_id FK, assignee_name_snapshot, assignee_email_snapshot, assigned_by_user_id NULL, assigned_at, claimed_at NULL, released_at NULL, status, note NULL, created_at`. Một Issue có thể có nhiều lần phân công theo thời gian.
 
-### 6.3 `pl4_work_reports`
+### 6.4 `pl4_work_reports`
 
 `id PK, issue_id FK, assignment_id FK NULL, report_result (COMPLETED/NOT_COMPLETED), action_taken TEXT, resolution_notes TEXT, evidence_summary TEXT NULL, submitted_by_name, submitted_by_email, submitted_at, created_at`. Append-only.
 
-### 6.4 `pl4_uoa_confirmations`
+### 6.5 `pl4_uoa_confirmations`
 
 `id PK, issue_id FK, work_report_id FK, decision (CONFIRMED/NOT_CONFIRMED), uoa_user_id NULL FK users, uoa_name_snapshot, uoa_email_snapshot, note TEXT NULL, reason TEXT NULL, decided_at, created_at`. NOT_CONFIRMED bắt buộc reason; một report có thể được xem xét theo policy, nhưng không được ghi đè quyết định cũ.
 
-### 6.5 `pl4_issue_status_history`
+### 6.6 `pl4_issue_status_history`
 
 `id PK, issue_id FK, from_status, to_status, actor_type, actor_user_id NULL, actor_name_snapshot, channel, reason NULL, changed_at`. Append-only.
 
@@ -403,7 +409,8 @@ INDEX đề xuất: `(business_entity_id, occurred_at)`, `(event_code, occurred_
 | pl3_inspections | UNIQUE inspection_code; INDEX room + inspection_date |
 | pl3_inspection_results | UNIQUE inspection + checklist item |
 | pl3_integration_outbox | UNIQUE event_key; INDEX status + next_attempt_at |
-| pl4_issues | UNIQUE issue_code; UNIQUE source_inspection_result_id nullable |
+| pl4_priorities | UNIQUE code; INDEX is_active + sort_order |
+| pl4_issues | UNIQUE issue_code; UNIQUE source_inspection_result_id nullable; FK priority_id; INDEX priority_id + created_at |
 | pl4_work_reports | INDEX issue + submitted_at |
 | pl4_uoa_confirmations | INDEX issue + decided_at |
 | pl5_work_requests | UNIQUE work_code; INDEX room + work window; INDEX statuses |
