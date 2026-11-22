@@ -1252,4 +1252,4 @@ Bổ sung 9 bảng: pl4_sla_calendars, pl4_sla_calendar_versions, pl4_sla_calend
 - SLA Instance: ACTIVE → COMPLETED khi Issue CLOSED do UOA CONFIRMED; NOT_CONFIGURED giữ nguyên NOT_CONFIGURED kể cả khi Issue đóng.
 - Một Issue tối đa một Cycle RUNNING: generated `active_issue_id` STORED UNIQUE + transaction/row lock. UNIQUE `(work_report_id, cycle_type)`; không UNIQUE `(assignment_id, cycle_type)`.
 - Kết thúc Cycle phải tính elapsed ngay theo Calendar snapshot để xác định MET/BREACHED/STOPPED; Worker không được là điều kiện duy nhất quyết định kết quả terminal.
-- Calendar Exception: nhiều SPECIAL_WORKING intervals/ngày, không chồng lấn; HOLIDAY/CLOSED đóng cả ngày, loại trừ SPECIAL_WORKING; Exception thay thế lịch tuần.
+- Calendar Exception: nhiều SPECIAL_WORKING intervals/ngày, không chồng lấn. Đề xuất chờ xác nhận: HOLIDAY/CLOSED đóng cả ngày, loại trừ SPECIAL_WORKING; Exception thay thế lịch tuần.
