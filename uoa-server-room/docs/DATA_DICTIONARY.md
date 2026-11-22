@@ -366,16 +366,14 @@ PL4 theo ADR-008: khi Assignee gửi Work Report, tạo hai queue item riêng ch
 
 `id PK, email_queue_id FK, attempt_no, attempted_at, outcome, error_code NULL, sanitized_error TEXT NULL, smtp_message_id NULL, duration_ms NULL`; UNIQUE `(email_queue_id, attempt_no)`.
 
-### 8.3 `system_audit_logs`
+### 8.3 system_audit_logs
 
-| Cột | Kiểu | Null | Ý nghĩa |
+| Cột | Kiểu | Null | Ràng buộc / ý nghĩa |
 |---|---|---:|---|
 | id | BIGINT UNSIGNED | NO | PK |
 | event_uuid | CHAR(36) | NO | UNIQUE |
 | module | VARCHAR(10) | NO | PL1–PL5 / SYSTEM |
-| entity_type | VARCHAR(60) | YES | Loại hồ sơ |
-| entity_id | BIGINT UNSIGNED | YES | ID hồ sơ |
-| parent_business_entity_id | BIGINT UNSIGNED | YES | FK business_entities nếu có quan hệ hồ sơ cha |
+| business_entity_id | BIGINT UNSIGNED | YES | FK business_entities(id); NULL chỉ với sự kiện hệ thống không gắn hồ sơ |
 | workflow_step | VARCHAR(60) | YES | Bước workflow |
 | event_code | VARCHAR(100) | NO | Mã sự kiện |
 | event_name | VARCHAR(160) | NO | Tên hiển thị |
@@ -383,14 +381,14 @@ PL4 theo ADR-008: khi Assignee gửi Work Report, tạo hai queue item riêng ch
 | result | VARCHAR(20) | NO | SUCCESS/FAILED/DENIED |
 | old_status, new_status | VARCHAR(40) | YES | Trước/sau |
 | actor_type | VARCHAR(40) | NO | USER/REQUESTER/UOA/MSTAR/ASSIGNEE/EXECUTOR/SYSTEM... |
-| actor_user_id | BIGINT UNSIGNED | YES | FK users nếu có |
+| actor_user_id | BIGINT UNSIGNED | YES | FK users nếu actor có tài khoản |
 | actor_name_snapshot | VARCHAR(160) | YES | Snapshot |
 | actor_email_snapshot | VARCHAR(190) | YES | Snapshot, hạn chế dữ liệu |
 | action_channel | VARCHAR(40) | NO | EMAIL_APPROVAL/ADMIN/EMAIL_LINK_ACTION/PUBLIC_FORM/SCHEDULER/API |
 | description | TEXT | YES | Mô tả |
 | reason | TEXT | YES | Lý do |
 | old_values, new_values | JSON | YES | Chỉ trường không nhạy cảm |
-| metadata | JSON | YES | Metadata an toàn |
+| metadata | JSON | YES | Metadata an toàn; ID bản ghi con PL4 có thể lưu tại đây |
 | correlation_id, causation_id, request_id | VARCHAR(100) | YES | Truy vết |
 | ip_address | VARCHAR(45) | YES | Theo chính sách privacy |
 | user_agent | VARCHAR(500) | YES | Theo chính sách privacy |
@@ -398,7 +396,11 @@ PL4 theo ADR-008: khi Assignee gửi Work Report, tạo hai queue item riêng ch
 | error_code | VARCHAR(100) | YES | Mã lỗi |
 | error_message | TEXT | YES | Đã làm sạch bí mật |
 
-INDEX đề xuất: `(business_entity_id, occurred_at)`, `(event_code, occurred_at)`, `(actor_user_id, occurred_at)`, `(correlation_id)`, `(result, occurred_at)`. Append-only; ứng dụng không có UPDATE/DELETE. FK actor_user_id có thể dùng ON DELETE RESTRICT; tài khoản bị disable chứ không xóa.
+INDEX: (business_entity_id, occurred_at), (event_code, occurred_at), (actor_user_id, occurred_at), (correlation_id), (result, occurred_at). Append-only; ứng dụng không có UPDATE/DELETE. FK actor_user_id có thể dùng ON DELETE RESTRICT; tài khoản bị disable chứ không xóa.
+
+**Theo ADR-001 và ADR-009:** Không dùng cặp polymorphic entity_type + entity_id hoặc parent_business_entity_id để liên kết Audit tới hồ sơ. Audit event PL4, kể cả thao tác trên Assignment/Work Report/UOA Confirmation, tham chiếu trực tiếp Business Entity của ISSUE; ID bản ghi con chỉ là metadata. business_entity_id nullable chỉ dành cho sự kiện hệ thống không gắn hồ sơ.
+
+**Notification History:** Không tạo bảng riêng. Truy vấn email_queue và email_queue_attempts theo Business Entity/Issue cùng các Audit event liên quan để hiển thị người nhận, event, trạng thái, sent_at và từng attempt.
 
 ### 8.4 `evidence_files` và `entity_evidence_links`
 
@@ -438,7 +440,7 @@ INDEX đề xuất: `(business_entity_id, occurred_at)`, `(event_code, occurred_
 | pl4_uoa_confirmations | INDEX issue + decided_at |
 | pl5_work_requests | UNIQUE work_code; INDEX room + work window; INDEX statuses |
 | email_queue | UNIQUE event_key; INDEX status + next_attempt_at |
-| system_audit_logs | UNIQUE event_uuid; INDEX business_entity_id + occurred_at, actor timeline, correlation |\n| entity_evidence_links | FK business_entity_id; UNIQUE evidence + entity + purpose phù hợp policy |
+| system_audit_logs | UNIQUE event_uuid; FK business_entity_id → business_entities; INDEX (business_entity_id, occurred_at), event_code + occurred_at, actor + occurred_at, correlation_id, result + occurred_at |\n| entity_evidence_links | FK business_entity_id; UNIQUE evidence + entity + purpose phù hợp policy |
 | evidence_files | UNIQUE file_uuid/storage_key; INDEX sha256 |
 | idempotency_keys | UNIQUE scope + key |
  
