@@ -339,7 +339,7 @@ UOA là bên xác nhận cuối cùng; không bắt buộc có bước UOA duy�
 
 Assignment statuses: `ASSIGNED`, `CLAIMED`, `DECLINED`, `EXPIRED`, `RELEASED`. Đây là vòng đời phân công, không thay thế state machine ISSUE.
 
-### 6.7. Kết quả rà soát mã nguồn PL4 – các sai khác cần xử lý khi chuyển PHP
+### 6.8. Kết quả rà soát mã nguồn PL4 – các sai khác cần xử lý khi chuyển PHP
 
 Các điểm dưới đây là kết quả đọc `Code PL4.txt`; đây là hiện trạng mã Apps Script được cung cấp, không phải hành vi đã xác minh trên deployment/live Form.
 
