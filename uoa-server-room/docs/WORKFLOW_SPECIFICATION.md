@@ -647,15 +647,15 @@ Tách biệt quyền quản trị với quyền nghiệp vụ:
 | PL3 xác nhận tiếp nhận | Theo quyền quản trị; không mặc định thay người xác nhận nghiệp vụ | Có | Không |
 | PL4 xác nhận kết quả ISSUE | Theo quyền quản trị; không mặc định thay UOA nghiệm thu | Có | Không |
 | PL5 phê duyệt yêu cầu / xác minh hoàn thành | Theo quyền quản trị; không mặc định thay người xử lý nghiệp vụ | Có | Không |
-| Xem báo cáo PL1–PL5 | Có | Có | Có – chỉ xem |
-| PL5 Dashboard toàn bộ phòng Server | Có | Có – read-only | Có – read-only |
+| Xem báo cáo PL1–PL5 | Không mặc định; chỉ dữ liệu kỹ thuật/quản trị cần thiết | Có | Có – chỉ xem |
+| PL5 Dashboard toàn bộ phòng Server | Không | Có – read-only | Có – read-only |
 | Xem System Audit Log | Có | Không | Không |
 
-**Nguyên tắc quan trọng:** Quyền Super Admin là quyền quản trị kỹ thuật/cấu hình, không tự động thay thế người phê duyệt hoặc xác nhận nghiệp vụ. Mọi can thiệp đặc biệt cần cơ chế riêng, lý do bắt buộc và Audit Log; không được âm thầm tạo quyết định nghiệp vụ bằng quyền quản trị.
+**Nguyên tắc phân tách quyền đã chốt:** Super Admin chỉ có quyền quản trị hệ thống và cấu hình. Super Admin **không được can thiệp vào nghiệp vụ**: không tạo, sửa, phân công, phê duyệt, từ chối, xác nhận, xác minh, đóng hoặc thay đổi trạng thái hồ sơ PL1–PL5; không được thay mặt UOA hoặc người thực hiện ra quyết định nghiệp vụ. Quyền quản trị không tạo ngoại lệ để vượt qua quy trình nghiệp vụ.
 
 ### 15.4. Kiểm soát quyền
 
-1. Mọi quyền UOA phê duyệt/xác nhận phải được kiểm tra ở Backend theo đúng bước quy trình và người được phân công; nếu bước nghiệp vụ có phạm vi phòng Server thì phải kiểm tra theo Room_ID.
+1. Mọi quyền UOA phê duyệt/xác nhận phải được kiểm tra ở Backend theo đúng bước quy trình và người được phân công; nếu bước nghiệp vụ có phạm vi phòng Server thì phải kiểm tra theo Room_ID. Super Admin không có quyền thực hiện các hành động này.
 2. UOA được xem báo cáo theo phạm vi báo cáo được cấp; riêng PL5 Dashboard được xem toàn bộ phòng Server ở chế độ read-only theo D17.
 3. MSTAR chỉ có quyền xem báo cáo; riêng PL5 Dashboard được xem toàn bộ phòng Server ở chế độ read-only theo D17.
 4. MSTAR nhận email cảnh báo PL3 cấp 1 theo quyết định D12. Đây là thông báo theo quy trình, không cấp quyền phê duyệt hoặc chỉnh sửa dữ liệu.
@@ -663,7 +663,7 @@ Tách biệt quyền quản trị với quyền nghiệp vụ:
 6. Không dựa vào việc ẩn nút giao diện; mọi quyền phải được kiểm tra ở Backend/API.
 7. Public Form và token/link chỉ cho phép các hành động được quy định rõ cho từng hồ sơ; không được coi là quyền Admin hoặc quyền xem báo cáo toàn hệ thống.
 
-**Trạng thái:** Nguyên tắc vai trò và quyền Super Admin / UOA / MSTAR đã được chủ nghiệp vụ chốt. Chi tiết kỹ thuật về ma trận quyền từng hành động sẽ được đặc tả nhất quán theo các luồng PL1–PL5 trước khi triển khai.
+**Trạng thái:** Nguyên tắc vai trò và quyền Super Admin / UOA / MSTAR đã được chủ nghiệp vụ chốt. Super Admin chỉ quản trị/cấu hình, tuyệt đối không can thiệp nghiệp vụ. Chi tiết kỹ thuật về ma trận quyền từng hành động sẽ được đặc tả nhất quán theo các luồng PL1–PL5 trước khi triển khai.
 
 ## 16. Public Form và cơ chế phê duyệt đa kênh
 
@@ -714,3 +714,6 @@ Danh sách và số liệu hiển thị phải được truy vấn theo quyền 
 
 
 | D18 | Mô hình vai trò quản trị và nghiệp vụ | ĐÃ CHỐT: Chỉ Super Admin được thay đổi cấu hình hệ thống, Settings, danh mục nghiệp vụ, biểu mẫu, quy trình và phân quyền. UOA được phê duyệt/xác nhận nghiệp vụ và xem báo cáo. MSTAR chỉ xem báo cáo; không có quyền chỉnh sửa hoặc phê duyệt. MSTAR vẫn nhận email cảnh báo PL3 cấp 1 theo D12, đây là thông báo chứ không phải quyền thao tác. |
+
+
+| D19 | Phân tách quyền Super Admin và nghiệp vụ | ĐÃ CHỐT: Super Admin chỉ được quản trị hệ thống và cấu hình. Không được tạo/sửa/phân công/phê duyệt/từ chối/xác nhận/xác minh/đóng hoặc thay đổi trạng thái hồ sơ PL1–PL5; không được thay mặt UOA hay người thực hiện ra quyết định nghiệp vụ. |
