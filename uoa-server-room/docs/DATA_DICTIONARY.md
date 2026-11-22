@@ -1,5 +1,5 @@
 # DATA DICTIONARY – UOA SERVER ROOM MANAGEMENT
-**Phiên bản:** 0.2 – Đã áp dụng ADR-001; dự thảo cấu trúc vật lý  
+**Phiên bản:** 0.3 – Đã áp dụng ADR-001; dự thảo cấu trúc vật lý  
 **CSDL mục tiêu:** MySQL 8.0+, InnoDB, utf8mb4  
 **Múi giờ lưu trữ:** UTC; giao diện Asia/Ho_Chi_Minh  
 **Nhánh:** `feature/ITSMWEB`  
@@ -220,11 +220,15 @@ UNIQUE idempotency không đặt tùy tiện trên `room_id + inspection_date` v
 
 `id PK, inspection_id FK, status, actor_user_id NULL, actor_name_snapshot, actor_email_snapshot, channel, note NULL, acknowledged_at, created_at`. Là xác nhận tiếp nhận, không phải xác nhận khắc phục.
 
-### 5.5 `pl3_escalation_runs` và `pl3_escalation_events`
+### 5.5 `pl3_escalation_runs` và `pl3_escalation_events` – theo ADR-002 đã phê duyệt
 
-- Run: `id PK, room_id FK, work_date DATE, deadline_at, status (ACTIVE/STOPPED/COMPLETED), config_snapshot JSON, started_at, stopped_at NULL, stop_reason NULL`.
-- Event: `id PK, escalation_run_id FK, level TINYINT, recipient_type, recipient_name_snapshot, recipient_email_snapshot, status (SENT/SKIPPED/FAILED/STOPPED), scheduled_at, sent_at NULL, email_queue_id NULL, reason NULL, created_at`.
-- Unique logic cho một run theo Room + work_date + schedule profile cần chốt sau khi làm rõ DAILY/WEEKLY/MONTHLY.
+- Run: `id PK, room_id FK, work_date DATE, schedule_type VARCHAR(20) CHECK/ENUM DAILY, deadline_at DATETIME, status (PENDING/IN_PROGRESS/STOPPED_INSPECTION_RECEIVED/COMPLETED/ERROR), config_snapshot JSON, started_at DATETIME, stopped_at DATETIME NULL, stop_reason VARCHAR/TEXT NULL, created_at, updated_at`.
+- UNIQUE: `(room_id, work_date, schedule_type)`. Phạm vi hiện tại chỉ tạo `schedule_type = DAILY`; không tạo WEEKLY/MONTHLY khi chưa có quyết định riêng.
+- Event: `id PK, escalation_run_id FK, level TINYINT, recipient_type, recipient_name_snapshot, recipient_email_snapshot, status (PENDING/SENDING/SENT/SKIPPED/RETRY/FAILED/STOPPED), scheduled_at DATETIME, attempted_at DATETIME NULL, sent_at DATETIME NULL, email_queue_id BIGINT UNSIGNED NULL FK email_queue(id), attempt_count INT DEFAULT 0, reason TEXT NULL, error_code VARCHAR(100) NULL, created_at, updated_at`.
+- UNIQUE `(escalation_run_id, level)` để mỗi cấp chỉ có một Event logic; retry được ghi nhận qua Email Queue/Email Queue Attempts và `attempt_count`, không tạo Event mới cho từng lần thử.
+- Timing: Level 1 = `DAILY_DEADLINE + ALERT_LEVEL1_DELAY_MINUTES`; Level 2 = timestamp kết quả Level 1 + `ALERT_LEVEL2_DELAY_MINUTES`; Level 3 = timestamp kết quả Level 2 + `ALERT_LEVEL3_DELAY_MINUTES`. Timestamp `SKIPPED` cũng là mốc tính cấp kế tiếp.
+- Khi Inspection hợp lệ đúng `room_id + work_date` được commit, Run chuyển `STOPPED_INSPECTION_RECEIVED`; Event chưa gửi chuyển `STOPPED`; Event đã gửi/SKIPPED giữ nguyên lịch sử.
+- Email được enqueue qua `email_queue`; Event tham chiếu queue bằng `email_queue_id`. Không gửi SMTP trực tiếp trong transaction Scheduler.
 
 ### 5.6 `pl3_integration_outbox`
 
