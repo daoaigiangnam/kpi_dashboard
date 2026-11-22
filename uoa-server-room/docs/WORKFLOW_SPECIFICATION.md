@@ -415,14 +415,12 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 | Q08 | PL4 có queue/retry email ở bản đang triển khai không | Mã nguồn đã đọc cho thấy gửi MailApp trực tiếp ở các nhánh; cần kiểm tra các nhánh còn lại |
 | Q09 | Chốt phạm vi read-only PL5 Dashboard và nhóm tài khoản được xem | ĐÃ CHỐT: read-only; nhóm được xem gồm nhân sự UOA và nhóm MSTAR |
 | Q10 | Danh sách trường Form đang phát hành có khác mã Apps Script/workbook không | Chưa truy cập trực tiếp được giao diện Google Forms |
-| Q11 | Có đưa lựa chọn Inspection Frequency (Daily when MSTAR is onsite / Weekly / Monthly) vào Form PHP và `pl3_inspections` không | Phụ lục 3 PDF có lựa chọn này nhưng Apps Script setup hiện tại không thu thập/lưu; chờ ADR-003 |
 
 ---
 
 ## 10. Điều kiện để chuyển sang thiết kế PHP/MySQL
 
 Chỉ chuyển sang bước chốt ERD, migration và code khi:
-- Các câu hỏi Q01–Q11 được xác nhận hoặc được chủ nghiệp vụ chấp thuận cách xử lý.
 - Bản đồ trạng thái PL1–PL5 được duyệt.
 - Danh sách vai trò và quyền theo phòng được duyệt.
 - Danh sách email event/recipient và quy tắc retry được duyệt.
@@ -482,7 +480,6 @@ Mục này phân biệt rõ hành vi đang có trong mã cũ và hành vi cần 
 4. PL4: Không giữ trạng thái PENDING_APPROVAL/REJECTED làm luồng nghiệm thu mới, trừ khi cần lưu dữ liệu lịch sử di trú; phải lưu dấu vết các quyết định cũ.
 5. PL5: Phân quyền UOA/MSTAR phải kiểm tra ở backend trước khi trả Dashboard và dữ liệu chi tiết; người ngoài hai nhóm không được truy cập.
 
-**Trạng thái rà soát:** Đã xác định được các sai khác lớn nêu trên. Các câu hỏi Q01, Q02, Q04, Q06, Q08, Q10 và Q11 vẫn cần được giải quyết/đối chiếu trước khi thiết kế ERD và migration. Riêng Q11 có ADR-003 đề xuất phương án; chưa được coi là quyết định đã chốt. Q05 được chốt theo nguyên tắc cấu hình động trên Admin. Chưa thay đổi Schema hoặc viết nghiệp vụ PHP.
 
 | D12 | Xác nhận lại người nhận cảnh báo PL3 | ĐÃ CHỐT: giữ nguyên theo Apps Script hiện tại — cấp 1 MSTAR, cấp 2 Approver (người phụ trách phòng), cấp 3 Manager. Thay thế quyết định ánh xạ người nhận trước đó. |
 
@@ -1074,3 +1071,8 @@ Gói xuất là bản chụp dữ liệu tại thời điểm tạo; không thay
 **Trạng thái:** Đây là thiết kế nghiệp vụ/kỹ thuật chi tiết đề xuất cho Audit Log và Audit & Compliance Center. Các quyết định đã chốt về một bảng Log chung, ghi SUCCESS/FAILED, phân quyền Super Admin/UOA/MSTAR và kênh Email/Admin/Public Form được giữ nguyên. Chưa tạo migration hoặc code PHP cho đến khi hoàn tất ERD và ma trận sự kiện.
 
 | D22 | Kiến trúc Audit Log tập trung | ĐÃ CHỐT NGUYÊN TẮC: Một bảng `system_audit_logs` dùng chung PL1–PL5; ghi cả SUCCESS và FAILED; không ghi đè; liên kết hồ sơ, bước workflow, actor, channel, thời gian và correlation ID. Các bảng lịch sử nghiệp vụ chi tiết vẫn được giữ riêng. |
+
+
+## Quyết định ADR-003 – PL3 Inspection Frequency
+
+Đã phê duyệt phương án B ngày 22/11/2026: Form PL3 online chỉ triển khai kiểm tra DAILY; không có trường Inspection Frequency, không lưu `inspection_frequency`, không triển khai Weekly/Monthly. Escalation Scheduler vẫn DAILY theo ADR-002. Nội dung Weekly/Monthly trong Phụ lục 3 được ghi nhận là ngoài phạm vi số hóa hiện tại.
