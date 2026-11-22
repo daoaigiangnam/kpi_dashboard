@@ -239,7 +239,7 @@ Quy tắc từ mã:
 - Nếu thiếu email người nhận cấp tương ứng, ghi sự kiện SKIPPED và chuyển cấp trong trạng thái escalation.
 - Hệ thống ghi Audit Log cho từng cấp cảnh báo.
 
-**Quyết định người nhận đã xác nhận:** Cấp 1 gửi Người thực hiện kiểm tra; Cấp 2 gửi Nhóm MSTAR và Quản lý Phòng Server; Cấp 3 gửi Quản lý của Quản lý Phòng Server. **Quyết định đã chốt:** Cấp 1 tại DAILY_DEADLINE; Cấp 2 sau 30 phút; Cấp 3 sau 60 phút nếu vẫn chưa có phiếu. Các mốc phải cấu hình được. Khi phiếu hợp lệ được ghi nhận cho đúng Room_ID/ngày, dừng các cảnh báo còn lại. **Đối chiếu mã nguồn:** PL3 hiện ánh xạ recipients theo thứ tự MSTAR → Approver → Manager, không trùng với người nhận đã chốt; đồng thời delay hiện được tính nối tiếp từ thời điểm gửi cấp trước. Khi triển khai PHP phải sửa ánh xạ và triển khai mốc theo quyết định đã chốt, không sao chép nguyên logic hiện tại.
+**Quyết định người nhận đã chốt lại:** Giữ theo cách PL3 hiện đang gửi trong Apps Script: Cấp 1 gửi MSTAR; Cấp 2 gửi người phụ trách phòng (Approver); Cấp 3 gửi Manager. **Quyết định đã chốt:** Cấp 1 tại DAILY_DEADLINE; Cấp 2 sau 30 phút; Cấp 3 sau 60 phút nếu vẫn chưa có phiếu. Các mốc phải cấu hình được. Khi phiếu hợp lệ được ghi nhận cho đúng Room_ID/ngày, dừng các cảnh báo còn lại. **Đối chiếu mã nguồn:** PL3 hiện ánh xạ recipients theo thứ tự MSTAR → Approver → Manager, không trùng với người nhận đã chốt; đồng thời delay hiện được tính nối tiếp từ thời điểm gửi cấp trước. Khi triển khai PHP phải sửa ánh xạ và triển khai mốc theo quyết định đã chốt, không sao chép nguyên logic hiện tại.
 
 ### 5.4. Tích hợp PL3 → PL4
 
@@ -405,7 +405,7 @@ PL5 có Work_Email_Queue riêng, worker 5 phút, trạng thái SENDING/PENDING/R
 | Q02 | Thời hạn token phê duyệt PL1 và cách xử lý khi hết hạn | Cần đối chiếu giá trị Settings triển khai |
 | Q03 | PL2: nhắc ở 12 giờ, EXPIRED ở 24 giờ, không tự duyệt | ĐÃ CHỐT theo quyết định D08 |
 | Q04 | PL2 có giới hạn thời gian được CHECK-IN sau khi duyệt hay không | Chưa chốt từ các đoạn mã đã rà |
-| Q05 | PL3 xác nhận cách tính mốc cấp 2/cấp 3 | Người nhận đã chốt; mã cũ tính delay nối tiếp từ thời điểm gửi cấp trước. Cần xác nhận mốc cấp 3 là phút thứ 60 tính từ deadline hay 60 phút sau khi gửi cấp 2 |
+| Q05 | PL3 xác nhận cách tính mốc cấp 2/cấp 3 | Người nhận đã chốt lại theo Apps Script hiện tại. Cần xác nhận mốc cấp 3 là phút thứ 60 tính từ deadline hay 60 phút sau khi gửi cấp 2 |
 | Q06 | Xác minh deployment thực tế chỉ kích hoạt tích hợp API PL3 ID + Token | Chủ nghiệp vụ đã chọn cơ chế ID PL3 + Token; cần kiểm tra trigger/deployment đang chạy |
 | Q07 | State machine PL4: Assignee báo cáo, UOA xác nhận cuối cùng; không cho Assignee tự đóng | ĐÃ CHỐT theo quyết định D10; thay thế bước APPROVE/REJECT sau báo cáo trong Apps Script |
 | Q08 | PL4 có queue/retry email ở bản đang triển khai không | Mã nguồn đã đọc cho thấy gửi MailApp trực tiếp ở các nhánh; cần kiểm tra các nhánh còn lại |
@@ -435,7 +435,7 @@ Chỉ chuyển sang bước chốt ERD, migration và code khi:
 |---|---|---|
 | D01 | PL1 tự hết hạn quyền truy cập | ĐÃ XÁC NHẬN: có hiệu lực theo khoảng thời gian Valid From/Valid Until; tự hết hạn, không xóa lịch sử. Đề xuất trạng thái EXPIRED riêng với REVOKED. |
 | D02 | PL2 yêu cầu chờ duyệt quá 24 giờ | ĐÃ CHỐT: nhắc người duyệt ở giờ thứ 12; đủ 24 giờ từ Created_At mà vẫn PENDING thì chuyển EXPIRED, vô hiệu hóa link duyệt, ghi Audit Log; không tự động duyệt. |
-| D03 | PL3 người nhận cảnh báo | ĐÃ XÁC NHẬN: Cấp 1 Người thực hiện; Cấp 2 Nhóm MSTAR và Quản lý Phòng Server; Cấp 3 Quản lý của Quản lý Phòng Server. |
+| D03 | PL3 người nhận cảnh báo | ĐÃ CHỐT LẠI: giữ theo Apps Script hiện tại — Cấp 1 MSTAR; Cấp 2 người phụ trách phòng (Approver); Cấp 3 Manager. Quyết định này thay thế ánh xạ người nhận trước đó. |
 | D04 | PL3 thời gian cảnh báo | ĐÃ CHỐT: Cấp 1 tại deadline; Cấp 2 sau 30 phút; Cấp 3 sau 60 phút nếu chưa có phiếu. Các mốc cấu hình được. Khi có phiếu hợp lệ thì dừng cảnh báo còn lại. |
 | D05 | PL3 → PL4 | ĐÃ XÁC NHẬN: tích hợp bằng ID PL3 (Inspection_ID), checklist item ID và Token xác thực; cần chống gửi/tạo ISSUE trùng. |
 | D06 | PL4 xác nhận hoàn thành | ĐÃ CHỐT: Assignee báo cáo COMPLETED/NOT_COMPLETED; cả hai đều chuyển PENDING_UOA_CONFIRMATION. UOA xác nhận thì CLOSED; không xác nhận (bắt buộc lý do) thì về IN_PROGRESS. Assignee không được tự đóng ISSUE. Lưu riêng lịch sử báo cáo và xác minh. |
@@ -465,7 +465,7 @@ Mục này phân biệt rõ hành vi đang có trong mã cũ và hành vi cần 
 |---|---|---|
 | PL1 | Có Valid From/Valid Until trong dữ liệu quyền; chưa thấy trạng thái EXPIRED hoặc scheduler tự chuyển trạng thái khi hết hạn. Token phê duyệt mặc định 7 ngày, cấu hình bằng TOKEN_EXPIRY_DAYS. | Bổ sung xử lý hết hạn quyền theo khoảng thời gian; giữ lịch sử; phân biệt EXPIRED với REVOKED sau khi chốt quy tắc biên. |
 | PL2 | Kiểm tra thời hạn duyệt khi mở/xử lý link theo Room_Approval_Timeout_Hours (mặc định 24h); đoạn mã rà soát chưa thể hiện scheduler tự chuyển PENDING sang EXPIRED hoặc email nhắc tại giờ thứ 12. OTP 6 số có thời hạn 10 phút sau khi email gửi thành công. | Bổ sung reminder 12h và job tự chuyển EXPIRED tại 24h; vô hiệu hóa token và ghi Audit Log; không tự duyệt. |
-| PL3 | Người nhận theo mã hiện tại: cấp 1 MSTAR, cấp 2 Approver, cấp 3 Manager. Delay cấp 1 tính từ deadline; cấp 2 tính từ lúc gửi cấp 1; cấp 3 tính từ lúc gửi cấp 2. | Sửa ánh xạ đúng người nhận đã chốt. Mốc thời gian phải theo D09 và câu trả lời Q05; dừng escalation khi có phiếu hợp lệ. |
+| PL3 | Người nhận theo mã hiện tại: cấp 1 MSTAR, cấp 2 Approver, cấp 3 Manager. Delay cấp 1 tính từ deadline; cấp 2 tính từ lúc gửi cấp 1; cấp 3 tính từ lúc gửi cấp 2. | Giữ nguyên ánh xạ người nhận hiện tại. Mốc thời gian áp dụng D09 sau khi chốt cách tính Q05; dừng escalation khi có phiếu hợp lệ. |
 | PL4 | Mã hiện tại dùng PENDING_APPROVAL; Approver chọn APPROVE/REJECT; APPROVE đóng ISSUE, REJECT chuyển REJECTED. | Thay bằng Assignee báo cáo COMPLETED/NOT_COMPLETED; cả hai chờ UOA xác nhận; UOA xác nhận đóng, không xác nhận trả IN_PROGRESS. Bổ sung lịch sử báo cáo/xác minh. |
 | PL5 | Dashboard home hiển thị số liệu và tối đa 100 phiếu gần nhất; trong luồng doGet đang đọc, action home gọi trực tiếp dashboard, chưa thấy kiểm tra thành viên UOA/MSTAR tại điểm vào Dashboard. | Giữ read-only; bổ sung xác thực và phân quyền nhóm UOA/MSTAR ở phía server. Không chỉ ẩn nút trên giao diện. |
 
@@ -478,3 +478,5 @@ Mục này phân biệt rõ hành vi đang có trong mã cũ và hành vi cần 
 5. PL5: Phân quyền UOA/MSTAR phải kiểm tra ở backend trước khi trả Dashboard và dữ liệu chi tiết; người ngoài hai nhóm không được truy cập.
 
 **Trạng thái rà soát:** Đã xác định được các sai khác lớn nêu trên. Các câu hỏi Q01, Q02, Q04, Q05, Q06, Q08 và Q10 vẫn cần được giải quyết/đối chiếu trước khi thiết kế ERD và migration. Chưa thay đổi Schema hoặc viết nghiệp vụ PHP.
+
+| D12 | Xác nhận lại người nhận cảnh báo PL3 | ĐÃ CHỐT: giữ nguyên theo Apps Script hiện tại — cấp 1 MSTAR, cấp 2 Approver (người phụ trách phòng), cấp 3 Manager. Thay thế quyết định ánh xạ người nhận trước đó. |
