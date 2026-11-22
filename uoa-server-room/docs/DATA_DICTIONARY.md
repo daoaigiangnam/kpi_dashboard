@@ -1,5 +1,5 @@
 # DATA DICTIONARY – UOA SERVER ROOM MANAGEMENT
-**Phiên bản:** 0.3 – Đã áp dụng ADR-001 và ADR-002; dự thảo cấu trúc vật lý  
+**Phiên bản:** 0.4 – Đã đồng bộ ADR-001 đến ADR-009; dự thảo cấu trúc vật lý  
 **CSDL mục tiêu:** MySQL 8.0+, InnoDB, utf8mb4  
 **Múi giờ lưu trữ:** UTC; giao diện Asia/Ho_Chi_Minh  
 **Nhánh:** `feature/ITSMWEB`  
