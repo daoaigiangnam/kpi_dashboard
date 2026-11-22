@@ -610,3 +610,56 @@ Người nhận cảnh báo theo quyết định D12: Cấp 1 MSTAR, Cấp 2 App
 - Cần kiểm tra trigger đang cài thực tế ở từng project trước khi quyết định chu kỳ scheduler cuối cùng.
 - PL4 chưa được xác nhận có email queue/retry; không được giả định đã có.
 - Giá trị 12h reminder và 24h EXPIRED của PL2 là quyết định mới, không phải hành vi đầy đủ sẵn có trong mã cũ.
+
+
+---
+
+## 15. Đề xuất mô hình vai trò và phân quyền (CHỜ CHỦ NGHIỆP VỤ CHỐT)
+
+### 15.1. Nguyên tắc
+
+Tách **quyền quản trị hệ thống** khỏi **quyền xử lý nghiệp vụ**. Một người có thể được gán nhiều vai trò nếu được ủy quyền, nhưng mỗi hành động phải được kiểm tra theo quyền cụ thể, phân hệ và phạm vi phòng Server. Không mặc định người thuộc UOA hoặc MSTAR là Admin.
+
+### 15.2. Vai trò đề xuất
+
+| Vai trò | Phạm vi quyền đề xuất |
+|---|---|
+| Super Admin | Quản lý tài khoản, vai trò, quyền; cấu hình toàn hệ thống; cấu hình tích hợp/secret theo quy trình bảo mật; xem System Audit Log. |
+| PL Admin | Quản lý cấu hình nghiệp vụ của phân hệ được giao; quản lý danh mục thuộc phân hệ trong phạm vi được cấp; xem log cấu hình phân hệ. Không mặc định có quyền quản trị tài khoản hoặc secret toàn hệ thống. |
+| UOA | Xử lý nghiệp vụ theo phân quyền: phê duyệt PL1/PL2/PL5 theo phòng; xác nhận tiếp nhận PL3; xác nhận hoàn thành ISSUE PL4; xác minh công việc PL5; xem PL5 Dashboard. |
+| MSTAR | Nhận cảnh báo PL3 theo cấu hình; xem PL5 Dashboard read-only; không mặc định có quyền duyệt, xác nhận ISSUE hoặc xác minh công việc. |
+| Requester / Executor / Assignee | Thực hiện đúng hành động theo token/email và trạng thái của từng hồ sơ PL2, PL4, PL5; không được tự nâng quyền hoặc thao tác ngoài hồ sơ được giao. |
+
+### 15.3. Ma trận quyền tóm tắt đề xuất
+
+| Chức năng | Super Admin | PL Admin | UOA | MSTAR |
+|---|---|---|---|---|
+| Quản lý tài khoản/vai trò | Có | Không mặc định | Không | Không |
+| Cấu hình toàn hệ thống và tích hợp | Có | Không mặc định | Không | Không |
+| Cấu hình riêng PL được giao | Có | Có, theo PL được giao | Không mặc định | Không |
+| PL1 duyệt yêu cầu | Không tự động có; cần quyền nghiệp vụ theo phòng | Không tự động có | Có nếu là Approver được cấu hình cho phòng | Không mặc định |
+| PL2 duyệt ENTRY | Không tự động có; cần quyền nghiệp vụ theo phòng | Không tự động có | Có nếu là Approver được cấu hình cho phòng | Không mặc định |
+| PL3 xác nhận tiếp nhận | Không tự động có; cần quyền nghiệp vụ | Không tự động có | Có theo cấu hình | Không mặc định |
+| PL4 xác nhận hoàn thành ISSUE | Không tự động có; cần quyền nghiệp vụ theo phòng | Không tự động có | Có theo vai trò UOA được phân công | Không |
+| PL5 duyệt / xác minh | Không tự động có; cần quyền nghiệp vụ theo phòng | Không tự động có | Có theo vai trò và phòng được cấu hình | Không |
+| PL5 Dashboard | Có nếu được cấp quyền xem | Có nếu được cấp quyền xem | Có – read-only | Có – read-only |
+| Xem System Audit Log | Có | Log thuộc PL được giao | Không mặc định | Không |
+
+**Lưu ý:** Quyền Super Admin không tự động thay thế người Approver/Verifier nghiệp vụ. Nếu cần can thiệp khẩn cấp, phải có quyền riêng, lý do bắt buộc và Audit Log; không âm thầm dùng quyền kỹ thuật để tạo quyết định nghiệp vụ.
+
+### 15.4. Phạm vi dữ liệu và kiểm tra quyền
+
+1. Quyền Approver/Verifier cần gắn Room_ID và vai trò nghiệp vụ; kiểm tra lại ở server tại thời điểm thực hiện hành động.
+2. PL Admin phải được gán rõ danh sách phân hệ được quản trị; không mặc định quản trị cả năm PL.
+3. MSTAR chỉ có các quyền được nêu rõ; quyết định hiện tại xác nhận MSTAR xem PL5 Dashboard read-only và nhận cảnh báo PL3 cấp 1.
+4. Mọi thao tác quản trị cấu hình, thay đổi vai trò, phân quyền, quyết định nghiệp vụ và truy cập dữ liệu nhạy cảm cần Audit Log tương ứng.
+5. Không dựa vào việc ẩn nút giao diện; mọi quyền phải được kiểm tra ở Backend/API.
+6. Tài khoản người dùng có thể có nhiều vai trò, nhưng phải tránh cấp quyền rộng hơn nhu cầu công việc (least privilege).
+
+### 15.5. Các điểm cần chốt
+
+- Có đồng ý tách 4 vai trò quản trị/chính là Super Admin, PL Admin, UOA, MSTAR như đề xuất không?
+- PL Admin có được quản lý danh mục nghiệp vụ của phân hệ (ví dụ Work Catalog PL5, checklist PL3) hay chỉ được thay đổi Settings?
+- UOA và MSTAR xem PL5 Dashboard read-only đã chốt; có cần giới hạn dữ liệu theo phòng/đơn vị hay được xem toàn bộ danh sách Work_ID?
+
+**Trạng thái:** Đây là đề xuất để lấy ý kiến, chưa phải quyết định đã chốt và chưa được dùng làm căn cứ cấp quyền khi triển khai.
