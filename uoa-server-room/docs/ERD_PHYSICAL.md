@@ -355,8 +355,9 @@ erDiagram
       bigint id PK
       bigint room_id FK
       date work_date
-      varchar schedule_type UK
+      varchar schedule_type
       datetime deadline_at
+      UNIQUE room_id, work_date, schedule_type
       varchar status
       json config_snapshot
       datetime started_at
@@ -367,6 +368,7 @@ erDiagram
       bigint escalation_run_id FK
       int level
       varchar status
+      UNIQUE escalation_run_id, level
       varchar recipient_type
       varchar recipient_email_snapshot
       datetime scheduled_at
