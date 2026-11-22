@@ -757,3 +757,32 @@ SLA Worker chạy nền, tính thời gian theo Calendar Version snapshot, cập
 9. pl4_sla_cycles
 
 Đây là ERD vật lý ở mức thiết kế, chưa phải DDL/Migration. Chi tiết cột và constraint nằm trong DATA_DICTIONARY.md và ADR-010.
+
+
+## 13. PL4 – Ràng buộc vật lý bổ sung sau rà soát ADR-006 đến ADR-010
+
+### 13.1 Manual Issue
+
+Manual Form bắt buộc chọn Assignee; trong transaction tạo Issue phải tạo Assignment đầu tiên `ASSIGNED`, SLA Instance, Cycle `ASSIGNMENT_RESPONSE` nếu Instance ACTIVE, Audit và Email Queue. Không tạo Manual Issue chưa phân công. PL3-generated Issue vẫn có thể khởi tạo chưa có Assignment.
+
+### 13.2 SLA Cycle – bảo vệ một Cycle RUNNING
+
+Trong `pl4_sla_cycles`, bổ sung generated column STORED: `active_issue_id BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN status = 'RUNNING' THEN issue_id ELSE NULL END) STORED`. Tạo UNIQUE index trên `active_issue_id`; nhiều giá trị NULL được phép. Service vẫn khóa Issue/SLA Instance và kiểm tra trạng thái trong transaction.
+
+### 13.3 Liên kết Work Report
+
+- UNIQUE `(work_report_id, cycle_type)`; Work Report có tối đa một Cycle ASSIGNEE_RESOLUTION và một Cycle UOA_CONFIRMATION.
+- `work_report_id` NULL trong lúc ASSIGNEE_RESOLUTION đang RUNNING; khi gửi Work Report thì dừng Cycle và gắn Work Report trong cùng transaction.
+- Không UNIQUE `(assignment_id, cycle_type)` vì một Assignment có thể phát sinh nhiều ASSIGNEE_RESOLUTION Cycle sau các lần UOA NOT_CONFIRMED.
+
+### 13.4 SLA Instance lifecycle
+
+Instance hợp lệ khởi tạo `ACTIVE`; khi Issue CLOSED do UOA CONFIRMED chuyển `COMPLETED` trong cùng transaction. Instance `NOT_CONFIGURED` giữ nguyên trạng thái này kể cả khi Issue đóng. Instance ACTIVE có thể tạm không có Cycle RUNNING, ví dụ PL3 Issue chưa được phân công.
+
+### 13.5 Calendar Exceptions
+
+Nhiều `SPECIAL_WORKING` rows được phép cho một ngày; các khoảng giờ không được chồng lấn. HOLIDAY/CLOSED là ngoại lệ đóng cả ngày, tối đa một bản ghi/ngày và không được tồn tại đồng thời với SPECIAL_WORKING. Exception thay thế lịch tuần của ngày đó.
+
+### 13.6 Cycle terminal result
+
+Khi Cycle kết thúc, service tính elapsed theo Calendar Version snapshot ngay trong transaction: kết thúc đúng/trước hạn là MET; kết thúc sau hạn là BREACHED; Assignment bị dừng trước hạn là STOPPED/CANCELLED; nếu đã quá hạn tại thời điểm dừng thì BREACHED. BREACHED không chuyển ngược MET/STOPPED. SLA Worker vẫn đánh dấu các Cycle đang RUNNING đã quá hạn độc lập Dashboard.
