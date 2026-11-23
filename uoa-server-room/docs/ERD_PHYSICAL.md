@@ -406,7 +406,7 @@ erDiagram
       datetime scheduled_at
       datetime attempted_at
       datetime sent_at
-      bigint email_queue_id FK
+      bigint email_queue_id FK NULL
       int attempt_count
     }
     PL3_INTEGRATION_OUTBOX {
@@ -607,9 +607,11 @@ erDiagram
 erDiagram
     EMAIL_QUEUE ||--o{ EMAIL_QUEUE_ATTEMPTS : attempts
     BUSINESS_ENTITIES o|--o{ SYSTEM_AUDIT_LOGS : audited
+    BUSINESS_ENTITIES o|--o{ EMAIL_QUEUE : notifications
     BUSINESS_ENTITIES ||--o{ ENTITY_EVIDENCE_LINKS : evidence_for
     USERS o|--o{ SYSTEM_AUDIT_LOGS : acts
     USERS o|--o{ EVIDENCE_FILES : uploads
+    USERS o|--o{ ENTITY_EVIDENCE_LINKS : links
     EVIDENCE_FILES ||--o{ ENTITY_EVIDENCE_LINKS : linked
     USERS ||--o{ DATA_EXPORTS : requests
 
