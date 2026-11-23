@@ -328,11 +328,11 @@ Với Work Report, hai email Reporter/UOA được enqueue cùng transaction v�
 
 ### 7.7 `pl5_work_execution_events`
 
-`id PK, work_request_id FK NOT NULL, assignment_id FK NULL, event_code (START/HOLD/RESUME/SUBMIT_RESULT), actor_type, actor_name_snapshot, actor_email_snapshot NULL, note/reason TEXT NULL, result TEXT NULL, occurred_at, created_at`. Append-only. Theo ADR-012, nếu `assignment_id` khác NULL thì Composite FK `(assignment_id, work_request_id)` phải tham chiếu đúng Assignment thuộc cùng Work Request. Khi `assignment_id` NULL, Service xác thực Event Code/actor/lifecycle có cho phép Event không gắn Assignment.
+`id PK, work_request_id FK NOT NULL, assignment_id FK NULL, event_code (START/HOLD/RESUME/SUBMIT_RESULT), actor_type, actor_name_snapshot, actor_email_snapshot NULL, note/reason TEXT NULL, result TEXT NULL, occurred_at, created_at`. Append-only. UNIQUE `(id, work_request_id)` làm đích Composite FK cho Verification theo ADR-013. Theo ADR-012, nếu `assignment_id` khác NULL thì Composite FK `(assignment_id, work_request_id)` phải tham chiếu đúng Assignment thuộc cùng Work Request. Khi `assignment_id` NULL, Service xác thực Event Code/actor/lifecycle có cho phép Event không gắn Assignment.
 
 ### 7.8 `pl5_work_verifications`
 
-`id PK, work_request_id FK, decision (PASS/FAIL), verifier_user_id NULL FK users, verifier_name_snapshot, verifier_email_snapshot, note TEXT, verified_at, created_at`. FAIL đưa work về IN_PROGRESS và phát sinh REWORK_REQUIRED event.
+`id PK, work_request_id FK NOT NULL, execution_event_id BIGINT UNSIGNED NOT NULL, decision (PASS/FAIL), verifier_user_id NULL FK users, verifier_name_snapshot, verifier_email_snapshot, note TEXT, verified_at, created_at`. Composite FK `(execution_event_id, work_request_id)` → `pl5_work_execution_events(id, work_request_id)` bảo đảm xác minh đúng lần Submit Result của Work Request. Service bắt buộc kiểm tra Event được tham chiếu có `event_code = SUBMIT_RESULT`. Không đặt UNIQUE trên `execution_event_id` theo ADR-013; số lần xác minh cho một lần Submit Result chưa bị giới hạn. FAIL đưa work về IN_PROGRESS và phát sinh REWORK_REQUIRED event.
 
 ## 8. Dịch vụ dùng chung
 
@@ -621,5 +621,17 @@ ADR-011 bổ sung lớp toàn vẹn vật lý, không thay đổi state machine 
 - `assignment_id` nullable; khi NULL, không có quan hệ Assignment để FK kiểm tra. Workflow Service phải xác thực loại Event và lifecycle cho phép NULL.
 - Giữ FK đơn `work_request_id` → `pl5_work_requests(id)`.
 - ADR-012 không chốt ON DELETE cho toàn bộ PL5; cần hoàn thiện delete policy trong constraint matrix trước Migration.
+
+Đây là thiết kế vật lý, chưa phải DDL/Migration.
+
+
+## 15. PL5 – Work Verification Composite FK (ADR-013)
+
+- `pl5_work_execution_events`: UNIQUE `(id, work_request_id)`.
+- `pl5_work_verifications`: `execution_event_id BIGINT UNSIGNED NOT NULL`.
+- Composite FK `(execution_event_id, work_request_id)` → `pl5_work_execution_events(id, work_request_id)`.
+- Workflow Service kiểm tra Event có `event_code = SUBMIT_RESULT`; FK không kiểm tra được giá trị event_code.
+- Không đặt UNIQUE `execution_event_id`; không thêm FK trực tiếp tới Assignment. Có thể truy ngược Assignment từ Execution Event.
+- Delete policy PL5 chưa được ADR-013 quyết định.
 
 Đây là thiết kế vật lý, chưa phải DDL/Migration.
