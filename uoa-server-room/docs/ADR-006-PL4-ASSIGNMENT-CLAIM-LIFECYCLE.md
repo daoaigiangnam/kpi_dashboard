@@ -20,7 +20,10 @@ ISSUE PL3 có thể được tạo tự động mà chưa xác định Assignee.
 7. Nếu Assignee từ chối, không nhận hoặc cần thay người, người có quyền phân công kết thúc Assignment hiện tại bằng trạng thái phù hợp (`DECLINED`, `EXPIRED` hoặc `RELEASED`) và tạo Assignment mới. Không xóa lịch sử.
 8. Tái phân công sau khi ISSUE đã `IN_PROGRESS` không tự ý xóa lịch sử trạng thái ISSUE; Assignment mới phải được nhận trước khi người mới thực hiện hành động nghiệp vụ. Chuyển trạng thái ISSUE tiếp tục tuân thủ state machine PL4 đã duyệt.
 9. Work Report phải tham chiếu Assignment thực hiện (`assignment_id`) để xác định đúng người xử lý và lịch sử phân công.
-10. Liên kết nhận việc dùng token bảo mật lưu hash, giới hạn đúng ISSUE/Assignment/action, có expiry, revocation và used_at; không lưu token rõ hoặc ghi token vào Audit Log.
+10. Liên kết nhận việc dùng token bảo mật lưu hash trong bảng riêng `pl4_assignment_claim_tokens`, giới hạn đúng ISSUE/Assignment/action, có expiry, revocation và used_at; không lưu token rõ hoặc ghi token vào Audit Log/Email Queue.
+12. Email Queue chỉ lưu event metadata và `assignment_id`, không chứa raw token hoặc URL Claim có token. Email Worker phát hành token ngẫu nhiên mật mã cho lần gửi, lưu SHA-256 hash cùng Assignment/expiry trong DB, commit trước SMTP; sau đó dựng URL trong bộ nhớ và gửi. Raw token chỉ tồn tại tạm thời trong tiến trình gửi.
+13. Mỗi lần gửi/retry có thể phát hành token mới. Token chưa dùng được giữ hiệu lực đến expiry hoặc đến khi Assignment kết thúc/được claim; khi Claim thành công, thu hồi tất cả token còn hiệu lực của Assignment. Nếu SMTP báo lỗi chắc chắn trước khi chấp nhận email, Worker thu hồi token vừa phát hành; nếu kết quả gửi không xác định, giữ token đến expiry để tránh email đã tới người nhận chứa link bị vô hiệu hóa.
+14. Worker phải tạo token record trước khi gọi SMTP; SMTP chỉ được gọi sau khi transaction tạo token đã commit. Email Queue/Attempt/Audit chỉ ghi token ID hoặc Assignment ID, không ghi token rõ.
 11. Mọi lần phân công, nhận việc, từ chối, hết hạn, giải phóng và tái phân công phải được ghi Audit Log; dữ liệu Assignment là append-only về mặt lịch sử, chỉ cập nhật các mốc/trạng thái vòng đời cần thiết.
 
 ## 3. Trạng thái Assignment
