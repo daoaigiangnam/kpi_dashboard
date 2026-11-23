@@ -434,7 +434,7 @@ erDiagram
     PL4_ISSUES ||--o| PL4_MANUAL_SUBMISSIONS : source_submission
     PL4_ISSUES ||--o{ PL4_ASSIGNMENTS : assigned
     PL4_ISSUES ||--o{ PL4_WORK_REPORTS : receives
-    PL4_ASSIGNMENTS o|--o{ PL4_WORK_REPORTS : context
+    PL4_ASSIGNMENTS ||--o{ PL4_WORK_REPORTS : context
     PL4_ISSUES ||--o{ PL4_UOA_CONFIRMATIONS : reviewed
     PL4_WORK_REPORTS ||--o{ PL4_UOA_CONFIRMATIONS : evaluated
     PL4_PRIORITIES ||--o{ PL4_ISSUES : selected_for
@@ -816,3 +816,8 @@ Tất cả FK của dữ liệu hồ sơ/lịch sử/bảo mật/SLA PL4 dùng `
 Giữ các quy tắc NULL/UNIQUE theo DATA_DICTIONARY §13.4: nguồn PL3 nullable UNIQUE; active_issue_id nullable UNIQUE; manual_submissions.issue_id NOT NULL UNIQUE; SLA Instance issue_id NOT NULL UNIQUE; SLA Cycle assignment_id/work_report_id nullable; UNIQUE(work_report_id, cycle_type); Claim Token assignment_id NOT NULL không UNIQUE, token_hash NOT NULL UNIQUE.
 
 Các thay đổi chỉ bổ sung toàn vẹn vật lý, không đổi nghiệp vụ đã phê duyệt. Chưa phải DDL/Migration.
+
+
+### 14.5 Đồng bộ lực lượng quan hệ Work Report
+
+Trong ERD PL4 tổng quan, quan hệ `PL4_ASSIGNMENTS ||--o{ PL4_WORK_REPORTS` là bắt buộc ở phía Assignment của mỗi Work Report vì `pl4_work_reports.assignment_id` là NOT NULL theo DATA_DICTIONARY và ADR-006. Mỗi Work Report phải gắn đúng Assignment; Composite FK tại §14.2 còn bảo đảm Assignment đó thuộc cùng Issue.
