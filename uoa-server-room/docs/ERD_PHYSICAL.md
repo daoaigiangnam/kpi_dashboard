@@ -791,3 +791,28 @@ Khi Cycle kết thúc, service tính elapsed theo Calendar Version snapshot ngay
 ### 13.7 Assignment Claim Token
 
 Bổ sung `pl4_assignment_claim_tokens`, quan hệ `pl4_assignments 1 — N pl4_assignment_claim_tokens`. Bảng lưu `assignment_id`, `token_hash` SHA-256 UNIQUE, `expires_at`, `used_at`, `revoked_at`, `created_at`; không lưu raw token. Email Queue chỉ lưu Assignment/event reference. Worker phát hành token, lưu hash và commit trước SMTP; Claim URL chỉ được dựng tạm trong bộ nhớ gửi email. Khi Claim thành công, thu hồi các token còn hiệu lực của Assignment.
+
+
+## 14. PL4 – Composite FK và chính sách ON DELETE theo ADR-011
+
+### 14.1 UNIQUE key hỗ trợ FK ghép
+- `pl4_assignments`: UNIQUE `(id, issue_id)`.
+- `pl4_work_reports`: UNIQUE `(id, issue_id)`.
+- `pl4_issue_sla_instances`: UNIQUE `(id, issue_id)`.
+
+### 14.2 Composite FK
+- `pl4_work_reports(assignment_id, issue_id)` → `pl4_assignments(id, issue_id)`.
+- `pl4_uoa_confirmations(work_report_id, issue_id)` → `pl4_work_reports(id, issue_id)`.
+- `pl4_sla_cycles(issue_sla_instance_id, issue_id)` → `pl4_issue_sla_instances(id, issue_id)`.
+- `pl4_sla_cycles(assignment_id, issue_id)` → `pl4_assignments(id, issue_id)` (assignment_id nullable theo cycle type/lifecycle).
+- `pl4_sla_cycles(work_report_id, issue_id)` → `pl4_work_reports(id, issue_id)` (work_report_id nullable khi Assignee Resolution còn RUNNING).
+
+Các FK ghép ngăn liên kết chéo giữa những bản ghi có ID hợp lệ nhưng thuộc các Issue khác nhau. Service vẫn validate tính bắt buộc theo cycle_type và trạng thái trước Commit.
+
+### 14.3 Delete policy
+Tất cả FK của dữ liệu hồ sơ/lịch sử/bảo mật/SLA PL4 dùng `ON DELETE RESTRICT` (InnoDB `NO ACTION` tương đương). Không dùng CASCADE DELETE. Issue, Assignment, Claim Token, Work Report, UOA Confirmation, Status History, Manual Submission, SLA Instance/Cycle và Policy/Calendar Version đã được tham chiếu không hard-delete. Dùng trạng thái nghiệp vụ hoặc INACTIVE/RETIRED để kết thúc/ngừng sử dụng.
+
+### 14.4 NULL/UNIQUE
+Giữ các quy tắc NULL/UNIQUE theo DATA_DICTIONARY §13.4: nguồn PL3 nullable UNIQUE; active_issue_id nullable UNIQUE; manual_submissions.issue_id NOT NULL UNIQUE; SLA Instance issue_id NOT NULL UNIQUE; SLA Cycle assignment_id/work_report_id nullable; UNIQUE(work_report_id, cycle_type); Claim Token assignment_id NOT NULL không UNIQUE, token_hash NOT NULL UNIQUE.
+
+Các thay đổi chỉ bổ sung toàn vẹn vật lý, không đổi nghiệp vụ đã phê duyệt. Chưa phải DDL/Migration.
