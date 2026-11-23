@@ -93,3 +93,7 @@ This ADR decides ON DELETE only. ON UPDATE behavior remains a separate open desi
 ## 8. Approval
 
 The user explicitly selected **Option A: global ON DELETE RESTRICT** for CORE, PL1, PL2, PL3, PL4, PL5 and COMMON. This ADR records that approval.
+
+## 9. Subsequent decision – ON UPDATE
+
+The former statement in Section 5 that ON UPDATE remained undecided was superseded by the later approved **ADR-015 – Global ON UPDATE RESTRICT and Immutable Technical Identifiers**. ADR-014 remains authoritative for ON DELETE RESTRICT. Read ADR-014 and ADR-015 together for the combined global FK policy: ON DELETE RESTRICT + ON UPDATE RESTRICT.
