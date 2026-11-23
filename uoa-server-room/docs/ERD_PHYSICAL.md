@@ -821,3 +821,14 @@ Các thay đổi chỉ bổ sung toàn vẹn vật lý, không đổi nghiệp v
 ### 14.5 Đồng bộ lực lượng quan hệ Work Report
 
 Trong ERD PL4 tổng quan, quan hệ `PL4_ASSIGNMENTS ||--o{ PL4_WORK_REPORTS` là bắt buộc ở phía Assignment của mỗi Work Report vì `pl4_work_reports.assignment_id` là NOT NULL theo DATA_DICTIONARY và ADR-006. Mỗi Work Report phải gắn đúng Assignment; Composite FK tại §14.2 còn bảo đảm Assignment đó thuộc cùng Issue.
+
+
+## 15. PL5 – Composite FK cho Execution Event (ADR-012)
+
+- `PL5_WORK_ASSIGNMENTS` có UNIQUE `(id, work_request_id)`.
+- `PL5_WORK_EXECUTION_EVENTS(assignment_id, work_request_id)` tham chiếu `PL5_WORK_ASSIGNMENTS(id, work_request_id)` bằng Composite FK.
+- Quan hệ Assignment → Execution Event vẫn optional ở phía Event vì `assignment_id` nullable; khi có Assignment, FK ghép bảo đảm Assignment thuộc đúng Work Request.
+- FK đơn từ `PL5_WORK_EXECUTION_EVENTS.work_request_id` tới `PL5_WORK_REQUESTS.id` vẫn được giữ.
+- Delete policy PL5 chưa được ADR-012 quyết định; không tự suy rộng ADR-011 của PL4.
+
+**PL1 Idempotency (ADR-012):** `pl1_access_requests` không có `source_response_id`; Form/API retry được kiểm soát bằng `idempotency_keys` UNIQUE `(scope, idempotency_key)` và `request_hash`.
