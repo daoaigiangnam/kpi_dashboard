@@ -1,8 +1,9 @@
 # DATA DICTIONARY – UOA SERVER ROOM MANAGEMENT
-**Phiên bản:** 0.4 – Đã đồng bộ ADR-001 đến ADR-009; dự thảo cấu trúc vật lý  
+**Phiên bản:** 0.5 – Đã đồng bộ các quyết định ADR-001 đến ADR-012 có liên quan; dự thảo cấu trúc vật lý  
 **CSDL mục tiêu:** MySQL 8.0+, InnoDB, utf8mb4  
 **Múi giờ lưu trữ:** UTC; giao diện Asia/Ho_Chi_Minh  
 **Nhánh:** `feature/ITSMWEB`  
+**Ngày rà soát:** 23/11/2026  
 **Trạng thái:** DRAFT – chưa phải Migration triển khai
 
 > Tài liệu này cụ thể hóa ERD logic. Các cột có hậu tố `_snapshot` giữ lại thông tin tại thời điểm phát sinh, không tự cập nhật khi danh mục thay đổi. Mọi actor bên ngoài có thể không có tài khoản Admin; các cột `actor_user_id` vì vậy được phép NULL.
