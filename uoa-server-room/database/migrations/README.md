@@ -4,6 +4,7 @@
 
 - Migration runner: `database/migrate.php`
 - Migration files: `database/migrations/*.sql`
+- Current files: `001_create_core_entities.sql`, `002_create_core_relationships.sql`, `003_create_business_entity_registry.sql`, `004_create_common_services.sql`
 - Database target: MySQL 8.0+, InnoDB, utf8mb4
 - Timestamp storage: UTC
 - Global FK policy: `ON DELETE RESTRICT` (ADR-014) + `ON UPDATE RESTRICT` (ADR-015)
@@ -38,6 +39,15 @@ The runner loads the existing Composer autoloader, .env and PDO Database connect
 - server_rooms
 
 It deliberately does not seed a default administrator or password. User credentials must be provisioned through a separate secure bootstrap procedure; never commit a real password or password hash.
+
+## Current implementation batch
+
+- 001: Users, Roles, Permissions, Server Rooms.
+- 002: User Roles, Role Permissions, Room Contacts.
+- 003: Business Entity registry.
+- 004: Shared Email Queue/Attempts, System Audit Logs, Evidence, Idempotency, Integration Events, Scheduler Runs and Data Exports.
+
+Every declared FK in these migrations explicitly uses `ON DELETE RESTRICT ON UPDATE RESTRICT` per ADR-014/015. The migrations have been committed but are not yet executed or validated against a live MySQL database.
 
 ## Important
 
