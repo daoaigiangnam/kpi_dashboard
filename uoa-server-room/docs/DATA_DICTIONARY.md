@@ -570,3 +570,44 @@ Quan hệ `pl4_assignments 1 — N pl4_assignment_claim_tokens`. Không dùng `p
 **Cơ chế phát hành:** Email Queue chỉ lưu event reference/`assignment_id`, không lưu raw token hoặc Claim URL có token. Khi gửi email Assignment, Worker kiểm tra Assignment còn `ASSIGNED`, tạo token ngẫu nhiên mật mã, lưu SHA-256 hash và expiry vào bảng này, commit trước khi gọi SMTP. Worker dựng URL Claim trong bộ nhớ, render email và gửi; raw token không được ghi DB, Queue, Attempt, Audit hoặc error log.
 
 Mỗi lần gửi/retry có thể phát hành token mới. Token còn hiệu lực đến expiry hoặc khi Assignment kết thúc/được claim. Claim thành công thu hồi tất cả token còn hiệu lực của Assignment. SMTP từ chối chắc chắn trước khi nhận email: thu hồi token của attempt; kết quả gửi không xác định: giữ token đến expiry để không vô hiệu hóa link trong email có thể đã tới người nhận. Worker không phát hành token nếu Assignment không còn `ASSIGNED`.
+
+
+## 13. Ràng buộc toàn vẹn quan hệ PL4 – ADR-011 (đã phê duyệt)
+
+Áp dụng nguyên tắc Composite Foreign Key để Database bảo đảm các bản ghi con tham chiếu đúng cùng một ISSUE, không chỉ kiểm tra từng FK độc lập.
+
+### 13.1 UNIQUE key hỗ trợ Composite FK
+
+Bổ sung các khóa UNIQUE sau ở bảng cha (dù cột `id` vốn đã là PK, khóa ghép là target tường minh cho FK ghép):
+- `pl4_assignments`: UNIQUE `(id, issue_id)`.
+- `pl4_work_reports`: UNIQUE `(id, issue_id)`.
+- `pl4_issue_sla_instances`: UNIQUE `(id, issue_id)`.
+
+### 13.2 Composite FK bắt buộc
+
+- `pl4_work_reports(assignment_id, issue_id)` → `pl4_assignments(id, issue_id)`; bảo đảm Assignment được báo cáo thuộc chính Issue của Work Report.
+- `pl4_uoa_confirmations(work_report_id, issue_id)` → `pl4_work_reports(id, issue_id)`; bảo đảm xác nhận UOA đúng Issue của Work Report.
+- `pl4_sla_cycles(issue_sla_instance_id, issue_id)` → `pl4_issue_sla_instances(id, issue_id)`; bảo đảm Cycle thuộc đúng Issue SLA Instance.
+- `pl4_sla_cycles(assignment_id, issue_id)` → `pl4_assignments(id, issue_id)`; khi assignment_id khác NULL, Assignment phải thuộc đúng Issue.
+- `pl4_sla_cycles(work_report_id, issue_id)` → `pl4_work_reports(id, issue_id)`; khi work_report_id khác NULL, Work Report phải thuộc đúng Issue.
+
+Các cột FK ghép phải cùng kiểu/kích thước/collation tương thích. Với các FK nullable trong SLA Cycle, cho phép NULL theo vòng đời đã chốt; khi thành phần FK nullable là NULL, quan hệ tương ứng chưa được gắn và service phải kiểm tra điều kiện bắt buộc theo cycle_type/trạng thái trước khi commit.
+
+### 13.3 ON DELETE và bảo toàn lịch sử
+
+Toàn bộ FK thuộc hồ sơ, lịch sử, bảo mật và SLA PL4 sử dụng `ON DELETE RESTRICT` (InnoDB `NO ACTION` có hành vi tương đương). Không dùng `ON DELETE CASCADE` cho Issue, Assignment, Claim Token, Work Report, UOA Confirmation, Status History, Manual Submission, SLA Instance/Cycle hoặc các phiên bản Policy/Calendar đã được tham chiếu.
+
+Không hard-delete hồ sơ/dòng lịch sử đã phát sinh liên kết. Kết thúc, hủy hoặc ngừng sử dụng bằng trạng thái nghiệp vụ; danh mục dùng cờ/trạng thái INACTIVE/RETIRED. Claim Token hết hạn/đã dùng/đã thu hồi vẫn được giữ để truy vết. Không xóa Assignment khi đã có Claim Token.
+
+### 13.4 NULL và UNIQUE đã xác nhận
+
+- `pl4_issues.source_inspection_result_id`: NULL được phép, UNIQUE; hỗ trợ Issue MANUAL không có nguồn PL3.
+- `pl4_assignments.active_issue_id`: generated column NULL cho Assignment terminal; UNIQUE, nhiều NULL được phép.
+- `pl4_manual_submissions.issue_id`: NOT NULL + UNIQUE; cặp `(source_form_id, form_response_id)` cũng UNIQUE.
+- `pl4_issue_sla_instances.issue_id`: NOT NULL + UNIQUE.
+- `pl4_sla_cycles.assignment_id` và `work_report_id`: nullable theo vòng đời; không tạo UNIQUE riêng trên `(assignment_id, cycle_type)`. Giữ UNIQUE `(work_report_id, cycle_type)` để mỗi Work Report có tối đa một Cycle của mỗi loại; MySQL cho phép nhiều NULL trong UNIQUE.
+- `pl4_assignment_claim_tokens.assignment_id`: NOT NULL, không UNIQUE; một Assignment có thể có nhiều token. `token_hash`: NOT NULL + UNIQUE.
+
+### 13.5 Phạm vi áp dụng
+
+ADR-011 bổ sung lớp toàn vẹn vật lý, không thay đổi state machine PL4, quy trình Assignment/Claim, idempotency, SLA hoặc Email Queue đã phê duyệt. Các ràng buộc này là thiết kế; chưa tạo DDL/Migration/PHP.
