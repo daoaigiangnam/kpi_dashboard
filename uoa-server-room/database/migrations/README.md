@@ -18,7 +18,7 @@ php database/migrate.php status
 php database/migrate.php migrate
 ```
 
-The runner loads the existing Composer autoloader, .env and PDO Database connection.
+The runner loads the existing Composer autoloader, .env and PDO Database connection. The `status` command is read-only; it does not create the migration repository table.
 
 ## Safety behavior
 
