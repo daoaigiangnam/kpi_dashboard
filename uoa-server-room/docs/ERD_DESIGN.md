@@ -146,7 +146,7 @@ Quy tắc:
 | `pl5_work_approvals` | Lịch sử UOA approve/reject/cancel | FK work request; actor/channel/note |
 | `pl5_work_assignments` | Lịch sử giao Executor | FK work request; executor snapshot |
 | `pl5_work_execution_events` | START / HOLD / RESUME / SUBMIT_RESULT | FK work request; actor; time; reason/result |
-| `pl5_work_verifications` | Lịch sử UOA xác minh PASS/FAIL | FK work request; verifier; result/note |
+| `pl5_work_verifications` | Lịch sử UOA xác minh PASS/FAIL | FK work request + Execution Event SUBMIT_RESULT cụ thể; verifier; result/note |
 | `pl5_work_attachments` | Liên kết file minh chứng | FK work request + evidence file |
 | `pl5_resources` | Nguồn lực/nhân sự/đơn vị thực hiện nếu cần quản lý danh mục | danh mục, chưa ép thành user Admin |
 
@@ -157,6 +157,7 @@ Quy tắc:
 - Approver và Verifier là UOA theo Room, không phải Requester.
 - Workflow: PENDING_APPROVAL → APPROVED/REJECTED/CANCELLED; APPROVED → IN_PROGRESS; HOLD → ON_HOLD; RESUME → IN_PROGRESS; SUBMIT_RESULT → PENDING_VERIFICATION; VERIFY PASS → CLOSED; VERIFY FAIL → IN_PROGRESS + REWORK_REQUIRED.
 - Work Approval, Execution, Verification phải lưu lịch sử riêng.
+- Mỗi PL5 Verification bắt buộc tham chiếu đúng Execution Event `SUBMIT_RESULT` được xác minh qua Composite FK `(execution_event_id, work_request_id)`; Service kiểm tra `event_code` (ADR-013).
 
 ### 2.7. Dịch vụ dùng chung
 
@@ -305,3 +306,8 @@ PL1 Form/API idempotency dùng `idempotency_keys` làm cơ chế chuẩn duy nh�
 PL5 bổ sung UNIQUE `(id, work_request_id)` trên `pl5_work_assignments` và Composite FK từ `pl5_work_execution_events(assignment_id, work_request_id)` tới cặp khóa tương ứng. `assignment_id` vẫn nullable; khi có giá trị, Database bảo đảm đúng Work Request. Delete policy PL5 còn phải được xác định riêng trước Migration.
 
 ADR-012 là quyết định thiết kế; chưa tạo DDL/Migration.
+
+
+### PL5 Verification – ADR-013
+
+`pl5_work_verifications.execution_event_id` NOT NULL tham chiếu Execution Event cụ thể qua Composite FK `(execution_event_id, work_request_id)` → `pl5_work_execution_events(id, work_request_id)`. Execution Event có UNIQUE `(id, work_request_id)`. Service xác thực event_code là `SUBMIT_RESULT`. Không giới hạn số Verification trên một Execution Event bằng UNIQUE; không thêm FK trực tiếp tới Assignment. Delete policy PL5 chưa được quyết định.
