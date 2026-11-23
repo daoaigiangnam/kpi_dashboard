@@ -12,7 +12,7 @@
 
 ### PL5 – Execution Event và Assignment
 
-ĐÃ PHÊ DUYỆT: `pl5_work_assignments` có UNIQUE `(id, work_request_id)`; `pl5_work_execution_events(assignment_id, work_request_id)` dùng Composite FK tham chiếu Assignment thuộc đúng Work Request. `assignment_id` vẫn nullable; Service xác thực loại Event/lifecycle khi NULL. Delete policy PL5 chưa được quyết định.
+ĐÃ PHÊ DUYỆT: `pl5_work_assignments` có UNIQUE `(id, work_request_id)`; `pl5_work_execution_events(assignment_id, work_request_id)` dùng Composite FK tham chiếu Assignment thuộc đúng Work Request. `assignment_id` vẫn nullable; Service xác thực loại Event/lifecycle khi NULL. Delete policy PL5 đã được chốt ON DELETE RESTRICT theo ADR-014.
 
 ## 2. Đã chỉnh được bằng quyết định đã có
 
@@ -32,7 +32,7 @@ Data Dictionary quy định các FK chính nhưng một số bảng còn thiếu
 
 ### 2.6 PL3/PL1/PL2 – Chính sách retention và delete
 
-ADR-011 chỉ áp dụng chính sách RESTRICT đã duyệt cho PL4. Không tự suy rộng ON DELETE RESTRICT sang toàn bộ PL1–PL5 nếu chưa có quyết định chung. Data Dictionary có nguyên tắc không hard-delete hồ sơ, nhưng hành vi FK cho từng bảng con vẫn cần được xác định rõ.
+ADR-014 đã phê duyệt ON DELETE RESTRICT cho mọi FK trong CORE, PL1–PL5 và COMMON. Retention cleanup phải thực hiện có kiểm soát theo thứ tự child-first; không dùng CASCADE/SET NULL. Data Dictionary có nguyên tắc không hard-delete hồ sơ, nhưng hành vi FK cho từng bảng con vẫn cần được xác định rõ.
 
 ## 4. Việc tiếp theo
 
@@ -51,7 +51,7 @@ ADR-011 chỉ áp dụng chính sách RESTRICT đã duyệt cho PL4. Không tự
 - Data Dictionary phân biệt Action Token theo Visit/Purpose và OTP Challenge theo Visit; OTP Attempt phụ thuộc Challenge. ERD thể hiện các quan hệ cha–con chính.
 - `pl2_otp_challenges.expires_at` chỉ được gán sau khi email gửi thành công; đây là quy tắc vòng đời, không phải FK/UNIQUE. Cần giữ rõ khi thiết kế Worker.
 - Các trường actor snapshot và actor_user_id nullable cần được phản ánh đầy đủ ở DDL; ERD hiện chỉ mô tả một phần cột, không đủ để kiểm tra toàn bộ NULLability.
-- Chưa thấy quyết định delete policy theo từng FK PL2 trong các tài liệu được đối chiếu. Không suy rộng ADR-011 PL4.
+- ADR-014 đã chốt ON DELETE RESTRICT cho mọi FK PL2; OTP Attempt phải được dọn trước OTP Challenge nếu đủ điều kiện retention.
 
 **Kết luận PL2:** chưa phát hiện mâu thuẫn nghiệp vụ rõ giữa quan hệ lõi Data Dictionary và ERD; còn thiếu ma trận NULL/ON DELETE và constraint theo từng FK trước Migration.
 
@@ -73,7 +73,7 @@ ADR-011 chỉ áp dụng chính sách RESTRICT đã duyệt cho PL4. Không tự
 - `data_exports.requested_by_user_id` đang được mô tả là FK users nhưng chưa có chỉ dẫn rõ delete policy. Người tạo export là dữ liệu truy vết; nên không xóa user vật lý hoặc phải snapshot actor. Đây là khuyến nghị, chưa phải quyết định.
 - `idempotency_keys.entity_type/entity_id` và `integration_events.entity_type/entity_id` là tham chiếu metadata đa hình, không có FK theo mô hình hiện tại. Cần ghi rõ trong ERD để không nhầm là FK quan hệ.
 - Data Dictionary có `scheduled_job_runs` và `integration_events`, nhưng sơ đồ ERD_PHYSICAL COMMON chưa mô tả đầy đủ tất cả cột/quan hệ của hai bảng; cần bổ sung vào constraint matrix.
-- Delete policy cho COMMON phải phân biệt Queue/Attempt, Audit, Evidence, Idempotency, Integration, Job Run và Export. Chưa có ADR chung quyết định ON DELETE cho tất cả; không áp dụng một quy tắc duy nhất theo suy đoán.
+- ADR-014 chốt ON DELETE RESTRICT cho mọi FK COMMON. Retention vẫn phải phân biệt Queue/Attempt, Audit, Evidence, Idempotency, Integration, Job Run và Export; purge thủ công theo dependency child-first, có xét retention/legal hold.
 
 **Kết luận COMMON:** cần bổ sung ERD các quan hệ actor còn thiếu và đánh dấu rõ FK nullable/non-FK metadata. Chính sách retention và delete của Audit/Evidence vẫn là điểm chặn production.
 
@@ -83,10 +83,24 @@ ADR-011 chỉ áp dụng chính sách RESTRICT đã duyệt cho PL4. Không tự
 2. PL3 Checklist Version: `created_by_user_id` bắt buộc User Admin hay cho phép NULL với tác vụ hệ thống/import?
 3. PL3 Escalation Event: xác nhận mỗi Event có tối đa một Email Queue item logic; retry luôn trên cùng queue item (không phát sinh queue item mới).
 4. COMMON `data_exports.requested_by_user_id`: giữ FK RESTRICT bằng cách không hard-delete User, hay bổ sung actor snapshot để giữ lịch sử khi User bị xóa?
-5. Chốt delete policy theo từng bảng PL1/PL2/PL3/PL5/COMMON; ADR-011 chỉ áp dụng PL4.
-6. Chốt retention, archive và privacy cho Audit/Evidence/IP/User-Agent trước production.
+5. Delete policy toàn hệ thống đã chốt tại ADR-014: ON DELETE RESTRICT cho mọi FK CORE, PL1–PL5 và COMMON.
+6. Tiếp tục chốt retention, archive và privacy cho Audit/Evidence/IP/User-Agent trước production; ADR-014 không tự đặt retention duration.
 
 
 ### PL5 – Work Verification / Execution Event (ADR-013)
 
 ĐÃ PHÊ DUYỆT: `pl5_work_verifications.execution_event_id` NOT NULL; Composite FK `(execution_event_id, work_request_id)` → `pl5_work_execution_events(id, work_request_id)`. Execution Event có UNIQUE `(id, work_request_id)`. Service xác thực Event Code `SUBMIT_RESULT`. Không đặt UNIQUE `execution_event_id`; không thêm FK trực tiếp đến Assignment. Câu hỏi liên kết Verification đã được giải quyết.
+
+
+## 6. Global ON DELETE policy – ADR-014
+
+ĐÃ PHÊ DUYỆT: áp dụng `ON DELETE RESTRICT` cho mọi khóa ngoại thực tế thuộc CORE, PL1, PL2, PL3, PL4, PL5 và COMMON. Không dùng `ON DELETE CASCADE` hoặc `ON DELETE SET NULL`. Quyết định áp dụng cả FK nullable; NULLability vẫn do vòng đời nghiệp vụ quyết định.
+
+- User có dữ liệu tham chiếu được DISABLED thay vì hard-delete trong vận hành thông thường.
+- Business root, history, Audit, Evidence và dữ liệu cần truy vết không hard-delete trong luồng nghiệp vụ thông thường.
+- Token/OTP, Email Queue/Attempts và dữ liệu vận hành có thể được purge khi đủ điều kiện retention/legal hold, nhưng phải xóa child trước parent và theo quy trình có kiểm soát.
+- Evidence Link phải được xử lý trước Evidence File; không xóa file còn được hồ sơ retained tham chiếu.
+- Các cặp `entity_type/entity_id` của idempotency/integration vẫn là metadata, không phải FK.
+- ON UPDATE chưa được ADR-014 quyết định và tiếp tục là điểm mở riêng.
+
+ADR-014 chỉ chốt hành vi FK khi xóa; không quy định thời hạn retention cụ thể, không tạo DDL/Migration/PHP và không thay đổi dữ liệu database.
