@@ -111,3 +111,14 @@ Các hạng mục trên mới ở trạng thái thiết kế đã phê duyệt t
 - [ ] Email Queue chỉ lưu Assignment/event reference; không lưu raw token hoặc URL Claim có token.
 - [ ] Email Worker phát hành token, lưu hash và commit trước SMTP; dựng Claim URL trong bộ nhớ, không log raw token.
 - [ ] Khi Claim thành công, thu hồi toàn bộ token còn hiệu lực của Assignment; kiểm thử expiry, revoke, retry và SMTP outcome không xác định.
+
+
+## Thứ tự Migration tổng thể – giai đoạn thiết kế
+
+- [x] Rà soát thứ tự phụ thuộc bảng PL1–PL5 và COMMON theo MIGRATION_ORDER_PLAN.md.
+- [x] Xác định các FK ghép PL4 theo ADR-011 để ngăn liên kết chéo Issue.
+- [ ] Chốt các điểm nghiệp vụ còn mở trong Workflow Specification và chính sách retention trước khi tạo Migration.
+- [ ] Chuẩn hóa DDL cuối cùng từ Data Dictionary/ERD; đối chiếu tên cột, kiểu dữ liệu, NULL, UNIQUE, FK và ON DELETE.
+- [ ] Sau khi được chủ nghiệp vụ cho phép mới bắt đầu viết Migration; hiện chưa tạo Migration/PHP.
+
+**Lưu ý triển khai MySQL:** DDL có thể gây implicit commit; không giả định toàn bộ chuỗi Migration có thể rollback nguyên tử bằng transaction. Phải backup, triển khai theo đợt nhỏ, kiểm tra sau từng đợt và ưu tiên migration sửa tiếp (forward-fix) thay vì DROP dữ liệu khi có lỗi.
