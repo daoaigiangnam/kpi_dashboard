@@ -135,3 +135,14 @@ Các hạng mục trên mới ở trạng thái thiết kế đã phê duyệt t
 - `database/verify.php`: kiểm tra migration checksum, bảng nền tảng và chính sách ON DELETE/ON UPDATE của các FK.
 
 **Trạng thái thực tế:** Đã commit code lên GitHub; chưa chạy Migration, chưa chạy verify trên MySQL, chưa xác nhận schema production. Migration runner cố ý dừng nếu phát hiện bảng legacy chưa có migration record để tránh tự nhận nhầm schema cũ. Bước kế tiếp là kiểm tra PHP syntax/Composer và đối chiếu schema target trước khi thực thi trên một database development sạch.
+
+
+### Bổ sung code PL1 và batch Migration ban đầu – 23/11/2026
+
+ĐÃ TẠO FILE CODE (chưa chạy trên Database):
+- `database/migrations/005_create_pl1_access_roots.sql`: PL1 Access Requests + Access Records; FK tới Business Entity, Room và Request; UNIQUE Business Entity; giữ khóa kỹ thuật ổn định.
+- `database/migrations/006_create_pl1_history_and_tokens.sql`: Approval Decisions, Access Record History, Action Tokens; token chỉ lưu SHA-256 hash.
+- `database/verify.php`: mở rộng kiểm tra migration 001–006 và các bảng PL1.
+- `.github/workflows/uoa-php-check.yml`: CI kiểm tra Composer manifest và PHP syntax trên PHP 8.2.
+
+**Tổng tiến độ code đã tạo:** migration runner + 6 migration files (CORE, Business Entity, COMMON, PL1) + schema verifier + CI workflow. Đây là code đã commit, không phải kết quả Migration đã chạy. Chưa chạy trên DB vì chưa xác minh database đích có sạch hay đang chứa schema legacy; runner sẽ chủ động chặn nếu bảng đã tồn tại nhưng chưa được migration quản lý.
