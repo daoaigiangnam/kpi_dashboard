@@ -5,9 +5,9 @@
 **Date:** 23/11/2026  
 **Status:** DESIGN REVIEW ONLY – NOT MIGRATION / NOT DDL  
 **Scope:** CORE, PL1–PL5 and COMMON  
-**Sources:** DATA_DICTIONARY.md, ERD_PHYSICAL.md, ERD_DESIGN.md, ADR-001…ADR-014
+**Sources:** DATA_DICTIONARY.md, ERD_PHYSICAL.md, ERD_DESIGN.md, ADR-001…ADR-015
 
-> This matrix records relationship and constraint requirements visible in the current design. ON DELETE is approved globally as RESTRICT under ADR-014. ON UPDATE remains a separate open decision and must not be inferred.
+> This matrix records relationship and constraint requirements visible in the current design. ON DELETE is approved globally as RESTRICT under ADR-014. ON UPDATE is approved as RESTRICT under ADR-015.
 
 ## 1. Status and interpretation
 
@@ -248,7 +248,7 @@ The supertype FK proves that a registry row exists. It does not prove that every
 1. PL3 created_by_user_id: required authenticated Admin or nullable for system/import?
 2. COMMON data_exports.requested_by_user_id: retain User FK and prevent hard deletion, or introduce actor snapshot policy?
 3. Confirm ADR-014 ON DELETE RESTRICT is reflected on every actual FK in Data Dictionary and physical ERD; define child-first retention purge dependencies.
-4. ON UPDATE policy for all FK relationships remains unresolved; decide/document immutable-key policy before DDL.
+4. ON UPDATE RESTRICT and immutable technical identifiers are approved globally under ADR-015.
 5. Retention/archive/privacy for Audit, Evidence, IP and User-Agent.
 6. Confirm explicit NOT NULL for pl3_integration_outbox.inspection_result_id.
 7. Complete ERD physical representation for actor FKs, integration_events and scheduled_job_runs.
@@ -257,10 +257,23 @@ The supertype FK proves that a registry row exists. It does not prove that every
 
 Do not begin Migration until:
 - Every FK in the Data Dictionary has a matching ERD relationship or an explicit explanation why it is metadata/non-FK.
-- Every FK column has explicit NULL/NOT NULL, referenced key, supporting index, ON DELETE RESTRICT per ADR-014, and separately approved ON UPDATE behavior.
+- Every FK column has explicit NULL/NOT NULL, referenced key, supporting index, ON DELETE RESTRICT per ADR-014 and ON UPDATE RESTRICT per ADR-015.
 - Every Composite FK has a matching parent UNIQUE key with same column order and compatible data types.
 - All UNIQUE rules involving nullable columns are checked against MySQL 8.0 semantics.
 - History/security/audit retention decisions are approved.
 - ADR decisions and this matrix agree; any change to an approved decision requires a new ADR or explicit superseding decision.
 
 **Boundary:** This matrix is a design review artifact only. It contains no executable DDL, no Migration code, no PHP code and makes no changes to any database.
+
+## Global ON UPDATE policy – ADR-015 (APPROVED)
+
+Áp dụng thống nhất `ON UPDATE RESTRICT` cho mọi khóa ngoại thực tế trong CORE, PL1, PL2, PL3, PL4, PL5 và COMMON.
+
+- Không sử dụng `ON UPDATE CASCADE` hoặc `ON UPDATE SET NULL`.
+- PK kỹ thuật và khóa cha đang được FK tham chiếu là bất biến sau khi tạo; Composite FK target cũng tuân thủ nguyên tắc này.
+- Các trường nghiệp vụ không phải khóa (tên, email, mô tả, trạng thái, business code...) vẫn có thể cập nhật theo quyền, validation và Audit tương ứng; không thay đổi technical ID.
+- Nếu gán sai quan hệ, cần quy trình correction/relink được ủy quyền, có Audit và bảo toàn lịch sử; không sửa PK cha để xử lý.
+- Metadata `entity_type/entity_id` không phải FK nên không có ON UPDATE action.
+- ON DELETE tiếp tục theo ADR-014: RESTRICT cho mọi FK thực tế.
+
+**Combined FK rule:** ON DELETE RESTRICT + ON UPDATE RESTRICT. Mọi FK phải ghi rõ cả hai hành vi trước Migration. Đây là thiết kế, không phải DDL/Migration.
