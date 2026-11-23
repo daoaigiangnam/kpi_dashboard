@@ -863,3 +863,16 @@ Trong ERD PL4 tổng quan, quan hệ `PL4_ASSIGNMENTS ||--o{ PL4_WORK_REPORTS` l
 - **ON UPDATE chưa được quyết định** tại ADR-014; phải được chốt riêng trước Migration.
 
 Chi tiết từng quan hệ, nullability, parent key và index được quản lý trong `CONSTRAINT_MATRIX.md`. Đây là quyết định thiết kế; không phải DDL/Migration và không thay đổi database.
+
+## Global ON UPDATE policy – ADR-015 (APPROVED)
+
+Áp dụng thống nhất `ON UPDATE RESTRICT` cho mọi khóa ngoại thực tế trong CORE, PL1, PL2, PL3, PL4, PL5 và COMMON.
+
+- Không sử dụng `ON UPDATE CASCADE` hoặc `ON UPDATE SET NULL`.
+- PK kỹ thuật và khóa cha đang được FK tham chiếu là bất biến sau khi tạo; Composite FK target cũng tuân thủ nguyên tắc này.
+- Các trường nghiệp vụ không phải khóa (tên, email, mô tả, trạng thái, business code...) vẫn có thể cập nhật theo quyền, validation và Audit tương ứng; không thay đổi technical ID.
+- Nếu gán sai quan hệ, cần quy trình correction/relink được ủy quyền, có Audit và bảo toàn lịch sử; không sửa PK cha để xử lý.
+- Metadata `entity_type/entity_id` không phải FK nên không có ON UPDATE action.
+- ON DELETE tiếp tục theo ADR-014: RESTRICT cho mọi FK thực tế.
+
+**Combined FK rule:** ON DELETE RESTRICT + ON UPDATE RESTRICT. Mọi FK phải ghi rõ cả hai hành vi trước Migration. Đây là thiết kế, không phải DDL/Migration.
