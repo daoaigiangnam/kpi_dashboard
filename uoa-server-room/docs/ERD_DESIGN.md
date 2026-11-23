@@ -1,6 +1,6 @@
 # ERD TỔNG THỂ – UOA SERVER ROOM MANAGEMENT
-**Phiên bản:** 0.4 – Đã đồng bộ các quyết định ADR-001 đến ADR-009; vẫn là thiết kế để rà soát, chưa phải migration chính thức  
-**Ngày:** 22/11/2026  
+**Phiên bản:** 0.5 – Đã đồng bộ các quyết định ADR-001 đến ADR-012 có liên quan; vẫn là thiết kế để rà soát, chưa phải migration chính thức  
+**Ngày:** 23/11/2026  
 **Phạm vi:** PL1–PL5, Admin, Email Queue, Evidence và Audit Center  
 **Nhánh:** `feature/ITSMWEB`
 
