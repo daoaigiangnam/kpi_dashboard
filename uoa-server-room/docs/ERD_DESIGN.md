@@ -281,3 +281,16 @@ Dashboard/Reports gồm R08-01 đến R08-08; ba nhóm Response, Assignee Resolu
 ### 2.5.2. Assignment Claim Token
 
 Bổ sung thực thể `pl4_assignment_claim_tokens`, quan hệ 1-N từ `pl4_assignments`. Mỗi token gắn một Assignment cụ thể, lưu SHA-256 hash UNIQUE và thời hạn/used/revoked timestamps. Email Queue không chứa raw token; Worker phát hành token và dựng Claim URL trong bộ nhớ khi gửi email Assignment. Chi tiết schema tại `DATA_DICTIONARY.md` và quy tắc tại ADR-006/008.
+
+
+## 10. PL4 – Toàn vẹn tham chiếu vật lý (ADR-011)
+
+Đã phê duyệt nguyên tắc Composite FK và ON DELETE RESTRICT:
+- Work Report phải tham chiếu Assignment thuộc cùng Issue: `(assignment_id, issue_id)` → Assignment `(id, issue_id)`.
+- UOA Confirmation phải tham chiếu Work Report thuộc cùng Issue: `(work_report_id, issue_id)` → Work Report `(id, issue_id)`.
+- SLA Cycle phải tham chiếu SLA Instance thuộc cùng Issue: `(issue_sla_instance_id, issue_id)` → SLA Instance `(id, issue_id)`.
+- Các liên kết Assignment/Work Report tùy chọn của SLA Cycle cũng dùng Composite FK để ngăn tham chiếu chéo Issue.
+- Bảng cha bổ sung UNIQUE `(id, issue_id)` làm đích cho FK ghép.
+- FK hồ sơ/lịch sử/bảo mật/SLA dùng ON DELETE RESTRICT; không CASCADE DELETE hoặc hard-delete dữ liệu đã phát sinh lịch sử. Kết thúc bằng trạng thái nghiệp vụ.
+
+NULL/UNIQUE tiếp tục theo DATA_DICTIONARY §13.4. Các ràng buộc không thay đổi state machine, quy trình hoặc SLA; chưa tạo DDL/Migration.
