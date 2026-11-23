@@ -25,16 +25,16 @@
 
 | Child table / FK | Parent key | Nullability | Key / index requirement | ON DELETE | Status / notes |
 |---|---|---:|---|---|---|
-| user_roles.user_id | users.id | NOT NULL | Composite PK (user_id, role_id) | TBD | DOCUMENTED |
-| user_roles.role_id | roles.id | NOT NULL | Composite PK (user_id, role_id) | TBD | DOCUMENTED |
-| user_roles.assigned_by_user_id | users.id | NULL | FK index | TBD | Actor may be absent/system-originated |
-| role_permissions.role_id | roles.id | NOT NULL | Composite PK (role_id, permission_id) | TBD | DOCUMENTED |
-| role_permissions.permission_id | permissions.id | NOT NULL | Composite PK (role_id, permission_id) | TBD | DOCUMENTED |
-| room_contacts.room_id | server_rooms.id | NOT NULL | INDEX (room_id, contact_type, is_active) | TBD | DOCUMENTED |
-| room_contacts.user_id | users.id | NULL | FK index | TBD | External contact may have no account |
-| setting_change_history.setting_id | business_settings.id | NOT NULL | FK index | TBD | Confirm exact definition against ERD |
-| setting_change_history.actor_user_id | users.id | NULL | FK index | TBD | Actor semantics need consistency |
-| Each root subtype.business_entity_id | business_entities.id | NOT NULL | UNIQUE per subtype table | TBD | APPROVED relationship – ADR-001; preserve referenced identity |
+| user_roles.user_id | users.id | NOT NULL | Composite PK (user_id, role_id) | RESTRICT | DOCUMENTED |
+| user_roles.role_id | roles.id | NOT NULL | Composite PK (user_id, role_id) | RESTRICT | DOCUMENTED |
+| user_roles.assigned_by_user_id | users.id | NULL | FK index | RESTRICT | Actor may be absent/system-originated |
+| role_permissions.role_id | roles.id | NOT NULL | Composite PK (role_id, permission_id) | RESTRICT | DOCUMENTED |
+| role_permissions.permission_id | permissions.id | NOT NULL | Composite PK (role_id, permission_id) | RESTRICT | DOCUMENTED |
+| room_contacts.room_id | server_rooms.id | NOT NULL | INDEX (room_id, contact_type, is_active) | RESTRICT | DOCUMENTED |
+| room_contacts.user_id | users.id | NULL | FK index | RESTRICT | External contact may have no account |
+| setting_change_history.setting_id | business_settings.id | NOT NULL | FK index | RESTRICT | Confirm exact definition against ERD |
+| setting_change_history.actor_user_id | users.id | NULL | FK index | RESTRICT | Actor semantics need consistency |
+| Each root subtype.business_entity_id | business_entities.id | NOT NULL | UNIQUE per subtype table | RESTRICT | APPROVED relationship – ADR-001; preserve referenced identity |
 | business_entities(module_code, entity_type, business_code) | — | NOT NULL components | UNIQUE composite | N/A | APPROVED – ADR-001 |
 | room_contacts primary contact rule | — | — | Transaction/service validation; simple UNIQUE is insufficient for effective-dated history | N/A | SERVICE RULE |
 
@@ -46,18 +46,18 @@ The supertype FK proves that a registry row exists. It does not prove that every
 
 | Child table / FK | Parent key | Nullability | Key / index requirement | ON DELETE | Status / notes |
 |---|---|---:|---|---|---|
-| pl1_access_requests.business_entity_id | business_entities.id | NOT NULL | UNIQUE | TBD | ADR-001 |
-| pl1_access_requests.room_id | server_rooms.id | NOT NULL | INDEX (room_id, person_email, approval_status) | TBD | DOCUMENTED |
-| pl1_approval_decisions.access_request_id | pl1_access_requests.id | NOT NULL | INDEX (access_request_id, decided_at) | TBD | History preservation |
-| pl1_approval_decisions.approver_user_id | users.id | NULL | FK index | TBD | External/email approver may lack account |
-| pl1_access_records.business_entity_id | business_entities.id | NOT NULL | UNIQUE | TBD | ADR-001 |
-| pl1_access_records.room_id | server_rooms.id | NOT NULL | INDEX (person_email, room_id, record_status) | TBD | DOCUMENTED |
-| pl1_access_records.created_from_request_id | pl1_access_requests.id | NOT NULL | FK index | TBD | Required source request |
-| pl1_access_records.last_changed_by_request_id | pl1_access_requests.id | NULL | FK index | TBD | Optional later change request |
-| pl1_access_record_history.access_record_id | pl1_access_records.id | NOT NULL | INDEX (access_record_id, changed_at) | TBD | Append-only history |
-| pl1_access_record_history.access_request_id | pl1_access_requests.id | NOT NULL | FK index | TBD | Append-only history |
-| pl1_access_record_history.actor_user_id | users.id | NULL | FK index | TBD | Actor may be external |
-| pl1_action_tokens.access_request_id | pl1_access_requests.id | NOT NULL | FK index; token_hash UNIQUE NOT NULL | TBD | Security lifecycle; no raw token in logs |
+| pl1_access_requests.business_entity_id | business_entities.id | NOT NULL | UNIQUE | RESTRICT | ADR-001 |
+| pl1_access_requests.room_id | server_rooms.id | NOT NULL | INDEX (room_id, person_email, approval_status) | RESTRICT | DOCUMENTED |
+| pl1_approval_decisions.access_request_id | pl1_access_requests.id | NOT NULL | INDEX (access_request_id, decided_at) | RESTRICT | History preservation |
+| pl1_approval_decisions.approver_user_id | users.id | NULL | FK index | RESTRICT | External/email approver may lack account |
+| pl1_access_records.business_entity_id | business_entities.id | NOT NULL | UNIQUE | RESTRICT | ADR-001 |
+| pl1_access_records.room_id | server_rooms.id | NOT NULL | INDEX (person_email, room_id, record_status) | RESTRICT | DOCUMENTED |
+| pl1_access_records.created_from_request_id | pl1_access_requests.id | NOT NULL | FK index | RESTRICT | Required source request |
+| pl1_access_records.last_changed_by_request_id | pl1_access_requests.id | NULL | FK index | RESTRICT | Optional later change request |
+| pl1_access_record_history.access_record_id | pl1_access_records.id | NOT NULL | INDEX (access_record_id, changed_at) | RESTRICT | Append-only history |
+| pl1_access_record_history.access_request_id | pl1_access_requests.id | NOT NULL | FK index | RESTRICT | Append-only history |
+| pl1_access_record_history.actor_user_id | users.id | NULL | FK index | RESTRICT | Actor may be external |
+| pl1_action_tokens.access_request_id | pl1_access_requests.id | NOT NULL | FK index; token_hash UNIQUE NOT NULL | RESTRICT | Security lifecycle; no raw token in logs |
 | idempotency_keys(scope, idempotency_key) | — | NOT NULL | UNIQUE composite; request_hash required | N/A | APPROVED – ADR-012 |
 
 **PL1 approved constraints – ADR-012**
@@ -72,15 +72,15 @@ The supertype FK proves that a registry row exists. It does not prove that every
 
 | Child table / FK | Parent key | Nullability | Key / index requirement | ON DELETE | Status / notes |
 |---|---|---:|---|---|---|
-| pl2_visits.business_entity_id | business_entities.id | NOT NULL | UNIQUE | TBD | ADR-001 |
-| pl2_visits.room_id | server_rooms.id | NOT NULL | INDEX (room_id, planned_entry_at) | TBD | DOCUMENTED |
-| pl2_approval_history.visit_id | pl2_visits.id | NOT NULL | FK index | TBD | Preserve decisions/reminders/expiry |
-| pl2_approval_history.actor_user_id | users.id | NULL | FK index | TBD | External approver possible |
-| pl2_action_tokens.visit_id | pl2_visits.id | NOT NULL | INDEX (visit_id, purpose, expiry); token_hash UNIQUE | TBD | One token scoped to Visit + Purpose |
-| pl2_otp_challenges.visit_id | pl2_visits.id | NOT NULL | FK index | TBD | Challenge lifecycle |
-| pl2_otp_attempts.otp_challenge_id | pl2_otp_challenges.id | NOT NULL | FK index | TBD | Attempt history; do not store submitted OTP |
-| pl2_visit_events.visit_id | pl2_visits.id | NOT NULL | FK index | TBD | Append-only event history |
-| pl2_visit_events.actor_user_id | users.id | NULL | FK index | TBD | External actor possible |
+| pl2_visits.business_entity_id | business_entities.id | NOT NULL | UNIQUE | RESTRICT | ADR-001 |
+| pl2_visits.room_id | server_rooms.id | NOT NULL | INDEX (room_id, planned_entry_at) | RESTRICT | DOCUMENTED |
+| pl2_approval_history.visit_id | pl2_visits.id | NOT NULL | FK index | RESTRICT | Preserve decisions/reminders/expiry |
+| pl2_approval_history.actor_user_id | users.id | NULL | FK index | RESTRICT | External approver possible |
+| pl2_action_tokens.visit_id | pl2_visits.id | NOT NULL | INDEX (visit_id, purpose, expiry); token_hash UNIQUE | RESTRICT | One token scoped to Visit + Purpose |
+| pl2_otp_challenges.visit_id | pl2_visits.id | NOT NULL | FK index | RESTRICT | Challenge lifecycle |
+| pl2_otp_attempts.otp_challenge_id | pl2_otp_challenges.id | NOT NULL | FK index | RESTRICT | Attempt history; do not store submitted OTP |
+| pl2_visit_events.visit_id | pl2_visits.id | NOT NULL | FK index | RESTRICT | Append-only event history |
+| pl2_visit_events.actor_user_id | users.id | NULL | FK index | RESTRICT | External actor possible |
 
 **PL2 service/lifecycle rules**
 - OTP expiry is assigned only after the email send succeeds; this is a lifecycle rule, not a foreign-key rule.
@@ -93,21 +93,21 @@ The supertype FK proves that a registry row exists. It does not prove that every
 
 | Child table / FK | Parent key | Nullability | Key / index requirement | ON DELETE | Status / notes |
 |---|---|---:|---|---|---|
-| pl3_checklist_versions.published_by_user_id | users.id | NULL | FK index | TBD | Published actor may be system/import; confirm |
-| pl3_checklist_versions.created_by_user_id | users.id | UNRESOLVED | FK index | TBD | Dictionary currently says NOT NULL; actor semantics need approval |
-| pl3_checklist_version_items.checklist_version_id | pl3_checklist_versions.id | NOT NULL | UNIQUE (checklist_version_id, checklist_item_id); UNIQUE (checklist_version_id, sort_order) | TBD | Immutable after publish |
-| pl3_checklist_version_items.checklist_item_id | pl3_checklist_items.id | NOT NULL | Composite UNIQUE; FK index as needed | TBD | Stable source catalog item |
-| pl3_inspections.business_entity_id | business_entities.id | NOT NULL | UNIQUE | TBD | ADR-001 |
-| pl3_inspections.room_id | server_rooms.id | NOT NULL | INDEX (room_id, inspection_date) | TBD | DOCUMENTED |
-| pl3_inspections.checklist_version_id | pl3_checklist_versions.id | NOT NULL | FK index | TBD | Inspection binds exact version |
-| pl3_inspection_results.inspection_id | pl3_inspections.id | NOT NULL | UNIQUE (inspection_id, checklist_version_item_id) | TBD | DOCUMENTED |
-| pl3_inspection_results.checklist_version_item_id | pl3_checklist_version_items.id | NOT NULL | UNIQUE (inspection_id, checklist_version_item_id) | TBD | Exact version item answered |
-| pl3_acknowledgements.inspection_id | pl3_inspections.id | NOT NULL | FK index | TBD | Receipt, not remediation approval |
-| pl3_acknowledgements.actor_user_id | users.id | NULL | FK index | TBD | External actor possible |
-| pl3_escalation_runs.room_id | server_rooms.id | NOT NULL | UNIQUE (room_id, work_date, schedule_type) | TBD | APPROVED – ADR-002; DAILY only |
-| pl3_escalation_events.escalation_run_id | pl3_escalation_runs.id | NOT NULL | UNIQUE (escalation_run_id, level) | TBD | One logical Event per level |
-| pl3_escalation_events.email_queue_id | email_queue.id | NULL | FK index | TBD | Optional before enqueue |
-| pl3_integration_outbox.inspection_result_id | pl3_inspection_results.id | SHOULD BE NOT NULL | UNIQUE | TBD | Make NOT NULL explicit; ADR-005 source key |
+| pl3_checklist_versions.published_by_user_id | users.id | NULL | FK index | RESTRICT | Published actor may be system/import; confirm |
+| pl3_checklist_versions.created_by_user_id | users.id | UNRESOLVED | FK index | RESTRICT | Dictionary currently says NOT NULL; actor semantics need approval |
+| pl3_checklist_version_items.checklist_version_id | pl3_checklist_versions.id | NOT NULL | UNIQUE (checklist_version_id, checklist_item_id); UNIQUE (checklist_version_id, sort_order) | RESTRICT | Immutable after publish |
+| pl3_checklist_version_items.checklist_item_id | pl3_checklist_items.id | NOT NULL | Composite UNIQUE; FK index as needed | RESTRICT | Stable source catalog item |
+| pl3_inspections.business_entity_id | business_entities.id | NOT NULL | UNIQUE | RESTRICT | ADR-001 |
+| pl3_inspections.room_id | server_rooms.id | NOT NULL | INDEX (room_id, inspection_date) | RESTRICT | DOCUMENTED |
+| pl3_inspections.checklist_version_id | pl3_checklist_versions.id | NOT NULL | FK index | RESTRICT | Inspection binds exact version |
+| pl3_inspection_results.inspection_id | pl3_inspections.id | NOT NULL | UNIQUE (inspection_id, checklist_version_item_id) | RESTRICT | DOCUMENTED |
+| pl3_inspection_results.checklist_version_item_id | pl3_checklist_version_items.id | NOT NULL | UNIQUE (inspection_id, checklist_version_item_id) | RESTRICT | Exact version item answered |
+| pl3_acknowledgements.inspection_id | pl3_inspections.id | NOT NULL | FK index | RESTRICT | Receipt, not remediation approval |
+| pl3_acknowledgements.actor_user_id | users.id | NULL | FK index | RESTRICT | External actor possible |
+| pl3_escalation_runs.room_id | server_rooms.id | NOT NULL | UNIQUE (room_id, work_date, schedule_type) | RESTRICT | APPROVED – ADR-002; DAILY only |
+| pl3_escalation_events.escalation_run_id | pl3_escalation_runs.id | NOT NULL | UNIQUE (escalation_run_id, level) | RESTRICT | One logical Event per level |
+| pl3_escalation_events.email_queue_id | email_queue.id | NULL | FK index | RESTRICT | Optional before enqueue |
+| pl3_integration_outbox.inspection_result_id | pl3_inspection_results.id | SHOULD BE NOT NULL | UNIQUE | RESTRICT | Make NOT NULL explicit; ADR-005 source key |
 | pl3_integration_outbox.event_key | — | NOT NULL | UNIQUE | N/A | Stable idempotent event key |
 
 **PL3 approved rules**
@@ -169,22 +169,22 @@ The supertype FK proves that a registry row exists. It does not prove that every
 
 | Child table / FK | Parent key | Nullability | Key / index requirement | ON DELETE | Status / notes |
 |---|---|---:|---|---|---|
-| pl5_work_catalog_items.category_id | pl5_work_catalog_categories.id | NOT NULL | FK index | TBD | DOCUMENTED |
-| pl5_maintenance_plans.room_id | server_rooms.id | NOT NULL | FK index | TBD | DOCUMENTED |
-| pl5_maintenance_plans.catalog_item_id | pl5_work_catalog_items.id | NULL | FK index | TBD | Optional catalog binding |
-| pl5_work_requests.business_entity_id | business_entities.id | NOT NULL | UNIQUE | TBD | ADR-001 |
-| pl5_work_requests.room_id | server_rooms.id | NOT NULL | FK index | TBD | DOCUMENTED |
-| pl5_work_requests.catalog_item_id | pl5_work_catalog_items.id | NULL | FK index | TBD | Optional catalog binding |
-| pl5_work_requests.maintenance_plan_id | pl5_maintenance_plans.id | NULL | FK index | TBD | Optional plan origin |
-| pl5_work_approvals.work_request_id | pl5_work_requests.id | NOT NULL | FK index | TBD | Approval history |
-| pl5_work_approvals.actor_user_id | users.id | NULL | FK index | TBD | External actor possible |
-| pl5_work_assignments.work_request_id | pl5_work_requests.id | NOT NULL | UNIQUE (id, work_request_id) | TBD | ADR-012 |
-| pl5_work_assignments.assigned_by_user_id | users.id | NULL | FK index | TBD | Optional Admin actor |
-| pl5_work_execution_events.work_request_id | pl5_work_requests.id | NOT NULL | FK index; UNIQUE (id, work_request_id) | TBD | ADR-012/013 |
-| pl5_work_execution_events(assignment_id, work_request_id) | pl5_work_assignments(id, work_request_id) | assignment_id NULL | Composite FK | TBD | APPROVED – ADR-012 |
-| pl5_work_verifications.work_request_id | pl5_work_requests.id | NOT NULL | FK index | TBD | DOCUMENTED |
-| pl5_work_verifications(execution_event_id, work_request_id) | pl5_work_execution_events(id, work_request_id) | execution_event_id NOT NULL | Composite FK; no UNIQUE execution_event_id | TBD | APPROVED – ADR-013 |
-| pl5_work_verifications.verifier_user_id | users.id | NULL | FK index | TBD | External verifier possible |
+| pl5_work_catalog_items.category_id | pl5_work_catalog_categories.id | NOT NULL | FK index | RESTRICT | DOCUMENTED |
+| pl5_maintenance_plans.room_id | server_rooms.id | NOT NULL | FK index | RESTRICT | DOCUMENTED |
+| pl5_maintenance_plans.catalog_item_id | pl5_work_catalog_items.id | NULL | FK index | RESTRICT | Optional catalog binding |
+| pl5_work_requests.business_entity_id | business_entities.id | NOT NULL | UNIQUE | RESTRICT | ADR-001 |
+| pl5_work_requests.room_id | server_rooms.id | NOT NULL | FK index | RESTRICT | DOCUMENTED |
+| pl5_work_requests.catalog_item_id | pl5_work_catalog_items.id | NULL | FK index | RESTRICT | Optional catalog binding |
+| pl5_work_requests.maintenance_plan_id | pl5_maintenance_plans.id | NULL | FK index | RESTRICT | Optional plan origin |
+| pl5_work_approvals.work_request_id | pl5_work_requests.id | NOT NULL | FK index | RESTRICT | Approval history |
+| pl5_work_approvals.actor_user_id | users.id | NULL | FK index | RESTRICT | External actor possible |
+| pl5_work_assignments.work_request_id | pl5_work_requests.id | NOT NULL | UNIQUE (id, work_request_id) | RESTRICT | ADR-012 |
+| pl5_work_assignments.assigned_by_user_id | users.id | NULL | FK index | RESTRICT | Optional Admin actor |
+| pl5_work_execution_events.work_request_id | pl5_work_requests.id | NOT NULL | FK index; UNIQUE (id, work_request_id) | RESTRICT | ADR-012/013 |
+| pl5_work_execution_events(assignment_id, work_request_id) | pl5_work_assignments(id, work_request_id) | assignment_id NULL | Composite FK | RESTRICT | APPROVED – ADR-012 |
+| pl5_work_verifications.work_request_id | pl5_work_requests.id | NOT NULL | FK index | RESTRICT | DOCUMENTED |
+| pl5_work_verifications(execution_event_id, work_request_id) | pl5_work_execution_events(id, work_request_id) | execution_event_id NOT NULL | Composite FK; no UNIQUE execution_event_id | RESTRICT | APPROVED – ADR-013 |
+| pl5_work_verifications.verifier_user_id | users.id | NULL | FK index | RESTRICT | External verifier possible |
 
 **PL5 approved constraints – ADR-012/013**
 - pl5_work_assignments has UNIQUE (id, work_request_id).
@@ -199,16 +199,16 @@ The supertype FK proves that a registry row exists. It does not prove that every
 
 | Child table / FK | Parent key | Nullability | Key / index requirement | ON DELETE | Status / notes |
 |---|---|---:|---|---|---|
-| email_queue.business_entity_id | business_entities.id | NULL | FK/index | TBD | NULL only for system event without business entity |
-| email_queue_attempts.email_queue_id | email_queue.id | NOT NULL | UNIQUE (email_queue_id, attempt_no) | TBD | Attempts belong to same queue item |
-| system_audit_logs.business_entity_id | business_entities.id | NULL | INDEX (business_entity_id, occurred_at) | TBD | ADR-001/009; system event may be NULL |
-| system_audit_logs.actor_user_id | users.id | NULL | INDEX (actor_user_id, occurred_at) | TBD | Preserve actor snapshot |
-| evidence_files.uploaded_by_user_id | users.id | NULL | FK index | TBD | Uploader may be external/system actor |
-| entity_evidence_links.evidence_file_id | evidence_files.id | NOT NULL | UNIQUE (evidence_file_id, business_entity_id, purpose) as policy allows | TBD | Link integrity |
-| entity_evidence_links.business_entity_id | business_entities.id | NOT NULL | Composite UNIQUE above; FK index | TBD | ADR-001 |
-| entity_evidence_links.linked_by_user_id | users.id | NULL | FK index | TBD | Actor may be external |
-| data_exports.requested_by_user_id | users.id | NOT NULL as currently documented | FK index | TBD | Preserve actor history; decision open |
-| setting_change_history.actor_user_id | users.id | Confirm | FK index | TBD | Verify full schema against ERD |
+| email_queue.business_entity_id | business_entities.id | NULL | FK/index | RESTRICT | NULL only for system event without business entity |
+| email_queue_attempts.email_queue_id | email_queue.id | NOT NULL | UNIQUE (email_queue_id, attempt_no) | RESTRICT | Attempts belong to same queue item |
+| system_audit_logs.business_entity_id | business_entities.id | NULL | INDEX (business_entity_id, occurred_at) | RESTRICT | ADR-001/009; system event may be NULL |
+| system_audit_logs.actor_user_id | users.id | NULL | INDEX (actor_user_id, occurred_at) | RESTRICT | Preserve actor snapshot |
+| evidence_files.uploaded_by_user_id | users.id | NULL | FK index | RESTRICT | Uploader may be external/system actor |
+| entity_evidence_links.evidence_file_id | evidence_files.id | NOT NULL | UNIQUE (evidence_file_id, business_entity_id, purpose) as policy allows | RESTRICT | Link integrity |
+| entity_evidence_links.business_entity_id | business_entities.id | NOT NULL | Composite UNIQUE above; FK index | RESTRICT | ADR-001 |
+| entity_evidence_links.linked_by_user_id | users.id | NULL | FK index | RESTRICT | Actor may be external |
+| data_exports.requested_by_user_id | users.id | NOT NULL as currently documented | FK index | RESTRICT | Preserve actor history; decision open |
+| setting_change_history.actor_user_id | users.id | Confirm | FK index | RESTRICT | Verify full schema against ERD |
 | integration_events.entity_type/entity_id | — | Metadata | No FK under current model | N/A | Not a polymorphic FK |
 | idempotency_keys.entity_type/entity_id | — | NULL metadata | No FK under current model | N/A | ADR-012; not a polymorphic FK |
 | scheduled_job_runs | — | — | run_uuid UNIQUE; inspect indexes/relations | N/A / TBD | No parent FK identified in current dictionary description |
@@ -221,8 +221,8 @@ The supertype FK proves that a registry row exists. It does not prove that every
 - idempotency_keys.entity_type/entity_id and integration_events.entity_type/entity_id are metadata, not foreign keys.
 - PL4 Audit links to the Issue's Business Entity; child IDs are safe metadata, not direct polymorphic FKs.
 
-**Open COMMON decisions**
-- data_exports.requested_by_user_id: decide whether Users with export history are never hard-deleted (RESTRICT) or whether actor snapshots are required to support account deletion. The recommendation to preserve actor history is not yet approved.
+**Remaining COMMON design items (not ON DELETE decisions)**
+- data_exports.requested_by_user_id: preserve the User FK under ADR-014; disable accounts in normal operations. Exceptional erasure needs separately approved anonymization. The recommendation to preserve actor history is not yet approved.
 - ON DELETE for all actual COMMON FKs is RESTRICT under ADR-014. Define and implement retention windows/legal holds and explicit child-first purge procedures for Email Queue/Attempts, Audit, Evidence, Idempotency, Integration Events, Scheduler Runs and Exports.
 - Confirm whether scheduled_job_runs and integration_events require additional FK relationships or remain standalone operational records.
 - Define privacy/retention controls for IP address, User-Agent, Audit metadata and Evidence storage.
