@@ -848,3 +848,18 @@ Trong ERD PL4 tổng quan, quan hệ `PL4_ASSIGNMENTS ||--o{ PL4_WORK_REPORTS` l
 - Quan hệ bảo đảm mỗi Verification chỉ xác minh một Execution Event thuộc đúng Work Request; Workflow Service xác thực Event Code là `SUBMIT_RESULT`.
 - Không đặt UNIQUE `execution_event_id`; không thêm FK trực tiếp từ Verification đến Assignment.
 - Delete policy PL5 vẫn chờ chuẩn hóa riêng.
+
+## Global ON DELETE policy – ADR-014 (APPROVED)
+
+Áp dụng thống nhất `ON DELETE RESTRICT` cho **mọi khóa ngoại thực tế** trong CORE, PL1, PL2, PL3, PL4, PL5 và COMMON.
+
+- Không sử dụng `ON DELETE CASCADE` hoặc `ON DELETE SET NULL`.
+- Chính sách áp dụng cả FK nullable và NOT NULL; NULLability vẫn theo vòng đời nghiệp vụ.
+- FK phải được khai báo rõ `ON DELETE RESTRICT`; không dựa vào mặc định của Database Engine.
+- User được DISABLED thay vì hard-delete trong vận hành thông thường. Hồ sơ nghiệp vụ, lịch sử, Audit và Evidence được giữ theo chính sách retention.
+- Dữ liệu tạm/operational chỉ được purge theo quy trình retention có kiểm soát, xét legal hold và xóa child trước parent (ví dụ OTP Attempts trước OTP Challenge; Email Queue Attempts trước Email Queue; Evidence Links trước Evidence File).
+- Không xóa parent khi còn child/reference được giữ lại. Nullable FK không đồng nghĩa với quyền tự động SET NULL.
+- `entity_type/entity_id` trong `idempotency_keys` và `integration_events` là metadata, không phải FK; ADR-014 không áp dụng ON DELETE cho các trường này.
+- **ON UPDATE chưa được quyết định** tại ADR-014; phải được chốt riêng trước Migration.
+
+Chi tiết từng quan hệ, nullability, parent key và index được quản lý trong `CONSTRAINT_MATRIX.md`. Đây là quyết định thiết kế; không phải DDL/Migration và không thay đổi database.
