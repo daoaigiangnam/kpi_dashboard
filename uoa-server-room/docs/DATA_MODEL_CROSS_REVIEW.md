@@ -104,3 +104,10 @@ ADR-014 đã phê duyệt ON DELETE RESTRICT cho mọi FK trong CORE, PL1–PL5 
 - ON UPDATE chưa được ADR-014 quyết định và tiếp tục là điểm mở riêng.
 
 ADR-014 chỉ chốt hành vi FK khi xóa; không quy định thời hạn retention cụ thể, không tạo DDL/Migration/PHP và không thay đổi dữ liệu database.
+
+
+## 7. Global ON UPDATE policy – ADR-015
+
+ĐÃ PHÊ DUYỆT: áp dụng `ON UPDATE RESTRICT` cho mọi FK thực tế thuộc CORE, PL1–PL5 và COMMON; không dùng `ON UPDATE CASCADE` hoặc `ON UPDATE SET NULL`. Technical PK và khóa cha được FK tham chiếu là bất biến sau khi tạo. Các trường nghiệp vụ không phải khóa vẫn được cập nhật theo quyền/validation/Audit. Sửa sai liên kết phải qua correction/relink workflow được ủy quyền, không đổi PK cha.
+
+Kết hợp ADR-014 và ADR-015, chính sách toàn hệ thống là `ON DELETE RESTRICT + ON UPDATE RESTRICT`. ADR-014 vẫn điều chỉnh ON DELETE; ADR-015 quyết định riêng ON UPDATE. Không tạo DDL/Migration/PHP.
