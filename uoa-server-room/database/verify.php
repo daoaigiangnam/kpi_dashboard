@@ -35,6 +35,8 @@ try {
         '004_create_common_services.sql',
         '005_create_pl1_access_roots.sql',
         '006_create_pl1_history_and_tokens.sql',
+        '007_create_pl2_visit_root.sql',
+        '008_create_pl2_workflow_children.sql',
     ];
     $appliedRows = $pdo->query('SELECT migration, checksum FROM schema_migrations ORDER BY id')->fetchAll(PDO::FETCH_KEY_PAIR);
     foreach ($expected as $migration) {
@@ -58,6 +60,8 @@ try {
         'integration_events', 'scheduled_job_runs', 'data_exports',
         'pl1_access_requests', 'pl1_access_records', 'pl1_approval_decisions',
         'pl1_access_record_history', 'pl1_action_tokens',
+        'pl2_visits', 'pl2_approval_history', 'pl2_action_tokens',
+        'pl2_otp_challenges', 'pl2_otp_attempts', 'pl2_visit_events',
     ];
     $tableCheck = $pdo->prepare(
         'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = :table'
