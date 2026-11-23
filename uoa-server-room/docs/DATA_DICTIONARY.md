@@ -553,8 +553,20 @@ Assignment Response, Assignee Resolution và UOA Confirmation được báo cáo
 
 Manual Form bắt buộc chọn Assignee. Trong một transaction tạo `business_entities`, `pl4_issues`, `pl4_manual_submissions`, `pl4_assignments` (`ASSIGNED`), `pl4_issue_sla_instances`, Cycle `ASSIGNMENT_RESPONSE` nếu SLA Instance ACTIVE, Audit và Email Queue. Email event `PL4_ISSUE_CREATED_MANUAL` đồng thời thông báo Assignment đầu tiên; không tạo thêm event `PL4_ASSIGNMENT_ASSIGNED` cho cùng Assignment. ISSUE PL3 vẫn có thể chưa có Assignment khi khởi tạo.
 
-### 12.10. Điểm còn mở trước Migration – Assignment Claim Token
+### 12.10. Assignment Claim Token – đã chốt
 
-ADR-006 yêu cầu token Claim gắn đúng Issue + Assignment + action, chỉ lưu hash, có expiry/revocation/used_at; tuy nhiên Data Dictionary hiện chưa xác định bảng/cột PL4 lưu token. Không dùng `pl1_action_tokens` hoặc `pl2_action_tokens` vì chúng FK vào hồ sơ PL1/PL2 và có scope nghiệp vụ khác.
+Bảng `pl4_assignment_claim_tokens`:
+- `id` PK.
+- `assignment_id BIGINT UNSIGNED NOT NULL` FK `pl4_assignments(id)`.
+- `token_hash CHAR(64) NOT NULL UNIQUE` – SHA-256 hex digest của token ngẫu nhiên mật mã.
+- `expires_at DATETIME(3) NOT NULL`.
+- `used_at DATETIME(3) NULL`.
+- `revoked_at DATETIME(3) NULL`.
+- `created_at DATETIME(3) NOT NULL`.
+- INDEX `(assignment_id, expires_at)` và FK tới Assignment.
 
-Khuyến nghị thiết kế dữ liệu: bảng riêng `pl4_assignment_claim_tokens` với `id PK`, `assignment_id FK NOT NULL`, `token_hash CHAR(64) UNIQUE NOT NULL`, `expires_at`, `used_at NULL`, `revoked_at NULL`, `created_at`; quan hệ `pl4_assignments 1 — N pl4_assignment_claim_tokens`. Tuy nhiên, cơ chế chuyển raw token tới Email Queue còn phải thiết kế: ADR-008 cấm lưu raw action token trong Queue/Audit, trong khi link email cần token để Assignee Claim. Cần chọn cơ chế an toàn (ví dụ Worker phát hành token và render link lúc gửi, hoặc lưu payload token đã mã hóa có kiểm soát); không được ghi raw token vào Queue. Bảng riêng và cơ chế phát hành/truyền token đều là điểm chờ xác nhận trước Migration.
+Quan hệ `pl4_assignments 1 — N pl4_assignment_claim_tokens`. Không dùng `pl1_action_tokens` hoặc `pl2_action_tokens` vì khác scope nghiệp vụ.
+
+**Cơ chế phát hành:** Email Queue chỉ lưu event reference/`assignment_id`, không lưu raw token hoặc Claim URL có token. Khi gửi email Assignment, Worker kiểm tra Assignment còn `ASSIGNED`, tạo token ngẫu nhiên mật mã, lưu SHA-256 hash và expiry vào bảng này, commit trước khi gọi SMTP. Worker dựng URL Claim trong bộ nhớ, render email và gửi; raw token không được ghi DB, Queue, Attempt, Audit hoặc error log.
+
+Mỗi lần gửi/retry có thể phát hành token mới. Token còn hiệu lực đến expiry hoặc khi Assignment kết thúc/được claim. Claim thành công thu hồi tất cả token còn hiệu lực của Assignment. SMTP từ chối chắc chắn trước khi nhận email: thu hồi token của attempt; kết quả gửi không xác định: giữ token đến expiry để không vô hiệu hóa link trong email có thể đã tới người nhận. Worker không phát hành token nếu Assignment không còn `ASSIGNED`.
