@@ -44,7 +44,7 @@ Nguyên tắc:
 
 | Bảng | Mục đích | Quan hệ |
 |---|---|---|
-| `pl1_access_requests` | Yêu cầu NEW / CHANGE / REVOKE | FK room; approver snapshot; requester snapshot |
+| `pl1_access_requests` | Yêu cầu NEW / CHANGE / REVOKE | FK room; approver snapshot; requester snapshot; idempotency qua `idempotency_keys` (ADR-012) |
 | `pl1_approval_decisions` | Lịch sử quyết định duyệt/từ chối | FK access_request; approver actor; channel |
 | `pl1_access_records` | Access Register, lưu quyền đã cấp | FK room; tham chiếu request tạo/cập nhật gần nhất |
 | `pl1_access_record_history` | Lịch sử thay đổi quyền | FK access_record; request; before/after; actor |
@@ -52,6 +52,7 @@ Nguyên tắc:
 
 Quy tắc quan hệ:
 - Một Room có nhiều Access Request và Access Record.
+- Form/API idempotency của PL1 dùng `idempotency_keys` với UNIQUE `(scope, idempotency_key)` và `request_hash`; không lưu `source_response_id` trong `pl1_access_requests` (ADR-012).
 - Một Access Request có nhiều Approval Decision/history, nhưng chỉ một quyết định cuối cùng hợp lệ theo workflow.
 - Một Access Record có nhiều dòng history.
 - Access Record được nhận diện nghiệp vụ theo Email người được cấp quyền + Room; không dùng email đơn lẻ làm khóa.
@@ -188,7 +189,8 @@ Theo ADR-009, `system_audit_logs.business_entity_id` là FK trực tiếp tới 
 - `pl4_priorities 1 — N pl4_issues` (Priority hiện hành được snapshot trên từng ISSUE)
 - `pl4_issues 1 — N pl4_assignments / pl4_work_reports / pl4_uoa_confirmations / pl4_issue_status_history`; mỗi Work Report tham chiếu Assignment thực hiện nếu có.
 - `server_rooms 1 — N pl5_work_requests / pl5_maintenance_plans`
-- `pl5_work_requests 1 — N approvals / assignments / execution_events / verifications / attachments`
+- `pl5_work_requests 1 — N approvals / assignments / execution_events / verifications / attachments`.
+- Mỗi Execution Event có thể không gắn Assignment (`assignment_id NULL`); nếu có Assignment, Composite FK `(assignment_id, work_request_id)` bảo đảm Assignment thuộc đúng Work Request (ADR-012).
 - `email_queue 1 — N email_queue_attempts`
 - `business_entities 1 — N system_audit_logs` qua `business_entity_id` (NULL chỉ với sự kiện hệ thống không gắn hồ sơ)
 - `business_entities 1 — N entity_evidence_links` qua `business_entity_id`
@@ -294,3 +296,12 @@ Bổ sung thực thể `pl4_assignment_claim_tokens`, quan hệ 1-N từ `pl4_as
 - FK hồ sơ/lịch sử/bảo mật/SLA dùng ON DELETE RESTRICT; không CASCADE DELETE hoặc hard-delete dữ liệu đã phát sinh lịch sử. Kết thúc bằng trạng thái nghiệp vụ.
 
 NULL/UNIQUE tiếp tục theo DATA_DICTIONARY §13.4. Các ràng buộc không thay đổi state machine, quy trình hoặc SLA; chưa tạo DDL/Migration.
+
+
+## 11. PL1 Idempotency và PL5 Referential Integrity (ADR-012)
+
+PL1 Form/API idempotency dùng `idempotency_keys` làm cơ chế chuẩn duy nhất: UNIQUE `(scope, idempotency_key)` cùng `request_hash`; `pl1_access_requests` không có cột `source_response_id`.
+
+PL5 bổ sung UNIQUE `(id, work_request_id)` trên `pl5_work_assignments` và Composite FK từ `pl5_work_execution_events(assignment_id, work_request_id)` tới cặp khóa tương ứng. `assignment_id` vẫn nullable; khi có giá trị, Database bảo đảm đúng Work Request. Delete policy PL5 còn phải được xác định riêng trước Migration.
+
+ADR-012 là quyết định thiết kế; chưa tạo DDL/Migration.
