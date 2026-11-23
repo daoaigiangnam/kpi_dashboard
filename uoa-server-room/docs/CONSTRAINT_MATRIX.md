@@ -5,7 +5,7 @@
 **Date:** 23/11/2026  
 **Status:** DESIGN REVIEW ONLY – NOT MIGRATION / NOT DDL  
 **Scope:** CORE, PL1–PL5 and COMMON  
-**Sources:** DATA_DICTIONARY.md, ERD_PHYSICAL.md, ERD_DESIGN.md, ADR-001…ADR-013
+**Sources:** DATA_DICTIONARY.md, ERD_PHYSICAL.md, ERD_DESIGN.md, ADR-001…ADR-014
 
 > This matrix records relationship and constraint requirements visible in the current design. It does not silently decide missing ON DELETE / ON UPDATE policies. A value marked TBD requires an explicit decision before Migration.
 
@@ -19,7 +19,7 @@
 | TBD – APPROVAL | Business/architecture decision is open; do not implement by assumption |
 | SERVICE RULE | A database FK/UNIQUE cannot enforce the complete business rule |
 
-**Default treatment for unspecified FK actions:** do not infer CASCADE or SET NULL. Record ON DELETE and ON UPDATE as TBD until approved. Database engine defaults must not be mistaken for an approved lifecycle policy.
+**Global ON DELETE policy – ADR-014:** every actual FK in CORE, PL1–PL5 and COMMON uses ON DELETE RESTRICT. No CASCADE or SET NULL. ON UPDATE remains a separate open decision; database engine defaults must not be mistaken for an approved policy.
 
 ## 2. CORE – users, roles, rooms and business entity registry
 
@@ -66,7 +66,7 @@ The supertype FK proves that a registry row exists. It does not prove that every
 - idempotency_keys.entity_type/entity_id are metadata, not polymorphic foreign keys.
 - Do not add UNIQUE (person_email, room_id) across Access Record history; active-record uniqueness is a transaction/service rule.
 
-**Open PL1 decision:** ON DELETE behavior for requests, records, decisions, history and action tokens is not established by ADR-011 (PL4-only).
+**PL1 delete policy – ADR-014:** all actual PL1 FKs use ON DELETE RESTRICT. Request/Record/history/token lifecycle is status- and retention-driven; purge is explicit and child-first.
 
 ## 4. PL2 – Visit / Approval / OTP / Check-in / Check-out
 
@@ -87,7 +87,7 @@ The supertype FK proves that a registry row exists. It does not prove that every
 - Action token purpose and Visit binding must be validated by the service.
 - Actor IDs are nullable where the actor may be external or have no Admin account.
 
-**Open PL2 decision:** delete policy and retention for Visit history, Action Tokens, OTP Challenges and OTP Attempts must be decided explicitly. Do not infer PL4 RESTRICT for PL2.
+**PL2 delete policy – ADR-014:** all actual PL2 FKs use ON DELETE RESTRICT. Retention cleanup must remove eligible OTP Attempts before OTP Challenges and preserve Visit/Audit history according to approved retention.
 
 ## 5. PL3 – Inspection / Checklist / Escalation / Outbox
 
@@ -119,7 +119,7 @@ The supertype FK proves that a registry row exists. It does not prove that every
 
 **Open PL3 decisions**
 - created_by_user_id: confirm whether a Draft Checklist Version must always be created by an authenticated Admin, or whether NULL is allowed for system/import. Current Data Dictionary says NOT NULL, while the general convention allows NULL for system-originated creation.
-- Confirm exact ON DELETE behavior for Checklist Versions/Items, Inspections/Results, Escalation Runs/Events and Outbox.
+- ON DELETE for all actual PL3 FKs is RESTRICT under ADR-014; checklist/version/inspection history remains protected while referenced. Retention purge must be explicit and child-first.
 - Make the Outbox source FK NOT NULL requirement explicit consistently before DDL.
 
 ## 6. PL4 – Issue / Assignment / Work Report / SLA
@@ -193,7 +193,7 @@ The supertype FK proves that a registry row exists. It does not prove that every
 - Verification has mandatory execution_event_id and Composite FK to the exact Event + Work Request. Service must validate event_code = SUBMIT_RESULT.
 - Do not add UNIQUE execution_event_id; do not add a direct Verification → Assignment FK.
 
-**Open PL5 decision:** ON DELETE policy for Work Request, approvals, assignments, execution events, verifications and catalog/version data is not decided by ADR-012/013. Do not copy ADR-011's PL4 RESTRICT rule by assumption.
+**PL5 delete policy – ADR-014:** all actual PL5 FKs use ON DELETE RESTRICT. Work Requests, approvals, assignments, execution events, verifications and referenced catalog data cannot be deleted while dependent rows remain.
 
 ## 8. COMMON – Email, Audit, Evidence, Idempotency, Integration, Scheduler and Export
 
@@ -223,7 +223,7 @@ The supertype FK proves that a registry row exists. It does not prove that every
 
 **Open COMMON decisions**
 - data_exports.requested_by_user_id: decide whether Users with export history are never hard-deleted (RESTRICT) or whether actor snapshots are required to support account deletion. The recommendation to preserve actor history is not yet approved.
-- Define separate delete/retention policy for Email Queue/Attempts, Audit, Evidence, Idempotency, Integration Events, Scheduler Runs and Exports.
+- ON DELETE for all actual COMMON FKs is RESTRICT under ADR-014. Define and implement retention windows/legal holds and explicit child-first purge procedures for Email Queue/Attempts, Audit, Evidence, Idempotency, Integration Events, Scheduler Runs and Exports.
 - Confirm whether scheduled_job_runs and integration_events require additional FK relationships or remain standalone operational records.
 - Define privacy/retention controls for IP address, User-Agent, Audit metadata and Evidence storage.
 
@@ -234,11 +234,11 @@ The supertype FK proves that a registry row exists. It does not prove that every
 | CM-01 | pl3_escalation_events.email_queue_id is nullable in Data Dictionary; ERD labels FK NULL | Keep nullable notation in every physical representation | ALIGNMENT REQUIRED |
 | CM-02 | pl3_integration_outbox.inspection_result_id is UNIQUE FK but NOT NULL should be explicit | Confirm and state NOT NULL consistently in Data Dictionary + ERD | ALIGNMENT REQUIRED |
 | CM-03 | pl3_checklist_versions.created_by_user_id is NOT NULL in Data Dictionary, while general convention allows system-originated actor NULL | Approve actor semantics; synchronize docs | TBD – APPROVAL |
-| CM-04 | data_exports.requested_by_user_id has FK but no approved deletion behavior | Decide RESTRICT vs actor snapshot/account deletion policy | TBD – APPROVAL |
-| CM-05 | PL1/PL2/PL3/PL5/COMMON delete behavior is not comprehensively specified | Decide per relationship/table; do not extrapolate PL4 ADR-011 | TBD – APPROVAL |
+| CM-04 | data_exports.requested_by_user_id has FK; actor retention must align with global delete policy | Preserve the FK; disable User rather than hard-delete in normal operations; exceptional erasure requires separately approved audited anonymization | APPROVED – ADR-014 |
+| CM-05 | PL1/PL2/PL3/PL5/COMMON delete behavior was unspecified | Apply ON DELETE RESTRICT to every actual FK across CORE, PL1–PL5 and COMMON | APPROVED – ADR-014 |
 | CM-06 | entity_evidence_links.linked_by_user_id and other actor FKs need complete optional relationship notation in ERD | Ensure ERD shows actor relationships and nullability | ALIGNMENT REQUIRED |
 | CM-07 | scheduled_job_runs and integration_events are described in Data Dictionary but ERD physical does not fully detail them | Add/confirm operational entities and indexes | ALIGNMENT REQUIRED |
-| CM-08 | ON UPDATE behavior is not systematically specified | Decide explicitly or document immutable-key policy before DDL | TBD – APPROVAL |
+| CM-08 | ON UPDATE behavior is not systematically specified | Keep separate from ADR-014; decide/document immutable-key policy before DDL | TBD – APPROVAL |
 | CM-09 | PL5 Verification-to-Execution Event relationship | Resolved by ADR-013; no additional Assignment FK | APPROVED |
 | CM-10 | PL3 Escalation Event to Email Queue cardinality/retry semantics | Resolved by ADR-002/008: one logical queue item per Event; retries reuse it | APPROVED |
 | CM-11 | PL1 idempotency source response column | Resolved by ADR-012: use idempotency_keys, no source_response_id | APPROVED |
@@ -247,8 +247,8 @@ The supertype FK proves that a registry row exists. It does not prove that every
 
 1. PL3 created_by_user_id: required authenticated Admin or nullable for system/import?
 2. COMMON data_exports.requested_by_user_id: retain User FK and prevent hard deletion, or introduce actor snapshot policy?
-3. ON DELETE policy for PL1, PL2, PL3, PL5 and COMMON, decided by data lifecycle and retention class.
-4. ON UPDATE policy for all FK relationships (IDs should generally be immutable, but this must be documented as a design rule).
+3. Confirm ADR-014 ON DELETE RESTRICT is reflected on every actual FK in Data Dictionary and physical ERD; define child-first retention purge dependencies.
+4. ON UPDATE policy for all FK relationships remains unresolved; decide/document immutable-key policy before DDL.
 5. Retention/archive/privacy for Audit, Evidence, IP and User-Agent.
 6. Confirm explicit NOT NULL for pl3_integration_outbox.inspection_result_id.
 7. Complete ERD physical representation for actor FKs, integration_events and scheduled_job_runs.
@@ -257,7 +257,7 @@ The supertype FK proves that a registry row exists. It does not prove that every
 
 Do not begin Migration until:
 - Every FK in the Data Dictionary has a matching ERD relationship or an explicit explanation why it is metadata/non-FK.
-- Every FK column has explicit NULL/NOT NULL, referenced key, supporting index, ON DELETE and ON UPDATE behavior.
+- Every FK column has explicit NULL/NOT NULL, referenced key, supporting index, ON DELETE RESTRICT per ADR-014, and separately approved ON UPDATE behavior.
 - Every Composite FK has a matching parent UNIQUE key with same column order and compatible data types.
 - All UNIQUE rules involving nullable columns are checked against MySQL 8.0 semantics.
 - History/security/audit retention decisions are approved.
