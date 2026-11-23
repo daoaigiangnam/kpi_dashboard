@@ -1253,3 +1253,13 @@ Bổ sung 9 bảng: pl4_sla_calendars, pl4_sla_calendar_versions, pl4_sla_calend
 - Một Issue tối đa một Cycle RUNNING: generated `active_issue_id` STORED UNIQUE + transaction/row lock. UNIQUE `(work_report_id, cycle_type)`; không UNIQUE `(assignment_id, cycle_type)`.
 - Kết thúc Cycle phải tính elapsed ngay theo Calendar snapshot để xác định MET/BREACHED/STOPPED; Worker không được là điều kiện duy nhất quyết định kết quả terminal.
 - Calendar Exception: nhiều SPECIAL_WORKING intervals/ngày, không chồng lấn. Đề xuất chờ xác nhận: HOLIDAY/CLOSED đóng cả ngày, loại trừ SPECIAL_WORKING; Exception thay thế lịch tuần.
+
+
+### 18.13. Assignment Claim Token – quyết định đã chốt
+
+- Dùng bảng riêng `pl4_assignment_claim_tokens`; không dùng token table PL1/PL2.
+- Email Queue lưu `assignment_id`/event reference, tuyệt đối không lưu raw token hoặc Claim URL chứa token.
+- Email Worker kiểm tra Assignment còn `ASSIGNED`, tạo token ngẫu nhiên mật mã, lưu hash SHA-256 cùng expiry vào DB và commit trước khi gửi SMTP. Worker dựng URL Claim trong bộ nhớ.
+- Mỗi lần gửi/retry có thể phát hành token mới; token hợp lệ đến expiry hoặc khi Assignment kết thúc/được claim. Claim thành công thu hồi tất cả token còn hiệu lực của Assignment.
+- SMTP từ chối chắc chắn: thu hồi token attempt đó. Kết quả SMTP không xác định: giữ token đến expiry để không làm hỏng link có thể đã được giao.
+- Raw token không được ghi vào DB, Queue, Attempt, Audit hoặc error log.
