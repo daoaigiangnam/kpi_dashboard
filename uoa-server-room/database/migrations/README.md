@@ -4,7 +4,7 @@
 
 - Migration runner: `database/migrate.php`
 - Migration files: `database/migrations/*.sql`
-- Current files: `001_create_core_entities.sql`, `002_create_core_relationships.sql`, `003_create_business_entity_registry.sql`, `004_create_common_services.sql`, `005_create_pl1_access_roots.sql`, `006_create_pl1_history_and_tokens.sql`
+- Current files: `001_create_core_entities.sql`, `002_create_core_relationships.sql`, `003_create_business_entity_registry.sql`, `004_create_common_services.sql`, `005_create_pl1_access_roots.sql`, `006_create_pl1_history_and_tokens.sql`, `007_create_pl2_visit_root.sql`, `008_create_pl2_workflow_children.sql`
 - Database target: MySQL 8.0.16+ (enforced CHECK constraints), InnoDB, utf8mb4
 - Timestamp storage: UTC
 - Global FK policy: `ON DELETE RESTRICT` (ADR-014) + `ON UPDATE RESTRICT` (ADR-015)
@@ -48,8 +48,10 @@ It deliberately does not seed a default administrator or password. User credenti
 - 004: Shared Email Queue/Attempts, System Audit Logs, Evidence, Idempotency, Integration Events, Scheduler Runs and Data Exports.
 - 005: PL1 Access Requests and Access Records, linked to Business Entity and Room.
 - 006: PL1 Approval Decisions, Access Record History and hashed Action Tokens.
+- 007: PL2 Visit root, with approval and check-in/check-out state snapshots.
+- 008: PL2 Approval History, scoped Action Tokens, OTP Challenges/Attempts and Visit Events.
 
-The SQL uses enforced CHECK constraints and therefore requires MySQL 8.0.16 or later. Every declared FK in these migrations explicitly uses `ON DELETE RESTRICT ON UPDATE RESTRICT` per ADR-014/015. The migrations have been committed but are not yet executed or validated against a live MySQL database.
+The SQL uses enforced CHECK constraints and therefore requires MySQL 8.0.16 or later. Every declared FK in these migrations explicitly uses `ON DELETE RESTRICT ON UPDATE RESTRICT` per ADR-014/015. PL2 persists the approved 12-hour reminder / 24-hour expiry deadline as `approval_deadline_at`; the scheduler and email behavior will be implemented in application services separately. OTP expiry is intentionally NULL until the OTP email send succeeds. The migrations have been committed but are not yet executed or validated against a live MySQL database.
 
 ## Important
 
