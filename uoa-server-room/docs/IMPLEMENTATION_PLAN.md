@@ -122,3 +122,16 @@ Các hạng mục trên mới ở trạng thái thiết kế đã phê duyệt t
 - [ ] Sau khi được chủ nghiệp vụ cho phép mới bắt đầu viết Migration; hiện chưa tạo Migration/PHP.
 
 **Lưu ý triển khai MySQL:** DDL có thể gây implicit commit; không giả định toàn bộ chuỗi Migration có thể rollback nguyên tử bằng transaction. Phải backup, triển khai theo đợt nhỏ, kiểm tra sau từng đợt và ưu tiên migration sửa tiếp (forward-fix) thay vì DROP dữ liệu khi có lỗi.
+
+
+## Tiến độ code – 23/11/2026
+
+ĐÃ TẠO CODE KHỞI ĐẦU (chưa chạy trên Database):
+- `database/migrate.php`: CLI migration runner, migration lock, checksum, phát hiện bảng legacy chưa được quản lý và hướng dẫn forward-fix khi DDL lỗi.
+- `database/migrations/001_create_core_entities.sql`: Users, Roles, Permissions, Server Rooms.
+- `database/migrations/002_create_core_relationships.sql`: User Roles, Role Permissions, Room Contacts.
+- `database/migrations/003_create_business_entity_registry.sql`: Business Entity registry.
+- `database/migrations/004_create_common_services.sql`: Email Queue/Attempts, System Audit Logs, Evidence, Idempotency, Integration Events, Scheduler Runs, Data Exports.
+- `database/verify.php`: kiểm tra migration checksum, bảng nền tảng và chính sách ON DELETE/ON UPDATE của các FK.
+
+**Trạng thái thực tế:** Đã commit code lên GitHub; chưa chạy Migration, chưa chạy verify trên MySQL, chưa xác nhận schema production. Migration runner cố ý dừng nếu phát hiện bảng legacy chưa có migration record để tránh tự nhận nhầm schema cũ. Bước kế tiếp là kiểm tra PHP syntax/Composer và đối chiếu schema target trước khi thực thi trên một database development sạch.
