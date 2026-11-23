@@ -146,3 +146,15 @@ Các hạng mục trên mới ở trạng thái thiết kế đã phê duyệt t
 - `.github/workflows/uoa-php-check.yml`: CI kiểm tra Composer manifest và PHP syntax trên PHP 8.2.
 
 **Tổng tiến độ code đã tạo:** migration runner + 6 migration files (CORE, Business Entity, COMMON, PL1) + schema verifier + CI workflow. Đây là code đã commit, không phải kết quả Migration đã chạy. Chưa chạy trên DB vì chưa xác minh database đích có sạch hay đang chứa schema legacy; runner sẽ chủ động chặn nếu bảng đã tồn tại nhưng chưa được migration quản lý.
+
+
+### Bổ sung code PL2 – 23/11/2026
+
+ĐÃ TẠO FILE CODE (chưa chạy trên Database):
+- `database/migrations/007_create_pl2_visit_root.sql`: Visit root, trạng thái phê duyệt và vòng đời NOT_CHECKED_IN → OPEN → CLOSED, các mốc CHECK-IN/CHECK-OUT.
+- `database/migrations/008_create_pl2_workflow_children.sql`: Approval History, Action Tokens theo đúng Visit/Purpose, OTP Challenges/Attempts và Visit Events.
+- `database/verify.php`: bổ sung xác minh Migration 007–008 và sáu bảng PL2.
+
+Đã thể hiện trong schema các điểm nghiệp vụ PL2: Approval Deadline; EXPIRED; token riêng APPROVAL/CHECKIN/CHECKOUT; OTP 6 chữ số chỉ kích hoạt hạn sau khi email gửi thành công (expires_at cho phép NULL trước thời điểm đó); tối đa 5 lần nhập sai; không lưu OTP rõ.
+
+**Chưa triển khai trong batch này:** Controller/Form, token issuance/verification, OTP generation/email worker, scheduler nhắc 12 giờ và hết hạn 24 giờ, upload ảnh CHECK-OUT và Audit/Email transaction services. Đây là phần PHP nghiệp vụ tiếp theo sau khi hoàn thiện nền schema và test.
