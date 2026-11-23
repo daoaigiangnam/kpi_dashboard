@@ -1,5 +1,5 @@
 # ERD VẬT LÝ – SƠ ĐỒ QUAN HỆ PL1–PL5
-**Phiên bản:** 0.5 – Đã đồng bộ các quyết định ADR-001 đến ADR-012 có liên quan; dự thảo trực quan hóa từ ERD logic và Data Dictionary  
+**Phiên bản:** 0.6 – Đã đồng bộ các quyết định ADR-001 đến ADR-013 có liên quan; dự thảo trực quan hóa từ ERD logic và Data Dictionary  
 **Ngày rà soát:** 23/11/2026  
 **Nhánh:** `feature/ITSMWEB`  
 **CSDL mục tiêu:** MySQL 8.0 / InnoDB  
