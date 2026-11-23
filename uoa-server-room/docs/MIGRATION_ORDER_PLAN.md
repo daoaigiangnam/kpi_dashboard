@@ -3,7 +3,7 @@
 **Nhánh:** feature/ITSMWEB  
 **CSDL mục tiêu:** MySQL 8.0+, InnoDB, utf8mb4  
 **Trạng thái:** DESIGN ONLY – chưa phải Migration/DDL triển khai  
-**Căn cứ:** ERD_PHYSICAL.md, DATA_DICTIONARY.md, IMPLEMENTATION_PLAN.md, ADR-001 đến ADR-011.
+**Căn cứ:** ERD_PHYSICAL.md, DATA_DICTIONARY.md, IMPLEMENTATION_PLAN.md, ADR-001 đến ADR-015.
 
 ## 1. Nguyên tắc sắp xếp
 
@@ -14,7 +14,7 @@
 5. PL4 Issue phải có trước Assignment/Manual Submission/Work Report; Assignment và Work Report phải có trước Claim Token và các liên kết SLA tương ứng.
 6. SLA Calendar/Policy/Version/Rule phải có trước Issue SLA Instance; SLA Instance, Assignment và Work Report phải có trước SLA Cycle.
 7. Tạo UNIQUE key hỗ trợ trước khi tạo Composite FK theo ADR-011.
-8. Các FK lịch sử PL4 dùng ON DELETE RESTRICT; không dùng CASCADE DELETE.
+8. Mọi FK CORE, PL1–PL5 và COMMON dùng ON DELETE RESTRICT + ON UPDATE RESTRICT theo ADR-014/015; không dùng CASCADE hoặc SET NULL.
 9. Đây là thứ tự phụ thuộc logic. Khi triển khai phải kiểm tra lại toàn bộ FK thực tế trong Data Dictionary và schema cuối cùng.
 
 ## 2. Thứ tự Migration theo đợt
@@ -88,9 +88,15 @@ MySQL DDL có thể gây implicit commit; không giả định chuỗi Migration
 - Chốt các câu hỏi còn mở trong WORKFLOW_SPECIFICATION và Data Dictionary; không tự suy diễn những điểm đang CHỜ CHỐT.
 - Chốt chính sách retention/archival cho Audit, Evidence, Token, Email Queue và dữ liệu nghiệp vụ.
 - Chốt seed data và quy tắc cập nhật danh mục.
-- Chuẩn hóa DDL cuối cùng: tên constraint, kiểu dữ liệu hai đầu FK, NULL, UNIQUE, CHECK, index, ON DELETE.
+- Chuẩn hóa DDL cuối cùng: tên constraint, kiểu dữ liệu hai đầu FK, NULL, UNIQUE, CHECK, index, ON DELETE và ON UPDATE.
 - Có xác nhận riêng của chủ nghiệp vụ trước khi bắt đầu viết Migration/PHP.
 
 ## 7. Trạng thái
 
 Đây là kế hoạch thứ tự phụ thuộc ở mức thiết kế. Không tạo hoặc chạy Migration, không thay đổi Database, không viết PHP. Thứ tự cuối cùng phải được xác minh lại trên DDL đã chuẩn hóa trước khi triển khai.
+
+## 8. Code migration đã tạo
+
+Các file migration 001–006 đã được tạo trên nhánh `feature/ITSMWEB`: CORE entities, CORE relationships, Business Entity registry, COMMON services, PL1 roots và PL1 history/tokens. Đây là implementation batch đầu tiên tương ứng các đợt 01–06 ở trên. Chưa chạy trên database. MySQL tối thiểu 8.0.16 để CHECK constraints được enforce.
+
+Migration runner kiểm tra bảng đích chưa tồn tại trước khi chạy; nếu phát hiện schema legacy, sẽ dừng để tránh nhận nhầm baseline. Cần kiểm kê database development trước khi chạy lệnh migrate.
