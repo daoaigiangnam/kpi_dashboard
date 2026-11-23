@@ -7,7 +7,7 @@
 **Scope:** CORE, PL1–PL5 and COMMON  
 **Sources:** DATA_DICTIONARY.md, ERD_PHYSICAL.md, ERD_DESIGN.md, ADR-001…ADR-014
 
-> This matrix records relationship and constraint requirements visible in the current design. It does not silently decide missing ON DELETE / ON UPDATE policies. A value marked TBD requires an explicit decision before Migration.
+> This matrix records relationship and constraint requirements visible in the current design. ON DELETE is approved globally as RESTRICT under ADR-014. ON UPDATE remains a separate open decision and must not be inferred.
 
 ## 1. Status and interpretation
 
