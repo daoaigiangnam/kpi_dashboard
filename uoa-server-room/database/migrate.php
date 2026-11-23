@@ -113,12 +113,14 @@ if (!in_array($command, ['status', 'migrate'], true)) {
 
 try {
     $pdo = Database::connection();
-    ensureMigrationTable($pdo);
     $directory = __DIR__ . '/migrations';
     $files = migrationFiles($directory);
-    $applied = appliedMigrations($pdo);
 
     if ($command === 'status') {
+        $exists = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'schema_migrations'"
+        )->fetchColumn();
+        $applied = (int) $exists === 1 ? appliedMigrations($pdo) : [];
         foreach ($files as $file) {
             $name = basename($file);
             $checksum = hash_file('sha256', $file);
@@ -132,9 +134,14 @@ try {
                 migrationLog("PENDING: {$name}");
             }
         }
+        if ((int) $exists !== 1) {
+            migrationLog('Migration repository chưa tồn tại; status không thay đổi Database.');
+        }
         exit(0);
     }
 
+    ensureMigrationTable($pdo);
+    $applied = appliedMigrations($pdo);
     $lock = $pdo->query("SELECT GET_LOCK('uoa_schema_migrations', 30)")->fetchColumn();
     if ((int) $lock !== 1) {
         throw new RuntimeException('Không lấy được migration lock trong 30 giây.');
