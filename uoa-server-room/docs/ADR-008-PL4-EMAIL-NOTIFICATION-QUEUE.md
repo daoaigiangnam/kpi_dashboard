@@ -20,7 +20,10 @@ PHP mục tiêu dùng chung MySQL và Email Queue Worker cho PL1–PL5. Cần th
 1. Tất cả email nghiệp vụ PL4 phải được tạo thành bản ghi trong bảng dùng chung `email_queue`; không gọi SMTP/Mail API trực tiếp từ Controller, Workflow Service hoặc trong transaction nghiệp vụ.
 2. Mỗi email recipient là một queue item độc lập. Không gộp Reporter và UOA Approver vào một email nhiều người nhận khi họ có vai trò/thông tin cần nhận khác nhau.
 3. Email Queue sử dụng `event_key` ổn định và UNIQUE để chống enqueue trùng. Key phải xác định được Issue, business event, đối tượng nhận và phiên bản/lần phát sinh hợp lệ của event.
-4. Queue item lưu module/event type, Business Entity, người nhận, subject/body, trạng thái, số lần thử và metadata cần thiết. Không lưu SMTP credential, secret, raw OTP hoặc raw action token.
+4. Queue item lưu module/event type, Business Entity, người nhận, subject/body template và metadata cần thiết. Với email Assignment, chỉ lưu `assignment_id`/event reference; không lưu raw action token hoặc URL Claim chứa token. Không lưu SMTP credential, secret hoặc raw OTP.
+5. Khi Worker gửi email Assignment, Worker tạo token ngẫu nhiên mật mã và lưu hash vào `pl4_assignment_claim_tokens` cùng Assignment, expiry; commit token record trước khi gọi SMTP. Worker dựng Claim URL trong bộ nhớ, render email và gửi. Raw token không được ghi DB, Queue, Attempt, Audit hoặc error log.
+6. Mỗi lần gửi/retry có thể phát hành token mới. Token còn hiệu lực đến expiry hoặc khi Assignment kết thúc/được claim. Khi Claim thành công, thu hồi mọi token còn hiệu lực của Assignment. Nếu SMTP từ chối chắc chắn trước khi nhận email, thu hồi token của attempt đó; nếu kết quả gửi không xác định, giữ token đến expiry để tránh link trong email đã được nhận bị vô hiệu hóa.
+7. Worker chỉ được tạo token cho Assignment còn `ASSIGNED`, đúng Issue và recipient; nếu Assignment không còn hiệu lực thì không phát hành token, ghi Audit/queue outcome phù hợp và không gửi link Claim.
 5. Email Worker gửi sau Commit. Lỗi gửi email không rollback hoặc đảo ngược Issue, Assignment, Work Report hay UOA Confirmation đã commit.
 
 ### D2 – Người nhận và sự kiện thông báo PL4
