@@ -1,0 +1,36 @@
+name: UOA PHP Checks
+
+on:
+  push:
+    branches:
+      - feature/ITSMWEB
+    paths:
+      - "uoa-server-room/**"
+      - ".github/workflows/uoa-php-check.yml"
+  pull_request:
+    branches:
+      - feature/ITSMWEB
+    paths:
+      - "uoa-server-room/**"
+      - ".github/workflows/uoa-php-check.yml"
+
+jobs:
+  php-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: uoa-server-room
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, pdo_mysql, openssl
+          coverage: none
+      - name: Validate Composer manifest
+        run: composer validate --no-check-publish
+      - name: PHP syntax check
+        run: |
+          find . -type f -name "*.php" -not -path "./vendor/*" -print0 | xargs -0 -n1 php -l
