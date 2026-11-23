@@ -4,8 +4,8 @@
 
 - Migration runner: `database/migrate.php`
 - Migration files: `database/migrations/*.sql`
-- Current files: `001_create_core_entities.sql`, `002_create_core_relationships.sql`, `003_create_business_entity_registry.sql`, `004_create_common_services.sql`
-- Database target: MySQL 8.0+, InnoDB, utf8mb4
+- Current files: `001_create_core_entities.sql`, `002_create_core_relationships.sql`, `003_create_business_entity_registry.sql`, `004_create_common_services.sql`, `005_create_pl1_access_roots.sql`, `006_create_pl1_history_and_tokens.sql`
+- Database target: MySQL 8.0.16+ (enforced CHECK constraints), InnoDB, utf8mb4
 - Timestamp storage: UTC
 - Global FK policy: `ON DELETE RESTRICT` (ADR-014) + `ON UPDATE RESTRICT` (ADR-015)
 
@@ -46,8 +46,10 @@ It deliberately does not seed a default administrator or password. User credenti
 - 002: User Roles, Role Permissions, Room Contacts.
 - 003: Business Entity registry.
 - 004: Shared Email Queue/Attempts, System Audit Logs, Evidence, Idempotency, Integration Events, Scheduler Runs and Data Exports.
+- 005: PL1 Access Requests and Access Records, linked to Business Entity and Room.
+- 006: PL1 Approval Decisions, Access Record History and hashed Action Tokens.
 
-Every declared FK in these migrations explicitly uses `ON DELETE RESTRICT ON UPDATE RESTRICT` per ADR-014/015. The migrations have been committed but are not yet executed or validated against a live MySQL database.
+The SQL uses enforced CHECK constraints and therefore requires MySQL 8.0.16 or later. Every declared FK in these migrations explicitly uses `ON DELETE RESTRICT ON UPDATE RESTRICT` per ADR-014/015. The migrations have been committed but are not yet executed or validated against a live MySQL database.
 
 ## Important
 
