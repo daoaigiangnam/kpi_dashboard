@@ -11,16 +11,16 @@ declare(strict_types=1);
  * MySQL DDL may implicitly commit. Each migration is therefore a small,
  * independently tracked unit. Never edit a migration after it has run.
  */
+use App\Core\Database;
+use PDO;
+use RuntimeException;
+use Throwable;
+
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 $root = dirname(__DIR__);
 $dotenv = Dotenv\Dotenv::createImmutable($root);
 $dotenv->safeLoad();
-
-use App\Core\Database;
-use PDO;
-use RuntimeException;
-use Throwable;
 
 function migrationLog(string $message): void
 {
