@@ -22,10 +22,6 @@ Data Dictionary quy định `pl4_work_reports.assignment_id NOT NULL`, phù hợ
 
 ## 3. Các điểm chưa thống nhất / cần quyết định
 
-### 2.3 PL5 – Work Verification và Assignment/Executor
-
-Hiện `pl5_work_verifications` tham chiếu Work Request và lưu snapshot verifier, không tham chiếu Assignment. Nguồn hiện tại chưa đủ để kết luận Verification bắt buộc phải gắn Assignment cụ thể. Không tự thêm FK hoặc thay đổi nghiệp vụ. Cần quyết định liệu người xác minh độc lập (UOA) chỉ cần liên kết Work Request hay cần lưu Assignment/Execution Event được xác minh.
-
 ### 2.4 PL4 ERD – Phần mở rộng chưa nằm trong sơ đồ lõi
 
 ERD_PHYSICAL có các phụ lục PL4-R08 và ADR-011, trong khi sơ đồ ERD lõi ở §6 chưa liệt kê Claim Token và các bảng SLA. Cấu trúc đã có ở các phụ lục; trước Migration nên hợp nhất thành sơ đồ PL4 đầy đủ hoặc giữ rõ ràng đây là addendum. Không có thay đổi nghiệp vụ mới ở điểm này.
@@ -89,3 +85,8 @@ ADR-011 chỉ áp dụng chính sách RESTRICT đã duyệt cho PL4. Không tự
 4. COMMON `data_exports.requested_by_user_id`: giữ FK RESTRICT bằng cách không hard-delete User, hay bổ sung actor snapshot để giữ lịch sử khi User bị xóa?
 5. Chốt delete policy theo từng bảng PL1/PL2/PL3/PL5/COMMON; ADR-011 chỉ áp dụng PL4.
 6. Chốt retention, archive và privacy cho Audit/Evidence/IP/User-Agent trước production.
+
+
+### PL5 – Work Verification / Execution Event (ADR-013)
+
+ĐÃ PHÊ DUYỆT: `pl5_work_verifications.execution_event_id` NOT NULL; Composite FK `(execution_event_id, work_request_id)` → `pl5_work_execution_events(id, work_request_id)`. Execution Event có UNIQUE `(id, work_request_id)`. Service xác thực Event Code `SUBMIT_RESULT`. Không đặt UNIQUE `execution_event_id`; không thêm FK trực tiếp đến Assignment. Câu hỏi liên kết Verification đã được giải quyết.
