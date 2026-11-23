@@ -104,3 +104,10 @@ Các hạng mục trên mới ở trạng thái thiết kế đã phê duyệt t
 - [ ] Enforce UNIQUE `(work_report_id, cycle_type)`; tuyệt đối không UNIQUE `(assignment_id, cycle_type)` cho Assignee Resolution.
 - [ ] Kiểm thử SLA Instance ACTIVE/NOT_CONFIGURED/COMPLETED, terminal Cycle MET/BREACHED/STOPPED, Worker trễ hoặc chạy đồng thời.
 - [ ] Kiểm thử Calendar Exception nhiều khoảng giờ/ngày, overlap và precedence HOLIDAY/CLOSED.
+
+
+### Bổ sung Assignment Claim Token
+- [ ] Tạo bảng `pl4_assignment_claim_tokens` với hash SHA-256 UNIQUE, Assignment FK, expiry, used_at, revoked_at.
+- [ ] Email Queue chỉ lưu Assignment/event reference; không lưu raw token hoặc URL Claim có token.
+- [ ] Email Worker phát hành token, lưu hash và commit trước SMTP; dựng Claim URL trong bộ nhớ, không log raw token.
+- [ ] Khi Claim thành công, thu hồi toàn bộ token còn hiệu lực của Assignment; kiểm thử expiry, revoke, retry và SMTP outcome không xác định.
