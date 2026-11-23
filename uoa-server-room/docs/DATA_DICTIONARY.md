@@ -120,12 +120,12 @@ INDEX `(room_id, contact_type, is_active)`. Cần bảo đảm chỉ có một p
 | approver_name_snapshot | VARCHAR(160) | NO | Người duyệt tại thời điểm gửi |
 | approver_email_snapshot | VARCHAR(190) | NO | Email người duyệt tại thời điểm gửi |
 | approval_status | VARCHAR(30) | NO | PENDING / APPROVED / REJECTED / EXPIRED / CANCELLED nếu policy cho phép |
-| source_response_id | VARCHAR(190) | YES | UNIQUE theo nguồn Form; nullable |
+
 | submitted_at | DATETIME(3) | NO | Thời điểm gửi |
 | decided_at | DATETIME(3) | YES | Thời điểm quyết định |
 | created_at, updated_at | DATETIME(3) | NO | UTC |
 
-INDEX `(room_id, person_email, approval_status)`, `(approval_status, submitted_at)`. Không đặt UNIQUE trực tiếp trên `source_response_id` nếu cần nhiều nguồn; dùng unique theo source_system + response_id trong idempotency_keys.
+INDEX `(room_id, person_email, approval_status)`, `(approval_status, submitted_at)`. Theo ADR-012, không lưu `source_response_id` trên Access Request; chống gửi Form/API trùng bằng `idempotency_keys` với UNIQUE `(scope, idempotency_key)` và `request_hash`.
 
 ### 3.2 `pl1_approval_decisions`
 
@@ -323,11 +323,11 @@ Với Work Report, hai email Reporter/UOA được enqueue cùng transaction v�
 
 ### 7.6 `pl5_work_assignments`
 
-`id PK, work_request_id FK, executor_name_snapshot, executor_email_snapshot, assigned_by_user_id NULL, assigned_at, started_at NULL, ended_at NULL, status, created_at`.
+`id PK, work_request_id FK, executor_name_snapshot, executor_email_snapshot, assigned_by_user_id NULL, assigned_at, started_at NULL, ended_at NULL, status, created_at`. Bổ sung UNIQUE `(id, work_request_id)` làm đích Composite FK cho Execution Event theo ADR-012.
 
 ### 7.7 `pl5_work_execution_events`
 
-`id PK, work_request_id FK, assignment_id FK NULL, event_code (START/HOLD/RESUME/SUBMIT_RESULT), actor_type, actor_name_snapshot, actor_email_snapshot NULL, note/reason TEXT NULL, result TEXT NULL, occurred_at, created_at`. Append-only.
+`id PK, work_request_id FK NOT NULL, assignment_id FK NULL, event_code (START/HOLD/RESUME/SUBMIT_RESULT), actor_type, actor_name_snapshot, actor_email_snapshot NULL, note/reason TEXT NULL, result TEXT NULL, occurred_at, created_at`. Append-only. Theo ADR-012, nếu `assignment_id` khác NULL thì Composite FK `(assignment_id, work_request_id)` phải tham chiếu đúng Assignment thuộc cùng Work Request. Khi `assignment_id` NULL, Service xác thực Event Code/actor/lifecycle có cho phép Event không gắn Assignment.
 
 ### 7.8 `pl5_work_verifications`
 
@@ -611,3 +611,14 @@ Không hard-delete hồ sơ/dòng lịch sử đã phát sinh liên kết. Kết
 ### 13.5 Phạm vi áp dụng
 
 ADR-011 bổ sung lớp toàn vẹn vật lý, không thay đổi state machine PL4, quy trình Assignment/Claim, idempotency, SLA hoặc Email Queue đã phê duyệt. Các ràng buộc này là thiết kế; chưa tạo DDL/Migration/PHP.
+
+
+## 14. PL5 – Composite Referential Integrity (ADR-012)
+
+- `pl5_work_assignments`: UNIQUE `(id, work_request_id)`.
+- `pl5_work_execution_events(assignment_id, work_request_id)` → `pl5_work_assignments(id, work_request_id)`.
+- `assignment_id` nullable; khi NULL, không có quan hệ Assignment để FK kiểm tra. Workflow Service phải xác thực loại Event và lifecycle cho phép NULL.
+- Giữ FK đơn `work_request_id` → `pl5_work_requests(id)`.
+- ADR-012 không chốt ON DELETE cho toàn bộ PL5; cần hoàn thiện delete policy trong constraint matrix trước Migration.
+
+Đây là thiết kế vật lý, chưa phải DDL/Migration.
