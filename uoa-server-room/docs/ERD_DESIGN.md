@@ -276,3 +276,8 @@ Dashboard/Reports gồm R08-01 đến R08-08; ba nhóm Response, Assignee Resolu
 - ISSUE PL3 vẫn khởi tạo OPEN/chưa có Assignee; Assignment Response chỉ bắt đầu khi Assignment được tạo.
 - Một Cycle RUNNING trên mỗi Issue được bảo vệ bằng generated column `active_issue_id` STORED UNIQUE và transaction/row lock. UNIQUE `(work_report_id, cycle_type)` cho các Cycle gắn Work Report; không UNIQUE `(assignment_id, cycle_type)`.
 - SLA Instance ACTIVE chuyển COMPLETED khi Issue CLOSED; NOT_CONFIGURED giữ nguyên NOT_CONFIGURED. Khi kết thúc Cycle, kiểm tra elapsed ngay để phân loại MET/BREACHED/STOPPED chính xác, không phụ thuộc thời điểm Worker chạy.
+
+
+### 2.5.2. Assignment Claim Token
+
+Bổ sung thực thể `pl4_assignment_claim_tokens`, quan hệ 1-N từ `pl4_assignments`. Mỗi token gắn một Assignment cụ thể, lưu SHA-256 hash UNIQUE và thời hạn/used/revoked timestamps. Email Queue không chứa raw token; Worker phát hành token và dựng Claim URL trong bộ nhớ khi gửi email Assignment. Chi tiết schema tại `DATA_DICTIONARY.md` và quy tắc tại ADR-006/008.
