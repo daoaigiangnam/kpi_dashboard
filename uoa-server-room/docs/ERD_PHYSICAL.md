@@ -543,6 +543,7 @@ erDiagram
     PL5_WORK_REQUESTS ||--o{ PL5_WORK_ASSIGNMENTS : assigned
     PL5_WORK_REQUESTS ||--o{ PL5_WORK_EXECUTION_EVENTS : executed
     PL5_WORK_ASSIGNMENTS o|--o{ PL5_WORK_EXECUTION_EVENTS : context
+    PL5_WORK_EXECUTION_EVENTS ||--o{ PL5_WORK_VERIFICATIONS : verifies_submission
     PL5_WORK_REQUESTS ||--o{ PL5_WORK_VERIFICATIONS : verified
 
     PL5_WORK_CATALOG_CATEGORIES {
@@ -592,11 +593,13 @@ erDiagram
       bigint work_request_id FK
       bigint assignment_id FK
       varchar event_code
+      UNIQUE id, work_request_id
       datetime occurred_at
     }
     PL5_WORK_VERIFICATIONS {
       bigint id PK
       bigint work_request_id FK
+      bigint execution_event_id FK
       varchar decision
       datetime verified_at
     }
@@ -835,3 +838,13 @@ Trong ERD PL4 tổng quan, quan hệ `PL4_ASSIGNMENTS ||--o{ PL4_WORK_REPORTS` l
 - Delete policy PL5 chưa được ADR-012 quyết định; không tự suy rộng ADR-011 của PL4.
 
 **PL1 Idempotency (ADR-012):** `pl1_access_requests` không có `source_response_id`; Form/API retry được kiểm soát bằng `idempotency_keys` UNIQUE `(scope, idempotency_key)` và `request_hash`.
+
+
+## 16. PL5 – Work Verification tham chiếu Execution Event (ADR-013)
+
+- `PL5_WORK_EXECUTION_EVENTS` có UNIQUE `(id, work_request_id)`.
+- `PL5_WORK_VERIFICATIONS.execution_event_id` là NOT NULL.
+- Composite FK `(execution_event_id, work_request_id)` tham chiếu `(id, work_request_id)` của `PL5_WORK_EXECUTION_EVENTS`.
+- Quan hệ bảo đảm mỗi Verification chỉ xác minh một Execution Event thuộc đúng Work Request; Workflow Service xác thực Event Code là `SUBMIT_RESULT`.
+- Không đặt UNIQUE `execution_event_id`; không thêm FK trực tiếp từ Verification đến Assignment.
+- Delete policy PL5 vẫn chờ chuẩn hóa riêng.
