@@ -100,3 +100,12 @@ MySQL DDL có thể gây implicit commit; không giả định chuỗi Migration
 Các file migration 001–006 đã được tạo trên nhánh `feature/ITSMWEB`: CORE entities, CORE relationships, Business Entity registry, COMMON services, PL1 roots và PL1 history/tokens. Đây là implementation batch đầu tiên tương ứng các đợt 01–06 ở trên. Chưa chạy trên database. MySQL tối thiểu 8.0.16 để CHECK constraints được enforce.
 
 Migration runner kiểm tra bảng đích chưa tồn tại trước khi chạy; nếu phát hiện schema legacy, sẽ dừng để tránh nhận nhầm baseline. Cần kiểm kê database development trước khi chạy lệnh migrate.
+
+
+## 9. Code batch PL2
+
+Đã tạo:
+- `007_create_pl2_visit_root.sql` – PL2 root Visit.
+- `008_create_pl2_workflow_children.sql` – Approval History, Action Tokens, OTP Challenges/Attempts, Visit Events.
+
+Đã cập nhật `database/verify.php` để xác minh PL2. Chưa chạy trên Database. Scheduler nhắc 12 giờ / EXPIRED 24 giờ và xử lý OTP/email là tầng PHP Worker/Service, không nằm trong DDL.
