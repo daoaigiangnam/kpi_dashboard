@@ -786,3 +786,8 @@ Nhiều `SPECIAL_WORKING` rows được phép cho một ngày; các khoảng gi�
 ### 13.6 Cycle terminal result
 
 Khi Cycle kết thúc, service tính elapsed theo Calendar Version snapshot ngay trong transaction: kết thúc đúng/trước hạn là MET; kết thúc sau hạn là BREACHED; Assignment bị dừng trước hạn là STOPPED/CANCELLED; nếu đã quá hạn tại thời điểm dừng thì BREACHED. BREACHED không chuyển ngược MET/STOPPED. SLA Worker vẫn đánh dấu các Cycle đang RUNNING đã quá hạn độc lập Dashboard.
+
+
+### 13.7 Assignment Claim Token
+
+Bổ sung `pl4_assignment_claim_tokens`, quan hệ `pl4_assignments 1 — N pl4_assignment_claim_tokens`. Bảng lưu `assignment_id`, `token_hash` SHA-256 UNIQUE, `expires_at`, `used_at`, `revoked_at`, `created_at`; không lưu raw token. Email Queue chỉ lưu Assignment/event reference. Worker phát hành token, lưu hash và commit trước SMTP; Claim URL chỉ được dựng tạm trong bộ nhớ gửi email. Khi Claim thành công, thu hồi các token còn hiệu lực của Assignment.
